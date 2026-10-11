@@ -81,7 +81,9 @@ class SessionViewModel internal constructor(
     /** Deletes the session shown. The page closes straight away, so on the app's scope. */
     fun delete() {
         val id = id ?: return
+        job?.cancel()
         this.id = null
+        page = SessionPage.Missing
         appScope.launch { history.delete(id) }
     }
 

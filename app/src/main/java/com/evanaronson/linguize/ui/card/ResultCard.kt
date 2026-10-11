@@ -12,25 +12,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.CheckFailure.Reason
+import com.evanaronson.linguize.ui.text.hintResource
+import com.evanaronson.linguize.ui.text.languageDisplayName
+import com.evanaronson.linguize.ui.text.localizedText
+import com.evanaronson.linguize.ui.text.titleResource
 
 /** The check result: loading, what was found, or why it failed. */
 @Composable
@@ -58,21 +64,21 @@ fun ResultCard(
             ) {
                 when (state) {
                     is CardState.Loading -> Loading(state.text)
-                    is CardState.Failed -> Failure(state.reason, state.detail, actions)
+                    is CardState.Failed -> Failure(state.reason, state.userMessage, state.detail, actions)
                     is CardState.Done -> when (val result = state.result) {
                         is CheckResult.Reviewed -> ReviewContent(result, state.settled, actions)
                         CheckResult.Unclear ->
                             Outcome(
                                 Mark.Unsure,
-                                "The AI couldn't tell what this means",
-                                "Check a full sentence in Catalan or Spanish",
+                                stringResource(R.string.ai_could_not_understand),
+                                stringResource(R.string.check_full_sentence),
                             )
                         is CheckResult.WrongLanguage ->
                             Outcome(
                                 Mark.Unsure,
-                                "This isn't ${result.expected}",
-                                result.found?.let { "It looks like $it. Choose Linguize to detect the language." }
-                                    ?: "Choose Linguize to detect the language.",
+                                stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
+                                result.found?.let { stringResource(R.string.wrong_language_detected, languageDisplayName(it)) }
+                                    ?: stringResource(R.string.choose_auto_language),
                             )
                     }
                 }
@@ -82,13 +88,13 @@ fun ResultCard(
                     Spacer(Modifier.height(12.dp))
                     Row(
                         Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
-                            .clickable(onClickLabel = "Open settings", onClick = openSettings)
+                            .clickable(onClickLabel = stringResource(R.string.open_settings), onClick = openSettings)
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(painterResource(R.drawable.ic_settings), contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Settings", Modifier.weight(1f).padding(start = 8.dp),
+                        Text(stringResource(R.string.settings), Modifier.weight(1f).padding(start = 8.dp),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("›", style = MaterialTheme.typography.titleMedium,
@@ -121,40 +127,18 @@ private fun Loading(text: String) {
         overflow = TextOverflow.Ellipsis,
     )
     Spacer(Modifier.height(14.dp))
-    LinearProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = "Checking" })
+    val checking = stringResource(R.string.checking)
+    LinearProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = checking })
 }
 
-/** What went wrong, in a few words. */
-val Reason.title: String
-    get() = when (this) {
-        Reason.NoKey -> "No API key"
-        Reason.BadKey -> "API key rejected"
-        Reason.BadModel -> "Model not available"
-        Reason.Offline -> "No connection"
-        Reason.Timeout -> "The AI took too long"
-        Reason.RateLimited -> "AI usage limit reached"
-        Reason.Server -> "AI service unavailable"
-        Reason.BadResponse -> "Unusable reply from the AI"
-        Reason.TooLong -> "Text too long"
-        Reason.TooMany -> "Too many checks in a minute"
-    }
-
-/** What to do about it, when there's something to say. */
-private val Reason.hint: String?
-    get() = when (this) {
-        Reason.NoKey -> "Add one in settings"
-        Reason.BadKey -> "Add a working key in settings"
-        Reason.BadModel -> "Pick another model in settings"
-        Reason.Offline -> "Connect to the internet, then retry"
-        Reason.RateLimited -> "Wait a minute, then retry"
-        Reason.TooLong -> "Select a shorter part, then check again"
-        Reason.TooMany -> "Wait a minute, then select the text again"
-        else -> null
-    }
-
 @Composable
-private fun Failure(reason: Reason, providerMessage: String?, actions: CardActions) {
-    Outcome(Mark.Problem, reason.title, reason.hint)
+private fun Failure(reason: Reason, userMessage: CheckFailure.Message?, providerMessage: String?, actions: CardActions) {
+    Outcome(Mark.Problem, stringResource(reason.titleResource), reason.hintResource?.let { stringResource(it) })
+    userMessage?.let { message ->
+        Spacer(Modifier.height(8.dp))
+        Text(message.localizedText(), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     if (providerMessage != null) {
         Spacer(Modifier.height(8.dp))
         Text(
@@ -168,9 +152,9 @@ private fun Failure(reason: Reason, providerMessage: String?, actions: CardActio
     Spacer(Modifier.height(12.dp))
     when (reason) {
         Reason.NoKey, Reason.BadKey, Reason.BadModel ->
-            actions.onOpenSettings?.let { FilledTonalButton(onClick = it) { Text("Open settings") } }
+            actions.onOpenSettings?.let { FilledTonalButton(onClick = it) { Text(stringResource(R.string.open_settings)) } }
         // Nothing to retry: a limited card never started a check.
         Reason.TooLong, Reason.TooMany -> Unit
-        else -> FilledTonalButton(onClick = actions.onRetry) { Text("Retry") }
+        else -> FilledTonalButton(onClick = actions.onRetry) { Text(stringResource(R.string.retry)) }
     }
 }

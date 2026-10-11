@@ -82,4 +82,22 @@ class SettingsTest {
     fun theNativeLanguageIsTheAppsOwn() {
         assertEquals("English", Settings(context).nativeLanguage)
     }
+
+    @Test
+    fun disablingHistoryRevokesOldSessionsAcrossSettingsInstances() {
+        val first = Settings(context)
+        val second = Settings(context)
+        assertEquals(0L, first.historyEpoch)
+
+        first.historyEnabled = false
+        assertFalse(second.historyEnabled)
+        assertEquals(1L, second.historyEpoch)
+        second.historyEnabled = false
+        assertEquals(1L, first.historyEpoch)
+
+        second.historyEnabled = true
+        assertEquals(1L, first.historyEpoch)
+        first.historyEnabled = false
+        assertEquals(2L, second.historyEpoch)
+    }
 }

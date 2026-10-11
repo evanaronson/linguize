@@ -15,6 +15,7 @@ import com.evanaronson.linguize.llm.GeminiClient
 import com.evanaronson.linguize.llm.OpenAIClient
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.data.Exports
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,11 +32,14 @@ class App : Application() {
     // Temporary S21 shortcut probe. Memory only, with no writing or attempt history.
     // Remove after the ChatGPT shortcut failure is diagnosed.
     internal var shortcutTestTaps by mutableStateOf(0)
-    internal var shortcutTestStage by mutableStateOf("No taps since this app started")
+    internal var shortcutTestStage by mutableStateOf("")
     internal var shortcutTestAvailable by mutableStateOf<Boolean?>(null)
 
     /** Every check and what came of it. Opens its database on first use, off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
+
+    /** One owner serializes exports from the app and popup settings. */
+    val exports by lazy { Exports(cacheDir) }
 
     /** This build's version name. */
     @Suppress("DEPRECATION") // The PackageInfoFlags overload needs API 33.
@@ -48,6 +52,7 @@ class App : Application() {
      */
     val historyEnvironment = object : HistoryEnvironment {
         override val enabled get() = settings.historyEnabled
+        override val recordingEpoch get() = settings.historyEpoch
         override val deviceId get() = settings.deviceId
         override val appVersion get() = this@App.appVersion
     }
@@ -83,6 +88,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        shortcutTestStage = getString(R.string.shortcut_stage_no_taps)
         // onCreate runs once per process, so this does too. A session open in the database
         // that this process didn't open was open when an earlier process ended.
         appScope.launch {

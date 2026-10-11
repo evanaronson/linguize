@@ -9,14 +9,14 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -28,6 +28,9 @@ import com.evanaronson.linguize.ui.components.Dropdown
 import com.evanaronson.linguize.ui.components.MultiSelectDropdown
 import com.evanaronson.linguize.ui.components.RadioRow
 import com.evanaronson.linguize.ui.components.SectionTitle
+import com.evanaronson.linguize.ui.text.descriptionResource
+import com.evanaronson.linguize.ui.text.displayName
+import com.evanaronson.linguize.ui.text.labelResource
 
 /** Settings can be entered from Home or a popup; Back returns, Home opens the app. */
 @Composable
@@ -39,11 +42,11 @@ fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit, onHome: () -
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             IconButton(onClick = onBack) {
-                Icon(painterResource(R.drawable.ic_back), contentDescription = "Back")
+                Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back))
             }
-            Text("Settings", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             IconButton(onClick = onHome) {
-                Icon(painterResource(R.drawable.ic_home), contentDescription = "Home")
+                Icon(painterResource(R.drawable.ic_home), contentDescription = stringResource(R.string.home))
             }
         }
         SettingsContent(settings)
@@ -70,42 +73,47 @@ internal fun SettingsContent(settings: SettingsViewModel, modifier: Modifier = M
 
 @Composable
 private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle("Checking")
+    SectionTitle(stringResource(R.string.checking))
     val labels = menuLabels()
+    val descriptions = MenuEntry.entries.associateWith { entry ->
+        stringResource(R.string.menu_entry_description, labels.getValue(entry),
+            entry.language?.displayName() ?: stringResource(R.string.detect_language))
+    }
+    val punctuationLabels = Punctuation.entries.associateWith { stringResource(it.labelResource) }
     MultiSelectDropdown(
-        label = "Show in selection menu",
+        label = stringResource(R.string.selection_menu_label),
         options = MenuEntry.entries,
         selected = state.menu,
-        optionLabel = { entry -> "${labels.getValue(entry)} (${entry.language?.name ?: "detects the language"})" },
+        optionLabel = descriptions::getValue,
         onToggle = settings::toggleMenuEntry,
     )
     if (state.menu.size == 1) {
         Text(
-            "Keep at least one.",
+            stringResource(R.string.selection_menu_keep_one),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     Dropdown(
-        label = "Punctuation",
-        selected = state.punctuation.label,
+        label = stringResource(R.string.punctuation),
+        selected = state.punctuation,
         options = Punctuation.entries,
-        optionLabel = { it.label },
+        optionLabel = punctuationLabels::getValue,
         onSelect = settings::setPunctuation,
     )
     Text(
-        state.punctuation.description,
+        stringResource(state.punctuation.descriptionResource),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Text("What to suggest", style = MaterialTheme.typography.titleSmall)
+    Text(stringResource(R.string.what_to_suggest), style = MaterialTheme.typography.titleSmall)
     Column(Modifier.selectableGroup()) {
         Judgments.entries.forEach { option ->
-            RadioRow(option.label, selected = option == state.judgments, onClick = { settings.setJudgments(option) })
+            RadioRow(stringResource(option.labelResource), selected = option == state.judgments, onClick = { settings.setJudgments(option) })
         }
     }
     Text(
-        "Fixes correct mistakes. Rewordings make it sound more natural.",
+        stringResource(R.string.suggestions_description),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

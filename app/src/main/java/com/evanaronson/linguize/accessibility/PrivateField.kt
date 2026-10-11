@@ -15,8 +15,8 @@ internal object PrivateField {
         privateType(inputType) || listOfNotNull(hint?.toString(), viewId?.substringAfter(":id/")).any(::soundsPrivate)
 
     private fun privateType(inputType: Int): Boolean = when (inputType and InputType.TYPE_MASK_CLASS) {
-        // Numbers and phone numbers are never prose: codes, PINs, card numbers, amounts.
-        InputType.TYPE_CLASS_NUMBER, InputType.TYPE_CLASS_PHONE -> true
+        // Numbers, phone numbers and dates are never prose: codes, PINs, card numbers, birthdays.
+        InputType.TYPE_CLASS_NUMBER, InputType.TYPE_CLASS_PHONE, InputType.TYPE_CLASS_DATETIME -> true
         InputType.TYPE_CLASS_TEXT -> (inputType and InputType.TYPE_MASK_VARIATION) in PRIVATE_TEXT
         else -> false
     }
@@ -28,10 +28,12 @@ internal object PrivateField {
     private fun soundsPrivate(name: String): Boolean {
         // Accents go first, or "contraseña" and "código" would break apart at the letter.
         val words = Normalizer.normalize(name, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-            .replace(Regex("([a-z])([A-Z])"), "$1 $2")
+            .replace(ACCENTS, "")
+            // Keep acronym prefixes as words too: OTPInput and PINEntry are private.
+            .replace(ACRONYM_BOUNDARY, "$1 $2")
+            .replace(WORD_BOUNDARY, "$1 $2")
             .lowercase()
-            .replace(Regex("[^a-z0-9]+"), " ")
+            .replace(SEPARATORS, " ")
         return PRIVATE_WORDS.containsMatchIn(words)
     }
 
@@ -42,6 +44,11 @@ internal object PrivateField {
         InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
         InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
     )
+
+    private val ACCENTS = Regex("\\p{M}+")
+    private val ACRONYM_BOUNDARY = Regex("([A-Z]+)([A-Z][a-z])")
+    private val WORD_BOUNDARY = Regex("([a-z])([A-Z])")
+    private val SEPARATORS = Regex("[^a-z0-9]+")
 
     /**
      * Words only private fields are named with. Not "email" or "phone": "Compose email"

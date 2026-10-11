@@ -4,6 +4,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Call
@@ -23,6 +24,17 @@ internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
 /** No answer or error from a provider comes near this; anything bigger isn't one, so it isn't read into memory. */
 internal const val MAX_BODY_BYTES = 2L * 1024 * 1024
+
+/**
+ * Provider requests contain a key and the writer's private text. Never forward either
+ * through a redirect, even on the same host. OkHttp only strips Authorization on an
+ * origin change; Gemini's x-goog-api-key would otherwise go to the new host unchanged.
+ * The derived client shares the original connection pool and dispatcher.
+ */
+internal fun OkHttpClient.forProviderRequests(): OkHttpClient = newBuilder()
+    .followRedirects(false)
+    .followSslRedirects(false)
+    .build()
 
 /**
  * One time limit for everything a single check or listing sends, retries included: the
@@ -80,7 +92,7 @@ internal fun ResponseBody.readCapped(limit: Long = MAX_BODY_BYTES): String {
     return source.buffer.readUtf8()
 }
 
-private fun tooLarge() = CheckFailure(CheckFailure.Reason.BadResponse, "The AI's reply was too large.")
+private fun tooLarge() = CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.ReplyTooLarge)
 
 /** Reads a provider's JSON response; anything malformed becomes a BadResponse rather than a crash. */
 internal inline fun <T> readResponse(payload: String, read: (JsonObject) -> T): T = try {
@@ -116,15 +128,15 @@ internal fun errorObject(payload: String): JsonObject? = runCatching {
 
 /** The `error.message` field both Gemini and OpenAI use, trimmed, or null. */
 internal fun errorMessage(payload: String): String? = runCatching {
-    errorObject(payload)?.get("message")?.jsonPrimitive?.content
+    errorObject(payload)?.get("message")?.jsonPrimitive?.contentOrNull
 }.getOrNull()?.let(::scrubSecrets)?.takeIf { it.isNotEmpty() }
 
 /** What the card says when an answer was cut off at the output limit. */
 internal fun truncated(): CheckFailure = CheckFailure(
     CheckFailure.Reason.TooLong,
-    "The AI's reply got cut off. A shorter text avoids this.",
+    userMessage = CheckFailure.Message.TruncatedReply,
 )
 
-/** The plain reason when [service] won't check a text (Gemini's SAFETY, OpenAI's content_filter). */
-internal fun declined(service: String): CheckFailure =
-    CheckFailure(CheckFailure.Reason.BadResponse, "$service declined to check this text.")
+/** The plain reason when a provider won't check a text (Gemini's SAFETY, OpenAI's content_filter). */
+internal fun declined(): CheckFailure =
+    CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.Declined)

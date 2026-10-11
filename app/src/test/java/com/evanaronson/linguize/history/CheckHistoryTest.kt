@@ -6,6 +6,7 @@ import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.core.interpret
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.io.OutputStream
+import kotlin.coroutines.CoroutineContext
 
 /** The history lifecycle of a card, against a store that only remembers what it was asked. */
 class CheckHistoryTest {
@@ -50,6 +52,7 @@ class CheckHistoryTest {
     private val store = FakeStore()
     private val environment = object : HistoryEnvironment {
         @Volatile override var enabled = true
+        @Volatile override var recordingEpoch = 0L
         override val deviceId = "device"
         override val appVersion = "1.0"
     }
@@ -132,6 +135,68 @@ class CheckHistoryTest {
     }
 
     @Test
+    fun turningHistoryOffAndOnWhileTheCardIsIdleNeverResumesItsRecording() = runBlocking<Unit> {
+        history.open(rain, opening)
+        history.flush()
+        environment.enabled = false
+        environment.recordingEpoch++
+        environment.enabled = true
+
+        history.succeeded(emptyList(), "{}", result)
+        history.close(rain)
+        history.flush()
+        assertEquals(listOf("save"), store.calls.map { it.first })
+
+        // A genuinely new card has the new permission and can be recorded.
+        history.open("new text", opening)
+        history.close(null)
+        history.flush()
+        assertEquals(listOf("save", "save", "close"), store.calls.map { it.first })
+    }
+
+    @Test
+    fun disablingHistoryAlsoRevokesWritesAlreadyWaitingInTheQueue() = runBlocking<Unit> {
+        val dispatcher = QueuedDispatcher()
+        val writing = CoroutineScope(SupervisorJob() + dispatcher)
+        try {
+            val queued = CheckHistory(store, environment, writing)
+            queued.open(rain, opening)
+            queued.succeeded(emptyList(), "{}", result)
+            queued.close(rain)
+
+            environment.enabled = false
+            dispatcher.runAll()
+            queued.flush()
+            assertTrue(store.calls.isEmpty())
+        } finally {
+            writing.cancel()
+        }
+    }
+
+    @Test
+    fun aNewCardCannotReviveAnOldCardsQueuedWritesAfterRecordingWasDisabled() = runBlocking<Unit> {
+        val dispatcher = QueuedDispatcher()
+        val writing = CoroutineScope(SupervisorJob() + dispatcher)
+        try {
+            val queued = CheckHistory(store, environment, writing)
+            queued.open(rain, opening)
+            queued.close(rain)
+            environment.enabled = false
+            environment.recordingEpoch++
+            environment.enabled = true
+            queued.open("new text", opening)
+            queued.close(null)
+
+            dispatcher.runAll()
+            queued.flush()
+            assertEquals(listOf("save", "close"), store.calls.map { it.first })
+            assertTrue(store.calls.all { it.second.text == "new text" })
+        } finally {
+            writing.cancel()
+        }
+    }
+
+    @Test
     fun aTextTooLongToCheckIsntRecorded() = runBlocking<Unit> {
         assertNull(history.open("x".repeat(101), opening))
         history.failed(emptyList(), "TooLong", null)
@@ -143,13 +208,14 @@ class CheckHistoryTest {
     @Test
     fun aFailedAttemptIsRecorded() = runBlocking<Unit> {
         history.open(rain, opening)
-        history.failed(listOf(Settled("tu", "informal")), "Offline", "no network")
+        history.failed(listOf(Settled("tu", "informal")), "Offline", "no network", message = "empty_reply")
         history.close(null)
         history.flush()
         val closed = store.calls.last().second
         assertEquals(Outcome.Failed, closed.outcome)
         assertEquals("Offline", closed.attempts.single().failure)
         assertEquals(listOf(Settled("tu", "informal")), closed.attempts.single().settled)
+        assertEquals("empty_reply", closed.attempts.single().failureMessage)
     }
 
     @Test
@@ -539,6 +605,18 @@ class CheckHistoryTest {
         val recording = SessionRecording(rain, context, 500, newId = { id })
         recording.attempt(600, listOf(Settled("tu", "informal")), raw, null, null, null, null)
         return recording.close(700, null)
+    }
+
+    private class QueuedDispatcher : CoroutineDispatcher() {
+        private val queued = java.util.ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            queued.addLast(block)
+        }
+
+        fun runAll() {
+            while (queued.isNotEmpty()) queued.removeFirst().run()
+        }
     }
 
     private class FakeStore : HistoryStore {

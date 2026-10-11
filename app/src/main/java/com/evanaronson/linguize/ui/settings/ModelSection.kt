@@ -25,45 +25,50 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.ui.components.Dropdown
 import com.evanaronson.linguize.ui.components.RadioRow
 import com.evanaronson.linguize.ui.components.SectionTitle
+import com.evanaronson.linguize.ui.text.labelResource
+import com.evanaronson.linguize.ui.text.localizedText
+import com.evanaronson.linguize.ui.text.titleResource
 
 @Composable
 internal fun ModelSection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle("AI service")
+    SectionTitle(stringResource(R.string.ai_service))
     if (!state.hasKey) {
         Text(
-            "Linguize sends the text you check to Gemini or OpenAI. You need your own API key from one of them.",
+            stringResource(R.string.ai_service_description),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     Column(Modifier.selectableGroup()) {
         Provider.entries.forEach { option ->
-            RadioRow(option.label, selected = option == state.provider, onClick = { settings.selectProvider(option) }) {
+            RadioRow(stringResource(option.labelResource), selected = option == state.provider, onClick = { settings.selectProvider(option) }) {
                 KeyBadge(state.keys[option])
             }
         }
     }
 
     val provider = state.provider
-    val recommended = "${provider.recommendedModel} (recommended)"
+    val recommended = stringResource(R.string.model_recommended, provider.recommendedModel)
     val available = (state.models as? ModelList.Loaded)?.models.orEmpty().filter { it != provider.recommendedModel }
     Dropdown(
         label = when (state.models) {
-            ModelList.Loading -> "Model · loading…"
-            ModelList.Failed -> "Model · couldn't load others"
-            is ModelList.Loaded -> if (state.hasKey) "Model" else "Model · add a key to see more"
+            ModelList.Loading -> stringResource(R.string.model_loading)
+            ModelList.Failed -> stringResource(R.string.model_load_failed)
+            is ModelList.Loaded -> if (state.hasKey) stringResource(R.string.model) else stringResource(R.string.model_add_key)
         },
-        selected = state.model ?: recommended,
+        selected = state.model,
         options = listOf<String?>(null) + available,
         optionLabel = { it ?: recommended },
         onSelect = settings::selectModel,
@@ -80,12 +85,12 @@ internal fun ModelSection(state: SettingsState, settings: SettingsViewModel) {
 private fun KeyBadge(status: KeyStatus?) {
     when (status) {
         is KeyStatus.Saved -> Text(
-            "Key saved",
+            stringResource(R.string.key_saved),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
         )
         KeyStatus.Unreadable -> Text(
-            "Key lost",
+            stringResource(R.string.key_lost),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.error,
         )
@@ -99,16 +104,20 @@ private fun ModelTestRow(test: ModelTest?, onTest: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(
                 when (test) {
-                    null -> "Not tested yet"
-                    ModelTest.Testing -> "Testing…"
-                    is ModelTest.Works -> "Works · %.1f s".format(test.millis / 1000.0)
-                    is ModelTest.Failed -> "Didn't work: ${test.title}"
+                    null -> stringResource(R.string.model_not_tested)
+                    ModelTest.Testing -> stringResource(R.string.model_testing)
+                    is ModelTest.Works -> stringResource(R.string.model_test_works, test.millis / 1000.0)
+                    is ModelTest.Failed -> stringResource(R.string.model_test_failed, stringResource(test.reason.titleResource))
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = if (test is ModelTest.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (test is ModelTest.Failed && test.userMessage != null) {
+                Text(test.userMessage.localizedText(), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             // The AI service's own words, when it gave any, under the title.
             if (test is ModelTest.Failed && test.detail != null) {
                 Text(
@@ -120,7 +129,7 @@ private fun ModelTestRow(test: ModelTest?, onTest: () -> Unit) {
                 )
             }
         }
-        TextButton(enabled = test != ModelTest.Testing, onClick = onTest) { Text("Test") }
+        TextButton(enabled = test != ModelTest.Testing, onClick = onTest) { Text(stringResource(R.string.test)) }
     }
 }
 
@@ -135,15 +144,15 @@ private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolea
         onValueChange = { key = it },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        label = { Text("${provider.label} API key") },
-        placeholder = { Text("Paste key") },
+        label = { Text(stringResource(R.string.provider_api_key, stringResource(provider.labelResource))) },
+        placeholder = { Text(stringResource(R.string.paste_key)) },
         isError = unreadable || saveFailed,
         supportingText = {
             Text(
                 when {
-                    saveFailed -> "This phone couldn't save the key. Try again."
-                    unreadable -> "This phone can no longer read the saved key. Paste it again."
-                    else -> "Saved only on this phone, and sent only to ${provider.label}."
+                    saveFailed -> stringResource(R.string.key_save_failed)
+                    unreadable -> stringResource(R.string.key_unreadable)
+                    else -> stringResource(R.string.key_privacy, stringResource(provider.labelResource))
                 },
             )
         },
@@ -155,9 +164,9 @@ private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolea
             enabled = key.isNotBlank(),
             // Kept in the field until saved, so a failed save can be retried. A saved key replaces this field.
             onClick = { onSave(key) },
-        ) { Text("Save") }
+        ) { Text(stringResource(R.string.save)) }
         TextButton(onClick = { openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl))) }) {
-            Text("Get a key")
+            Text(stringResource(R.string.get_key))
         }
     }
 }
@@ -179,10 +188,10 @@ private fun SavedKey(provider: Provider, lastFour: String, onRemove: () -> Unit)
             Text("✓", style = MaterialTheme.typography.titleMedium, color = onContainer, modifier = Modifier.clearAndSetSemantics {})
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("${provider.label} key saved", style = MaterialTheme.typography.titleSmall, color = onContainer)
-                Text("Ends in $lastFour", style = MaterialTheme.typography.bodySmall, color = onContainer)
+                Text(stringResource(R.string.provider_key_saved, stringResource(provider.labelResource)), style = MaterialTheme.typography.titleSmall, color = onContainer)
+                Text(stringResource(R.string.key_last_four, lastFour), style = MaterialTheme.typography.bodySmall, color = onContainer)
             }
-            TextButton(onClick = onRemove) { Text("Delete key") }
+            TextButton(onClick = onRemove) { Text(stringResource(R.string.delete_key)) }
         }
     }
 }

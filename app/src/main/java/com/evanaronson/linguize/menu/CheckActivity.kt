@@ -1,7 +1,10 @@
 package com.evanaronson.linguize.menu
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.os.Bundle
+import android.os.BadParcelableException
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -10,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure.Reason
@@ -29,6 +33,7 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
+    private var readOnly = true
     private var limited = false
     private var returningFromSettings = false
     private var settingsOpen by mutableStateOf(false)
@@ -38,11 +43,20 @@ class CheckActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         returningFromSettings = savedInstanceState?.getBoolean(KEY_SETTINGS) == true
         settingsOpen = savedInstanceState?.getBoolean(KEY_SETTINGS_OPEN) == true
-        val selected = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty()
+        // Exported aliases are callable by any app. Reject malformed launches before
+        // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.
+        if (intent.action != Intent.ACTION_PROCESS_TEXT) return finish()
+        val selected = try {
+            readOnly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
+            intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty()
+        } catch (_: BadParcelableException) {
+            return finish()
+        } catch (_: ClassCastException) {
+            return finish()
+        }
         // Whitespace around the selection isn't checked, and stays where it was.
         val selection = Selection.of(selected).takeIf { it.text.isNotEmpty() } ?: return finish()
         this.selection = selection
-        val readOnly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
         // Which menu entry was tapped decides the language: Catalanize, Castilianize, or Linguize to detect it.
         val entry = App.of(this).menu.entryFor(intent.component)
 
@@ -65,14 +79,20 @@ class CheckActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 BackHandler(enabled = settingsOpen, onBack = ::backFromSettings)
-                val state = if (limited) CardState.Failed(Reason.TooMany, TOO_MANY_DETAIL) else check.state
+                val state = if (limited) CardState.Failed(Reason.TooMany, getString(R.string.menu_check_not_sent)) else check.state
                 state?.let {
                     PopupCard(it, actions, settings, settingsOpen,
                         onBackFromSettings = ::backFromSettings,
                         onDismiss = ::finish,
                         onOpenHome = ::openHome,
                         onOpenExternal = { external ->
-                            startActivity(external.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
+                            try {
+                                startActivity(external.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
+                            } catch (_: ActivityNotFoundException) {
+                                Toast.makeText(this, R.string.external_app_unavailable, Toast.LENGTH_SHORT).show()
+                            } catch (_: SecurityException) {
+                                Toast.makeText(this, R.string.external_app_unavailable, Toast.LENGTH_SHORT).show()
+                            }
                         })
                 }
             }
@@ -130,7 +150,7 @@ class CheckActivity : ComponentActivity() {
     override fun finish() {
         val accepted = check.workingText
         val selection = selection
-        val handedBack = if (accepted != null && selection != null) {
+        val handedBack = if (!readOnly && accepted != null && selection != null) {
             setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, selection.with(accepted)))
             true
         } else {
@@ -147,6 +167,5 @@ class CheckActivity : ComponentActivity() {
 
         /** How long finishing may wait for the session's close to be written. */
         const val CLOSE_WAIT_MS = 500L
-        const val TOO_MANY_DETAIL = "This one wasn't sent to the AI."
     }
 }

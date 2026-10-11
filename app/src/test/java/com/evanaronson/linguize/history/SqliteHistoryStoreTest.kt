@@ -166,6 +166,7 @@ class SqliteHistoryStoreTest {
         val old = store.detail("old")!!.session
         assertEquals(Outcome.Abandoned, old.outcome)
         assertEquals(30_000L, old.closedAt)
+        assertEquals(50_000L, old.updatedAt)
         assertNull(store.detail("new")!!.session.closedAt)
         assertEquals(listOf("old"), store.recent(10).first().map { it.id })
     }
@@ -180,6 +181,27 @@ class SqliteHistoryStoreTest {
         assertEquals(SessionSummary.TEXT_PREFIX, recent[1].text.length)
         assertEquals(listOf("s2"), store.recent(1).first().map { it.id })
         assertEquals(long, store.detail("s1")!!.session.text)
+    }
+
+    @Test
+    fun recentCountsOnlySuggestionKindsAndDecisionsThisBuildCanRead() = runBlocking<Unit> {
+        val closed = open("s1", 5_000).answered(5_500).closed(6_000)
+        store.close(closed, listOf(
+            suggestion(closed, "known", EditKind.Fix, Decision.Ignored),
+            suggestion(closed, "new-kind", EditKind.Natural, Decision.Accepted),
+            suggestion(closed, "new-decision", EditKind.Fix, Decision.Ignored),
+            suggestion(closed, "old", EditKind.Fix, Decision.Superseded),
+        ))
+        raw { db ->
+            db.execSQL("""UPDATE suggestions SET "kind" = 'style' WHERE "id" = 'new-kind'""")
+            db.execSQL("""UPDATE suggestions SET "decision" = 'postponed' WHERE "id" = 'new-decision'""")
+        }
+
+        val summary = store.recent(10).first().single()
+        assertEquals(1, summary.fixes)
+        assertEquals(0, summary.rewordings)
+        assertEquals(0, summary.taken)
+        assertEquals(setOf("known", "old"), store.detail("s1")!!.suggestions.map { it.id }.toSet())
     }
 
     @Test
@@ -214,6 +236,19 @@ class SqliteHistoryStoreTest {
         store.close(changed, listOf(suggestion(changed, "g5", EditKind.Fix, Decision.Ignored, attempt = 0)))
         assertEquals(0, store.detail("s5")!!.decidedAttempt())
         assertNull(store.reusable(changed.reuseKey, since = 4_000))
+    }
+
+    @Test
+    fun reuseFindsAValidAnswerBehindManyRecentSessionsWithAnOlderDecidedAttempt() = runBlocking<Unit> {
+        val valid = open("valid", 1_000, model = "after").answered(1_100).closed(1_200)
+        store.close(valid, emptyList())
+        repeat(25) { index ->
+            val changed = open("changed-$index", 2_000L + index, model = "before").answered(3_000)
+                .copy(model = "after").answered(4_000).closed(5_000)
+            store.close(changed, listOf(suggestion(changed, "g-$index", EditKind.Fix, Decision.Ignored, attempt = 0)))
+        }
+
+        assertEquals("valid", store.reusable(valid.reuseKey, since = 1_000)?.session?.id)
     }
 
     @Test

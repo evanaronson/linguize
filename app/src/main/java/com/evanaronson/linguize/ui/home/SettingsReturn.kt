@@ -1,19 +1,19 @@
 package com.evanaronson.linguize.ui.home
 
 /**
- * How a card that opened Settings learns that Settings was left (closed, or the user went
- * home or to recents), so it can come back. The card [waits][await] when it opens Settings,
- * [HomeActivity] says when Settings is [left], and the waiting card is told once; after
- * that nothing waits until a card opens Settings again. Visiting Linguize's Home keeps
- * the card waiting until the user returns to it. One card waits at a time: the
- * accessibility overlay shows one card. Main thread only.
+ * One accessibility popup's return from an external activity. The gateway carries the
+ * token returned by [await], so a delayed result from an older detour cannot reveal a
+ * newer popup. The callback is consumed once and cancelled when its popup closes.
+ * Main thread only.
  */
 object SettingsReturn {
     private var waiting: (() -> Unit)? = null
+    private var token = 0L
 
     /** Return to the card when leaving the app, even after visiting Home or Recent. */
-    fun await(onLeft: () -> Unit) {
+    fun await(onLeft: () -> Unit): Long {
         waiting = onLeft
+        return ++token
     }
 
     /** [onLeft] no longer waits, if it still did: its card closed first. */
@@ -21,8 +21,9 @@ object SettingsReturn {
         if (waiting === onLeft) waiting = null
     }
 
-    /** Settings was left: tells the card waiting for it, if any. */
-    fun left() {
+    /** The matching external detour ended: tell its waiting card, if it still exists. */
+    fun left(returnToken: Long) {
+        if (returnToken != token) return
         val pending = waiting ?: return
         waiting = null
         pending()

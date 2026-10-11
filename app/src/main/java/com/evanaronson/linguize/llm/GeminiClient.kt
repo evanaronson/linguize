@@ -3,6 +3,7 @@ package com.evanaronson.linguize.llm
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -18,7 +19,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
  * The Gemini Developer API over plain REST. The official SDKs pull in Firebase
  * or Ktor plus Google auth; two endpoints don't need them.
  */
-class GeminiClient(private val http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
+class GeminiClient(http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
+    private val http = http.forProviderRequests()
     /** Minimal thinking; models that reject it get their default instead. */
     private val minimal = DroppableOption(refusal = "thinking")
 
@@ -27,7 +29,7 @@ class GeminiClient(private val http: OkHttpClient, private val prompt: Prompt) :
         val deadline = Deadline(http)
         val (code, payload) = minimal.send(model) { withMinimal ->
             val call = Request.Builder()
-                .url("$BASE/models/$model:generateContent")
+                .url("$BASE/models".toHttpUrl().newBuilder().addPathSegment("$model:generateContent").build())
                 .header("x-goog-api-key", key)
                 .post(body(request, withMinimal).toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
@@ -53,11 +55,11 @@ class GeminiClient(private val http: OkHttpClient, private val prompt: Prompt) :
             if (code != 200) throw failure(code, payload)
             val next = readResponse(payload) { page ->
                 for (model in page["models"]?.jsonArray.orEmpty().map { it.jsonObject }) {
-                    val id = model["name"]?.jsonPrimitive?.content?.removePrefix("models/") ?: continue
+                    val id = model["name"]?.jsonPrimitive?.contentOrNull?.removePrefix("models/") ?: continue
                     val methods = model["supportedGenerationMethods"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content }
                     if (id.startsWith("gemini") && "generateContent" in methods) ids += id
                 }
-                page["nextPageToken"]?.jsonPrimitive?.content?.takeIf { it.isNotEmpty() }
+                page["nextPageToken"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }
             }
             if (next == null || !seenTokens.add(next)) break
             pageToken = next
@@ -96,20 +98,23 @@ class GeminiClient(private val http: OkHttpClient, private val prompt: Prompt) :
         fun answer(payload: String): String = readResponse(payload) { root ->
             val candidate = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
                 ?: throw if (root["promptFeedback"]?.jsonObject?.get("blockReason") != null) {
-                    declined("Gemini")
+                    declined()
                 } else {
-                    CheckFailure(CheckFailure.Reason.BadResponse, "The AI sent an empty reply.")
+                    CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
                 }
-            val finish = candidate["finishReason"]?.jsonPrimitive?.content
-            if (finish in BLOCKED_FINISHES) throw declined("Gemini")
+            val finish = candidate["finishReason"]?.jsonPrimitive?.contentOrNull
+            if (finish in BLOCKED_FINISHES) throw declined()
             // Half a JSON object would only fail as "not in the expected format", and again on retry.
             if (finish == "MAX_TOKENS") throw truncated()
+            if (finish != "STOP") {
+                throw CheckFailure(CheckFailure.Reason.BadResponse, finish, userMessage = CheckFailure.Message.IncompleteReply)
+            }
             val text = candidate["content"]?.jsonObject?.get("parts")?.jsonArray.orEmpty()
                 .map { it.jsonObject }
                 .filterNot { it["thought"]?.jsonPrimitive?.booleanOrNull == true }
-                .joinToString("") { it["text"]?.jsonPrimitive?.content.orEmpty() }
+                .joinToString("") { it["text"]?.jsonPrimitive?.contentOrNull.orEmpty() }
             if (text.isBlank()) {
-                throw CheckFailure(CheckFailure.Reason.BadResponse, "The AI sent no reply. Reason given: ${finish ?: "none"}")
+                throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
             }
             text
         }
@@ -127,7 +132,7 @@ class GeminiClient(private val http: OkHttpClient, private val prompt: Prompt) :
         }
 
         /** Finish reasons that mean Gemini refused the text, not that something broke. */
-        private val BLOCKED_FINISHES = setOf("SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "IMAGE_SAFETY")
+        private val BLOCKED_FINISHES = setOf("SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY")
 
         /** "model" or "models" as a word of its own, not inside a service's name. */
         private val MODEL_WORD = Regex("""\bmodels?\b""", RegexOption.IGNORE_CASE)

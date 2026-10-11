@@ -28,6 +28,13 @@ data class Replayed(val result: CheckResult, val settled: List<Settled>)
 fun replay(detail: SessionDetail, parse: (String) -> Verdict): Replayed? {
     val index = detail.decidedAttempt() ?: return null
     val attempt = detail.session.attempts[index]
+    val rows = detail.suggestions.filter { it.attempt == index && it.decision != Decision.Superseded }
+    // Rows can outlive the engine that made them. Invalid stored spans must never reach
+    // rendering, where an out-of-bounds edit would crash the history screen later.
+    val original = detail.session.text
+    if (rows.any { it.start < 0 || it.end < it.start || it.end > original.length || original.substring(it.start, it.end) != it.fromText }) {
+        return null
+    }
     val result = try {
         // What that attempt ran with: the card's language and settings may have changed after it.
         val ran = detail.session.reuseKeyOf(index) ?: detail.session.reuseKey
@@ -38,7 +45,6 @@ fun replay(detail: SessionDetail, parse: (String) -> Verdict): Replayed? {
     } catch (_: Exception) {
         return null
     }
-    val rows = detail.suggestions.filter { it.attempt == index && it.decision != Decision.Superseded }
     val shown = if (result is CheckResult.Reviewed && rows.isNotEmpty()) result.copy(revision = recorded(result.revision, rows)) else result
     return Replayed(shown, attempt.settled)
 }

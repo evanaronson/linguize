@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="external_app_unavailable">Couldn\'t open that. No app can handle it.</string>
+    <string name="menu_check_not_sent">This one wasn\'t sent to the AI.</string>
+    <string name="shortcut_open_failed">Couldn\'t open the check. Open Linguize settings for the shortcut test.</string>
+    <string name="shortcut_no_text">No text to check. Tap the field you wrote in, then try again.</string>
+    <string name="shortcut_private_field">This field looks private, so Linguize didn\'t read it.</string>
+    <string name="shortcut_replace_failed">Couldn\'t put the text back. Reopen the check and use Copy.</string>
+    <string name="shortcut_field_changed">The field changed or is gone. Reopen the check and use Copy.</string>
+    <string name="shortcut_stage_connecting">Connecting shortcut</string>
+    <string name="shortcut_stage_connected">Service connected</string>
+    <string name="shortcut_stage_registration_failed">Shortcut registration failed (%1$s)</string>
+    <string name="shortcut_stage_tapped">Tap received</string>
+    <string name="shortcut_stage_failed">Failed at %1$s (%2$s)</string>
+    <string name="shortcut_stage_finding_focus">Finding input focus</string>
+    <string name="shortcut_stage_existing_card">Existing card shown</string>
+    <string name="shortcut_stage_no_focus">No input focus</string>
+    <string name="shortcut_stage_not_editable">Focused item is not editable · write action: no · selection action: %1$s · input focused: %2$s · children: %3$d</string>
+    <string name="shortcut_yes">yes</string>
+    <string name="shortcut_no">no</string>
+    <string name="shortcut_stage_checking_field">Checking field metadata</string>
+    <string name="shortcut_stage_private_field">Field looks private</string>
+    <string name="shortcut_stage_reading_field">Reading eligible field</string>
+    <string name="shortcut_stage_hint">Field shows a hint</string>
+    <string name="shortcut_stage_empty">No readable text</string>
+    <string name="shortcut_stage_preparing_card">Preparing card</string>
+    <string name="shortcut_stage_showing_card">Showing card</string>
+    <string name="shortcut_stage_starting_check">Card shown; starting check</string>
+    <string name="shortcut_stage_check_started">Check started</string>
+</resources>

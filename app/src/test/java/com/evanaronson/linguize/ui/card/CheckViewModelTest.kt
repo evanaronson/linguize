@@ -23,6 +23,8 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.Checker
+import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.fakeChecker
 import com.evanaronson.linguize.history.CheckHistory
 import com.evanaronson.linguize.history.HistoryEnvironment
@@ -39,6 +41,8 @@ import com.evanaronson.linguize.history.SessionSummary
 import com.evanaronson.linguize.history.SuggestionRecord
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.ModelAnswer
+import com.evanaronson.linguize.llm.Prompt
+import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,6 +65,9 @@ import org.robolectric.annotation.Config
 import java.io.OutputStream
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * The card's view model on a real checker and history, with a fake provider and store:
@@ -424,7 +431,8 @@ class CheckViewModelTest {
         reviewed()
         check.acceptAll(EditKind.Fix)
         val context = ApplicationProvider.getApplicationContext<Application>()
-        val intent = Intent(context, CheckActivity::class.java).putExtra(Intent.EXTRA_PROCESS_TEXT, QUESTION)
+        val intent = Intent(context, CheckActivity::class.java)
+            .setAction(Intent.ACTION_PROCESS_TEXT).putExtra(Intent.EXTRA_PROCESS_TEXT, QUESTION)
         val controller = Robolectric.buildActivity(CheckActivity::class.java, intent)
         val activity = controller.get()
         activity.viewModelStore.put(
@@ -453,6 +461,100 @@ class CheckViewModelTest {
         settle()
         assertTrue(client.checks.isEmpty())
         assertNull(check.state)
+    }
+
+    @Test
+    @Config(application = App::class)
+    fun aReadOnlySelectionNeverReturnsAReplacementEvenWithAcceptedState() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val intent = Intent(context, CheckActivity::class.java)
+            .setAction(Intent.ACTION_PROCESS_TEXT)
+            .putExtra(Intent.EXTRA_PROCESS_TEXT, QUESTION)
+            .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+        val controller = Robolectric.buildActivity(CheckActivity::class.java, intent)
+        val activity = controller.get()
+        activity.viewModelStore.put(
+            "androidx.lifecycle.ViewModelProvider.DefaultKey:" + CheckViewModel::class.java.canonicalName,
+            check,
+        )
+        controller.create().start().resume()
+        activity.finish()
+        assertEquals(android.app.Activity.RESULT_CANCELED, shadowOf(activity).resultCode)
+        assertNull(closed().single().finalText)
+        controller.pause().stop().destroy()
+    }
+
+    @Test
+    @Config(application = App::class)
+    fun anUnrelatedIntentNeverStartsACheck() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val intent = Intent(context, CheckActivity::class.java)
+            .setAction(Intent.ACTION_SEND).putExtra(Intent.EXTRA_PROCESS_TEXT, QUESTION)
+        val controller = Robolectric.buildActivity(CheckActivity::class.java, intent)
+        val activity = controller.get()
+        activity.viewModelStore.put(
+            "androidx.lifecycle.ViewModelProvider.DefaultKey:" + CheckViewModel::class.java.canonicalName,
+            check,
+        )
+        controller.create()
+        settle()
+        assertTrue(activity.isFinishing)
+        assertNull(check.state)
+        assertTrue(client.checks.isEmpty())
+        controller.destroy()
+    }
+
+    @Test
+    fun lateRetryAndAssumptionCallbacksCannotReopenADismissedCard() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.dismiss(applied = false)
+        check.recheck()
+        check.settle("tu", "informal")
+        settle()
+        assertNull(check.state)
+        assertEquals(1, client.checks.size)
+        assertEquals(1, closed().size)
+    }
+
+    @Test
+    fun aSettingsReadFromAnOlderCardCannotRestartANewerCheck() {
+        val pauseRead = AtomicBoolean(false)
+        val reading = CountDownLatch(1)
+        val resume = CountDownLatch(1)
+        val preferences = object : CheckPreferences by this.preferences {
+            override val punctuation: Punctuation
+                get() {
+                    val value = this@CheckViewModelTest.preferences.punctuation
+                    if (pauseRead.compareAndSet(true, false)) {
+                        reading.countDown()
+                        check(resume.await(5, TimeUnit.SECONDS))
+                    }
+                    return value
+                }
+        }
+        val checker = Checker(preferences, { "key" }, Prompt("instructions", "{}"), Provider.entries.associateWith { client })
+        val card = CheckViewModel({ checker }, history)
+        viewModels.put("settings-race", card)
+        try {
+            card.check(QUESTION, null, Origin.Menu)
+            waitFor("first answer") { card.state is CardState.Done }
+            pauseRead.set(true)
+            card.recheckIfStale()
+            waitFor("settings read") { reading.count == 0L }
+            this.preferences.punctuation = Punctuation.Strict
+            card.check(QUESTION, null, Origin.Menu)
+            waitFor("new answer") { card.state is CardState.Done && client.checks.size == 2 }
+            resume.countDown()
+            settle()
+            assertEquals(2, client.checks.size)
+            assertTrue(card.state is CardState.Done)
+        } finally {
+            resume.countDown()
+        }
     }
 
     /** A session on [QUESTION] closed earlier, whose one attempt the model answered with [QUESTION_JSON]. */

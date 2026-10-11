@@ -18,34 +18,36 @@ class SettingsReturnTest {
 
     @Test
     fun theWaitingCardIsToldOnce() {
-        SettingsReturn.left() // Nothing waits: nothing happens.
-        SettingsReturn.await(first)
-        SettingsReturn.left()
-        SettingsReturn.left()
+        SettingsReturn.left(0) // Nothing waits: nothing happens.
+        val token = SettingsReturn.await(first)
+        SettingsReturn.left(token)
+        SettingsReturn.left(token)
         assertEquals(listOf("first"), told)
     }
 
     @Test
     fun aLaterCardTakesTheWaitAndAClosedOneLeavesIt() {
-        SettingsReturn.await(first)
-        SettingsReturn.await(second)
+        val old = SettingsReturn.await(first)
+        val current = SettingsReturn.await(second)
         // Cancelling a card that no longer waits leaves the one that does.
         SettingsReturn.cancel(first)
-        SettingsReturn.left()
+        SettingsReturn.left(old)
+        assertEquals(emptyList<String>(), told)
+        SettingsReturn.left(current)
         assertEquals(listOf("second"), told)
 
-        SettingsReturn.await(first)
+        val cancelled = SettingsReturn.await(first)
         SettingsReturn.cancel(first)
-        SettingsReturn.left()
+        SettingsReturn.left(cancelled)
         assertEquals(listOf("second"), told)
     }
 
     @Test
     fun visitingHomeDoesNotConsumeThePopupReturn() {
-        SettingsReturn.await(first)
+        val token = SettingsReturn.await(first)
         assertEquals(emptyList<String>(), told)
-        SettingsReturn.left()
-        SettingsReturn.left()
+        SettingsReturn.left(token)
+        SettingsReturn.left(token)
         assertEquals(listOf("first"), told)
     }
 }

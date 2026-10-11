@@ -12,8 +12,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.components.SectionTitle
 
 /** How to turn on the accessibility button, for apps whose selection menu doesn't show Linguize. */
@@ -21,42 +23,38 @@ import com.evanaronson.linguize.ui.components.SectionTitle
 internal fun OtherAppsSection() {
     val context = LocalContext.current
     val openExternal = LocalSettingsHost.current.openExternal ?: context::openFromSettings
-    SectionTitle("When Linguize isn't in the menu")
+    SectionTitle(stringResource(R.string.selection_menu_unavailable))
     Text(
-        "In some apps, like Telegram, Linguize isn't in the selection menu. There, turn on Linguize's " +
-            "accessibility button and tap it while you type. It reads only the field you're typing in, " +
-            "and only when you tap.",
+        stringResource(R.string.accessibility_setup_description),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Text(
-        "1. Open Accessibility, choose Linguize, and turn on Linguize and its shortcut.\n" +
-            "2. If Android says it's a restricted setting, open App info, tap ⋮, choose Allow restricted settings, " +
-            "then try step 1 again.",
+        stringResource(R.string.accessibility_setup_steps),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     // Temporary phone-only probe for the silent ChatGPT shortcut, not a diagnostics screen.
     val app = App.of(context)
     Text(
-        "Shortcut test: " + app.shortcutTestTaps + " taps · " + app.shortcutTestStage +
-            "\nCurrent shortcut availability: " + when (app.shortcutTestAvailable) {
-                true -> "yes"
-                false -> "no"
-                null -> "not reported"
-            },
+        stringResource(R.string.shortcut_debug_status, app.shortcutTestTaps, app.shortcutTestStage,
+            stringResource(when (app.shortcutTestAvailable) {
+                true -> R.string.shortcut_available
+                false -> R.string.shortcut_unavailable
+                null -> R.string.shortcut_unknown
+            })),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = {
             openExternal(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }) { Text("Open Accessibility") }
+        }) { Text(stringResource(R.string.open_accessibility)) }
         OutlinedButton(onClick = {
             openExternal(
                 Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
             )
-        }) { Text("Open App info") }
+        }) { Text(stringResource(R.string.open_app_info)) }
     }
 }
 
@@ -69,6 +67,6 @@ internal fun Context.openFromSettings(intent: Intent) {
     try {
         startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
     } catch (_: ActivityNotFoundException) {
-        Toast.makeText(this, "Couldn't open that. No app can handle it.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, R.string.open_external_failed, Toast.LENGTH_SHORT).show()
     }
 }

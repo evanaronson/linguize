@@ -49,44 +49,27 @@ class LinguizeAccessibilityService : AccessibilityService() {
     private class Card(val window: OverlayWindow, val field: AccessibilityNodeInfo, val discard: () -> Unit)
 
     override fun onServiceConnected() {
-        trace("Connecting shortcut")
         try {
             accessibilityButtonController.registerAccessibilityButtonCallback(
                 object : AccessibilityButtonController.AccessibilityButtonCallback() {
                     override fun onClicked(controller: AccessibilityButtonController) = tapped()
-
-                    override fun onAvailabilityChanged(controller: AccessibilityButtonController, available: Boolean) {
-                        App.of(this@LinguizeAccessibilityService).shortcutTestAvailable = available
-                    }
                 },
             )
-            App.of(this).shortcutTestAvailable = accessibilityButtonController.isAccessibilityButtonAvailable
-            trace("Service connected")
-        } catch (failure: RuntimeException) {
-            trace("Shortcut registration failed (" + failure.javaClass.simpleName + ")")
+        } catch (_: RuntimeException) {
+            Toast.makeText(this, "Couldn't start the shortcut. Turn Linguize off and on in Accessibility.", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun trace(stage: String) {
-        App.of(this).shortcutTestStage = stage
-    }
-
     private fun tapped() {
-        val app = App.of(this)
-        app.shortcutTestTaps++
-        trace("Tap received")
         try {
             open()
-        } catch (failure: RuntimeException) {
-            // The exception's message can contain app data. Keep only its class and stage.
-            val failedStage = app.shortcutTestStage
+        } catch (_: RuntimeException) {
             try {
                 card?.discard()
             } catch (_: RuntimeException) {
-                // Preserve the failure that brought us here, even if cleanup also fails.
+                // Cleanup must not prevent feedback about the failed check.
             }
-            trace("Failed at " + failedStage + " (" + failure.javaClass.simpleName + ")")
-            Toast.makeText(this, "Couldn't open the check. Open Linguize settings for the shortcut test.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Couldn't open the check. Tap your writing field and try again.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -102,14 +85,12 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun open() {
-        trace("Finding input focus")
         val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         card?.let { current ->
             // Tapping the button while the card waits behind settings brings it back, unless
             // it was left there: it waited too long, or the tap is for another app's field.
             if (!current.window.hidden || !current.leftBehind(focused)) {
                 current.window.hidden = false
-                trace("Existing card shown")
                 return
             }
             current.discard()
@@ -118,40 +99,35 @@ class LinguizeAccessibilityService : AccessibilityService() {
         // Preserve the working direct lookup; only fall back within its source window.
         var resolved = focused?.takeIf { FocusedField.supportsEditing(it) }
         if (resolved == null && focused != null) {
-            trace("Looking for a focused editor")
             val result = FocusedField.find(rootInActiveWindow, focused)
-            resolved = result.field
-            if (resolved == null) trace(result.reason)
-            else if (!resolved.refresh() || !resolved.isFocused || !resolved.isVisibleToUser || !resolved.isEnabled ||
-                !FocusedField.supportsEditing(resolved) || !FocusedField.sameWindow(resolved, focused) || rootInActiveWindow?.let { FocusedField.sameWindow(it, focused) } != true) {
-                resolved = null
-                trace("Source window changed")
+            if (result.reason == "Field looks private") {
+                Toast.makeText(this, "This field looks private, so Linguize didn't read it.", Toast.LENGTH_LONG).show()
+                return
             }
-        } else if (resolved == null) {
-            trace("No input focus")
+            resolved = result.field
+            if (resolved != null && (!resolved.refresh() || !resolved.isFocused || !resolved.isVisibleToUser || !resolved.isEnabled ||
+                !FocusedField.supportsEditing(resolved) || !FocusedField.sameWindow(resolved, focused) ||
+                rootInActiveWindow?.let { FocusedField.sameWindow(it, focused) } != true)) {
+                resolved = null
+            }
         }
         if (resolved == null) {
             Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again. You can also paste into Try it in Linguize.", Toast.LENGTH_LONG).show()
             return
         }
         val field = resolved
-        trace("Checking field metadata")
         if (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName)) {
-            trace("Field looks private")
             Toast.makeText(this, "This field looks private, so Linguize didn't read it.", Toast.LENGTH_LONG).show()
             return
         }
-        trace("Reading eligible field")
         val selection = field.takeUnless { it.isShowingHintText }?.text?.toString()
             ?.let { Selection.of(it, field.textSelectionStart, field.textSelectionEnd) }
         if (selection == null || selection.text.isEmpty()) {
-            trace(if (field.isShowingHintText) "Field shows a hint" else "No readable text")
             Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
             return
         }
 
         // Back closes the card as a tap outside it does; [close] is set just below.
-        trace("Preparing card")
         var onBack: () -> Unit = {}
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
@@ -191,7 +167,6 @@ class LinguizeAccessibilityService : AccessibilityService() {
             check, context = this, onClose = close, onOpenSettings = openSettings,
             onCopyClose = { end { false } },
         )
-        trace("Showing card")
         try {
             window.show {
                 AppTheme {
@@ -218,9 +193,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             throw failure
         }
         card = Card(window, field, discard = { end { false } })
-        trace("Card shown; starting check")
         check.check(selection.text, language, Origin.Button, field.packageName?.toString())
-        trace("Check started")
     }
 
     /**

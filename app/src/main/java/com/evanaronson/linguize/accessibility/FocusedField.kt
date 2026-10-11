@@ -37,11 +37,9 @@ internal object FocusedField {
         pending.add(root)
         val deadline = SystemClock.uptimeMillis() + 150
         var scanned = 0
-        var editors = 0
         var candidates = 0
         var candidate: AccessibilityNodeInfo? = null
-        fun stopped(reason: String) = Result(null,
-            "$reason · scanned: $scanned · editors: $editors · focused editors: $candidates")
+        fun stopped(reason: String) = Result(null, reason)
 
         while (pending.isNotEmpty()) {
             if (scanned >= 128 || SystemClock.uptimeMillis() >= deadline) {
@@ -52,12 +50,9 @@ internal object FocusedField {
             if (!seen.add(node) || !sameWindow(node, source)) continue
             val active = node.isVisibleToUser && node.isEnabled && node.isFocused
             if (active && isPrivate(node)) return stopped("Field looks private")
-            if (supportsEditing(node)) {
-                editors++
-                if (active) {
-                    candidates++
-                    candidate = node
-                }
+            if (active && supportsEditing(node)) {
+                candidates++
+                candidate = node
             }
             // A wide tree is also bounded. Never accept a candidate from a partial scan.
             if (node.childCount > 128 - scanned - pending.size) return stopped("Lookup limit reached")

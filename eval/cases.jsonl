@@ -18,9 +18,9 @@
 {"text": "Te echo de menos, a ver si nos vemos pronto", "status": "ok", "fix": false, "natural": false}
 {"text": "Voy a tomar una ducha y te llamo", "status": "ok", "fix": false}
 {"text": "Muchas gracias por todo, eres un sol", "status": "ok", "fix": false, "natural": false}
-{"text": "verd la mesa per quan el si porta de", "status": "unclear"}
-{"text": "I'll be there in ten minutes", "language": "Spanish (Peninsular)", "status": "wrong_language"}
-{"text": "Je suis en retard, désolé", "language": "Spanish (Peninsular)", "status": "wrong_language"}
+{"text": "verd la mesa per quan el si porta de", "status": "unclear", "answer_language": ""}
+{"text": "I'll be there in ten minutes", "language": "Spanish (Peninsular)", "status": "wrong_language", "answer_language": "English"}
+{"text": "Je suis en retard, désolé", "language": "Spanish (Peninsular)", "status": "wrong_language", "answer_language": "French"}
 {"text": "Je suis en retard, désolé", "status": "ok", "fix": false, "natural": false}
 {"text": "Ahir vaig comprar unes tomàquets molt bo", "status": "ok", "fix": true}
 {"text": "Hola qué tal bb estás bien te encanta esta música no?", "status": "ok", "fix": true}

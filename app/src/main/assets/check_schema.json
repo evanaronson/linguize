@@ -9,6 +9,9 @@
         "wrong_language"
       ]
     },
+    "language": {
+      "type": "string"
+    },
     "meaning": {
       "type": "string",
       "description": "The whole text translated into the writer's native language, the one on the Native: line. Never in the language the text is written in."
@@ -104,6 +107,7 @@
   },
   "required": [
     "status",
+    "language",
     "meaning",
     "assumptions",
     "has_errors",
@@ -116,6 +120,7 @@
   "additionalProperties": false,
   "propertyOrdering": [
     "status",
+    "language",
     "meaning",
     "assumptions",
     "has_errors",

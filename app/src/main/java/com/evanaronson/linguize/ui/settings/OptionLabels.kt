@@ -12,14 +12,14 @@ val Punctuation.label: String
 
 val Punctuation.description: String
     get() = when (this) {
-        Punctuation.Strict -> "Full standard punctuation, including ¿ ¡ and final full stops"
-        Punctuation.Moderate -> "Separate sentences and mark questions; no final full stop or ¿ needed"
-        Punctuation.Casual -> "Only when missing punctuation would confuse a reader"
+        Punctuation.Strict -> "Flags every missing mark, including final periods, and ¿ and ¡ in Spanish."
+        Punctuation.Moderate -> "Flags missing sentence breaks and question marks. Final periods and ¿ are optional."
+        Punctuation.Casual -> "Flags missing punctuation only when it would confuse a reader."
     }
 
 val Judgments.label: String
     get() = when (this) {
-        Judgments.Both -> "Fix and naturalize"
-        Judgments.FixOnly -> "Fix only"
-        Judgments.NaturalizeOnly -> "Naturalize only"
+        Judgments.Both -> "Fixes and rewordings"
+        Judgments.FixOnly -> "Fixes only"
+        Judgments.NaturalizeOnly -> "Rewordings only"
     }

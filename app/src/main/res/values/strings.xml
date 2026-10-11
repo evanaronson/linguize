@@ -1,10 +1,10 @@
 <resources>
     <string name="app_name">Linguize</string>
     <!-- The writer's own language, as the model should write it: the UI language. -->
-    <string name="native_language">English</string>
+    <string name="native_language" translatable="false">English</string>
     <!-- Text-selection menu entries: auto-detect, then one per language. -->
     <string name="menu_auto">Linguize</string>
     <string name="menu_catalan">Catalanize</string>
     <string name="menu_castilian">Castilianize</string>
-    <string name="accessibility_description">Adds a Linguize button for apps whose selection menu doesn\'t show Linguize, such as Telegram. Tap it while typing: Linguize reads that text field only then, checks it, and writes back the changes you accept.</string>
+    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If History is on, checks are saved on this phone. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 </resources>

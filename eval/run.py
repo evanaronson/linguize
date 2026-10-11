@@ -7,7 +7,8 @@ judgment mismatches and latency.
 
 Each case may set "language" (as the app's language setting names it; default
 auto), "punctuation" (strict, moderate or casual; default moderate), "checks"
-(both, fix or naturalize; default both), "status", "fix" (a correction is expected or not) and "natural" (a more
+(both, fix or naturalize; default both), "status", "answer_language" (the English name the model should give in
+its `language` field; empty for unclear), "fix" (a correction is expected or not) and "natural" (a more
 natural alternative is expected or not) and "max_fixes" (more fixes than this
 means style is being counted as errors) "min_sentences" (fewer means
 run-ons were left alone), "assumption" (whether any assumption should be listed)
@@ -26,6 +27,10 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "app/src/main/assets"
 
+# Prompt.MAX_OUTPUT_TOKENS and Prompt.TEXT_OPEN/TEXT_CLOSE in the app: what it sends.
+MAX_OUTPUT_TOKENS = 8192
+TEXT_OPEN, TEXT_CLOSE = "<text>", "</text>"
+
 
 def check_gemini(model, key, system, schema, message):
     body = {
@@ -34,7 +39,7 @@ def check_gemini(model, key, system, schema, message):
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseJsonSchema": schema,
-            "maxOutputTokens": 4096,
+            "maxOutputTokens": MAX_OUTPUT_TOKENS,
             "thinkingConfig": {"thinkingLevel": "MINIMAL"},
         },
     }
@@ -57,7 +62,7 @@ def check_openai(model, key, system, schema, message):
         "instructions": system,
         "input": message,
         "store": False,
-        "max_output_tokens": 4096,
+        "max_output_tokens": MAX_OUTPUT_TOKENS,
         "reasoning": {"effort": "none"},
         "text": {"format": {"type": "json_schema", "name": "check", "strict": True, "schema": schema}},
     }
@@ -107,8 +112,10 @@ def main():
                        f"Punctuation: {case.get('punctuation', 'moderate')}\n"
                        f"Checks: {case.get('checks', 'both')}\n"
                        "Native: English (write meaning, assumptions and reasons in English)\n"
-                       + "".join(f"Settled: {about} → {answer}\n" for about, answer in case.get("settled", []))
-                       + f"Text: {case['text']}")
+                       + "".join("Settled: " + json.dumps({"about": about, "answer": answer}, ensure_ascii=False,
+                                                         separators=(",", ":")) + "\n"
+                               for about, answer in case.get("settled", []))
+                       + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
             verdict, elapsed = check(model, key, system, schema, message)
         except (urllib.error.URLError, KeyError, json.JSONDecodeError) as error:
             failures += 1
@@ -118,6 +125,8 @@ def main():
         problems = []
         if "status" in case and verdict["status"] != case["status"]:
             problems.append(f"status {verdict['status']} != {case['status']}")
+        if "answer_language" in case and verdict.get("language", "") != case["answer_language"]:
+            problems.append(f"language {verdict.get('language', '')!r} != {case['answer_language']!r}")
         if "fix" in case and verdict["has_errors"] != case["fix"]:
             problems.append(f"fix {verdict['has_errors']} != {case['fix']}")
         if "natural" in case and verdict["more_natural"] != case["natural"]:
@@ -132,7 +141,7 @@ def main():
             problems.append(f"{len(verdict['fixes'])} fixes > {case['max_fixes']} (style counted as errors?)")
         failures += bool(problems)
         mark = "MISS " if problems else "ok   "
-        print(f"{mark}{elapsed:4.1f}s  {case['text']}")
+        print(f"{mark}{elapsed:4.1f}s  {case['text']}  [{verdict.get('language', '')}]")
         for a in verdict.get("assumptions", []):
             print(f"        assumed: {a['about']}: {a['assumed']}  (or {', '.join(a['alternatives'])})")
         if verdict.get("corrected"):

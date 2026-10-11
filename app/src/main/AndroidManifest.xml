@@ -3,6 +3,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Lets Recent name the app a check came from (package visibility, Android 11+). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"
@@ -13,8 +21,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Linguize">
 
+        <!-- Home, Settings and past checks. -->
         <activity
-            android:name=".ui.settings.SettingsActivity"
+            android:name=".ui.home.HomeActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -32,7 +41,7 @@
 
         <!--
             Text-selection menu entries. Each label appears in the menu; settings switches
-            them on and off (see menu/SelectionMenu.kt). Only auto-detect is on to begin with.
+            them on and off (see data/SelectionMenu.kt). Only auto-detect is on to begin with.
         -->
         <activity-alias
             android:name=".menu.LinguizeEntry"
@@ -86,5 +95,16 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service" />
         </service>
+
+        <!-- Hands the history export to the share sheet. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

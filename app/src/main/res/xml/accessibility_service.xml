@@ -2,11 +2,13 @@
 <!--
     Only the accessibility button and reading the focused field are needed, so the
     service asks for the least: it subscribes to one rare event type it ignores.
+    View ids are reported so fields for codes and card numbers can be recognised and
+    left unread (see accessibility/PrivateField.kt).
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeAnnouncement"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRequestAccessibilityButton"
+    android:accessibilityFlags="flagRequestAccessibilityButton|flagReportViewIds"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_description"
     android:notificationTimeout="100" />

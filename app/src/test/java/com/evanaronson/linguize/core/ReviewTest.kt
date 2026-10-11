@@ -265,6 +265,37 @@ class ReviewTest {
     }
 
     @Test
+    fun aRecheckKeepsEachAcceptedChangeOnce() {
+        val verdict = Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "espera...")
+        val first = reviewed("espera", verdict).revision
+        assertEquals(listOf(".", ".", "."), first.replacements(EditKind.Fix))
+        val accepted = first.accept(first.edits.first().id).acceptedEdits
+
+        val second = reviewed("espera", verdict).revision.acceptMatching(accepted)
+
+        assertEquals("espera.", second.workingText)
+        assertEquals(2, second.remaining(EditKind.Fix).size)
+    }
+
+    @Test
+    fun aReasonGoesToTheChangeItDescribesExactly() {
+        val revision = reviewed(
+            "asi que si",
+            Verdict(
+                status = Verdict.Status.Ok,
+                hasErrors = true,
+                corrected = "así que sí",
+                fixes = listOf(VerdictChange("si", "sí", why = "Affirmative sí takes an accent")),
+            ),
+        ).revision
+
+        assertEquals(
+            listOf("asi" to null, "si" to "Affirmative sí takes an accent"),
+            revision.remaining(EditKind.Fix).map { it.from to it.why },
+        )
+    }
+
+    @Test
     fun replaceAllIsOneUndoStep() {
         val original = "hola q tal bb"
         val revision = reviewed(
@@ -355,6 +386,15 @@ class ReviewTest {
         assertEquals(
             CheckResult.WrongLanguage("Catalan"),
             interpret("x", Verdict(status = Verdict.Status.WrongLanguage), expectedLanguage = "Catalan"),
+        )
+        // What the model found travels with it; blank means unknown.
+        assertEquals(
+            CheckResult.WrongLanguage("Catalan", found = "Spanish"),
+            interpret(
+                "x",
+                Verdict(status = Verdict.Status.WrongLanguage, language = "Spanish"),
+                expectedLanguage = "Catalan",
+            ),
         )
         // Without a chosen language there's nothing to be wrong about.
         assertEquals(CheckResult.Unclear, interpret("x", Verdict(status = Verdict.Status.WrongLanguage)))

@@ -19,16 +19,8 @@ android {
         versionName = "0.1.$versionCode"
     }
 
-    signingConfigs {
-        // A fixed key so each new build installs over the previous one.
-        create("sideload") {
-            storeFile = file("signing/sideload.jks")
-            storePassword = "language-check"
-            keyAlias = "sideload"
-            keyPassword = "language-check"
-        }
-    }
-
+    // Release builds come out unsigned. CI signs the APK afterwards, in a separate job that runs
+    // only apksigner, so neither Gradle nor any build dependency ever sees the release key.
     buildTypes {
         release {
             // Shrunk release builds start noticeably faster than debug builds,
@@ -36,7 +28,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            signingConfig = signingConfigs.getByName("sideload")
+            // For trying a release build on a phone: ./gradlew assembleRelease -PdebugSignedRelease
+            // signs it with the local debug key instead.
+            if (providers.gradleProperty("debugSignedRelease").isPresent) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 
@@ -47,6 +43,11 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    testOptions {
+        // Robolectric tests read the app's resources and manifest.
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -68,4 +69,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

@@ -5,8 +5,8 @@ sealed interface CheckResult {
     /** The model couldn't tell what the text means. */
     data object Unclear : CheckResult
 
-    /** The text isn't in the language chosen in settings. */
-    data class WrongLanguage(val expected: String) : CheckResult
+    /** The text isn't in the language chosen in settings; [found] is what the model took it for. */
+    data class WrongLanguage(val expected: String, val found: String? = null) : CheckResult
 
     /** Suggestions for the judgments that were asked for, in display order. */
     data class Reviewed(
@@ -28,7 +28,8 @@ sealed interface CheckResult {
 /**
  * Turns the model's [verdict] into edits of [original]. Fixes and rewordings are
  * both anchored to the original text, so either can be accepted on its own;
- * a "change" that changes nothing produces no edit.
+ * a "change" that changes nothing produces no edit, and one that adds a link
+ * isn't offered (see [Links]).
  */
 fun interpret(
     original: String,
@@ -39,7 +40,7 @@ fun interpret(
     when (verdict.status) {
         Verdict.Status.Unclear -> return CheckResult.Unclear
         Verdict.Status.WrongLanguage ->
-            return expectedLanguage?.let { CheckResult.WrongLanguage(it) } ?: CheckResult.Unclear
+            return expectedLanguage?.let { CheckResult.WrongLanguage(it, verdict.language.trim().ifEmpty { null }) } ?: CheckResult.Unclear
         Verdict.Status.Ok -> Unit
     }
 
@@ -53,7 +54,7 @@ fun interpret(
         .orEmpty()
 
     return CheckResult.Reviewed(
-        Revision(original, fixes + naturals),
+        Revision(original, Links.withoutNew(original, fixes + naturals)),
         kinds = EditKind.entries.filter { it in judgments.kinds },
         assumptions = verdict.assumptions.filter { it.about.isNotBlank() && it.assumed.isNotBlank() },
         meaning = verdict.meaning.trim().takeUnless { isUntranslated(it, original) }.orEmpty(),

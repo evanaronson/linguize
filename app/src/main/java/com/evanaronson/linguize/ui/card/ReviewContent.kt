@@ -25,6 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
@@ -51,7 +54,7 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
                     result.meaning,
                     result.assumptions,
                     settled,
-                    actions.onSettle,
+                    actions.onSettle.takeUnless { actions.readOnly },
                     onBack = { showingUnderstanding = false },
                 )
             } else {
@@ -67,7 +70,7 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
 @Composable
 private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
     if (result.looksGood) {
-        val checked = result.kinds.map { if (it == EditKind.Fix) "No fixes" else "Sounds natural" }
+        val checked = result.kinds.map { if (it == EditKind.Fix) "Nothing to fix" else "Sounds natural" }
         Outcome(Mark.Good, "Looks good", checked.joinToString(" · "))
         return
     }
@@ -84,7 +87,7 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
         Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             val count = result.revision.acceptedCount
             Text(
-                if (count == 1) "1 change applied" else "$count changes applied",
+                if (count == 1) "1 change accepted" else "$count changes accepted",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
@@ -96,31 +99,36 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
 }
 
 @Composable
-private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String) -> Unit, review: ReviewActions?) {
+private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, EditKind) -> Unit, review: ReviewActions?) {
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
     when {
-        revision.edits(kind).isEmpty() -> StatusLine(Mark.Good, if (fix) "No fixes" else "Sounds natural")
-        remaining.isEmpty() -> StatusLine(Mark.Good, if (fix) "Fixes applied" else "Rewording applied")
+        revision.edits(kind).isEmpty() -> StatusLine(Mark.Good, if (fix) "Nothing to fix" else "Sounds natural")
+        remaining.isEmpty() -> StatusLine(Mark.Good, if (fix) "Fixes accepted" else "Rewordings accepted")
         else -> {
             val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             val label = when {
                 fix -> if (remaining.size == 1) "1 fix" else "${remaining.size} fixes"
-                remaining.size == 1 -> "1 way to sound more natural"
-                else -> "${remaining.size} ways to sound more natural"
+                remaining.size == 1 -> "1 rewording"
+                else -> "${remaining.size} rewordings"
             }
             val preview = revision.preview(kind)
             val highlights = remaining.mapNotNull { edit ->
                 preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
             }
-            Text(label, style = MaterialTheme.typography.labelLarge, color = accent)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = accent,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
             Spacer(Modifier.height(6.dp))
             HighlightedText(preview.text, highlights, accent, review?.onAccept)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onCopy(preview.text) }) { Text("Copy") }
+                OutlinedButton(onClick = { onCopy(preview.text, kind) }) { Text(if (fix) "Copy with fixes" else "Copy with rewordings") }
                 if (review != null) {
-                    FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text("Replace all") }
+                    FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text("Accept all") }
                 }
             }
         }

@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.core.CheckResult
@@ -52,9 +54,19 @@ fun ResultCard(
                     is CardState.Failed -> Failure(state.reason, state.detail, actions)
                     is CardState.Done -> when (val result = state.result) {
                         is CheckResult.Reviewed -> ReviewContent(result, state.settled, actions)
-                        CheckResult.Unclear -> Outcome(Mark.Unsure, "Can't tell what this means")
+                        CheckResult.Unclear ->
+                            Outcome(
+                                Mark.Unsure,
+                                "The AI couldn't tell what this means",
+                                "Check a full sentence in Catalan or Spanish",
+                            )
                         is CheckResult.WrongLanguage ->
-                            Outcome(Mark.Unsure, "Not ${result.expected}", "Try Linguize to detect the language")
+                            Outcome(
+                                Mark.Unsure,
+                                "This isn't ${result.expected}",
+                                result.found?.let { "It looks like $it. Choose Linguize to detect the language." }
+                                    ?: "Choose Linguize to detect the language.",
+                            )
                     }
                 }
             }
@@ -82,30 +94,34 @@ private fun Loading(text: String) {
         overflow = TextOverflow.Ellipsis,
     )
     Spacer(Modifier.height(14.dp))
-    LinearProgressIndicator(Modifier.fillMaxWidth())
+    LinearProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = "Checking" })
 }
 
 /** What went wrong, in a few words. */
 val Reason.title: String
     get() = when (this) {
-        Reason.NoKey -> "Add an API key"
+        Reason.NoKey -> "No API key"
         Reason.BadKey -> "API key rejected"
-        Reason.BadModel -> "This model can't be used"
+        Reason.BadModel -> "Model not available"
         Reason.Offline -> "No connection"
-        Reason.Timeout -> "Took too long"
-        Reason.RateLimited -> "Rate limited"
-        Reason.Server -> "The model isn't responding"
-        Reason.BadResponse -> "Couldn't read the answer"
-        Reason.TooLong -> "Selection too long"
+        Reason.Timeout -> "The AI took too long"
+        Reason.RateLimited -> "AI usage limit reached"
+        Reason.Server -> "AI service unavailable"
+        Reason.BadResponse -> "Unusable reply from the AI"
+        Reason.TooLong -> "Text too long"
+        Reason.TooMany -> "Too many checks in a minute"
     }
 
 /** What to do about it, when there's something to say. */
 private val Reason.hint: String?
     get() = when (this) {
-        Reason.BadKey -> "Check it in settings"
-        Reason.BadModel -> "Pick another in settings"
-        Reason.RateLimited -> "Try again in a moment"
-        Reason.TooLong -> "Select up to about a page of text"
+        Reason.NoKey -> "Add one in settings"
+        Reason.BadKey -> "Add a working key in settings"
+        Reason.BadModel -> "Pick another model in settings"
+        Reason.Offline -> "Connect to the internet, then retry"
+        Reason.RateLimited -> "Wait a minute, then retry"
+        Reason.TooLong -> "Select a shorter part, then check again"
+        Reason.TooMany -> "Wait a minute, then select the text again"
         else -> null
     }
 
@@ -126,7 +142,8 @@ private fun Failure(reason: Reason, providerMessage: String?, actions: CardActio
     when (reason) {
         Reason.NoKey, Reason.BadKey, Reason.BadModel ->
             actions.onOpenSettings?.let { FilledTonalButton(onClick = it) { Text("Open settings") } }
-        Reason.TooLong -> Unit
+        // Nothing to retry: a limited card never started a check.
+        Reason.TooLong, Reason.TooMany -> Unit
         else -> FilledTonalButton(onClick = actions.onRetry) { Text("Retry") }
     }
 }

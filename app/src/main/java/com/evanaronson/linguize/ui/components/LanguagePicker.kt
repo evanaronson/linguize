@@ -26,17 +26,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.evanaronson.linguize.data.MenuEntry
+import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.Language
 
 /**
- * "Linguize ▾": picks the language to check as. The list opens inline below the
- * button rather than in a popup window, so it also works in the accessibility
- * overlay, where popup windows can't attach. Opening it scrolls the list into view.
+ * "Linguize ▾": picks the language to check as, from auto-detect (null) and every language
+ * in [Language.all]. The list opens inline below the button rather than in a popup window,
+ * so it also works in the accessibility overlay, where popup windows can't attach.
+ * Opening it scrolls the list into view.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LanguagePicker(selected: MenuEntry, onSelect: (MenuEntry) -> Unit, modifier: Modifier = Modifier) {
+fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }
     val list = remember { BringIntoViewRequester() }
     LaunchedEffect(open) {
@@ -46,9 +50,15 @@ fun LanguagePicker(selected: MenuEntry, onSelect: (MenuEntry) -> Unit, modifier:
             list.bringIntoView()
         }
     }
+    val name = label(selected)
     Column(modifier) {
-        FilledTonalButton(onClick = { open = !open }) {
-            Text(stringResource(selected.label))
+        FilledTonalButton(
+            onClick = { open = !open },
+            modifier = Modifier.semantics {
+                contentDescription = "Language: $name, ${selected?.name ?: "detects the language"}"
+            },
+        ) {
+            Text(name)
             Spacer(Modifier.width(8.dp))
             Text(if (open) "▴" else "▾", Modifier.clearAndSetSemantics {})
         }
@@ -60,7 +70,7 @@ fun LanguagePicker(selected: MenuEntry, onSelect: (MenuEntry) -> Unit, modifier:
                 modifier = Modifier.padding(top = 4.dp).widthIn(min = 220.dp).bringIntoViewRequester(list),
             ) {
                 Column(Modifier.padding(vertical = 4.dp)) {
-                    MenuEntry.entries.forEach { entry ->
+                    (listOf(null) + Language.all).forEach { entry ->
                         Row(
                             Modifier
                                 .selectable(selected = entry == selected, role = Role.RadioButton) {
@@ -71,9 +81,9 @@ fun LanguagePicker(selected: MenuEntry, onSelect: (MenuEntry) -> Unit, modifier:
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.widthIn(min = 160.dp)) {
-                                Text(stringResource(entry.label), style = MaterialTheme.typography.bodyLarge)
+                                Text(label(entry), style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    entry.language?.name ?: "Detects the language",
+                                    entry?.name ?: "Detects the language",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -90,4 +100,19 @@ fun LanguagePicker(selected: MenuEntry, onSelect: (MenuEntry) -> Unit, modifier:
             }
         }
     }
+}
+
+/**
+ * What the picker calls a choice: the name its selection-menu entry has (Linguize,
+ * Catalanize, Castilianize), or a language's own name when it has no such name.
+ */
+@Composable
+private fun label(language: Language?): String {
+    val named = when (language) {
+        null -> R.string.menu_auto
+        Language.Catalan -> R.string.menu_catalan
+        Language.Spanish -> R.string.menu_castilian
+        else -> null
+    }
+    return named?.let { stringResource(it) } ?: language?.name.orEmpty()
 }

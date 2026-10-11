@@ -1,7 +1,20 @@
 package com.evanaronson.linguize.core
 
+import com.evanaronson.linguize.codec.Tokens
+
 /** Which section of the card an edit belongs to. */
-enum class EditKind { Fix, Natural }
+enum class EditKind(
+    /** What history keeps. */
+    val token: String,
+) {
+    Fix("fix"),
+    Natural("natural"),
+    ;
+
+    companion object {
+        val tokens = Tokens(entries, EditKind::token)
+    }
+}
 
 /**
  * One suggested change, anchored to a span of the writer's original text, so
@@ -24,6 +37,14 @@ data class Edit(
      * edge, like a comma inserted right where it starts.
      */
     val includes: Set<Int> = emptySet(),
+    /**
+     * Where the replacement sits in the corrected text, which every edit is placed
+     * against, so insertions at one place in the original render in the order their
+     * texts have there, whatever their kind. Twice the corrected-text position, plus
+     * one unless the edit replaces nothing there: a rewording inserted where a fix's
+     * text starts goes before it.
+     */
+    val order: Int = 0,
 ) {
     val isInsertion get() = start == end
 
@@ -48,9 +69,9 @@ data class Rendered(val text: String, val ranges: Map<Int, IntRange>)
 
 /**
  * Text order. At the same place an insertion goes before a replacement, and insertions
- * keep the order they have in the target text, which their ids follow (fixes first).
+ * keep the order they have in the corrected text, whatever their kind.
  */
-internal val editOrder = compareBy<Edit>({ it.start }, { if (it.isInsertion) 0 else 1 }, { it.id })
+internal val editOrder = compareBy<Edit>({ it.start }, { if (it.isInsertion) 0 else 1 }, { it.order }, { it.id })
 
 /** Applies non-overlapping [edits] to [original]. */
 internal fun render(original: String, edits: List<Edit>): Rendered {

@@ -9,3 +9,7 @@ captures/
 /*.apk
 __pycache__/
 *.pyc
+# Signing keys never go in the repo.
+*.jks
+*.keystore
+*.p12

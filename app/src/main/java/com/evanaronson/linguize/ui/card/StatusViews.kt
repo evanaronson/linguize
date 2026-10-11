@@ -12,7 +12,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -21,7 +24,8 @@ internal enum class Mark { Good, Unsure, Problem }
 /** A large badge with a title and optional detail: the whole card's message. */
 @Composable
 internal fun Outcome(mark: Mark, title: String, detail: String? = null) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // Polite live region: a screen reader announces when a check finishes or fails.
+    Row(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalAlignment = Alignment.CenterVertically) {
         MarkBadge(mark, 36.dp)
         Spacer(Modifier.size(14.dp))
         Column {

@@ -29,6 +29,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -44,6 +50,8 @@ data class Highlight(val id: Int, val range: IntRange, val from: String, val why
  * Suggested text with a separate rounded highlight behind each change, so
  * adjacent changes read as distinct blocks. Tapping a highlight shows why,
  * with a Replace button to accept just that change when [onReplace] is set.
+ * Screen readers, which can't aim a tap at a highlight, get the same as actions
+ * on the text: "Why" for each change, and "Replace" when [onReplace] is set.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -61,12 +69,34 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
         }
     }
 
+    // Rebuilt with the changes, so an action never answers for a change that's gone.
+    val actions = remember(text, changes, onReplace) {
+        changes.flatMap { change ->
+            val to = text.substring(change.range)
+            listOfNotNull(
+                // In words: an arrow would be read out as "right arrow".
+                CustomAccessibilityAction(if (change.from.isEmpty()) "Why add $to" else "Why ${change.from} becomes $to") {
+                    selectedId = change.id
+                    true
+                },
+                onReplace?.let { replace ->
+                    CustomAccessibilityAction(if (change.from.isEmpty()) "Add $to" else "Replace ${change.from} with $to") {
+                        selectedId = null
+                        replace(change.id)
+                        true
+                    }
+                },
+            )
+        }
+    }
+
     Column {
         Text(
             annotated,
             style = MaterialTheme.typography.bodyLarge,
             onTextLayout = { layout = it },
             modifier = Modifier
+                .semantics { customActions = actions }
                 .drawBehind {
                     val result = layout ?: return@drawBehind
                     // Highlights grow a little past their text, except where two changes touch,
@@ -110,16 +140,18 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
                 explanation.bringIntoView()
             }
         }
-        // Keeps showing the last explanation while it animates away.
-        val lastShown = remember { arrayOfNulls<Highlight>(1) }
-        if (shown != null) lastShown[0] = shown
+        // Keeps showing the last explanation while it animates away. Its replacement is kept
+        // with it: the change can leave because another one was accepted (a rewording retires
+        // the fixes it touches), and then its range no longer fits the shorter text.
+        val lastShown = remember { arrayOfNulls<Pair<Highlight, String>>(1) }
+        if (shown != null) lastShown[0] = shown to text.substring(shown.range)
         AnimatedVisibility(visible = shown != null) {
-            val change = lastShown[0] ?: return@AnimatedVisibility
+            val (change, replacement) = lastShown[0] ?: return@AnimatedVisibility
             Column(Modifier.bringIntoViewRequester(explanation)) {
                 Spacer(Modifier.height(8.dp))
                 Explanation(
                     change,
-                    text.substring(change.range),
+                    replacement,
                     accent,
                     onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
                 )
@@ -130,7 +162,12 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
 
 @Composable
 private fun Explanation(change: Highlight, replacement: String, accent: Color, onReplace: (() -> Unit)?) {
-    Surface(shape = MaterialTheme.shapes.medium, color = accent.copy(alpha = 0.12f)) {
+    // Read out as it opens, which matters when it was opened by a screen reader's "Why" action.
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = accent.copy(alpha = 0.12f),
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
@@ -138,7 +175,7 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
                         val from = change.from
                         if (from.isEmpty()) {
                             // Something added, like a comma.
-                            append("+ ")
+                            append("Add ")
                         } else {
                             pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
                             append(from)
@@ -150,6 +187,11 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
                         pop()
                     },
                     style = MaterialTheme.typography.labelLarge,
+                    // In words: the arrow would be read out as "right arrow".
+                    modifier = Modifier.semantics {
+                        contentDescription =
+                            if (change.from.isEmpty()) "Add $replacement" else "${change.from} becomes $replacement"
+                    },
                 )
                 change.why?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -157,7 +199,7 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
             }
             if (onReplace != null) {
                 Spacer(Modifier.width(8.dp))
-                FilledTonalButton(onClick = onReplace) { Text("Replace") }
+                FilledTonalButton(onClick = onReplace) { Text("Accept") }
             }
         }
     }

@@ -50,3 +50,4 @@ internal fun SessionSummary.statusLine(resources: Resources): String = when {
             else -> null
         },
     ).joinToString(resources.getString(R.string.status_separator))
+}

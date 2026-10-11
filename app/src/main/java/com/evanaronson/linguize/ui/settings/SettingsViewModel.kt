@@ -125,18 +125,21 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     }
 
     /** Another host may have changed settings while this popup or screen was hidden. */
-    fun refresh() {
+    fun refresh() = refresh {}
+
+    private fun refresh(afterRead: () -> Unit) {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val fresh = withContext(Dispatchers.IO) {
                 val settings = app.settings
+                val provider = settings.provider
                 SettingsState(
                     menu = app.menu.enabled().ifEmpty { setOf(MenuEntry.Auto) },
                     punctuation = settings.punctuation,
                     judgments = settings.judgments,
-                    provider = settings.provider,
+                    provider = provider,
                     keys = Provider.entries.associateWith { app.keys.status(it) },
-                    model = settings.model(settings.provider),
+                    model = settings.model(provider),
                     historyEnabled = settings.historyEnabled,
                 )
             }
@@ -153,6 +156,7 @@ class SettingsViewModel(private val app: App) : ViewModel() {
                 testJob?.cancel()
                 if (reloadModels) loadModels()
             }
+            afterRead()
         }
     }
 
@@ -244,13 +248,17 @@ class SettingsViewModel(private val app: App) : ViewModel() {
                 val stillSelected = state?.provider == provider
                 // An older provider's write must not cancel the current provider's test.
                 if (stillSelected) testJob?.cancel()
-                change {
+                updateState {
                     val updated = it.copy(keys = it.keys + (provider to status))
                     if (it.provider == provider) updated.copy(modelTest = null, keySaveFailed = !saved) else updated
                 }
-                if (stillSelected) {
-                    loadModels()
-                    if (saved && status is KeyStatus.Saved) testModel()
+                // Reconcile other hosts' changes and the completed key write in one fresh
+                // snapshot. A late key result must not cancel refresh and retain old settings.
+                refresh {
+                    if (state?.provider == provider) {
+                        loadModels()
+                        if (saved && status is KeyStatus.Saved) testModel()
+                    }
                 }
             }
         }

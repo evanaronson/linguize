@@ -31,9 +31,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 
@@ -45,7 +47,7 @@ val LocalInlineControls = staticCompositionLocalOf { false }
 fun BackButton(onBack: () -> Unit) {
     TextButton(onClick = onBack, contentPadding = PaddingValues(horizontal = 4.dp)) {
         // The arrow only repeats the word, so screen readers hear just "Back".
-        Text("‹", Modifier.clearAndSetSemantics {})
+        Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "›" else "‹", Modifier.clearAndSetSemantics {})
         Text(stringResource(R.string.back), Modifier.padding(start = 8.dp))
     }
 }

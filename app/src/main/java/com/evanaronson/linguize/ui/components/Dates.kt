@@ -5,6 +5,7 @@ import android.text.format.DateFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DecimalStyle
 import java.util.Locale
 
 /** Match the current app configuration, including Android's per-app language setting. */
@@ -21,5 +22,5 @@ internal fun shortDate(
     val moment = Instant.ofEpochMilli(at).atZone(zone)
     val thisYear = moment.year == Instant.ofEpochMilli(now).atZone(zone).year
     val pattern = DateFormat.getBestDateTimePattern(locale, if (thisYear) "MMMd" else "yMMMd")
-    return DateTimeFormatter.ofPattern(pattern, locale).format(moment)
+    return DateTimeFormatter.ofPattern(pattern, locale).withDecimalStyle(DecimalStyle.of(locale)).format(moment)
 }

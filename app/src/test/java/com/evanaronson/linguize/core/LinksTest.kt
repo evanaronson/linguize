@@ -39,4 +39,22 @@ class LinksTest {
     fun aMalformedAddressCannotExhaustTheRegexStack() {
         assertTrue(Links.hasNewLink("", "a.".repeat(5_000) + "com"))
     }
+
+    @Test
+    fun explicitAddressIdentityPreservesPathsQueriesAndUnicodeHosts() {
+        assertTrue(Links.hasNewLink("https://example.com/Account", "https://example.com/account"))
+        assertTrue(Links.hasNewLink("https://example.com/?code=AbC", "https://example.com/?code=abc"))
+        assertTrue(Links.hasNewLink("https://café.com", "https://cafe.com"))
+        assertTrue(Links.hasNewLink("www.example.com/Account", "www.example.com/account"))
+        assertTrue(Links.hasNewLink("example.com/Account", "example.com/account"))
+        assertTrue(Links.hasNewLink("https://User@example.com", "https://user@example.com"))
+        assertFalse(Links.hasNewLink("HTTPS://EXAMPLE.COM/Account", "https://example.com/Account"))
+    }
+
+    @Test
+    fun aHarmlessEditBesideALongLinkDoesNotInventATruncatedDestination() {
+        val original = "[hola](https://example.com/" + "a".repeat(1_500) + ")"
+        val edit = Edit(0, EditKind.Fix, 1, 5, "hola", "Hola", null)
+        assertEquals(listOf(edit), Links.withoutNew(original, listOf(edit)))
+    }
 }

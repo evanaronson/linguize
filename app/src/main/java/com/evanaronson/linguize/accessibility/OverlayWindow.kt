@@ -80,7 +80,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         }
         root.visibility = if (hidden || !screenAvailable) View.INVISIBLE else View.VISIBLE
         params.flags = windowFlags(hidden || !screenAvailable, editing)
-        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+        lifecycleRegistry.currentState = if (hidden || !screenAvailable) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
         windowManager.addView(root, params)
         this.root = root
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -112,6 +112,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         root.visibility = if (invisible) View.INVISIBLE else View.VISIBLE
         params.flags = windowFlags(hidden = invisible, editing = editing)
         windowManager.updateViewLayout(root, params)
+        lifecycleRegistry.currentState = if (invisible) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
     }
 
     /** Embedded settings owns its keyboard; the check leaves the keyboard with the source. */

@@ -43,6 +43,11 @@ class AlignmentTest {
         }
     }
 
+    @Test(expected = IllegalArgumentException::class, timeout = 5_000)
+    fun aPathologicalRewriteIsRejectedBeforeDoingQuadraticWork() {
+        Alignment.align("!".repeat(12_000), "?".repeat(12_000))
+    }
+
     /** Deliberately small, full-table reference: no bands, shared edges or row recomputation. */
     private fun fullTable(original: String, target: String): List<Alignment.Op> {
         // An empty counterpart exposes the tokenizer without any choices of pairing.

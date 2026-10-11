@@ -242,7 +242,9 @@ class CheckHistory(
         // Decided, either way; a cancellation while the environment was read leaves it undecided.
         decided = true
         context ?: return null
-        val started = quietly("open a session") { SessionRecording(text, context.first, clock(), newId) } ?: return null
+        val started = quietly("open a session") {
+            SessionRecording(text, context.first, clock(), newId).also { store.registerSession(it.session.id) }
+        } ?: return null
         recording = started
         permission = context.second
         val session = started.session

@@ -21,8 +21,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.card.CardActions
@@ -54,6 +56,7 @@ fun PopupCard(
 ) {
     LaunchedEffect(settingsOpen) { onInputModeChanged(settingsOpen) }
     val saved = rememberSaveableStateHolder()
+    val forward = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
     CompositionLocalProvider(
         LocalInlineControls provides true,
         LocalSettingsHost provides SettingsHost(embedded = true, openExternal = onOpenExternal),
@@ -69,7 +72,7 @@ fun PopupCard(
                     targetState = settingsOpen,
                     modifier = modifier.then(if (settingsOpen) Modifier.imePadding() else Modifier),
                     transitionSpec = {
-                        val direction = if (targetState) 1 else -1
+                        val direction = if (targetState) forward else -forward
                         (slideInHorizontally { direction * it / 3 } + fadeIn()) togetherWith
                             (slideOutHorizontally { -direction * it / 3 } + fadeOut())
                     },

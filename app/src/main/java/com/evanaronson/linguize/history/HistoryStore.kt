@@ -17,6 +17,12 @@ import java.io.OutputStream
  * of one [delete]d, is dropped rather than bringing it back.
  */
 interface HistoryStore {
+    /**
+     * Registers an open card before its first write is queued. Must do no I/O: stores
+     * can use this reservation to keep Clear final even when that write has not run yet.
+     */
+    fun registerSession(id: String) = Unit
+
     /** Adds a session as it opens, or updates it while it's open. Never changes a closed session. */
     suspend fun save(session: SessionRecord)
 
@@ -47,7 +53,8 @@ interface HistoryStore {
      */
     suspend fun reusable(key: ReuseKey, since: Long): SessionDetail?
 
-    suspend fun delete(id: String)
+    /** True once the session is absent; false when deletion failed, so durable callers can retry. */
+    suspend fun delete(id: String): Boolean
 
     /** Deletes everything, leaving none of the text in the database's files. */
     suspend fun clear()
@@ -70,12 +77,11 @@ interface HistoryStore {
  * manual change), and a comparison of times would then drop new sessions or keep old ones
  * open for good.
  *
- * A session opened before a clear but whose first save only reaches the store after it
- * is kept: the clear didn't see it. Saves are queued the moment a card opens, so this
- * needs a clear within milliseconds of a check starting.
+ * [HistoryStore.registerSession] registers a session before its first save is queued,
+ * so a clear also revokes a write that has not reached the database yet.
  */
 internal class Forgotten {
-    /** Sessions saved by this process and not yet closed, cleared or deleted. */
+    /** Sessions registered or saved by this process and not yet closed, cleared or deleted. */
     private val open = mutableSetOf<String>()
 
     /** Sessions cleared or deleted in this process: never written again. */

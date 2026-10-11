@@ -47,24 +47,32 @@ class SqliteHistoryStore(
     /** Bumped after every write, so the observed queries run again. */
     private val changes = MutableStateFlow(0L)
 
-    override suspend fun save(session: SessionRecord) = write("save a session") { db ->
-        if (forgotten.saving(session.id)) db.execute(HistorySchema.SAVE_SESSION, session.values().values)
+    override fun registerSession(id: String) {
+        forgotten.saving(id)
     }
 
-    override suspend fun close(session: SessionRecord, suggestions: List<SuggestionRecord>) = write("close a session") { db ->
-        if (!forgotten.closing(session.id)) return@write
-        db.execute(HistorySchema.CLOSE_SESSION, session.values().values)
-        // Closing twice writes the same rows again rather than adding to them.
-        db.execute(HistorySchema.DELETE_SUGGESTIONS_OF, listOf(session.id))
-        val insert = db.compileStatement(HistorySchema.INSERT_SUGGESTION)
-        try {
-            for (suggestion in suggestions) {
-                insert.clearBindings()
-                insert.bindAll(suggestion.values().values)
-                insert.executeInsert()
+    override suspend fun save(session: SessionRecord) {
+        write("save a session") { db ->
+            if (forgotten.saving(session.id)) db.execute(HistorySchema.SAVE_SESSION, session.values().values)
+        }
+    }
+
+    override suspend fun close(session: SessionRecord, suggestions: List<SuggestionRecord>) {
+        write("close a session") { db ->
+            if (!forgotten.closing(session.id)) return@write
+            db.execute(HistorySchema.CLOSE_SESSION, session.values().values)
+            // Closing twice writes the same rows again rather than adding to them.
+            db.execute(HistorySchema.DELETE_SUGGESTIONS_OF, listOf(session.id))
+            val insert = db.compileStatement(HistorySchema.INSERT_SUGGESTION)
+            try {
+                for (suggestion in suggestions) {
+                    insert.clearBindings()
+                    insert.bindAll(suggestion.values().values)
+                    insert.executeInsert()
+                }
+            } finally {
+                insert.close()
             }
-        } finally {
-            insert.close()
         }
     }
 
@@ -116,12 +124,13 @@ class SqliteHistoryStore(
     }
 
     /** Removes the session and, by cascade, its suggestions. */
-    override suspend fun delete(id: String) {
-        write("delete a session") { db ->
+    override suspend fun delete(id: String): Boolean {
+        val deleted = write("delete a session") { db ->
             forgotten.deleted(id)
             db.execute(HistorySchema.DELETE_SESSION, listOf(id))
         }
-        read("checkpoint after a delete", Unit) { db -> db.checkpoint() }
+        if (!deleted) return false
+        return read("checkpoint after a delete", false) { db -> db.checkpoint() }
     }
 
     override suspend fun clear() {
@@ -173,7 +182,7 @@ class SqliteHistoryStore(
         select(HistorySchema.SESSION_SUGGESTIONS, listOf(sessionId), ::suggestionRecord).filterNotNull()
 
     /** Runs [block] in a transaction on [Dispatchers.IO], then tells the observed queries. Logs a failure. */
-    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit) {
+    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit): Boolean {
         val written = read(what, false) { db ->
             db.beginTransaction()
             try {
@@ -185,6 +194,7 @@ class SqliteHistoryStore(
             true
         }
         if (written) changes.update { it + 1 }
+        return written
     }
 
     /** [block] on [Dispatchers.IO] with the database; [fallback] when it fails. */
@@ -249,7 +259,11 @@ private fun SQLiteDatabase.pragma(pragma: String) {
 }
 
 /** Copies the write-ahead log into the database and empties it. */
-private fun SQLiteDatabase.checkpoint() = pragma("wal_checkpoint(TRUNCATE)")
+private fun SQLiteDatabase.checkpoint(): Boolean = rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { cursor ->
+    // SQLite reports a busy checkpoint as a result row, not an exception. Keep the
+    // deletion's durable note until a retry can also retire the old WAL contents.
+    cursor.moveToFirst() && cursor.getInt(0) == 0
+}
 
 /** Reads related rows from one snapshot, so a concurrent delete or close cannot split them. */
 private inline fun <T> SQLiteDatabase.snapshot(block: () -> T): T {

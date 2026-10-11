@@ -71,8 +71,7 @@ class HistoryViewModel(private val app: App) : ViewModel() {
         hidden.update { it + abandoned }
         if (abandoned.isNotEmpty()) app.appScope.launch {
             for (id in abandoned) {
-                app.history.delete(id)
-                withContext(Dispatchers.Main.immediate) { deletions.remove(id) }
+                if (app.history.delete(id)) withContext(Dispatchers.Main.immediate) { deletions.remove(id) }
             }
             app.forgetExports()
         }
@@ -111,11 +110,11 @@ class HistoryViewModel(private val app: App) : ViewModel() {
         // On the app's scope, so it happens even as the screen closes. Any export goes too,
         // since it holds the deleted text.
         app.appScope.launch {
-            app.history.delete(pendingId)
+            val deleted = app.history.delete(pendingId)
             app.forgetExports()
             // Compare and clear on the same thread as delete/undo. An IO-thread
             // read-then-remove could erase a newer pending deletion's durable note.
-            withContext(Dispatchers.Main.immediate) { deletions.remove(pendingId) }
+            if (deleted) withContext(Dispatchers.Main.immediate) { deletions.remove(pendingId) }
         }
     }
 
@@ -164,28 +163,45 @@ internal class PendingDeletions(
     private val prefs: SharedPreferences,
     private val process: String = PROCESS,
 ) {
+    private val owner = UUID.randomUUID().toString()
+    private var recovered: Map<String, String> = emptyMap()
+
     /** Captures only an earlier process's notes, once, before any asynchronous work starts. */
     fun recover(): Set<String> {
         if (prefs.getString(OWNER, null) == process) return emptySet()
-        val abandoned = notes() + listOfNotNull(prefs.getString(LEGACY, null))
-        prefs.edit().putString(OWNER, process).putStringSet(IDS, abandoned).remove(LEGACY).apply()
-        return abandoned
+        val legacy = prefs.getStringSet(IDS, emptySet()).orEmpty() + listOfNotNull(prefs.getString(LEGACY, null))
+        recovered = notes() + legacy.associateBy { noteKey(it) }
+        prefs.edit().apply {
+            putString(OWNER, process)
+            recovered.forEach { (key, id) -> putString(key, id) }
+            remove(IDS)
+            remove(LEGACY)
+        }.apply()
+        return recovered.values.toSet()
     }
 
     fun add(id: String) {
-        prefs.edit().putStringSet(IDS, notes() + id).apply()
+        prefs.edit().putString(noteKey(id), id).apply()
     }
 
     fun remove(id: String) {
-        prefs.edit().putStringSet(IDS, notes() - id).apply()
+        prefs.edit().apply {
+            remove(noteKey(id))
+            recovered.filterValues { it == id }.keys.forEach { remove(it) }
+        }.apply()
     }
 
-    private fun notes() = prefs.getStringSet(IDS, emptySet()).orEmpty().toSet()
+    private fun noteKey(id: String) = "$NOTE_PREFIX$owner:$id"
+
+    private fun notes(): Map<String, String> = prefs.all.entries
+        .filter { it.key.startsWith(NOTE_PREFIX) && it.value is String }
+        .associate { it.key to it.value as String }
 
     private companion object {
         val PROCESS = UUID.randomUUID().toString()
         const val OWNER = "pendingProcess"
         const val IDS = "pendingDeletes"
         const val LEGACY = "pendingDelete"
+        const val NOTE_PREFIX = "pendingOperation:"
     }
 }

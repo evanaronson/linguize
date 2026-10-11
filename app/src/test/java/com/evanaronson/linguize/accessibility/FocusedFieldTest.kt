@@ -117,4 +117,44 @@ class FocusedFieldTest {
         assertNull(result.field)
         assertTrue(result.reason.startsWith("Lookup limit reached"))
     }
+
+    @Test fun focusedSubtreeResolvesWithoutScanningLargeConversation() {
+        val root = node()
+        val source = node()
+        val editor = node(focused = true, editable = true)
+        val conversation = node()
+        children(root, conversation, source)
+        children(source, editor)
+        repeat(150) { children(conversation, node()) }
+        // A full-window scan would stop at its limit. The completed focused subtree is enough.
+        assertEquals(editor, FocusedField.find(root, source).field)
+    }
+
+    @Test fun emptySourceSubtreeCanFallBackToSameWindow() {
+        val root = node()
+        val source = node()
+        val editor = node(focused = true, editable = true)
+        children(root, source, editor)
+        assertEquals(editor, FocusedField.find(root, source).field)
+    }
+
+    @Test fun ambiguousSourceSubtreeDoesNotFallBackElsewhere() {
+        val root = node()
+        val source = node()
+        children(root, source, node(focused = true, editable = true))
+        children(source, node(focused = true, editable = true), node(focused = true, editable = true))
+        val result = FocusedField.find(root, source)
+        assertNull(result.field)
+        assertTrue(result.reason.startsWith("Ambiguous input focus"))
+    }
+
+    @Test fun incompleteSourceSubtreeDoesNotFallBackElsewhere() {
+        val root = node()
+        val source = node()
+        children(root, source, node(focused = true, editable = true))
+        repeat(130) { children(source, node()) }
+        val result = FocusedField.find(root, source)
+        assertNull(result.field)
+        assertTrue(result.reason.startsWith("Lookup limit reached"))
+    }
 }

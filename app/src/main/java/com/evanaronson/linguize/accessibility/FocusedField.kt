@@ -24,6 +24,14 @@ internal object FocusedField {
         if (root == null) return Result(null, "Source root unavailable")
         if (!sameWindow(root, source)) return Result(null, "Source window changed")
 
+        // Android may return the editor's container rather than the editor itself.
+        // Finish that focused subtree before considering the rest of a large conversation.
+        val local = scan(source, source)
+        if (source == root || !local.reason.startsWith("No focused editor exposed")) return local
+        return scan(root, source)
+    }
+
+    private fun scan(root: AccessibilityNodeInfo, source: AccessibilityNodeInfo): Result {
         val pending = ArrayDeque<AccessibilityNodeInfo>()
         val seen = HashSet<AccessibilityNodeInfo>()
         pending.add(root)

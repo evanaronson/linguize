@@ -107,4 +107,3 @@ private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
 
 @Composable
 private fun menuLabels(): Map<MenuEntry, String> = MenuEntry.entries.associateWith { stringResource(it.label) }
-

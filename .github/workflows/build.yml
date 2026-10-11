@@ -315,4 +315,3 @@ jobs:
             --title "Pinned build inputs $RUN ($BRANCH)" \
             --notes "Gradle distribution checksum and dependency verification metadata, to review and commit." \
             --prerelease --latest=false
-

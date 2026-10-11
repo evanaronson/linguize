@@ -64,4 +64,3 @@ class SettingsReturnTest {
         assertEquals(listOf("second home"), told)
     }
 }
-

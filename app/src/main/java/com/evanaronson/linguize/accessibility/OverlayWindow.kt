@@ -56,6 +56,11 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
     )
         .apply { softInputMode = LayoutParams.SOFT_INPUT_ADJUST_RESIZE }
     private var root: View? = null
+    private var screenAvailable = false
+    private val unlockedScreen = UnlockedScreen(context) {
+        screenAvailable = it
+        updateVisibility()
+    }
 
     /** Back on Android 13 and later, where apps that opt in (as targeting 16 does) get no Back key events. */
     private var backCallback: Any? = null
@@ -66,12 +71,15 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
     }
 
     fun show(content: @Composable () -> Unit) {
+        unlockedScreen.start()
         val root = BackKeyLayout(context, onBack).apply {
             setViewTreeLifecycleOwner(this@OverlayWindow)
             setViewTreeSavedStateRegistryOwner(this@OverlayWindow)
             setViewTreeViewModelStoreOwner(this@OverlayWindow)
             addView(ComposeView(context).apply { setContent(content) })
         }
+        root.visibility = if (hidden || !screenAvailable) View.INVISIBLE else View.VISIBLE
+        params.flags = windowFlags(hidden || !screenAvailable, editing)
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         windowManager.addView(root, params)
         this.root = root
@@ -95,11 +103,16 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             if (field == value) return
             field = value
             hiddenSince = if (value) SystemClock.elapsedRealtime() else null
-            val root = root ?: return
-            root.visibility = if (value) View.INVISIBLE else View.VISIBLE
-            params.flags = windowFlags(hidden = value, editing = editing)
-            windowManager.updateViewLayout(root, params)
+            unlockedScreen.refresh()
         }
+
+    private fun updateVisibility() {
+        val root = root ?: return
+        val invisible = hidden || !screenAvailable
+        root.visibility = if (invisible) View.INVISIBLE else View.VISIBLE
+        params.flags = windowFlags(hidden = invisible, editing = editing)
+        windowManager.updateViewLayout(root, params)
+    }
 
     /** Embedded settings owns its keyboard; the check leaves the keyboard with the source. */
     var editing = false
@@ -109,8 +122,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             val root = root ?: return
             if (!value) context.getSystemService(InputMethodManager::class.java)
                 .hideSoftInputFromWindow(root.windowToken, 0)
-            params.flags = windowFlags(hidden, editing = value)
-            windowManager.updateViewLayout(root, params)
+            unlockedScreen.refresh()
         }
 
     /**
@@ -118,6 +130,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
      * Its view models stay alive until that callback has reported the actual outcome.
      */
     fun remove(afterDetach: () -> Unit = {}) {
+        unlockedScreen.stop()
         root?.let { root ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 (backCallback as? OnBackInvokedCallback)?.let { root.findOnBackInvokedDispatcher()?.unregisterOnBackInvokedCallback(it) }

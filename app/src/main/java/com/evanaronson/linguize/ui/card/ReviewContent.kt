@@ -137,7 +137,7 @@ private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, Edi
                 }
                 IconButton(onClick = { onCopy(preview.text, kind) }) {
                     Icon(
-                        painterResource(R.drawable.ic_clipboard),
+                        painterResource(R.drawable.ic_copy),
                         contentDescription = if (fix) "Copy with fixes" else "Copy with rewordings",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

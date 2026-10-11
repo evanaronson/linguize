@@ -89,13 +89,14 @@ class CheckActivity : ComponentActivity() {
         check.recheckIfStale()
     }
 
-    private fun openHome() {
+    internal fun openHome() {
         returningFromSettings = true
-        startActivity(HomeActivity.homeIntent(this))
+        startActivity(HomeActivity.homeIntent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     override fun onResume() {
         super.onResume()
+        settings.refresh()
         if (returningFromSettings) {
             returningFromSettings = false
             check.recheckIfStale()

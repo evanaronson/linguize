@@ -19,7 +19,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -43,36 +42,24 @@ fun HomeScreen(
     historyOn: Boolean?,
     onOpenSettings: () -> Unit,
     onOpen: (id: String) -> Unit,
-    onReturnToCheck: (() -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .safeDrawingPadding()
-                .fillMaxSize(),
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Header(onOpenSettings)
-                onReturnToCheck?.let { returnToCheck ->
-                    TextButton(onClick = returnToCheck) {
-                        Icon(painterResource(R.drawable.ic_back), contentDescription = null)
-                        Text("Return to check", Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-            Column(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    "Select text in any app, then choose Linguize in the selection menu (it may be under ⋮). Or try it below.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TryIt(check, onOpenSettings)
-                RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings)
-            }
+            Header(onOpenSettings)
+            Text(
+                "Select text in any app, then choose Linguize in the selection menu (it may be under ⋮). Or try it below.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TryIt(check, onOpenSettings)
+            RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
     }

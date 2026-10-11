@@ -19,7 +19,7 @@ on:
 # One build at a time, so releases are published in push order and the newest is always "latest".
 concurrency:
   group: settings-home-test-build
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 # Nothing by default; each job asks for what it needs.
 permissions: {}

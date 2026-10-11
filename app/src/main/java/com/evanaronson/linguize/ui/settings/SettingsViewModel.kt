@@ -81,6 +81,7 @@ sealed interface ModelTest {
 }
 
 class SettingsViewModel(private val app: App) : ViewModel() {
+    private var refreshJob: Job? = null
     private var modelsJob: Job? = null
     private var testJob: Job? = null
     private var modelsRequested = false
@@ -115,8 +116,14 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     init {
         // Exports left from earlier visits, once whatever they were shared with has had its time.
         app.appScope.launch(Dispatchers.IO) { exports.prune() }
-        viewModelScope.launch {
-            state = withContext(Dispatchers.IO) {
+        refresh()
+    }
+
+    /** Another host may have changed settings while this popup or screen was hidden. */
+    fun refresh() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            val fresh = withContext(Dispatchers.IO) {
                 val settings = app.settings
                 SettingsState(
                     menu = app.menu.enabled().ifEmpty { setOf(MenuEntry.Auto) },
@@ -127,6 +134,19 @@ class SettingsViewModel(private val app: App) : ViewModel() {
                     model = settings.model(settings.provider),
                     historyEnabled = settings.historyEnabled,
                 )
+            }
+            val previous = state
+            val sameService = previous != null && previous.provider == fresh.provider &&
+                previous.model == fresh.model && previous.keys == fresh.keys
+            val reloadModels = modelsRequested && !sameService
+            state = if (sameService) fresh.copy(models = previous!!.models,
+                modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else fresh
+            refreshJob = null
+            if (!sameService) {
+                modelsRequested = false
+                modelsJob?.cancel()
+                testJob?.cancel()
+                if (reloadModels) loadModels()
             }
         }
     }
@@ -316,6 +336,7 @@ class SettingsViewModel(private val app: App) : ViewModel() {
 
     /** Applies [update] once the settings have loaded; returns the new state. Preference writes are asynchronous. */
     private fun change(update: (SettingsState) -> SettingsState): SettingsState? {
+        refreshJob?.cancel()
         val current = state ?: return null
         return update(current).also { state = it }
     }

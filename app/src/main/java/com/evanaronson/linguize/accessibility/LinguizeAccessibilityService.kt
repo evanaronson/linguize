@@ -146,7 +146,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         var language by mutableStateOf<Language?>(null)
         var settingsOpen by mutableStateOf(false)
-        val settings = ViewModelProvider(window, SettingsViewModel.factory(app))[SettingsViewModel::class.java]
+        val settings = ViewModelProvider(window, SettingsViewModel.factory(App.of(this)))[SettingsViewModel::class.java]
 
         // Settings opens with the card hidden behind it (an overlay would cover it). Leaving
         // settings brings the card back, checked again if it failed or the settings changed.
@@ -156,6 +156,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             check.recheckIfStale()
         }
         val backFromApp: () -> Unit = {
+            settings.refresh()
             window.hidden = false
             check.recheckIfStale()
         }
@@ -165,7 +166,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val openHome: () -> Unit = {
             SettingsReturn.await(backFromApp)
             window.hidden = true
-            startActivity(HomeActivity.homeIntent(this))
+            startActivity(PopupExternalActivity.intent(this, HomeActivity.homeIntent(this)))
         }
 
         var closed = false

@@ -22,7 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +41,7 @@ import com.evanaronson.linguize.core.Settled
 @Composable
 internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     // How the text was understood is a page of its own: in from the right, back to the left.
-    var showingUnderstanding by remember(result, settled) { mutableStateOf(false) }
+    var showingUnderstanding by rememberSaveable(result, settled) { mutableStateOf(false) }
     AnimatedContent(
         targetState = showingUnderstanding,
         transitionSpec = {

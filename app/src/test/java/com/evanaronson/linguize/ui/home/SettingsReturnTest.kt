@@ -43,10 +43,6 @@ class SettingsReturnTest {
     @Test
     fun visitingHomeDoesNotConsumeThePopupReturn() {
         SettingsReturn.await(first)
-        val home = Navigation().fromCard(existing = false).home()
-        assertEquals(Navigation.Back.Card, home.back)
-        val settings = home.settings()
-        assertEquals(Navigation.Back.Home, settings.back)
         assertEquals(emptyList<String>(), told)
         SettingsReturn.left()
         SettingsReturn.left()

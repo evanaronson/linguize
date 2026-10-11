@@ -19,7 +19,9 @@ import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import com.evanaronson.linguize.ui.card.FloatingCard
+import com.evanaronson.linguize.ui.popup.PopupCard
+import com.evanaronson.linguize.ui.popup.PopupExternalActivity
+import com.evanaronson.linguize.ui.settings.SettingsViewModel
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.home.SettingsReturn
@@ -143,17 +145,27 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         var language by mutableStateOf<Language?>(null)
+        var settingsOpen by mutableStateOf(false)
+        val settings = ViewModelProvider(window, SettingsViewModel.factory(app))[SettingsViewModel::class.java]
 
         // Settings opens with the card hidden behind it (an overlay would cover it). Leaving
         // settings brings the card back, checked again if it failed or the settings changed.
         val backFromSettings: () -> Unit = {
+            settingsOpen = false
+            window.editing = false
+            check.recheckIfStale()
+        }
+        val backFromApp: () -> Unit = {
             window.hidden = false
             check.recheckIfStale()
         }
         val openSettings: () -> Unit = {
-            SettingsReturn.await(backFromSettings, onHome = { card?.takeIf { it.window === window }?.discard() })
+            settingsOpen = true
+        }
+        val openHome: () -> Unit = {
+            SettingsReturn.await(backFromApp)
             window.hidden = true
-            startActivity(HomeActivity.settingsIntent(this))
+            startActivity(HomeActivity.homeIntent(this))
         }
 
         var closed = false
@@ -161,7 +173,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         fun end(applied: () -> Boolean) {
             if (closed) return
             closed = true
-            SettingsReturn.cancel(backFromSettings)
+            SettingsReturn.cancel(backFromApp)
             // Restore the source app's window before requesting a replacement.
             // Keep the view model alive until the write result is reported to History.
             window.remove { check.dismiss(applied = applied()) }
@@ -172,7 +184,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             // text or records a Copy decision.
             end { check.workingText?.let { writeBack(field, selection, it) } == true }
         }
-        onBack = close
+        onBack = { if (settingsOpen) backFromSettings() else close() }
 
         val actions = CardActions.of(
             check, context = this, onClose = close, onOpenSettings = openSettings,
@@ -184,7 +196,17 @@ class LinguizeAccessibilityService : AccessibilityService() {
                 AppTheme {
                     check.state?.let { state ->
                         // At the top, clear of the keyboard that's open for the field.
-                        FloatingCard(state, actions, onDismiss = close, alignment = Alignment.TopCenter, topPadding = 32.dp) {
+                        PopupCard(state, actions, settings, settingsOpen,
+                            onBackFromSettings = backFromSettings,
+                            onDismiss = close,
+                            onOpenHome = openHome,
+                            onOpenExternal = { external ->
+                                SettingsReturn.await(backFromApp)
+                                window.hidden = true
+                                startActivity(PopupExternalActivity.intent(this, external))
+                            },
+                            onInputModeChanged = { window.editing = it },
+                            alignment = Alignment.TopCenter, topPadding = 32.dp) {
                             // Another language checks again on the same card: one history session for it.
                             LanguagePicker(language, onSelect = {
                                 language = it

@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
@@ -13,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -34,6 +37,8 @@ import com.evanaronson.linguize.ui.components.shortDate
 @Composable
 internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
     val context = LocalContext.current
+    val host = LocalSettingsHost.current
+    val openExternal = host.openExternal ?: context::openFromSettings
     val kept by settings.history.collectAsState()
     val count = kept?.count ?: 0
     var confirmingClear by rememberSaveable { mutableStateOf(false) }
@@ -66,10 +71,22 @@ internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
     val exported = settings.exported
     LaunchedEffect(exported, inFront) {
         if (exported == null || !inFront) return@LaunchedEffect
-        settings.takeExport()?.let { share(context, it) }
+        settings.takeExport()?.let { share(context, it, openExternal) }
     }
 
     if (confirmingClear) {
+        if (host.embedded) {
+            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Delete all checks?", style = MaterialTheme.typography.titleMedium)
+                    Text("This deletes ${checks(count)} from this phone. It can't be undone.")
+                    Row {
+                        TextButton(onClick = { confirmingClear = false }) { Text("Cancel") }
+                        TextButton(onClick = { confirmingClear = false; settings.clearHistory() }) { Text("Delete") }
+                    }
+                }
+            }
+        } else {
         AlertDialog(
             onDismissRequest = { confirmingClear = false },
             title = { Text("Delete all checks?") },
@@ -82,6 +99,7 @@ internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
             },
             dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text("Cancel") } },
         )
+        }
     }
 }
 
@@ -108,7 +126,7 @@ private fun keptLabel(kept: KeptHistory): String {
 private fun checks(count: Int) = if (count == 1) "1 check" else "$count checks"
 
 /** Offers the exported file through the share sheet. */
-private fun share(context: Context, exported: Export) {
+private fun share(context: Context, exported: Export, openExternal: (Intent) -> Unit) {
     val uri = when (exported) {
         is Export.Ready -> exported.uri
         Export.Failed -> {
@@ -121,5 +139,5 @@ private fun share(context: Context, exported: Export) {
         .putExtra(Intent.EXTRA_STREAM, uri)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     send.clipData = ClipData.newRawUri("", uri)
-    context.openFromSettings(Intent.createChooser(send, "Export history"))
+    openExternal(Intent.createChooser(send, "Export history"))
 }

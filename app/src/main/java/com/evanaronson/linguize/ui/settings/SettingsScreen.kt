@@ -11,17 +11,19 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.data.MenuEntry
-import com.evanaronson.linguize.ui.components.BackButton
 import com.evanaronson.linguize.ui.components.Dropdown
 import com.evanaronson.linguize.ui.components.MultiSelectDropdown
 import com.evanaronson.linguize.ui.components.RadioRow
@@ -32,22 +34,26 @@ import com.evanaronson.linguize.ui.components.SectionTitle
 fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit, onHome: () -> Unit) {
     Column(Modifier.safeDrawingPadding()) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            BackButton(onBack)
-            Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onHome) { Text("Home") }
+            IconButton(onClick = onBack) {
+                Icon(painterResource(R.drawable.ic_back), contentDescription = "Back")
+            }
+            Text("Settings", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            IconButton(onClick = onHome) {
+                Icon(painterResource(R.drawable.ic_home), contentDescription = "Home")
+            }
         }
         SettingsContent(settings)
     }
 }
 
 @Composable
-private fun SettingsContent(settings: SettingsViewModel) {
+internal fun SettingsContent(settings: SettingsViewModel, modifier: Modifier = Modifier) {
     Column(
-        Modifier
+        modifier
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),

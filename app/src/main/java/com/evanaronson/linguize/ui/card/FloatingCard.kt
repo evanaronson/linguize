@@ -46,6 +46,9 @@ fun FloatingCard(
     alignment: Alignment = Alignment.BottomCenter,
     /** Extra space at the top, for windows that get no system insets. */
     topPadding: Dp = 0.dp,
+    onOpenHome: (() -> Unit)? = null,
+    /** Alternate page content, hosted inside the same floating surface. */
+    content: (@Composable (Modifier) -> Unit)? = null,
     header: @Composable () -> Unit = {},
 ) {
     Box(Modifier.fillMaxSize().semantics { paneTitle = "Linguize" }) {
@@ -83,18 +86,14 @@ fun FloatingCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     header()
-                    // Both popup entry paths expose Settings, including while loading or failed.
-                    actions.onOpenSettings?.let { openSettings ->
-                        FilledTonalIconButton(onClick = openSettings) {
-                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Linguize settings")
+                    onOpenHome?.let { openHome ->
+                        FilledTonalIconButton(onClick = openHome) {
+                            Icon(painterResource(R.drawable.ic_home), contentDescription = "Open Linguize")
                         }
                     }
                 }
-                ResultCard(
-                    state = state,
-                    actions = actions,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = cardMaxHeight),
-                )
+                val cardModifier = Modifier.fillMaxWidth().heightIn(max = cardMaxHeight)
+                if (content != null) content(cardModifier) else ResultCard(state, actions, cardModifier)
             }
         }
     }

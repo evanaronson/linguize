@@ -3,7 +3,7 @@ name: Build APK
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/settings-home-test-build]
     # Docs, design sources and the eval script don't change the app.
     paths-ignore:
       - README.md

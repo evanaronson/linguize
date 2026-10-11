@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [main, feature/accessibility-diagnostic-cleanup]
+    branches: [main]
     # Docs, design sources and the eval script don't change the app.
     paths-ignore:
       - README.md

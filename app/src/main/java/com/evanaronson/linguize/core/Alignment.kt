@@ -70,6 +70,10 @@ internal object Alignment {
         // The table covers i and j from prefix on; row r holds i = prefix + r.
         val rows = n - prefix
         val columns = m - prefix
+        // Model output is untrusted. Bound even a completely rewritten answer before
+        // allocating its table; checkpoints recompute at most one additional full pass.
+        val cells = rows.toLong() * minOf(columns + 1L, 2L * bound + 1)
+        require(cells <= MAX_CELLS) { "Text alignment exceeds the work limit" }
         fun fill(row: Row, above: Row, r: Int) {
             val i = prefix + r
             row.reset(maxOf(0, r - bound), minOf(columns, r + bound) + 1)
@@ -218,4 +222,7 @@ internal object Alignment {
         Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).filterNot { Character.getType(it) == Character.NON_SPACING_MARK.toInt() }
 
     private val JOINERS = setOf('-', '·', '‐')
+
+    /** Per pass; leaves room for every pair in a 3,000-character check. */
+    private const val MAX_CELLS = 20_000_000L
 }

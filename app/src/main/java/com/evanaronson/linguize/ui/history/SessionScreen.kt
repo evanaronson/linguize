@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.history.Outcome
@@ -35,7 +34,6 @@ import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.components.BackButton
-import com.evanaronson.linguize.ui.forgetExports
 import com.evanaronson.linguize.ui.text.titleResource
 
 /**
@@ -44,7 +42,6 @@ import com.evanaronson.linguize.ui.text.titleResource
  */
 @Composable
 fun SessionScreen(session: SessionViewModel, onBack: () -> Unit) {
-    val app = App.of(LocalContext.current)
     Column(
         Modifier
             .safeDrawingPadding()
@@ -60,8 +57,6 @@ fun SessionScreen(session: SessionViewModel, onBack: () -> Unit) {
                 page,
                 onDelete = {
                     session.delete()
-                    // An export would still hold the deleted text.
-                    app.forgetExports()
                     onBack()
                 },
             )

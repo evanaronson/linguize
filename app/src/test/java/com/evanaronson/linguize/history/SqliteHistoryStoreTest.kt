@@ -7,7 +7,14 @@ import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Verdict
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.CoroutineContext
 
 /** The store on a real SQLite, as Robolectric runs it. A plain Application, so the app's own start-up doesn't touch the database. */
 @RunWith(RobolectricTestRunner::class)
@@ -147,6 +155,43 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    fun clearingBeforeAnOpenCardsFirstQueuedWriteStillKeepsItsTextGone() = runBlocking<Unit> {
+        val queued = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
+        val dispatcher = object : CoroutineDispatcher() {
+            override fun dispatch(context: CoroutineContext, block: Runnable) { queued.add(block) }
+        }
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        val environment = object : HistoryEnvironment {
+            override val enabled = true
+            override val deviceId = "device"
+            override val appVersion = "1.0"
+        }
+        val recording = CheckHistory(store, environment, scope)
+        val opening = Opening(Origin.Menu, null, "ca", open("template", 0).settings)
+        try {
+            val beforeClear = recording.open("private text", opening)!!
+            recording.close(null)
+            store.clear()
+            val afterClear = recording.open("new text", opening)!!
+            recording.close(null)
+
+            withTimeout(5_000) {
+                val flushed = async { recording.flush() }
+                while (!flushed.isCompleted) {
+                    while (true) (queued.poll() ?: break).run()
+                    delay(1)
+                }
+                flushed.await()
+            }
+            assertNull(store.detail(beforeClear.id))
+            assertEquals("new text", store.detail(afterClear.id)!!.session.text)
+            assertEquals(1, store.count().first())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun deletingAnOpenSessionKeepsItGone() = runBlocking<Unit> {
         val opened = open("s1", 5_000)
         store.save(opened)
@@ -155,6 +200,22 @@ class SqliteHistoryStoreTest {
         store.close(opened.answered(6_000).closed(7_000), emptyList())
         assertNull(store.detail("s1"))
         assertNotNull(store.detail("s2"))
+    }
+
+    @Test
+    fun failedDeletionIsNotAcknowledgedAndCanBeRetried() = runBlocking<Unit> {
+        store.close(open("s1", 5_000).closed(6_000), emptyList())
+        raw { db ->
+            db.execSQL("""CREATE TRIGGER block_delete BEFORE DELETE ON sessions BEGIN SELECT RAISE(FAIL, 'delete blocked'); END""")
+        }
+        assertFalse(store.delete("s1"))
+        assertNotNull(store.detail("s1"))
+
+        raw { it.execSQL("DROP TRIGGER block_delete") }
+        assertTrue(store.delete("s1"))
+        assertNull(store.detail("s1"))
+        // Retrying after a successful delete is acknowledged too.
+        assertTrue(store.delete("s1"))
     }
 
     @Test

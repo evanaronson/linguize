@@ -10,6 +10,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -45,5 +46,14 @@ class HistoryLabelsTest {
         val us = context.createConfigurationContext(Configuration(resources.configuration).apply { setLocale(Locale.US) }).resources
         assertEquals("Oct 1", relativeDate(us, at(2026, 10, 1), now, time, zone))
         assertEquals("Oct 9, 2025", relativeDate(us, at(2025, 10, 9), now, time, zone))
+    }
+
+    @Test
+    fun dateDigitsFollowTheAppLocale() {
+        val arabic = context.createConfigurationContext(Configuration(resources.configuration).apply {
+            setLocale(Locale.forLanguageTag("ar-EG"))
+        }).resources
+        val label = relativeDate(arabic, at(2026, 10, 1), now, time, zone)
+        assertTrue(label, label.contains('١'))
     }
 }

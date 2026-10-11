@@ -61,6 +61,10 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
     val selected = changes.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
+    // Drawing runs every frame. Index neighboring edges once instead of rescanning
+    // every highlight for every other highlight as a longer check is scrolled.
+    val starts = remember(changes) { changes.mapTo(HashSet()) { it.range.first } }
+    val ends = remember(changes) { changes.mapTo(HashSet()) { it.range.last + 1 } }
 
     val annotated = remember(text, changes) {
         buildAnnotatedString {
@@ -109,8 +113,8 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
                     val padY = 1.dp.toPx()
                     val radius = CornerRadius(5.dp.toPx())
                     changes.forEachIndexed { index, change ->
-                        val touchesBefore = changes.any { it.range.last + 1 == change.range.first }
-                        val touchesAfter = changes.any { it.range.first == change.range.last + 1 }
+                        val touchesBefore = change.range.first in ends
+                        val touchesAfter = change.range.last + 1 in starts
                         val padLeft = if (touchesBefore) -gap else grow
                         val padRight = if (touchesAfter) -gap else grow
                         val color = accent.copy(alpha = if (index == selected) 0.42f else 0.18f)

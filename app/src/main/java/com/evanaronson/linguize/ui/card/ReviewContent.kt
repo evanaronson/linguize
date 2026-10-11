@@ -26,12 +26,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
@@ -44,10 +46,11 @@ import com.evanaronson.linguize.core.Settled
 internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     // How the text was understood is a page of its own: in from the right, back to the left.
     var showingUnderstanding by rememberSaveable(result, settled) { mutableStateOf(false) }
+    val forward = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
     AnimatedContent(
         targetState = showingUnderstanding,
         transitionSpec = {
-            val direction = if (targetState) 1 else -1
+            val direction = if (targetState) forward else -forward
             (slideInHorizontally { direction * it / 3 } + fadeIn()) togetherWith
                 (slideOutHorizontally { -direction * it / 3 } + fadeOut())
         },

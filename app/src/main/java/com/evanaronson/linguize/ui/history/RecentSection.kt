@@ -44,6 +44,7 @@ import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.ui.components.SectionTitle
 import com.evanaronson.linguize.ui.components.uiLocale
 import java.time.format.DateTimeFormatter
+import java.time.format.DecimalStyle
 
 /**
  * The checks made before, newest first. Tap one to open it; swipe it away to delete
@@ -186,5 +187,6 @@ internal fun rememberTimeFormat(): DateTimeFormatter {
     val is24Hour = DateFormat.is24HourFormat(context)
     return remember(locale, is24Hour) {
         DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm"), locale)
+            .withDecimalStyle(DecimalStyle.of(locale))
     }
 }

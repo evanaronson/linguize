@@ -654,7 +654,7 @@ class CheckHistoryTest {
         override fun since(): Flow<Long?> = flowOf(null)
         override fun recent(limit: Int): Flow<List<SessionSummary>> = flowOf(emptyList())
         override suspend fun detail(id: String): SessionDetail? = null
-        override suspend fun delete(id: String) = Unit
+        override suspend fun delete(id: String) = true
         override suspend fun clear() = Unit
         override suspend fun export(out: OutputStream) = true
     }

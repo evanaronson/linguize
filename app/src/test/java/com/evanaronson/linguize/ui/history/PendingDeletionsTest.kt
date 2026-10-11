@@ -51,4 +51,16 @@ class PendingDeletionsTest {
         current.remove("legacy")
         assertTrue(PendingDeletions(prefs, "next-process").recover().isEmpty())
     }
+
+    @Test
+    fun undoInOneHomeCannotEraseAnotherHomesPendingDeletionOfTheSameRow() {
+        val first = PendingDeletions(prefs, "current")
+        val second = PendingDeletions(prefs, "current")
+        first.recover()
+        second.recover()
+        first.add("same-row")
+        second.add("same-row")
+        first.remove("same-row")
+        assertEquals(setOf("same-row"), PendingDeletions(prefs, "next-process").recover())
+    }
 }

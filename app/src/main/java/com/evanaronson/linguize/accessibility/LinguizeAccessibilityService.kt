@@ -115,9 +115,16 @@ class LinguizeAccessibilityService : AccessibilityService() {
             current.discard()
         }
 
-        val field = focused?.takeIf { it.isEditable }
+        // Some editors expose Set text on the input-focused node without the editable flag.
+        // Accept only that same focused node; never guess at an unfocused field.
+        val supportsSetText = focused?.actionList?.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT } == true
+        val field = focused?.takeIf { it.isEditable || supportsSetText }
         if (field == null) {
-            trace(if (focused == null) "No input focus" else "Focused item is not editable")
+            trace(if (focused == null) "No input focus" else
+                "Focused item is not editable · write action: no · selection action: " +
+                    (if (focused.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_SELECTION }) "yes" else "no") +
+                    " · input focused: " + (if (focused.isFocused) "yes" else "no") +
+                    " · children: " + focused.childCount)
             Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
             return
         }

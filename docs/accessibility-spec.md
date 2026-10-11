@@ -4,7 +4,7 @@ Status: focused draft. Baseline: build 65, commit 14ee72603328ace254843e12a49d0c
 
 ## Problem and evidence
 
-The owner reports that Linguize's shortcut works in WhatsApp but produces no visible response in ChatGPT on a Galaxy S21 with the latest installed Android update (exact version not yet recorded). The silence persists after build 65. We have no device trace establishing whether the tap reaches Linguize, field lookup fails, or display fails. Do not equate silence with an inaccessible editor.
+The owner reports that Linguize's shortcut works in WhatsApp but produces no visible response in ChatGPT on a Galaxy S21 with the latest installed Android update (exact version not yet recorded). Build 67's probe confirms the ChatGPT tap reaches Linguize, but findFocus(FOCUS_INPUT) returns an item with isEditable=false and the service stops before reading text or showing a card. WhatsApp reaches Check started; Telegram also works. Whether that ChatGPT item exposes text-edit actions is not yet confirmed. Shortcut availability observed after returning to Settings does not negate the recorded callback.
 
 Build 65 includes a candidate fix for a separate WhatsApp Accept regression: detach the overlay before replacement while keeping the check alive to record its result. It also separates Accept from Copy. Tests and the release build passed. The owner subsequently confirmed on the S21 that WhatsApp replacement works and Accept leaves the clipboard unchanged.
 
@@ -32,14 +32,16 @@ Follow the evidence:
 - **No callback:** investigate service/shortcut assignment and delivery. Stop field-detection work; it cannot fix an undelivered tap.
 - **Callback, no usable field:** distinguish missing focus, a private field, hint/empty text and unavailable text. Use accurate feedback. Do not claim the app blocks access from one null result.
 - **An exposed focused editor is missed:** add the smallest focused-field fallback below.
-- **Card display fails:** fix that display path. The current service starts check.check before window.show, so inspect setup cleanup too: dispose of any window/view model created and cancel or close any check already started. Do not leave an invisible model request running or compensate with editor scanning.
+- **Card display fails:** fix that display path. Build 67 moved check startup after window.show succeeds. Preserve setup cleanup: dispose of any window/view model created and cancel or close any check already started. Do not leave an invisible model request running or compensate with editor scanning.
 - **No usable editor is exposed:** explain the limit: open Linguize and paste into Try it. This is an instruction, not a promised direct navigation handoff or a new manual-check flow.
 
 Remove temporary debugging or keep only narrowly scoped developer-only reason logging after the cause is established.
 
 ## Field fallback, only if needed
 
-First keep findFocus(FOCUS_INPUT). If device evidence proves that it misses an exposed focused editor, inspect only the active source app's root for a visible, enabled, input-focused editable node. Bound traversal. Accept it only when it is unambiguous and belongs to the same source app/window.
+First keep findFocus(FOCUS_INPUT). Recognize the same input-focused node when either isEditable is true or it explicitly exposes ACTION_SET_TEXT; some editors may omit the flag while exposing that action. Keep all private-field and original-text guards. Do not infer editability from selectable text, a class name or a lone unfocused field.
+
+Only if device evidence proves that this misses an exposed focused editor, inspect the active source app's root for a visible, enabled, input-focused editable node. Bound traversal. Accept it only when it is unambiguous and belongs to the same source app/window.
 
 If the root is absent, stale, changes app, or yields ambiguous candidates, stop and ask the writer to tap the writing field and try again. A single unfocused editable node is not enough: it might be a search box.
 

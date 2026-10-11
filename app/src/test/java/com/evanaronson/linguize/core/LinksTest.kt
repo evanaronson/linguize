@@ -47,6 +47,8 @@ class LinksTest {
         assertTrue(Links.hasNewLink("https://café.com", "https://cafe.com"))
         assertTrue(Links.hasNewLink("www.example.com/Account", "www.example.com/account"))
         assertTrue(Links.hasNewLink("example.com/Account", "example.com/account"))
+        assertTrue(Links.hasNewLink("example.com?code=AbC", "example.com?code=abc"))
+        assertTrue(Links.hasNewLink("example.com#Account", "example.com#account"))
         assertTrue(Links.hasNewLink("https://User@example.com", "https://user@example.com"))
         assertFalse(Links.hasNewLink("HTTPS://EXAMPLE.COM/Account", "https://example.com/Account"))
     }

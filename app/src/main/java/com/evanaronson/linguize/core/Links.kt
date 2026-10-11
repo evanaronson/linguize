@@ -101,7 +101,7 @@ internal object Links {
      */
     private val LINK = Regex(
         """(?i)(?:[a-z][a-z0-9+.-]*://|www\.)$PATH""" +
-            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:]$PATH)?""",
+            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:?#]$PATH)?""",
     )
 
     private val SCHEME = Regex("""(?i)^[a-z][a-z0-9+.-]*://""")
@@ -113,7 +113,7 @@ internal object Links {
      */
     private fun identity(link: String): String {
         val authorityStart = SCHEME.find(link)?.value?.length ?: 0
-        if (authorityStart == 0 && !link.startsWith("www.", ignoreCase = true) && '/' !in link && ':' !in link) return fold(link)
+        if (authorityStart == 0 && !link.startsWith("www.", ignoreCase = true) && link.none { it in "/:?#" }) return fold(link)
         val authorityEnd = link.indexOfAny(charArrayOf('/', '?', '#'), authorityStart).takeIf { it >= 0 } ?: link.length
         val hostStart = (link.lastIndexOf('@', authorityEnd - 1) + 1).coerceAtLeast(authorityStart)
         return asciiLower(link.substring(0, authorityStart)) + link.substring(authorityStart, hostStart) +

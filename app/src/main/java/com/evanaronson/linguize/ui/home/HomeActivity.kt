@@ -38,16 +38,7 @@ class HomeActivity : ComponentActivity() {
     private val history: HistoryViewModel by viewModels { HistoryViewModel.factory(App.of(this)) }
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
 
-    private var screen by mutableStateOf<Screen>(Screen.Home)
-
-    /** Settings was opened from a card: back leaves for the card instead of going to Home. */
-    private var backToCard = false
-
-    /**
-     * What this activity showed before a card opened Settings over it, to show again once
-     * back has left for the card. Null when the activity was started just for Settings.
-     */
-    private var beforeCard: Screen? = null
+    private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,25 +46,29 @@ class HomeActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             show(intent, existing = false)
         } else {
-            screen = Screen.restore(savedInstanceState.getString(SCREEN)) ?: Screen.Home
-            backToCard = savedInstanceState.getBoolean(BACK_TO_CARD)
-            beforeCard = Screen.restore(savedInstanceState.getString(BEFORE_CARD))
-            (screen as? Screen.Detail ?: beforeCard as? Screen.Detail)?.let { session.load(it.id) }
+            navigation = Navigation(
+                screen = Screen.restore(savedInstanceState.getString(SCREEN)) ?: Screen.Home,
+                backToCard = savedInstanceState.getBoolean(BACK_TO_CARD),
+                beforeCard = Screen.restore(savedInstanceState.getString(BEFORE_CARD)),
+                settingsFromHome = savedInstanceState.getBoolean(SETTINGS_FROM_HOME),
+            )
+            (navigation.screen as? Screen.Detail ?: navigation.beforeCard as? Screen.Detail)?.let { session.load(it.id) }
         }
         setContent {
             AppTheme {
                 Surface(Modifier.fillMaxSize()) {
-                    BackHandler(enabled = screen != Screen.Home, onBack = ::back)
+                    BackHandler(enabled = navigation.back != Navigation.Back.Exit, onBack = ::back)
                     // Keeps Home's text, card and scroll position while another screen is shown.
                     val saved = rememberSaveableStateHolder()
-                    when (val current = screen) {
+                    when (val current = navigation.screen) {
                         Screen.Home -> saved.SaveableStateProvider(current.saved) {
                             HomeScreen(
                                 check,
                                 history,
                                 historyOn = settings.state?.historyEnabled,
-                                onOpenSettings = { screen = Screen.Settings },
+                                onOpenSettings = { navigation = navigation.settings() },
                                 onOpen = ::open,
+                                onReturnToCheck = if (navigation.backToCard) ::returnToCard else null,
                             )
                         }
                         Screen.Settings -> saved.SaveableStateProvider(current.saved) {
@@ -94,21 +89,10 @@ class HomeActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(SCREEN, screen.saved)
-        outState.putBoolean(BACK_TO_CARD, backToCard)
-        outState.putString(BEFORE_CARD, beforeCard?.saved)
-    }
-
-    /**
-     * Going home or to recents. Links this screen opens say they're not the user leaving.
-     * A card waiting behind Settings is told to come back, so Settings is no longer the
-     * card's: opened again from the launcher, its back goes to Home as usual.
-     */
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        backToCard = false
-        beforeCard = null
-        SettingsReturn.left()
+        outState.putString(SCREEN, navigation.screen.saved)
+        outState.putBoolean(BACK_TO_CARD, navigation.backToCard)
+        outState.putString(BEFORE_CARD, navigation.beforeCard?.saved)
+        outState.putBoolean(SETTINGS_FROM_HOME, navigation.settingsFromHome)
     }
 
     override fun onPause() {
@@ -116,44 +100,47 @@ class HomeActivity : ComponentActivity() {
         if (isFinishing) SettingsReturn.left()
     }
 
-    /** [existing]: the activity was already open, showing [screen], when [intent] came. */
+    /** [existing]: the activity was already open when [intent] came. */
     private fun show(intent: Intent, existing: Boolean) {
         // Reopened from recents, the old intent comes again; the card it was for is long gone.
         val fromHistory = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
-        if (intent.getBooleanExtra(EXTRA_SETTINGS, false) && !fromHistory) {
-            // A second card's Settings over the first keeps what was shown before either.
-            if (!backToCard) beforeCard = if (existing) screen else null
-            screen = Screen.Settings
-            backToCard = true
+        if (intent.getBooleanExtra(EXTRA_POPUP, false) && !fromHistory) {
+            navigation = navigation.fromCard(existing).home()
+        } else if (intent.getBooleanExtra(EXTRA_SETTINGS, false) && !fromHistory) {
+            navigation = navigation.fromCard(existing)
         }
     }
 
     private fun open(id: String) {
         session.load(id)
-        screen = Screen.Detail(id)
+        navigation = navigation.detail(id)
     }
 
-    /** Entering the app ends the popup journey without applying its pending changes. */
+    /** Visit Home while the popup and its pending edits stay alive. */
     private fun home() {
-        backToCard = false
-        beforeCard = null
-        SettingsReturn.home()
         retryAfterSettings()
-        screen = Screen.Home
+        navigation = navigation.home()
     }
 
     private fun back() {
-        if (screen != Screen.Settings || !backToCard) {
-            if (screen == Screen.Settings) retryAfterSettings()
-            screen = Screen.Home
-            return
+        when (navigation.back) {
+            Navigation.Back.Home -> {
+                if (navigation.screen == Screen.Settings) retryAfterSettings()
+                navigation = navigation.home()
+            }
+            Navigation.Back.Card -> returnToCard()
+            Navigation.Back.Exit -> finish()
         }
-        backToCard = false
-        val before = beforeCard ?: return finish()
+    }
+
+    /** Both the visible return button and Android Back return to the same open popup. */
+    private fun returnToCard() {
+        val before = navigation.beforeCard
+        navigation = navigation.leaveCard()
+        if (before == null) return finish()
         // Back to the card's app, as finishing would, but without losing what this activity
         // showed: it's there again the next time Linguize is opened.
-        beforeCard = null
-        screen = before
+        navigation = navigation.copy(screen = before)
         moveTaskToBack(true)
         // Not finishing, and not the user leaving: tell a card waiting behind Settings directly.
         SettingsReturn.left()
@@ -173,13 +160,20 @@ class HomeActivity : ComponentActivity() {
         private val FIXED_IN_SETTINGS = setOf(Reason.NoKey, Reason.BadKey, Reason.BadModel)
 
         private const val EXTRA_SETTINGS = "com.evanaronson.linguize.extra.SETTINGS"
+        private const val EXTRA_POPUP = "com.evanaronson.linguize.extra.POPUP"
         private const val SCREEN = "screen"
         private const val BACK_TO_CARD = "backToCard"
         private const val BEFORE_CARD = "beforeCard"
+        private const val SETTINGS_FROM_HOME = "settingsFromHome"
 
         /** Opens Settings from a card, reusing this activity if it's already on top. */
         fun settingsIntent(context: Context): Intent = Intent(context, HomeActivity::class.java)
             .putExtra(EXTRA_SETTINGS, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        /** Opens the full app while the source popup and its result channel remain alive. */
+        fun homeIntent(context: Context): Intent = Intent(context, HomeActivity::class.java)
+            .putExtra(EXTRA_POPUP, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

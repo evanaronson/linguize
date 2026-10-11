@@ -127,6 +127,7 @@ private fun ModelTestRow(test: ModelTest?, onTest: () -> Unit) {
 @Composable
 private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolean, onSave: (String) -> Unit) {
     val context = LocalContext.current
+    val openExternal = LocalSettingsHost.current.openExternal ?: context::openFromSettings
     // Not saveable: the key shouldn't end up in saved instance state.
     var key by remember(provider) { mutableStateOf("") }
     OutlinedTextField(
@@ -155,7 +156,7 @@ private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolea
             // Kept in the field until saved, so a failed save can be retried. A saved key replaces this field.
             onClick = { onSave(key) },
         ) { Text("Save") }
-        TextButton(onClick = { context.openFromSettings(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl))) }) {
+        TextButton(onClick = { openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl))) }) {
             Text("Get a key")
         }
     }

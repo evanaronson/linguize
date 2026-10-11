@@ -3,8 +3,12 @@ package com.evanaronson.linguize.menu
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
@@ -12,7 +16,8 @@ import com.evanaronson.linguize.llm.CheckFailure.Reason
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import com.evanaronson.linguize.ui.card.FloatingCard
+import com.evanaronson.linguize.ui.popup.PopupCard
+import com.evanaronson.linguize.ui.settings.SettingsViewModel
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.theme.AppTheme
 
@@ -25,9 +30,14 @@ class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
     private var limited = false
+    private var returningFromSettings = false
+    private var settingsOpen by mutableStateOf(false)
+    private val settings: SettingsViewModel by viewModels { SettingsViewModel.factory(App.of(this)) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        returningFromSettings = savedInstanceState?.getBoolean(KEY_SETTINGS) == true
+        settingsOpen = savedInstanceState?.getBoolean(KEY_SETTINGS_OPEN) == true
         val selected = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty()
         // Whitespace around the selection isn't checked, and stays where it was.
         val selection = Selection.of(selected).takeIf { it.text.isNotEmpty() } ?: return finish()
@@ -48,18 +58,47 @@ class CheckActivity : ComponentActivity() {
             check,
             context = this,
             onClose = ::finish,
-            onOpenSettings = {
-                startActivity(HomeActivity.settingsIntent(this))
-                finish()
-            },
+            onOpenSettings = ::openSettings,
             canReplace = !readOnly,
             onCopyClose = ::finishAfterCopy,
         )
         setContent {
             AppTheme {
+                BackHandler(enabled = settingsOpen, onBack = ::backFromSettings)
                 val state = if (limited) CardState.Failed(Reason.TooMany, TOO_MANY_DETAIL) else check.state
-                state?.let { FloatingCard(it, actions, onDismiss = ::finish) }
+                state?.let {
+                    PopupCard(it, actions, settings, settingsOpen,
+                        onBackFromSettings = ::backFromSettings,
+                        onDismiss = ::finish,
+                        onOpenHome = ::openHome,
+                        onOpenExternal = { external ->
+                            startActivity(external.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
+                        })
+                }
             }
+        }
+    }
+
+    /** Settings and Home are a detour: keep this activity, its result channel and its edits. */
+    internal fun openSettings() {
+        settingsOpen = true
+    }
+
+    private fun backFromSettings() {
+        settingsOpen = false
+        check.recheckIfStale()
+    }
+
+    private fun openHome() {
+        returningFromSettings = true
+        startActivity(HomeActivity.homeIntent(this))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (returningFromSettings) {
+            returningFromSettings = false
+            check.recheckIfStale()
         }
     }
 
@@ -72,6 +111,8 @@ class CheckActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_LIMITED, limited)
+        outState.putBoolean(KEY_SETTINGS, returningFromSettings)
+        outState.putBoolean(KEY_SETTINGS_OPEN, settingsOpen)
     }
 
     /**
@@ -100,6 +141,8 @@ class CheckActivity : ComponentActivity() {
 
     private companion object {
         const val KEY_LIMITED = "limited"
+        const val KEY_SETTINGS = "returningFromSettings"
+        const val KEY_SETTINGS_OPEN = "settingsOpen"
 
         /** How long finishing may wait for the session's close to be written. */
         const val CLOSE_WAIT_MS = 500L

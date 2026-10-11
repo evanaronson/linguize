@@ -8,6 +8,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
+import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
@@ -53,6 +54,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         windowFlags(hidden = false),
         PixelFormat.TRANSLUCENT,
     )
+        .apply { softInputMode = LayoutParams.SOFT_INPUT_ADJUST_RESIZE }
     private var root: View? = null
 
     /** Back on Android 13 and later, where apps that opt in (as targeting 16 does) get no Back key events. */
@@ -95,7 +97,19 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             hiddenSince = if (value) SystemClock.elapsedRealtime() else null
             val root = root ?: return
             root.visibility = if (value) View.INVISIBLE else View.VISIBLE
-            params.flags = windowFlags(hidden = value)
+            params.flags = windowFlags(hidden = value, editing = editing)
+            windowManager.updateViewLayout(root, params)
+        }
+
+    /** Embedded settings owns its keyboard; the check leaves the keyboard with the source. */
+    var editing = false
+        set(value) {
+            if (field == value) return
+            field = value
+            val root = root ?: return
+            if (!value) context.getSystemService(InputMethodManager::class.java)
+                .hideSoftInputFromWindow(root.windowToken, 0)
+            params.flags = windowFlags(hidden, editing = value)
             windowManager.updateViewLayout(root, params)
         }
 
@@ -128,9 +142,11 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
  * [LayoutParams.FLAG_NOT_FOCUSABLE] says about the keyboard, so keeping it would leave the
  * invisible overlay above the app behind it (Settings) as what the keyboard is placed against.
  */
-internal fun windowFlags(hidden: Boolean): Int =
+internal fun windowFlags(hidden: Boolean, editing: Boolean = false): Int =
     if (hidden) {
         LayoutParams.FLAG_LAYOUT_IN_SCREEN or LayoutParams.FLAG_NOT_FOCUSABLE or LayoutParams.FLAG_NOT_TOUCHABLE
+    } else if (editing) {
+        LayoutParams.FLAG_LAYOUT_IN_SCREEN
     } else {
         LayoutParams.FLAG_LAYOUT_IN_SCREEN or LayoutParams.FLAG_ALT_FOCUSABLE_IM
     }

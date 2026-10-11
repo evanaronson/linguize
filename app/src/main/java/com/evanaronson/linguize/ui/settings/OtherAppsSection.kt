@@ -20,6 +20,7 @@ import com.evanaronson.linguize.ui.components.SectionTitle
 @Composable
 internal fun OtherAppsSection() {
     val context = LocalContext.current
+    val openExternal = LocalSettingsHost.current.openExternal ?: context::openFromSettings
     SectionTitle("When Linguize isn't in the menu")
     Text(
         "In some apps, like Telegram, Linguize isn't in the selection menu. There, turn on Linguize's " +
@@ -49,10 +50,10 @@ internal fun OtherAppsSection() {
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = {
-            context.openFromSettings(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            openExternal(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }) { Text("Open Accessibility") }
         OutlinedButton(onClick = {
-            context.openFromSettings(
+            openExternal(
                 Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
             )
         }) { Text("Open App info") }

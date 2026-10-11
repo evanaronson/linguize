@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.card
 import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.accessibility.OverlayWindow
 import android.os.Looper
@@ -11,6 +12,8 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.FakeClient
+import com.evanaronson.linguize.App
+import com.evanaronson.linguize.menu.CheckActivity
 import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.QUESTION
 import com.evanaronson.linguize.QUESTION_JSON
@@ -48,9 +51,11 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.OutputStream
@@ -410,6 +415,31 @@ class CheckViewModelTest {
         check.recheckIfStale()
         reviewed()
         assertEquals(2, client.checks.size)
+    }
+
+    @Test
+    @Config(application = App::class)
+    fun openingPopupSettingsDoesNotFinishOrLoseAcceptedEdits() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val intent = Intent(context, CheckActivity::class.java).putExtra(Intent.EXTRA_PROCESS_TEXT, QUESTION)
+        val controller = Robolectric.buildActivity(CheckActivity::class.java, intent)
+        val activity = controller.get()
+        activity.viewModelStore.put(
+            "androidx.lifecycle.ViewModelProvider.DefaultKey:" + CheckViewModel::class.java.canonicalName,
+            check,
+        )
+        controller.create().start().resume()
+        activity.openSettings()
+        assertFalse(activity.isFinishing)
+        assertEquals("Com estàs?", check.workingText)
+        assertTrue(closed().isEmpty())
+        activity.finish()
+        assertEquals("Com estàs?", shadowOf(activity).resultIntent.getStringExtra(Intent.EXTRA_PROCESS_TEXT))
+        assertEquals(Outcome.Applied, closed().single().outcome)
+        controller.pause().stop().destroy()
     }
 
     @Test

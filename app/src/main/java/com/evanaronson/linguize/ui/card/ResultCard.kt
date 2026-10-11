@@ -1,8 +1,10 @@
 package com.evanaronson.linguize.ui.card
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,14 +16,19 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.llm.CheckFailure.Reason
 
@@ -67,6 +74,26 @@ fun ResultCard(
                                 result.found?.let { "It looks like $it. Choose Linguize to detect the language." }
                                     ?: "Choose Linguize to detect the language.",
                             )
+                    }
+                }
+                val settingsFailure = state is CardState.Failed && state.reason in
+                    setOf(Reason.NoKey, Reason.BadKey, Reason.BadModel)
+                if (!settingsFailure) actions.onOpenSettings?.let { openSettings ->
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
+                            .clickable(onClickLabel = "Open settings", onClick = openSettings)
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(painterResource(R.drawable.ic_settings), contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Settings", Modifier.weight(1f).padding(start = 8.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("›", style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.clearAndSetSemantics {})
                     }
                 }
             }

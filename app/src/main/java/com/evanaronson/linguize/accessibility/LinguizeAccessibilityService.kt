@@ -7,19 +7,13 @@ import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
-import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
@@ -115,16 +109,9 @@ class LinguizeAccessibilityService : AccessibilityService() {
             current.discard()
         }
 
-        // Some editors expose Set text on the input-focused node without the editable flag.
-        // Accept only that same focused node; never guess at an unfocused field.
-        val supportsSetText = focused?.actionList?.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT } == true
-        val field = focused?.takeIf { it.isEditable || supportsSetText }
+        val field = focused?.takeIf { it.isEditable }
         if (field == null) {
-            trace(if (focused == null) "No input focus" else
-                "Focused item is not editable · write action: no · selection action: " +
-                    (if (focused.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_SELECTION }) "yes" else "no") +
-                    " · input focused: " + (if (focused.isFocused) "yes" else "no") +
-                    " · children: " + focused.childCount)
+            trace(if (focused == null) "No input focus" else "Focused item is not editable")
             Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
             return
         }
@@ -157,7 +144,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             check.recheckIfStale()
         }
         val openSettings: () -> Unit = {
-            SettingsReturn.await(backFromSettings)
+            SettingsReturn.await(backFromSettings, onHome = { card?.takeIf { it.window === window }?.discard() })
             window.hidden = true
             startActivity(HomeActivity.settingsIntent(this))
         }
@@ -191,16 +178,11 @@ class LinguizeAccessibilityService : AccessibilityService() {
                     check.state?.let { state ->
                         // At the top, clear of the keyboard that's open for the field.
                         FloatingCard(state, actions, onDismiss = close, alignment = Alignment.TopCenter, topPadding = 32.dp) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                // Another language checks again on the same card: one history session for it.
-                                LanguagePicker(language, onSelect = {
-                                    language = it
-                                    check.changeLanguage(it)
-                                })
-                                FilledTonalIconButton(onClick = openSettings) {
-                                    Icon(painterResource(R.drawable.ic_settings), contentDescription = "Linguize settings")
-                                }
-                            }
+                            // Another language checks again on the same card: one history session for it.
+                            LanguagePicker(language, onSelect = {
+                                language = it
+                                check.changeLanguage(it)
+                            })
                         }
                     }
                 }
@@ -258,3 +240,4 @@ class LinguizeAccessibilityService : AccessibilityService() {
         const val MAX_HIDDEN_MILLIS = 15 * 60_000L
     }
 }
+

@@ -1,6 +1,7 @@
 name: Build APK
 
 on:
+  pull_request:
   push:
     branches: [main]
     # Docs, design sources and the eval script don't change the app.
@@ -76,6 +77,8 @@ jobs:
   # runner's own apksigner, gh and the pinned actions below. The key is in the "signing"
   # environment, which only main and feature/* may use, so no other branch's workflow can read it.
   sign-and-publish:
+    # Pull requests only test and build; they never enter the signing environment.
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment: signing
@@ -312,3 +315,4 @@ jobs:
             --title "Pinned build inputs $RUN ($BRANCH)" \
             --notes "Gradle distribution checksum and dependency verification metadata, to review and commit." \
             --prerelease --latest=false
+

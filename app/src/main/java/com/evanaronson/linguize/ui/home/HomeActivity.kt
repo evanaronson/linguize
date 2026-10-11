@@ -77,7 +77,7 @@ class HomeActivity : ComponentActivity() {
                             )
                         }
                         Screen.Settings -> saved.SaveableStateProvider(current.saved) {
-                            SettingsScreen(settings, onBack = ::back)
+                            SettingsScreen(settings, onBack = ::back, onHome = ::home)
                         }
                         is Screen.Detail -> SessionScreen(session, onBack = ::back)
                     }
@@ -133,6 +133,15 @@ class HomeActivity : ComponentActivity() {
         screen = Screen.Detail(id)
     }
 
+    /** Entering the app ends the popup journey without applying its pending changes. */
+    private fun home() {
+        backToCard = false
+        beforeCard = null
+        SettingsReturn.home()
+        retryAfterSettings()
+        screen = Screen.Home
+    }
+
     private fun back() {
         if (screen != Screen.Settings || !backToCard) {
             if (screen == Screen.Settings) retryAfterSettings()
@@ -174,3 +183,4 @@ class HomeActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }
+

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -15,15 +16,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 
 /**
  * The card floating over a dimmed view of the app the text came from. Tapping
@@ -73,7 +78,18 @@ fun FloatingCard(
                     .pointerInput(Unit) { detectTapGestures {} },
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                header()
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    header()
+                    // Both popup entry paths expose Settings, including while loading or failed.
+                    actions.onOpenSettings?.let { openSettings ->
+                        FilledTonalIconButton(onClick = openSettings) {
+                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Linguize settings")
+                        }
+                    }
+                }
                 ResultCard(
                     state = state,
                     actions = actions,
@@ -83,3 +99,4 @@ fun FloatingCard(
         }
     }
 }
+

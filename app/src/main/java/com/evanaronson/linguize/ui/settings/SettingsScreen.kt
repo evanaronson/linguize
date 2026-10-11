@@ -2,6 +2,8 @@ package com.evanaronson.linguize.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
@@ -9,9 +11,11 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.core.Judgments
@@ -23,18 +27,31 @@ import com.evanaronson.linguize.ui.components.MultiSelectDropdown
 import com.evanaronson.linguize.ui.components.RadioRow
 import com.evanaronson.linguize.ui.components.SectionTitle
 
-/** How checks work, which model runs them, what's kept, and the accessibility button. Opened from Home's gear. */
+/** Settings can be entered from Home or a popup; Back returns, Home opens the app. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit, onHome: () -> Unit) {
+    Column(Modifier.safeDrawingPadding()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BackButton(onBack)
+            Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            TextButton(onClick = onHome) { Text("Home") }
+        }
+        SettingsContent(settings)
+    }
+}
+
+@Composable
+private fun SettingsContent(settings: SettingsViewModel) {
     Column(
         Modifier
-            .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        BackButton(onBack)
-        Text("Settings", style = MaterialTheme.typography.headlineSmall)
         // The saved settings load in a moment; showing defaults first would flash the wrong choices.
         val state = settings.state ?: return@Column
         LaunchedEffect(Unit) { settings.showModels() }
@@ -90,3 +107,4 @@ private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
 
 @Composable
 private fun menuLabels(): Map<MenuEntry, String> = MenuEntry.entries.associateWith { stringResource(it.label) }
+

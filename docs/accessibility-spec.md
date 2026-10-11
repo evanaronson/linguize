@@ -4,7 +4,7 @@ Status: focused draft. Baseline: build 65, commit 14ee72603328ace254843e12a49d0c
 
 ## Problem and evidence
 
-The owner reports that Linguize's shortcut works in WhatsApp but produces no visible response in ChatGPT on a Galaxy S21 with the latest installed Android update (exact version not yet recorded). Build 67's probe confirms the ChatGPT tap reaches Linguize, but findFocus(FOCUS_INPUT) returns an item with isEditable=false and the service stops before reading text or showing a card. WhatsApp reaches Check started; Telegram also works. Whether that ChatGPT item exposes text-edit actions is not yet confirmed. Shortcut availability observed after returning to Settings does not negate the recorded callback.
+The owner reports that Linguize's shortcut works in WhatsApp but produces no visible response in ChatGPT on a Galaxy S21 with the latest installed Android update (exact version not yet recorded). Build 67's probe confirms the ChatGPT tap reaches Linguize, but findFocus(FOCUS_INPUT) returns an item with isEditable=false and the service stops before reading text or showing a card. WhatsApp reaches Check started; Telegram also works. Build 68 confirms that the returned item has no Set text or Set selection action, is not marked input-focused, and has one child. This warrants a bounded same-window focused-editor lookup; it does not yet establish that ChatGPT exposes a usable editor. Shortcut availability observed after returning to Settings does not negate the recorded callback.
 
 Build 65 includes a candidate fix for a separate WhatsApp Accept regression: detach the overlay before replacement while keeping the check alive to record its result. It also separates Accept from Copy. Tests and the release build passed. The owner subsequently confirmed on the S21 that WhatsApp replacement works and Accept leaves the clipboard unchanged.
 
@@ -41,7 +41,7 @@ Remove temporary debugging or keep only narrowly scoped developer-only reason lo
 
 First keep findFocus(FOCUS_INPUT). Recognize the same input-focused node when either isEditable is true or it explicitly exposes ACTION_SET_TEXT; some editors may omit the flag while exposing that action. Keep all private-field and original-text guards. Do not infer editability from selectable text, a class name or a lone unfocused field.
 
-Only if device evidence proves that this misses an exposed focused editor, inspect the active source app's root for a visible, enabled, input-focused editable node. Bound traversal. Accept it only when it is unambiguous and belongs to the same source app/window.
+Build 68's device evidence warrants testing the following fallback. Inspect the active source app's root for a visible, enabled, input-focused editable node. Bound traversal. Accept it only when it is unambiguous and belongs to the same source app/window.
 
 If the root is absent, stale, changes app, or yields ambiguous candidates, stop and ask the writer to tap the writing field and try again. A single unfocused editable node is not enough: it might be a search box.
 

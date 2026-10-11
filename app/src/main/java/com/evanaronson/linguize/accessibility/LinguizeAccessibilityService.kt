@@ -115,19 +115,26 @@ class LinguizeAccessibilityService : AccessibilityService() {
             current.discard()
         }
 
-        // Some editors expose Set text on the input-focused node without the editable flag.
-        // Accept only that same focused node; never guess at an unfocused field.
-        val supportsSetText = focused?.actionList?.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT } == true
-        val field = focused?.takeIf { it.isEditable || supportsSetText }
-        if (field == null) {
-            trace(if (focused == null) "No input focus" else
-                "Focused item is not editable · write action: no · selection action: " +
-                    (if (focused.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_SELECTION }) "yes" else "no") +
-                    " · input focused: " + (if (focused.isFocused) "yes" else "no") +
-                    " · children: " + focused.childCount)
-            Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
+        // Preserve the working direct lookup; only fall back within its source window.
+        var resolved = focused?.takeIf { FocusedField.supportsEditing(it) }
+        if (resolved == null && focused != null) {
+            trace("Looking for a focused editor")
+            val result = FocusedField.find(rootInActiveWindow, focused)
+            resolved = result.field
+            if (resolved == null) trace(result.reason)
+            else if (!resolved.refresh() || !resolved.isFocused || !resolved.isVisibleToUser || !resolved.isEnabled ||
+                !FocusedField.supportsEditing(resolved) || !FocusedField.sameWindow(resolved, focused) || rootInActiveWindow?.let { FocusedField.sameWindow(it, focused) } != true) {
+                resolved = null
+                trace("Source window changed")
+            }
+        } else if (resolved == null) {
+            trace("No input focus")
+        }
+        if (resolved == null) {
+            Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again. You can also paste into Try it in Linguize.", Toast.LENGTH_LONG).show()
             return
         }
+        val field = resolved
         trace("Checking field metadata")
         if (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName)) {
             trace("Field looks private")

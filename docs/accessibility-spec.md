@@ -4,9 +4,9 @@ Status: focused draft. Baseline: build 65, commit 14ee72603328ace254843e12a49d0c
 
 ## Problem and evidence
 
-The owner reports that Linguize's shortcut works in WhatsApp but produces no visible response in ChatGPT. We have no device trace establishing whether the tap reaches Linguize, field lookup fails, or display fails. Do not equate silence with an inaccessible editor.
+The owner reports that Linguize's shortcut works in WhatsApp but produces no visible response in ChatGPT on a Galaxy S21 with the latest installed Android update (exact version not yet recorded). The silence persists after build 65. We have no device trace establishing whether the tap reaches Linguize, field lookup fails, or display fails. Do not equate silence with an inaccessible editor.
 
-Build 65 includes a candidate fix for a separate WhatsApp Accept regression: detach the overlay before replacement while keeping the check alive to record its result. It also separates Accept from Copy. Tests and the release build passed; the device result remains unconfirmed.
+Build 65 includes a candidate fix for a separate WhatsApp Accept regression: detach the overlay before replacement while keeping the check alive to record its result. It also separates Accept from Copy. Tests and the release build passed. The owner subsequently confirmed on the S21 that WhatsApp replacement works and Accept leaves the clipboard unchanged.
 
 ## Scope
 
@@ -25,7 +25,7 @@ Find where the reported shortcut fails, fix that failure if Linguize can, and gi
 
 Reproduce on the same phone with build 65 and dummy writing in WhatsApp and ChatGPT. Note Android/device, app versions and shortcut type.
 
-Use temporary developer logging or a debug build, not a product diagnostic feature. Capture only whether the service connected, the callback arrived, an eligible focused field was found, and the card was displayed. Add a failure-stage reason code where needed. Never log writing, selection text, model responses, keys, hints, view IDs or whole accessibility trees.
+Use temporary developer logging or a diagnostic build, not a product diagnostic feature. For this phone-only reproduction, a temporary line in the existing accessibility settings section may show an in-memory callback count and last stage. Remove it after diagnosis; do not create a screen, saved log or export flow. Capture only whether the service connected, the callback arrived, an eligible focused field was found, and the card was displayed. Add a failure-stage reason code where needed. Never log writing, selection text, model responses, keys, hints, view IDs or whole accessibility trees.
 
 Follow the evidence:
 

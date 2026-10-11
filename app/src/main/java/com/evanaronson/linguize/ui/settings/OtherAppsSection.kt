@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.App
 import com.evanaronson.linguize.ui.components.SectionTitle
 
 /** How to turn on the accessibility button, for apps whose selection menu doesn't show Linguize. */
@@ -31,6 +32,18 @@ internal fun OtherAppsSection() {
         "1. Open Accessibility, choose Linguize, and turn on Linguize and its shortcut.\n" +
             "2. If Android says it's a restricted setting, open App info, tap ⋮, choose Allow restricted settings, " +
             "then try step 1 again.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    // Temporary phone-only probe for the silent ChatGPT shortcut, not a diagnostics screen.
+    val app = App.of(context)
+    Text(
+        "Shortcut test: " + app.shortcutTestTaps + " taps · " + app.shortcutTestStage +
+            "\nCurrent shortcut availability: " + when (app.shortcutTestAvailable) {
+                true -> "yes"
+                false -> "no"
+                null -> "not reported"
+            },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

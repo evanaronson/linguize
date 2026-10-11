@@ -49,11 +49,45 @@ class LinguizeAccessibilityService : AccessibilityService() {
     private class Card(val window: OverlayWindow, val field: AccessibilityNodeInfo, val discard: () -> Unit)
 
     override fun onServiceConnected() {
-        accessibilityButtonController.registerAccessibilityButtonCallback(
-            object : AccessibilityButtonController.AccessibilityButtonCallback() {
-                override fun onClicked(controller: AccessibilityButtonController) = open()
-            },
-        )
+        trace("Connecting shortcut")
+        try {
+            accessibilityButtonController.registerAccessibilityButtonCallback(
+                object : AccessibilityButtonController.AccessibilityButtonCallback() {
+                    override fun onClicked(controller: AccessibilityButtonController) = tapped()
+
+                    override fun onAvailabilityChanged(controller: AccessibilityButtonController, available: Boolean) {
+                        App.of(this@LinguizeAccessibilityService).shortcutTestAvailable = available
+                    }
+                },
+            )
+            App.of(this).shortcutTestAvailable = accessibilityButtonController.isAccessibilityButtonAvailable
+            trace("Service connected")
+        } catch (failure: RuntimeException) {
+            trace("Shortcut registration failed (" + failure.javaClass.simpleName + ")")
+        }
+    }
+
+    private fun trace(stage: String) {
+        App.of(this).shortcutTestStage = stage
+    }
+
+    private fun tapped() {
+        val app = App.of(this)
+        app.shortcutTestTaps++
+        trace("Tap received")
+        try {
+            open()
+        } catch (failure: RuntimeException) {
+            // The exception's message can contain app data. Keep only its class and stage.
+            val failedStage = app.shortcutTestStage
+            try {
+                card?.discard()
+            } catch (_: RuntimeException) {
+                // Preserve the failure that brought us here, even if cleanup also fails.
+            }
+            trace("Failed at " + failedStage + " (" + failure.javaClass.simpleName + ")")
+            Toast.makeText(this, "Couldn't open the check. Open Linguize settings for the shortcut test.", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
@@ -68,35 +102,46 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun open() {
+        trace("Finding input focus")
         val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         card?.let { current ->
             // Tapping the button while the card waits behind settings brings it back, unless
             // it was left there: it waited too long, or the tap is for another app's field.
             if (!current.window.hidden || !current.leftBehind(focused)) {
                 current.window.hidden = false
+                trace("Existing card shown")
                 return
             }
             current.discard()
         }
 
         val field = focused?.takeIf { it.isEditable }
-        if (field != null && (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName))) {
+        if (field == null) {
+            trace(if (focused == null) "No input focus" else "Focused item is not editable")
+            Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+        trace("Checking field metadata")
+        if (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName)) {
+            trace("Field looks private")
             Toast.makeText(this, "This field looks private, so Linguize didn't read it.", Toast.LENGTH_LONG).show()
             return
         }
-        val selection = field?.takeUnless { it.isShowingHintText }?.text?.toString()
+        trace("Reading eligible field")
+        val selection = field.takeUnless { it.isShowingHintText }?.text?.toString()
             ?.let { Selection.of(it, field.textSelectionStart, field.textSelectionEnd) }
-        if (field == null || selection == null || selection.text.isEmpty()) {
+        if (selection == null || selection.text.isEmpty()) {
+            trace(if (field.isShowingHintText) "Field shows a hint" else "No readable text")
             Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
             return
         }
 
         // Back closes the card as a tap outside it does; [close] is set just below.
+        trace("Preparing card")
         var onBack: () -> Unit = {}
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         var language by mutableStateOf<Language?>(null)
-        check.check(selection.text, language, Origin.Button, field.packageName?.toString())
 
         // Settings opens with the card hidden behind it (an overlay would cover it). Leaving
         // settings brings the card back, checked again if it failed or the settings changed.
@@ -132,26 +177,36 @@ class LinguizeAccessibilityService : AccessibilityService() {
             check, context = this, onClose = close, onOpenSettings = openSettings,
             onCopyClose = { end { false } },
         )
-        window.show {
-            AppTheme {
-                check.state?.let { state ->
-                    // At the top, clear of the keyboard that's open for the field.
-                    FloatingCard(state, actions, onDismiss = close, alignment = Alignment.TopCenter, topPadding = 32.dp) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Another language checks again on the same card: one history session for it.
-                            LanguagePicker(language, onSelect = {
-                                language = it
-                                check.changeLanguage(it)
-                            })
-                            FilledTonalIconButton(onClick = openSettings) {
-                                Icon(painterResource(R.drawable.ic_settings), contentDescription = "Linguize settings")
+        trace("Showing card")
+        try {
+            window.show {
+                AppTheme {
+                    check.state?.let { state ->
+                        // At the top, clear of the keyboard that's open for the field.
+                        FloatingCard(state, actions, onDismiss = close, alignment = Alignment.TopCenter, topPadding = 32.dp) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                // Another language checks again on the same card: one history session for it.
+                                LanguagePicker(language, onSelect = {
+                                    language = it
+                                    check.changeLanguage(it)
+                                })
+                                FilledTonalIconButton(onClick = openSettings) {
+                                    Icon(painterResource(R.drawable.ic_settings), contentDescription = "Linguize settings")
+                                }
                             }
                         }
                     }
                 }
             }
+        } catch (failure: RuntimeException) {
+            // No model request starts before display setup succeeds. Clear any partial setup.
+            window.remove { check.dismiss(applied = false) }
+            throw failure
         }
         card = Card(window, field, discard = { end { false } })
+        trace("Card shown; starting check")
+        check.check(selection.text, language, Origin.Button, field.packageName?.toString())
+        trace("Check started")
     }
 
     /**

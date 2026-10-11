@@ -94,7 +94,9 @@ class SqliteHistoryStore(
         db.select(HistorySchema.recent(limit), read = ::sessionSummary)
     }
 
-    override suspend fun detail(id: String): SessionDetail? = read("read a session", null) { db -> db.detail(id) }
+    override suspend fun detail(id: String): SessionDetail? = read("read a session", null) { db ->
+        db.snapshot { db.detail(id) }
+    }
 
     /**
      * The query finds sessions whose latest attempt ran with [key]'s language and settings;
@@ -102,11 +104,15 @@ class SqliteHistoryStore(
      * ran with them itself ([SessionDetail.keptFor]): within a session they can change.
      */
     override suspend fun reusable(key: ReuseKey, since: Long): SessionDetail? = read("look for a kept answer", null) { db ->
-        db.select(HistorySchema.reusable(key), HistorySchema.reusableArgs(key, since), ::sessionRecord)
-            .asSequence()
-            .filter { it.lastAttemptSucceeded() }
-            .map { SessionDetail(it, db.suggestions(it.id)) }
-            .firstOrNull { it.keptFor(key) != null }
+        db.snapshot {
+            // Stream newest first and stop at the first usable answer. A fixed candidate
+            // limit can hide a valid answer behind recent attempts made with other settings.
+            db.firstMatch(HistorySchema.reusable(key), HistorySchema.reusableArgs(key, since)) { row ->
+                val session = sessionRecord(row)
+                if (!session.lastAttemptSucceeded()) return@firstMatch null
+                SessionDetail(session, db.suggestions(session.id)).takeIf { it.keptFor(key) != null }
+            }
+        }
     }
 
     /** Removes the session and, by cascade, its suggestions. */
@@ -245,6 +251,16 @@ private fun SQLiteDatabase.pragma(pragma: String) {
 /** Copies the write-ahead log into the database and empties it. */
 private fun SQLiteDatabase.checkpoint() = pragma("wal_checkpoint(TRUNCATE)")
 
+/** Reads related rows from one snapshot, so a concurrent delete or close cannot split them. */
+private inline fun <T> SQLiteDatabase.snapshot(block: () -> T): T {
+    beginTransactionNonExclusive()
+    try {
+        return block().also { setTransactionSuccessful() }
+    } finally {
+        endTransaction()
+    }
+}
+
 /** The names of [table]'s columns. */
 private fun SQLiteDatabase.columns(table: String): Set<String> =
     rawQuery("PRAGMA table_info($table)", null).use { cursor ->
@@ -286,6 +302,15 @@ private fun SQLiteDatabase.eachRow(sql: String, args: List<String> = emptyList()
 
 private fun <T> SQLiteDatabase.select(sql: String, args: List<String> = emptyList(), read: (Row) -> T): List<T> =
     buildList { eachRow(sql, args) { add(read(it)) } }
+
+/** Stops reading as soon as [read] recognizes a usable row, without allocating the other candidates. */
+private inline fun <T : Any> SQLiteDatabase.firstMatch(sql: String, args: List<String>, read: (Row) -> T?): T? {
+    return rawQuery(sql, args.toTypedArray()).use { cursor ->
+        val row = CursorRow(cursor)
+        while (cursor.moveToNext()) read(row)?.let { return it }
+        null
+    }
+}
 
 /** Runs one statement with [values] bound in order; returns the rows changed. */
 private fun SQLiteDatabase.execute(sql: String, values: Collection<Any?>): Int {

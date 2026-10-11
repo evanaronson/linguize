@@ -25,7 +25,7 @@ internal object Links {
      * a link, none of those edits is offered.
      */
     fun withoutNew(original: String, edits: List<Edit>): List<Edit> {
-        val known = fold(original)
+        val known = links(original)
         val linking = runs(original, edits).filterNot { run ->
             run.size <= MOST_TOGETHER && (1 until (1 shl run.size)).none { mask ->
                 linking(original, known, shown(run.filterIndexed { k, _ -> mask shr k and 1 == 1 }))
@@ -36,10 +36,17 @@ internal object Links {
     }
 
     /** Whether [text] holds a link that [original] doesn't. */
-    fun hasNewLink(original: String, text: String) = hasNew(fold(original), text)
+    fun hasNewLink(original: String, text: String) = hasNew(links(original), text)
 
-    /** Whether [text] holds a link that isn't in [known], the original text [fold]ed. */
-    private fun hasNew(known: String, text: String) =
+    /** Complete recognized links, not arbitrary substrings: "evil.com" isn't "notevil.com". */
+    private fun links(text: String): Set<String> = LINK.findAll(text)
+        .map { it.value }
+        .filterNot(::isAbbreviation)
+        .map(::fold)
+        .toSet()
+
+    /** Whether [text] holds a complete link that isn't among the original's [known] links. */
+    private fun hasNew(known: Set<String>, text: String) =
         LINK.findAll(text).any { !isAbbreviation(it.value) && fold(it.value) !in known }
 
     /** Short capitals joined by dots, like "EE.UU." or "RR.HH.", are abbreviations, not addresses. */
@@ -72,7 +79,9 @@ internal object Links {
         for (edit in edits) {
             for (run in spacesBefore[edit.start]..spacesBefore[edit.end]) runs.getOrPut(run) { mutableListOf() } += edit
         }
-        return runs.values
+        // A phrase spanning many spaces participates in many stretches, often with exactly
+        // the same edits. Their combinations produce the same text; only try each set once.
+        return runs.values.distinct()
     }
 
     /**
@@ -80,7 +89,7 @@ internal object Links {
      * without spaces around any of them. Only as much of the text as those runs can reach
      * is put together.
      */
-    private fun linking(original: String, known: String, edits: List<Edit>): Boolean {
+    private fun linking(original: String, known: Set<String>, edits: List<Edit>): Boolean {
         val sorted = edits.sortedWith(editOrder)
         val out = StringBuilder()
         val placed = mutableListOf<IntRange>()
@@ -117,10 +126,14 @@ internal object Links {
     /** What a link's path may end with: not the punctuation of the sentence around it. */
     private const val PATH = """[^\s]*[^\s.,;:!?)\]}"'»…]"""
 
-    /** A web address with a scheme or "www.", or anything shaped like a domain name. */
+    /**
+     * A web address with a scheme or "www.", or anything shaped like a domain name.
+     * DNS names have at most 127 labels. Bounding their repetition also keeps malformed
+     * model output with thousands of dotted labels from exhausting the regex stack.
+     */
     private val LINK = Regex(
         """(?i)(?:[a-z][a-z0-9+.-]*://|www\.)$PATH""" +
-            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL)*\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:]$PATH)?""",
+            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:]$PATH)?""",
     )
 
     /** Lowercase without accents: a fix to the case or accents of words a dot joins ("estas.Bien") adds no link. */

@@ -12,8 +12,10 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -99,6 +101,8 @@ class CheckerTest {
         assertEquals(Reason.BadKey, failure { checker.check(QUESTION, null) }.reason)
         keys[Provider.Gemini] = "clé"
         assertEquals(Reason.BadKey, failure { checker.check(QUESTION, null) }.reason)
+        keys[Provider.Gemini] = "a key"
+        assertEquals(Reason.BadKey, failure { checker.check(QUESTION, null) }.reason)
         assertTrue(client.checks.isEmpty())
     }
 
@@ -117,6 +121,23 @@ class CheckerTest {
         // One about an answer that couldn't be read keeps that answer.
         client.answer = { throw CheckFailure(Reason.BadResponse, "not json", raw = "{oops") }
         assertEquals("{oops", failure { checker.check(QUESTION, null) }.raw)
+    }
+
+    @Test
+    fun cancellationIsPassedToTheCallerInsteadOfDisplayedAsAnError() {
+        val cancelled = CancellationException("check replaced")
+        client.answer = { throw cancelled }
+        val failure = assertThrows(CancellationException::class.java) { runBlocking { checker.check(QUESTION, null) } }
+        assertEquals("check replaced", failure.message)
+    }
+
+    @Test
+    fun oversizedAnswersFromAnyProviderAreRefusedBeforeInterpretation() {
+        client.answer = { ModelAnswer(QUESTION_VERDICT.copy(corrected = "x".repeat(Prompt.MAX_REWRITE_CHARS + 1)), "oversized") }
+        val failure = failure { checker.check(QUESTION, null) }
+        assertEquals(Reason.BadResponse, failure.reason)
+        assertEquals(CheckFailure.Message.ReplyTooLarge, failure.userMessage)
+        assertEquals("oversized", failure.raw)
     }
 
     @Test
@@ -146,5 +167,7 @@ class CheckerTest {
         // One that can't be read fails as a bad response.
         val failure = failure { checker.reuse(QUESTION, null, "{", context) }
         assertEquals(Reason.BadResponse, failure.reason)
+        assertEquals("{", failure.raw)
+        assertEquals(CheckFailure.Message.InvalidReply, failure.userMessage)
     }
 }

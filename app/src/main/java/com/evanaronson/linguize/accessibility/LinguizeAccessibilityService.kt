@@ -2,6 +2,7 @@ package com.evanaronson.linguize.accessibility
 
 import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
@@ -14,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
@@ -35,7 +37,7 @@ import com.evanaronson.linguize.ui.theme.AppTheme
  * except when the button is tapped.
  */
 class LinguizeAccessibilityService : AccessibilityService() {
-    /** The card on screen, or waiting hidden behind settings; null when there's none. */
+    /** The card on screen, or waiting hidden during an external detour; null when there's none. */
     private var card: Card? = null
 
     /**
@@ -45,7 +47,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
     private class Card(val window: OverlayWindow, val field: AccessibilityNodeInfo, val discard: () -> Unit)
 
     override fun onServiceConnected() {
-        trace("Connecting shortcut")
+        trace(R.string.shortcut_stage_connecting)
         try {
             accessibilityButtonController.registerAccessibilityButtonCallback(
                 object : AccessibilityButtonController.AccessibilityButtonCallback() {
@@ -57,20 +59,20 @@ class LinguizeAccessibilityService : AccessibilityService() {
                 },
             )
             App.of(this).shortcutTestAvailable = accessibilityButtonController.isAccessibilityButtonAvailable
-            trace("Service connected")
+            trace(R.string.shortcut_stage_connected)
         } catch (failure: RuntimeException) {
-            trace("Shortcut registration failed (" + failure.javaClass.simpleName + ")")
+            trace(R.string.shortcut_stage_registration_failed, failure.javaClass.simpleName)
         }
     }
 
-    private fun trace(stage: String) {
-        App.of(this).shortcutTestStage = stage
+    private fun trace(stage: Int, vararg args: Any) {
+        App.of(this).shortcutTestStage = getString(stage, *args)
     }
 
     private fun tapped() {
         val app = App.of(this)
         app.shortcutTestTaps++
-        trace("Tap received")
+        trace(R.string.shortcut_stage_tapped)
         try {
             open()
         } catch (failure: RuntimeException) {
@@ -81,8 +83,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
             } catch (_: RuntimeException) {
                 // Preserve the failure that brought us here, even if cleanup also fails.
             }
-            trace("Failed at " + failedStage + " (" + failure.javaClass.simpleName + ")")
-            Toast.makeText(this, "Couldn't open the check. Open Linguize settings for the shortcut test.", Toast.LENGTH_LONG).show()
+            trace(R.string.shortcut_stage_failed, failedStage, failure.javaClass.simpleName)
+            Toast.makeText(this, R.string.shortcut_open_failed, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -98,14 +100,14 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun open() {
-        trace("Finding input focus")
+        trace(R.string.shortcut_stage_finding_focus)
         val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         card?.let { current ->
             // Tapping the button while the card waits behind settings brings it back, unless
             // it was left there: it waited too long, or the tap is for another app's field.
             if (!current.window.hidden || !current.leftBehind(focused)) {
                 current.window.hidden = false
-                trace("Existing card shown")
+                trace(R.string.shortcut_stage_existing_card)
                 return
             }
             current.discard()
@@ -116,31 +118,34 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val supportsSetText = focused?.actionList?.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT } == true
         val field = focused?.takeIf { it.isEditable || supportsSetText }
         if (field == null) {
-            trace(if (focused == null) "No input focus" else
-                "Focused item is not editable · write action: no · selection action: " +
-                    (if (focused.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_SELECTION }) "yes" else "no") +
-                    " · input focused: " + (if (focused.isFocused) "yes" else "no") +
-                    " · children: " + focused.childCount)
-            Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
+            if (focused == null) {
+                trace(R.string.shortcut_stage_no_focus)
+            } else {
+                trace(R.string.shortcut_stage_not_editable,
+                    getString(if (focused.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_SELECTION }) R.string.shortcut_yes else R.string.shortcut_no),
+                    getString(if (focused.isFocused) R.string.shortcut_yes else R.string.shortcut_no),
+                    focused.childCount)
+            }
+            Toast.makeText(this, R.string.shortcut_no_text, Toast.LENGTH_LONG).show()
             return
         }
-        trace("Checking field metadata")
+        trace(R.string.shortcut_stage_checking_field)
         if (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName)) {
-            trace("Field looks private")
-            Toast.makeText(this, "This field looks private, so Linguize didn't read it.", Toast.LENGTH_LONG).show()
+            trace(R.string.shortcut_stage_private_field)
+            Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
             return
         }
-        trace("Reading eligible field")
+        trace(R.string.shortcut_stage_reading_field)
         val selection = field.takeUnless { it.isShowingHintText }?.text?.toString()
             ?.let { Selection.of(it, field.textSelectionStart, field.textSelectionEnd) }
         if (selection == null || selection.text.isEmpty()) {
-            trace(if (field.isShowingHintText) "Field shows a hint" else "No readable text")
-            Toast.makeText(this, "No text to check. Tap the field you wrote in, then try again.", Toast.LENGTH_LONG).show()
+            trace(if (field.isShowingHintText) R.string.shortcut_stage_hint else R.string.shortcut_stage_empty)
+            Toast.makeText(this, R.string.shortcut_no_text, Toast.LENGTH_LONG).show()
             return
         }
 
         // Back closes the card as a tap outside it does; [close] is set just below.
-        trace("Preparing card")
+        trace(R.string.shortcut_stage_preparing_card)
         var onBack: () -> Unit = {}
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
@@ -148,8 +153,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
         var settingsOpen by mutableStateOf(false)
         val settings = ViewModelProvider(window, SettingsViewModel.factory(App.of(this)))[SettingsViewModel::class.java]
 
-        // Settings opens with the card hidden behind it (an overlay would cover it). Leaving
-        // settings brings the card back, checked again if it failed or the settings changed.
+        // Embedded settings shares this window and check. External destinations hide the
+        // window until their matching gateway returns, retaining the same accepted edits.
         val backFromSettings: () -> Unit = {
             settingsOpen = false
             window.editing = false
@@ -163,10 +168,15 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val openSettings: () -> Unit = {
             settingsOpen = true
         }
-        val openHome: () -> Unit = {
-            SettingsReturn.await(backFromApp)
+        val openExternal: (Intent) -> Unit = { external ->
+            val returnToken = SettingsReturn.await(backFromApp)
             window.hidden = true
-            startActivity(PopupExternalActivity.intent(this, HomeActivity.homeIntent(this)))
+            try {
+                startActivity(PopupExternalActivity.intent(this, external, returnToken))
+            } catch (_: RuntimeException) {
+                SettingsReturn.left(returnToken)
+                Toast.makeText(this, R.string.external_app_unavailable, Toast.LENGTH_SHORT).show()
+            }
         }
 
         var closed = false
@@ -191,7 +201,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             check, context = this, onClose = close, onOpenSettings = openSettings,
             onCopyClose = { end { false } },
         )
-        trace("Showing card")
+        trace(R.string.shortcut_stage_showing_card)
         try {
             window.show {
                 AppTheme {
@@ -200,12 +210,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
                         PopupCard(state, actions, settings, settingsOpen,
                             onBackFromSettings = backFromSettings,
                             onDismiss = close,
-                            onOpenHome = openHome,
-                            onOpenExternal = { external ->
-                                SettingsReturn.await(backFromApp)
-                                window.hidden = true
-                                startActivity(PopupExternalActivity.intent(this, external))
-                            },
+                            onOpenHome = { openExternal(HomeActivity.homeIntent(this)) },
+                            onOpenExternal = openExternal,
                             onInputModeChanged = { window.editing = it },
                             alignment = Alignment.TopCenter, topPadding = 32.dp) {
                             // Another language checks again on the same card: one history session for it.
@@ -223,9 +229,9 @@ class LinguizeAccessibilityService : AccessibilityService() {
             throw failure
         }
         card = Card(window, field, discard = { end { false } })
-        trace("Card shown; starting check")
+        trace(R.string.shortcut_stage_starting_check)
         check.check(selection.text, language, Origin.Button, field.packageName?.toString())
-        trace("Check started")
+        trace(R.string.shortcut_stage_check_started)
     }
 
     /**
@@ -260,8 +266,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             field.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, cursorAt)
             return true
         }
-        val why = if (unchanged) "Couldn't put the text back" else "The field changed or is gone"
-        Toast.makeText(this, "$why. Reopen the check and use Copy.", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, if (unchanged) R.string.shortcut_replace_failed else R.string.shortcut_field_changed, Toast.LENGTH_LONG).show()
         return false
     }
 

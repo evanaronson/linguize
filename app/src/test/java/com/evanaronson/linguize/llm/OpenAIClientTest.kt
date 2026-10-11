@@ -45,7 +45,33 @@ class OpenAIClientTest {
         val payload = """{"status":"incomplete","incomplete_details":{"reason":"content_filter"},"output":[]}"""
         val failure = assertThrows(CheckFailure::class.java) { OpenAIClient.answer(payload) }
         assertEquals(Reason.BadResponse, failure.reason)
-        assertEquals("OpenAI declined to check this text.", failure.detail)
+        assertEquals(CheckFailure.Message.Declined, failure.userMessage)
+    }
+
+    @Test
+    fun aValidLookingAnswerFromAnUnfinishedResponseIsRefused() {
+        for (status in listOf("queued", "in_progress", "cancelled", "failed")) {
+            val payload = answer(VERDICT_JSON).replace("\"completed\"", "\"$status\"")
+            val failure = assertThrows(CheckFailure::class.java) { OpenAIClient.answer(payload) }
+            assertEquals(Reason.BadResponse, failure.reason)
+            assertEquals(CheckFailure.Message.IncompleteReply, failure.userMessage)
+        }
+    }
+
+    @Test
+    fun aRefusalIsRecognizedEvenWhenTheResponseIsCompleted() {
+        val payload = """{"status":"completed","output":[{"type":"message","content":[{"type":"refusal","refusal":"No"}]}]}"""
+        val failure = assertThrows(CheckFailure::class.java) { OpenAIClient.answer(payload) }
+        assertEquals(CheckFailure.Message.Declined, failure.userMessage)
+    }
+
+    @Test
+    fun aMalformedModelListIsNotShownAsASuccessfulEmptyList() {
+        val http = FakeHttp { _, _ -> 200 to "{}" }
+        val failure = assertThrows(CheckFailure::class.java) {
+            runBlocking { OpenAIClient(http.client, prompt).models("key") }
+        }
+        assertEquals(Reason.BadResponse, failure.reason)
     }
 
     @Test

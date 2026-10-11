@@ -7,11 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,8 +21,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.FloatingCard
@@ -30,8 +32,8 @@ import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.components.BackButton
 import com.evanaronson.linguize.ui.components.LocalInlineControls
 import com.evanaronson.linguize.ui.settings.LocalSettingsHost
-import com.evanaronson.linguize.ui.settings.SettingsHost
 import com.evanaronson.linguize.ui.settings.SettingsContent
+import com.evanaronson.linguize.ui.settings.SettingsHost
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
 
 /** Settings is a page of the same popup, like Meaning. The check itself stays alive. */
@@ -85,7 +87,7 @@ fun PopupCard(
                                     Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         BackButton(onBackFromSettings)
-                                        Text("Settings", style = MaterialTheme.typography.titleMedium)
+                                        Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleMedium)
                                     }
                                     SettingsContent(settings, Modifier.weight(1f, fill = false))
                                 }

@@ -15,15 +15,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.runtime.Composable
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -51,7 +52,8 @@ fun FloatingCard(
     content: (@Composable (Modifier) -> Unit)? = null,
     header: @Composable () -> Unit = {},
 ) {
-    Box(Modifier.fillMaxSize().semantics { paneTitle = "Linguize" }) {
+    val appName = stringResource(R.string.app_name)
+    Box(Modifier.fillMaxSize().semantics { paneTitle = appName }) {
         Box(
             Modifier
                 .matchParentSize()
@@ -59,7 +61,7 @@ fun FloatingCard(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClickLabel = "Close card",
+                    onClickLabel = stringResource(R.string.close_card),
                     onClick = onDismiss,
                 ),
         )
@@ -88,7 +90,7 @@ fun FloatingCard(
                     header()
                     onOpenHome?.let { openHome ->
                         FilledTonalIconButton(onClick = openHome) {
-                            Icon(painterResource(R.drawable.ic_home), contentDescription = "Open Linguize")
+                            Icon(painterResource(R.drawable.ic_home), contentDescription = stringResource(R.string.open_linguize))
                         }
                     }
                 }

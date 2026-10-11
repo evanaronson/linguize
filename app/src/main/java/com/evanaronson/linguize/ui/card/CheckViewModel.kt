@@ -32,7 +32,11 @@ import kotlinx.coroutines.withContext
 
 sealed interface CardState {
     data class Loading(val text: String) : CardState
-    data class Failed(val reason: CheckFailure.Reason, val detail: String?) : CardState
+    data class Failed(
+        val reason: CheckFailure.Reason,
+        val detail: String?,
+        val userMessage: CheckFailure.Message? = null,
+    ) : CardState
     data class Done(
         val result: CheckResult,
         /** The writer's answers to assumptions, kept until the card closes. */
@@ -69,6 +73,8 @@ class CheckViewModel(
     /** Changes accepted before the current check started, kept while it runs. */
     private var carried: List<Edit> = emptyList()
     private var job: Job? = null
+    private var staleCheck: Job? = null
+    private var generation = 0L
 
     /** The settings the latest check ran (or is running) with; null before it read them. */
     private var ranWith: CheckContext? = null
@@ -114,7 +120,9 @@ class CheckViewModel(
     }
 
     /** Checks the same text again (a retry, or after settings changed), keeping answers and accepted changes. */
-    fun recheck() = run(Run.Again)
+    fun recheck() {
+        if (state != null) run(Run.Again)
+    }
 
     /**
      * Back from settings with the card still up: checks again, as [recheck] does, when the
@@ -123,18 +131,29 @@ class CheckViewModel(
      */
     fun recheckIfStale() {
         if (state == null) return
-        viewModelScope.launch {
+        val requestedGeneration = generation
+        staleCheck?.cancel()
+        staleCheck = viewModelScope.launch {
             val now = try {
                 withContext(Dispatchers.Default) { checker() }.context()
             } catch (_: CheckFailure) {
                 null
             }
-            if (state != null && (state is CardState.Failed || now == null || now != ranWith)) recheck()
+            // A settings read belongs to the request that asked for it. A new card, another
+            // language or dismissal may have overtaken the read while it was off-thread.
+            if (requestedGeneration != generation || state == null) return@launch
+            // This request has not read settings yet, so it will already use the latest ones.
+            if (state is CardState.Loading && ranWith == null) return@launch
+            if (state is CardState.Failed || now == null || now != ranWith) {
+                staleCheck = null
+                recheck()
+            }
         }
     }
 
     /** Overrides an assumption with the writer's [answer] and checks again. */
     fun settle(about: String, answer: String) {
+        if (state == null) return
         settled = settled.filterNot { it.about == about } + Settled(about, answer)
         run(Run.Again)
     }
@@ -152,6 +171,10 @@ class CheckViewModel(
     }
 
     private fun run(kind: Run) {
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
+        ranWith = null
         if (kind == Run.Again) {
             reviewed?.let { carried = it.revision.acceptedEdits }
         } else {
@@ -196,8 +219,8 @@ class CheckViewModel(
                 history.succeeded(answers, answer.value.raw, kept, reusedFrom = answer.reused?.sessionId)
                 CardState.Done(kept, answers)
             } catch (failure: CheckFailure) {
-                history.failed(answers, failure.reason.token, failure.detail, failure.raw)
-                CardState.Failed(failure.reason, failure.detail)
+                history.failed(answers, failure.reason.token, failure.detail, failure.raw, message = failure.userMessage?.token)
+                CardState.Failed(failure.reason, failure.detail, failure.userMessage)
             }
             state = shown
         }
@@ -223,6 +246,9 @@ class CheckViewModel(
      * session's close is written (see [CheckHistory.awaitWrites]).
      */
     fun dismiss(applied: Boolean = true, waitMs: Long = 0) {
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
         history.close(finalText = if (applied) workingText else null)
         job?.cancel()
         carried = emptyList()

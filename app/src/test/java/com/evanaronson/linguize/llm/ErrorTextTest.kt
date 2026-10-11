@@ -34,5 +34,13 @@ class ErrorTextTest {
         val payload = """{"error":{"message":"Incorrect API key provided: sk-abcdef123456."}}"""
         assertEquals("Incorrect API key provided: ….", errorMessage(payload))
         assertNull(errorMessage("""{"error":{"message":"https://example.com/x"}}"""))
+        assertNull(errorMessage("""{"error":{"message":null}}"""))
+    }
+
+    @Test
+    fun failureDiagnosticsAreScrubbedEvenOutsideTheHttpErrorPath() {
+        val failure = CheckFailure(CheckFailure.Reason.BadResponse, "Could not read sk-secret1234 via https://x.test?key=secret")
+        assertEquals("Could not read … via", failure.detail)
+        assertEquals(failure.detail, failure.message)
     }
 }

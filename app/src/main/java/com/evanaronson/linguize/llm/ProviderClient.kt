@@ -36,7 +36,7 @@ interface ProviderClient {
 internal fun Prompt.read(raw: String): ModelAnswer = try {
     ModelAnswer(parseVerdict(raw), raw)
 } catch (e: CheckFailure) {
-    throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw)
+    throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw, userMessage = e.userMessage)
 }
 
 /**
@@ -62,12 +62,25 @@ internal class DroppableOption(private val refusal: String) {
 
 /** Drops models built for other jobs (speech, images, embeddings…) and sorts the rest newest first. */
 internal fun textModels(ids: List<String>): List<String> = ids
-    .filterNot { id -> SPECIAL_PURPOSE.any { it in id } }
+    .filterNot { id -> SPECIAL_PURPOSE.any { it in id.lowercase() } }
     .distinct()
-    .sortedWith(compareByDescending<String> { version(it) }.thenBy { it })
+    .map { it to version(it) }
+    .sortedWith { left, right ->
+        val leftVersion = left.second
+        val rightVersion = right.second
+        (0 until maxOf(leftVersion.size, rightVersion.size))
+            .firstNotNullOfOrNull { index ->
+                val compared = (rightVersion.getOrNull(index) ?: 0).compareTo(leftVersion.getOrNull(index) ?: 0)
+                compared.takeIf { it != 0 }
+            } ?: left.first.compareTo(right.first)
+    }
+    .map { it.first }
 
-/** The first number in a model name, e.g. 3.5 in "gemini-3.5-flash-lite". */
-private fun version(id: String): Double = Regex("""\d+(\.\d+)?""").find(id)?.value?.toDoubleOrNull() ?: 0.0
+/** Compare version components as integers: 5.10 comes after 5.9, not before it as decimal 5.1. */
+private fun version(id: String): List<Int> = MODEL_VERSION.find(id)?.value
+    ?.split('.')?.map { it.toIntOrNull() ?: Int.MAX_VALUE }.orEmpty()
+
+private val MODEL_VERSION = Regex("""\d+(\.\d+)*""")
 
 private val SPECIAL_PURPOSE = listOf(
     "embedding", "tts", "image", "live", "audio", "realtime", "transcribe",

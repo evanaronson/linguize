@@ -23,17 +23,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.ResultCard
-import com.evanaronson.linguize.ui.card.title
 import com.evanaronson.linguize.ui.components.BackButton
 import com.evanaronson.linguize.ui.forgetExports
+import com.evanaronson.linguize.ui.text.titleResource
 
 /**
  * One past check: when and where, the card as it was (read-only), what went back to
@@ -52,7 +55,7 @@ fun SessionScreen(session: SessionViewModel, onBack: () -> Unit) {
         BackButton(onBack)
         when (val page = session.page) {
             SessionPage.Loading -> Unit
-            SessionPage.Missing -> Faint("This check was deleted.")
+            SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
             is SessionPage.Shown -> Shown(
                 page,
                 onDelete = {
@@ -74,12 +77,12 @@ private fun Shown(page: SessionPage.Shown, onDelete: () -> Unit) {
     val card = page.card
     // The card shows the text itself only when it has suggestions to show in it.
     val cardShowsText = (card?.result as? CheckResult.Reviewed)?.looksGood == false
-    if (!cardShowsText) TextBlock("Your text", session.text)
+    if (!cardShowsText) TextBlock(stringResource(R.string.your_text), session.text)
     if (card != null) {
         ReadOnlyCard(card)
     } else {
         Text(
-            page.failure?.let { "Couldn't check · ${it.title}" } ?: "No result",
+            page.failure?.let { stringResource(R.string.check_failed_reason, stringResource(it.titleResource)) } ?: stringResource(R.string.no_result),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.error,
         )
@@ -92,8 +95,9 @@ private fun Shown(page: SessionPage.Shown, onDelete: () -> Unit) {
 @Composable
 private fun Header(session: SessionRecord, appLabel: String?) {
     val time = rememberTimeFormat()
+    val resources = LocalResources.current
     Column {
-        Text(relativeDate(session.startedAt, System.currentTimeMillis(), time, alwaysTime = true), style = MaterialTheme.typography.titleLarge)
+        Text(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true), style = MaterialTheme.typography.titleLarge)
         appLabel?.let { Faint(it) }
     }
 }
@@ -119,13 +123,13 @@ private fun ReadOnlyCard(card: CardState.Done) {
 private fun WhatCameOfIt(session: SessionRecord) {
     val finalText = session.finalText
     if (finalText != null) {
-        TextBlock("Put back in the app", finalText)
+        TextBlock(stringResource(R.string.put_back_in_app), finalText)
         return
     }
     when (session.outcome) {
-        Outcome.Copied -> "Copied. Nothing was put back in the app."
-        Outcome.None -> "Closed. Nothing was put back in the app."
-        Outcome.Abandoned -> "The end of this check wasn't saved. Linguize closed, or History was turned off."
+        Outcome.Copied -> stringResource(R.string.outcome_copied)
+        Outcome.None -> stringResource(R.string.outcome_closed)
+        Outcome.Abandoned -> stringResource(R.string.outcome_abandoned)
         Outcome.Applied, Outcome.Failed, null -> null
     }?.let { Faint(it) }
 }
@@ -136,19 +140,19 @@ private fun DeleteButton(onDelete: () -> Unit) {
     TextButton(
         onClick = { confirming = true },
         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-    ) { Text("Delete") }
+    ) { Text(stringResource(R.string.delete)) }
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text("Delete this check?") },
-            text = { Text("It will be deleted from this phone. This can't be undone.") },
+            title = { Text(stringResource(R.string.delete_check_question)) },
+            text = { Text(stringResource(R.string.delete_check_description)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirming = false
                     onDelete()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
@@ -69,25 +71,26 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
         }
     }
 
-    // Rebuilt with the changes, so an action never answers for a change that's gone.
-    val actions = remember(text, changes, onReplace) {
-        changes.flatMap { change ->
-            val to = text.substring(change.range)
-            listOfNotNull(
-                // In words: an arrow would be read out as "right arrow".
-                CustomAccessibilityAction(if (change.from.isEmpty()) "Why add $to" else "Why ${change.from} becomes $to") {
-                    selectedId = change.id
+    // Resolve labels during composition so screen-reader actions also follow locale changes.
+    val actions = changes.flatMap { change ->
+        val to = text.substring(change.range)
+        val whyLabel = if (change.from.isEmpty()) stringResource(R.string.change_why_add, to)
+            else stringResource(R.string.change_why_replace, change.from, to)
+        val replaceLabel = if (change.from.isEmpty()) stringResource(R.string.change_add, to)
+            else stringResource(R.string.change_replace, change.from, to)
+        listOfNotNull(
+            CustomAccessibilityAction(whyLabel) {
+                selectedId = change.id
+                true
+            },
+            onReplace?.let { replace ->
+                CustomAccessibilityAction(replaceLabel) {
+                    selectedId = null
+                    replace(change.id)
                     true
-                },
-                onReplace?.let { replace ->
-                    CustomAccessibilityAction(if (change.from.isEmpty()) "Add $to" else "Replace ${change.from} with $to") {
-                        selectedId = null
-                        replace(change.id)
-                        true
-                    }
-                },
-            )
-        }
+                }
+            },
+        )
     }
 
     Column {
@@ -162,6 +165,10 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
 
 @Composable
 private fun Explanation(change: Highlight, replacement: String, accent: Color, onReplace: (() -> Unit)?) {
+    val description = if (change.from.isEmpty()) stringResource(R.string.change_add, replacement)
+        else stringResource(R.string.change_becomes, change.from, replacement)
+    val display = if (change.from.isEmpty()) description
+        else stringResource(R.string.change_replacement, change.from, replacement)
     // Read out as it opens, which matters when it was opened by a screen reader's "Why" action.
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -172,25 +179,20 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
             Column(Modifier.weight(1f)) {
                 Text(
                     buildAnnotatedString {
-                        val from = change.from
-                        if (from.isEmpty()) {
-                            // Something added, like a comma.
-                            append("Add ")
-                        } else {
-                            pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
-                            append(from)
-                            pop()
-                            append("  →  ")
+                        append(display)
+                        if (change.from.isNotEmpty()) {
+                            val fromStart = display.indexOf(change.from)
+                            if (fromStart >= 0) addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough),
+                                fromStart, fromStart + change.from.length)
                         }
-                        pushStyle(SpanStyle(fontWeight = FontWeight.SemiBold))
-                        append(replacement)
-                        pop()
+                        val replacementStart = display.lastIndexOf(replacement)
+                        if (replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
+                            replacementStart, replacementStart + replacement.length)
                     },
                     style = MaterialTheme.typography.labelLarge,
                     // In words: the arrow would be read out as "right arrow".
                     modifier = Modifier.semantics {
-                        contentDescription =
-                            if (change.from.isEmpty()) "Add $replacement" else "${change.from} becomes $replacement"
+                        contentDescription = description
                     },
                 )
                 change.why?.let {
@@ -199,7 +201,7 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
             }
             if (onReplace != null) {
                 Spacer(Modifier.width(8.dp))
-                FilledTonalButton(onClick = onReplace) { Text("Accept") }
+                FilledTonalButton(onClick = onReplace) { Text(stringResource(R.string.accept)) }
             }
         }
     }

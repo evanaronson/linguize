@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.ui.text.displayName
 
 /**
  * "Linguize ▾": picks the language to check as, from auto-detect (null) and every language
@@ -51,11 +52,13 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
         }
     }
     val name = label(selected)
+    val description = stringResource(R.string.language_accessibility, name,
+        selected?.displayName() ?: stringResource(R.string.detect_language))
     Column(modifier) {
         FilledTonalButton(
             onClick = { open = !open },
             modifier = Modifier.semantics {
-                contentDescription = "Language: $name, ${selected?.name ?: "detects the language"}"
+                contentDescription = description
             },
         ) {
             Text(name)
@@ -83,7 +86,7 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
                             Column(Modifier.widthIn(min = 160.dp)) {
                                 Text(label(entry), style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    entry?.name ?: "Detects the language",
+                                    entry?.displayName() ?: stringResource(R.string.detect_language),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -114,5 +117,5 @@ private fun label(language: Language?): String {
         Language.Spanish -> R.string.menu_castilian
         else -> null
     }
-    return named?.let { stringResource(it) } ?: language?.name.orEmpty()
+    return named?.let { stringResource(it) } ?: language?.displayName().orEmpty()
 }

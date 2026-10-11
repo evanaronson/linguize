@@ -33,8 +33,8 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
  * and clears them when it's removed.
  *
  * While shown, the window takes key focus so Back reaches [onBack] rather than the app
- * below, which would otherwise leave the screen the card's text field is on. It never
- * takes the keyboard, which stays with that field.
+ * below, which would otherwise leave the screen the card's text field is on. Review
+ * keeps the keyboard with the source field; embedded settings can explicitly take it.
  */
 internal class OverlayWindow(private val context: Context, private val onBack: () -> Unit) :
     LifecycleOwner,

@@ -110,4 +110,21 @@ class ReplayTest {
         unreadable.attempt(200, emptyList(), "not an answer we know", null, null, null, null, Verdict.Status.Ok)
         assertNull(replay(unreadable.close(300, null), parse))
     }
+
+    @Test
+    fun unreadableRecordedSpansNeverReachTheHistoryCard() {
+        val detail = fixApplied()
+        val fix = detail.suggestions.first { it.kind == EditKind.Fix }
+        val invalid = listOf(
+            fix.copy(start = -1),
+            fix.copy(end = rain.length + 1),
+            fix.copy(end = fix.start - 1),
+            fix.copy(start = rain.length + 1, end = rain.length + 1),
+            fix.copy(fromText = "another word"),
+        )
+        for (row in invalid) {
+            val changed = detail.copy(suggestions = detail.suggestions.map { if (it.id == fix.id) row else it })
+            assertNull(row.toString(), replay(changed, parse))
+        }
+    }
 }

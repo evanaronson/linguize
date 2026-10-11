@@ -45,15 +45,20 @@ class Checker(
         settled: List<Settled> = emptyList(),
         context: CheckContext? = null,
     ): Checked {
-        if (text.length > MAX_CHARS) throw CheckFailure(CheckFailure.Reason.TooLong, "Linguize checks up to 3,000 characters at a time.")
+        if (text.length > MAX_CHARS) throw CheckFailure(CheckFailure.Reason.TooLong, userMessage = CheckFailure.Message.InputTooLong)
         return failingAsCheckFailure {
             val used = context ?: readContext()
             val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native)
             val answer = clients.getValue(used.provider).check(key(used.provider), used.model, request)
             val result = try {
+                prompt.validateSize(answer.verdict)
                 interpret(text, answer.verdict, used.judgments, expectedLanguage = language?.name)
+            } catch (e: CheckFailure) {
+                throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = answer.raw, userMessage = e.userMessage)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: RuntimeException) {
-                throw CheckFailure(CheckFailure.Reason.BadResponse, e.message, e, raw = answer.raw)
+                throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, raw = answer.raw, userMessage = CheckFailure.Message.InvalidReply)
             }
             Checked(result, answer.raw, used)
         }
@@ -64,8 +69,16 @@ class Checker(
      * again, without asking the model. Throws [CheckFailure] when it can't be read.
      */
     suspend fun reuse(text: String, language: Language?, raw: String, context: CheckContext): Checked = failingAsCheckFailure {
-        val result = interpret(text, prompt.parseVerdict(raw), context.judgments, expectedLanguage = language?.name)
-        Checked(result, raw, context)
+        try {
+            val result = interpret(text, prompt.parseVerdict(raw), context.judgments, expectedLanguage = language?.name)
+            Checked(result, raw, context)
+        } catch (e: CheckFailure) {
+            throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw, userMessage = e.userMessage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RuntimeException) {
+            throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, raw = raw, userMessage = CheckFailure.Message.InvalidReply)
+        }
     }
 
     /** Runs a short check with [model]; returns how long it took in milliseconds. */
@@ -93,9 +106,9 @@ class Checker(
     }
 
     private fun key(provider: Provider): String {
-        val key = keys.get(provider) ?: throw CheckFailure(CheckFailure.Reason.NoKey)
+        val key = keys.get(provider)?.takeUnless { it.isBlank() } ?: throw CheckFailure(CheckFailure.Reason.NoKey)
         // HTTP headers only carry printable ASCII; anything else can't be a real key.
-        if (key.any { it !in ' '..'~' }) throw CheckFailure(CheckFailure.Reason.BadKey, "The saved key has characters that keys never contain.")
+        if (key.any { it !in '!'..'~' }) throw CheckFailure(CheckFailure.Reason.BadKey, userMessage = CheckFailure.Message.InvalidKey)
         return key
     }
 

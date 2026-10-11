@@ -6,11 +6,33 @@ import com.evanaronson.linguize.codec.Tokens
 class CheckFailure(
     val reason: Reason,
     /** The provider's own explanation, when there is one. */
-    val detail: String? = null,
+    detail: String? = null,
     cause: Throwable? = null,
     /** The model's answer, when one came but couldn't be used; history keeps it. */
     val raw: String? = null,
-) : Exception(detail ?: reason.name, cause) {
+    /** An app-owned explanation, rendered in the current UI language. */
+    val userMessage: Message? = null,
+) : Exception(detail?.let(::scrubSecrets) ?: reason.name, cause) {
+    /** Scrub at the failure boundary, including errors from storage or unexpected exceptions. */
+    val detail: String? = detail?.let(::scrubSecrets)?.takeIf { it.isNotEmpty() }
+
+    /** Stable identifiers let history retain the explanation without retaining an English UI string. */
+    enum class Message(val token: String) {
+        InputTooLong("input_too_long"),
+        InvalidKey("invalid_key"),
+        EmptyReply("empty_reply"),
+        ReplyTooLarge("reply_too_large"),
+        InvalidReply("invalid_reply"),
+        TruncatedReply("truncated_reply"),
+        IncompleteReply("incomplete_reply"),
+        Declined("declined"),
+        ;
+
+        companion object {
+            val tokens = Tokens(entries, Message::token)
+        }
+    }
+
     /**
      * Each reason's [token] is what history keeps. For the reasons that existed when history
      * kept constant names, it is the name in snake case, which is how the upgrade rewrites

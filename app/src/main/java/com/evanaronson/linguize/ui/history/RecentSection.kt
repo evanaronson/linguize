@@ -32,14 +32,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.history.Outcome
-import com.evanaronson.linguize.ui.components.DateLocale
 import com.evanaronson.linguize.ui.components.SectionTitle
+import com.evanaronson.linguize.ui.components.uiLocale
 import java.time.format.DateTimeFormatter
 
 /**
@@ -57,6 +60,8 @@ fun RecentSection(
     val rows by history.recent.collectAsState()
     val pending by history.pendingDelete.collectAsState()
     val time = rememberTimeFormat()
+    val deletedMessage = stringResource(R.string.check_deleted)
+    val undoLabel = stringResource(R.string.undo)
 
     // Undo for the row just deleted. The deletion itself waits in the view model: here it's
     // committed only when the snackbar goes unanswered. If the snackbar is torn down instead
@@ -66,7 +71,7 @@ fun RecentSection(
         history.undoShown(id)
         var answered = false
         try {
-            val result = snackbar.showSnackbar("Check deleted", actionLabel = "Undo", duration = SnackbarDuration.Short)
+            val result = snackbar.showSnackbar(deletedMessage, actionLabel = undoLabel, duration = SnackbarDuration.Short)
             answered = true
             if (result == SnackbarResult.ActionPerformed) history.undoDelete(id) else history.commitDelete(id)
         } finally {
@@ -74,11 +79,11 @@ fun RecentSection(
         }
     }
 
-    SectionTitle("Recent")
+    SectionTitle(stringResource(R.string.recent))
     if (historyOn == false) HistoryOff(onOpenSettings)
     val shown = rows ?: return
     if (shown.isEmpty()) {
-        if (historyOn == true) Quiet("Checks from other apps will appear here.")
+        if (historyOn == true) Quiet(stringResource(R.string.recent_empty))
         return
     }
     val now = System.currentTimeMillis()
@@ -98,6 +103,8 @@ fun RecentSection(
 @Composable
 private fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
     val summary = row.summary
+    val resources = LocalResources.current
+    val deleteLabel = stringResource(R.string.delete_check)
     Column(
         Modifier
             .fillMaxWidth()
@@ -106,24 +113,24 @@ private fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCli
             // On the same node as the click, so screen readers offer Delete on the row they're on.
             .semantics {
                 customActions = listOf(
-                    CustomAccessibilityAction("Delete check") {
+                    CustomAccessibilityAction(deleteLabel) {
                         onDelete()
                         true
                     },
                 )
             }
-            .clickable(onClickLabel = "Open check", onClick = onClick)
+            .clickable(onClickLabel = stringResource(R.string.open_check), onClick = onClick)
             .padding(vertical = 12.dp),
     ) {
         Text(
-            listOfNotNull(relativeDate(summary.startedAt, now, time), row.appLabel).joinToString(" · "),
+            listOfNotNull(relativeDate(resources, summary.startedAt, now, time), row.appLabel).joinToString(stringResource(R.string.status_separator)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(2.dp))
         Text(firstLine(summary.text), style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(
-            summary.statusLine,
+            summary.statusLine(resources),
             style = MaterialTheme.typography.bodySmall,
             color = if (summary.outcome == Outcome.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -149,7 +156,7 @@ private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit)
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Text("Delete", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onErrorContainer)
+                Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onErrorContainer)
             }
         },
         enableDismissFromStartToEnd = false,
@@ -161,8 +168,8 @@ private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit)
 @Composable
 private fun HistoryOff(onOpenSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Quiet("History is off. New checks aren't saved.", Modifier.weight(1f))
-        TextButton(onClick = onOpenSettings) { Text("Open settings") }
+        Quiet(stringResource(R.string.history_off), Modifier.weight(1f))
+        TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.open_settings)) }
     }
 }
 
@@ -175,5 +182,9 @@ private fun Quiet(text: String, modifier: Modifier = Modifier) {
 @Composable
 internal fun rememberTimeFormat(): DateTimeFormatter {
     val context = LocalContext.current
-    return remember(context) { DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", DateLocale) }
+    val locale = LocalResources.current.uiLocale
+    val is24Hour = DateFormat.is24HourFormat(context)
+    return remember(locale, is24Hour) {
+        DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm"), locale)
+    }
 }

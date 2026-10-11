@@ -27,7 +27,6 @@ import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.card.FloatingCard
 import com.evanaronson.linguize.ui.components.LanguagePicker
-import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.home.SettingsReturn
 import com.evanaronson.linguize.ui.theme.AppTheme
@@ -117,18 +116,22 @@ class LinguizeAccessibilityService : AccessibilityService() {
             if (closed) return
             closed = true
             SettingsReturn.cancel(backFromSettings)
-            check.dismiss(applied = applied())
-            window.remove()
+            // Restore the source app's window before requesting a replacement.
+            // Keep the view model alive until the write result is reported to History.
+            window.remove { check.dismiss(applied = applied()) }
             if (card?.window === window) card = null
         }
         val close: () -> Unit = {
-            // Applied only if the text really went into the field. When it's copied instead,
-            // nothing reached the app, and history has no "copied" for the whole text.
+            // Only a successful replacement is applied. A failed write never copies
+            // text or records a Copy decision.
             end { check.workingText?.let { writeBack(field, selection, it) } == true }
         }
         onBack = close
 
-        val actions = CardActions.of(check, context = this, onClose = close, onOpenSettings = openSettings)
+        val actions = CardActions.of(
+            check, context = this, onClose = close, onOpenSettings = openSettings,
+            onCopyClose = { end { false } },
+        )
         window.show {
             AppTheme {
                 check.state?.let { state ->
@@ -165,8 +168,9 @@ class LinguizeAccessibilityService : AccessibilityService() {
 
     /**
      * Puts the text, with the accepted changes, back in place of the selection. If the field
-     * changed or went away while the card was open, it isn't overwritten: the text is copied instead.
-     * Returns true when the text went into the field, false when it was copied.
+     * changed or went away while the card was open, it isn't overwritten. Accept never
+     * writes to the clipboard: copying is the card's separate Copy action.
+     * Returns true only when the app accepted the replacement.
      */
     private fun writeBack(field: AccessibilityNodeInfo, selection: Selection, replacement: String): Boolean {
         val unchanged = field.refresh() && field.text?.toString() == selection.full
@@ -182,9 +186,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
             field.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, cursorAt)
             return true
         }
-        copyToClipboard(replacement)
-        val why = if (unchanged) "Couldn't put the text back" else "The field changed or is gone, so the text wasn't put back"
-        Toast.makeText(this, "$why. It's copied with your changes: paste it in.", Toast.LENGTH_LONG).show()
+        val why = if (unchanged) "Couldn't put the text back" else "The field changed or is gone"
+        Toast.makeText(this, "$why. Reopen the check and use Copy.", Toast.LENGTH_LONG).show()
         return false
     }
 

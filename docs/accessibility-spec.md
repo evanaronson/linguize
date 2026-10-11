@@ -106,7 +106,11 @@ A local failure message must not claim the app blocks accessibility merely becau
 
 ## Putting text back
 
-The existing service refreshes the original field, compares its text with Selection.full, tries ACTION_SET_TEXT and copies the accepted replacement if that fails. Keep those protections and the cursor calculation.
+The service refreshes the original field, compares its text with Selection.full and tries ACTION_SET_TEXT. Preserve those protections and the cursor calculation. Accept must not change the clipboard: Copy is an explicit, separate action.
+
+The history branch also made the overlay take key focus for Back handling. Replacement must run after detaching that overlay, while the check's view model is still alive to report the outcome. The WhatsApp regression reported after the merge is consistent with this ordering problem, but needs device confirmation.
+
+The pre-history and merged card contracts apply accepted changes on Accept all (when resolved), Done or dismissal. An individual Accept updates the preview until Done. Changing individual Accept to write live would also require write-back for Undo, tracking the last written draft for conflict checks, and revised History semantics; that is an open product decision, not part of the ordering repair.
 
 Improve this path as follows:
 
@@ -116,7 +120,7 @@ Improve this path as follows:
 - Treat an action's true return value as acceptance, then refresh and verify the expected full text where the app permits it.
 - If the action reports success but verification is unavailable, explain that the result could not be confirmed. Do not retry automatically: a delayed action may still finish.
 - Confirmed replacement is applied=true for History. A rejected, unavailable or unconfirmed replacement is applied=false.
-- Preserve copyToClipboard's sensitive-clipboard handling. In the selection case, clearly say that only the checked portion was copied.
+- Preserve copyToClipboard's sensitive-clipboard handling for explicit Copy. Never invoke it as a side effect of a failed Accept. In the selection case, clearly say that only the checked portion was copied.
 - Do not simulate keyboard entry, tap Send, automatically paste or restore focus by coordinates.
 
 The existing Outcome contract records put-back versus not put-back; it has no whole-text copied outcome. Keep that contract for this phase. If distinguishing unconfirmed write-back later becomes important, propose a separate history model/schema change rather than mislabelling it as confirmed.

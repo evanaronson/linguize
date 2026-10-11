@@ -21,7 +21,8 @@ class CardActions(
     companion object {
         /**
          * The same behaviour wherever the card is shown: Copy copies the version on
-         * screen and closes; closing in any way ([onClose]) hands back accepted changes.
+         * screen and closes without replacement. Accept all, Done and dismissal
+         * ([onClose]) hand back accepted changes.
          */
         fun of(
             check: CheckViewModel,
@@ -29,11 +30,13 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
+            /** Closes after Copy without putting accepted changes back into the source. */
+            onCopyClose: () -> Unit,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
                 check.copied(kind)
-                onClose()
+                onCopyClose()
             },
             review = if (canReplace) {
                 ReviewActions(

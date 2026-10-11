@@ -99,17 +99,25 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             windowManager.updateViewLayout(root, params)
         }
 
-    fun remove() {
+    /**
+     * Detaches the focus-taking overlay before [afterDetach] puts text back into the app.
+     * Its view models stay alive until that callback has reported the actual outcome.
+     */
+    fun remove(afterDetach: () -> Unit = {}) {
         root?.let { root ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 (backCallback as? OnBackInvokedCallback)?.let { root.findOnBackInvokedDispatcher()?.unregisterOnBackInvokedCallback(it) }
             }
-            windowManager.removeView(root)
+            windowManager.removeViewImmediate(root)
         }
         root = null
         backCallback = null
-        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        viewModelStore.clear()
+        try {
+            afterDetach()
+        } finally {
+            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+            viewModelStore.clear()
+        }
     }
 }
 

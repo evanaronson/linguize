@@ -76,7 +76,10 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
     check.state?.let { state ->
         ResultCard(
             state = state,
-            actions = CardActions.of(check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings),
+            actions = CardActions.of(
+                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
+                onCopyClose = { check.dismiss(applied = false) },
+            ),
             modifier = Modifier.fillMaxWidth(),
             scrollable = false,
         )

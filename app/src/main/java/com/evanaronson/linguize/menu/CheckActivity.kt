@@ -53,6 +53,7 @@ class CheckActivity : ComponentActivity() {
                 finish()
             },
             canReplace = !readOnly,
+            onCopyClose = ::finishAfterCopy,
         )
         setContent {
             AppTheme {
@@ -62,13 +63,19 @@ class CheckActivity : ComponentActivity() {
         }
     }
 
+    /** Copy returns no replacement to ACTION_PROCESS_TEXT's caller. */
+    private fun finishAfterCopy() {
+        check.dismiss(applied = false, waitMs = CLOSE_WAIT_MS)
+        super.finish()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_LIMITED, limited)
     }
 
     /**
-     * However the card closes (Done, back, tapping outside, Copy), accepted changes go back
+     * When the card closes through Done, back or tapping outside, accepted changes go back
      * to the app. History is told here whether they did, while the check is still open: the
      * view model going away later records nothing as applied.
      *

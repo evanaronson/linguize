@@ -1,6 +1,10 @@
 package com.evanaronson.linguize.ui.card
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
+import androidx.test.core.app.ApplicationProvider
+import com.evanaronson.linguize.accessibility.OverlayWindow
 import android.os.Looper
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
@@ -111,6 +115,93 @@ class CheckViewModelTest {
     private fun closed(): List<SessionRecord> {
         history.awaitWrites(5_000)
         return store.closed.toList()
+    }
+
+
+    @Test
+    fun acceptAllHandsBackTextWithoutTouchingTheClipboard() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText("existing", "leave this alone"))
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        var putBack: String? = null
+        var copies = 0
+        val actions = CardActions.of(
+            check, context,
+            onClose = {
+                putBack = check.workingText
+                check.dismiss(applied = true)
+            },
+            onOpenSettings = null,
+            onCopyClose = { copies++ },
+        )
+        actions.review!!.onAcceptAll(EditKind.Fix)
+        assertEquals("Com estàs?", putBack)
+        assertEquals(0, copies)
+        assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertEquals(Outcome.Applied, closed().single().outcome)
+    }
+
+    @Test
+    fun copyDoesNotReplaceTextEvenAfterAnIndividualAccept() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        check.check(QUESTION, null, Origin.Button)
+        val fix = reviewed().revision.edits.single { it.kind == EditKind.Fix }
+        var replacements = 0
+        var copies = 0
+        val actions = CardActions.of(
+            check, context,
+            onClose = { replacements++ },
+            onOpenSettings = null,
+            onCopyClose = {
+                copies++
+                check.dismiss(applied = false)
+            },
+        )
+        actions.review!!.onAccept(fix.id)
+        actions.onCopy("the version I chose to copy", EditKind.Fix)
+        assertEquals(0, replacements)
+        assertEquals(1, copies)
+        assertEquals("the version I chose to copy", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        val session = closed().single()
+        assertNull(session.finalText)
+        assertEquals(Outcome.Copied, session.outcome)
+    }
+
+    @Test
+    fun overlayReportsReplacementBeforeClearingTheCheck() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val window = OverlayWindow(context, onBack = {})
+        window.viewModelStore.put("check", check)
+        window.remove {
+            // Clearing first would lose this text and close History as not applied.
+            assertEquals("Com estàs?", check.workingText)
+            check.dismiss(applied = true)
+        }
+        assertEquals(Outcome.Applied, closed().single().outcome)
+    }
+
+    @Test
+    fun failedReplacementDoesNotBecomeACopyOrOverwriteTheClipboard() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText("existing", "leave this alone"))
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        val actions = CardActions.of(
+            check, context,
+            onClose = { check.dismiss(applied = false) },
+            onOpenSettings = null,
+            onCopyClose = { throw AssertionError("Accept must not call Copy") },
+        )
+        actions.review!!.onAcceptAll(EditKind.Fix)
+        assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertEquals(Outcome.None, closed().single().outcome)
     }
 
     @Test

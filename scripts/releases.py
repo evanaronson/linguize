@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import time
 import urllib.error
 import urllib.parse
@@ -41,6 +42,7 @@ def identity(release):
 
 class GitHub:
     def __init__(self, repo, token):
+        self.repo = repo
         self.base = f"https://api.github.com/repos/{repo}" if repo else "https://api.github.com"
         self.token = token
         self.last_write = 0.0
@@ -82,8 +84,20 @@ class GitHub:
                 requirement = f"; required permissions: {required}" if required else ""
                 raise RuntimeError(f"GitHub {method} {path}: {error.code}: {message}{requirement}") from error
 
+    def create_aliases(self, aliases):
+        """Create aliases through Git, preserving original objects and enforcing push permissions."""
+        if not aliases:
+            return
+        remote = f"https://github.com/{self.repo}.git"
+        # gh reads GH_TOKEN from the environment; no credential appears in argv or the URL.
+        git = ["git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential"]
+        subprocess.run(git + ["fetch", "--no-tags", "--depth=1", remote] +
+                       [f"refs/tags/{old}" for _, _, old in aliases], check=True)
+        subprocess.run(git + ["push", "--atomic", remote] +
+                       [f"{sha}:refs/tags/{tag}" for tag, sha, _ in aliases], check=True)
 
-def normalize(api, apply=False, retag=False):
+
+def normalize(api, apply=False, retag=False, create_aliases=None):
     releases = []
     page = 1
     while True:
@@ -106,14 +120,18 @@ def normalize(api, apply=False, retag=False):
             except urllib.error.HTTPError as error:
                 if error.code != 404:
                     raise
-                aliases.append((tag, sha))
+                aliases.append((tag, sha, release["tag_name"]))
             else:
                 if existing["object"]["sha"] != sha:
                     raise ValueError(f"{tag} already points to a different object")
-        for tag, sha in aliases:
+        for tag, sha, _ in aliases:
             print(f"Add alias {tag} → {sha}", flush=True)
-            if apply:
-                api("POST", "/git/refs", {"ref": f"refs/tags/{tag}", "sha": sha})
+        if apply:
+            if create_aliases is not None:
+                create_aliases(aliases)
+            else:
+                for tag, sha, _ in aliases:
+                    api("POST", "/git/refs", {"ref": f"refs/tags/{tag}", "sha": sha})
     for release, (_, tag, name) in known:
         if name == release["name"] and (not retag or tag == release["tag_name"]):
             continue
@@ -144,7 +162,7 @@ def main():
         permissions = repository.get("permissions", {})
         print(f"Authenticated GitHub account: {account.get('login', 'unknown')}", flush=True)
         print(f"Repository role: push={permissions.get('push')}, admin={permissions.get('admin')}", flush=True)
-    normalize(api, args.apply, args.retag)
+    normalize(api, args.apply, args.retag, api.create_aliases)
 
 
 if __name__ == "__main__":

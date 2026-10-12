@@ -7,6 +7,18 @@ from releases import GitHub, identity, normalize, version
 
 
 class ReleaseVersionsTest(unittest.TestCase):
+    def test_git_alias_creation_is_atomic_and_preserves_original_objects(self):
+        with patch("releases.subprocess.run") as run:
+            GitHub("owner/repo", "unused-secret").create_aliases([
+                ("v000084", "original-sha", "branch-84"),
+            ])
+        fetch, push = [call.args[0] for call in run.call_args_list]
+        self.assertIn("refs/tags/branch-84", fetch)
+        self.assertIn("--atomic", push)
+        self.assertIn("original-sha:refs/tags/v000084", push)
+        self.assertNotIn("--force", push)
+        self.assertNotIn("unused-secret", " ".join(fetch + push))
+
     def test_rate_limit_is_paced_and_retried(self):
         error = urllib.error.HTTPError("url", 403, "Forbidden", {"Retry-After": "60"},
                                        io.BytesIO(b'{"message":"Secondary rate limit exceeded"}'))

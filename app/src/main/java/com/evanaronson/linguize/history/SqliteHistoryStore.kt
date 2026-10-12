@@ -107,7 +107,7 @@ class SqliteHistoryStore(
 
     override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage? = read("read a history page", null) { db ->
         val size = limit.coerceIn(1, Int.MAX_VALUE - 1)
-        val values = before?.let { listOf(it.startedAt, it.id) }.orEmpty()
+        val values = before?.let { listOf(it.startedAt.toString(), it.id) }.orEmpty()
         val found = db.select(HistorySchema.recent(size + 1, before != null), values, ::sessionSummary)
         val rows = found.take(size)
         val next = rows.lastOrNull()?.takeIf { found.size > size }?.let { HistoryCursor(it.startedAt, it.id) }

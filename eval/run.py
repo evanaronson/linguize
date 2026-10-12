@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Runs the app's exact prompt and schema against eval/cases.jsonl and reports
-judgment mismatches and latency.
+"""Runs the app's prompt and schema against eval/cases.jsonl and reports
+judgment mismatches and latency. Exits nonzero when a case fails or a call errors.
+This evaluates provider answers; Android tests cover parsing, edits and writeback.
 
     GEMINI_API_KEY=... python3 eval/run.py
     OPENAI_API_KEY=... python3 eval/run.py --provider openai
@@ -16,12 +17,13 @@ and "settled" ([about, answer] pairs sent as Settled lines). Omitted fields aren
 app nagging about language that is already fine.
 """
 import argparse
+import hashlib
+import http.client
 import json
 import os
 import pathlib
 import statistics
 import time
-import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -30,6 +32,43 @@ ASSETS = ROOT / "app/src/main/assets"
 # Prompt.MAX_OUTPUT_TOKENS and Prompt.TEXT_OPEN/TEXT_CLOSE in the app: what it sends.
 MAX_OUTPUT_TOKENS = 8192
 TEXT_OPEN, TEXT_CLOSE = "<text>", "</text>"
+
+# Matches Language.all. Contract tests compare this with CheckOptions.kt.
+LANGUAGES = {"Catalan": "standard Central Catalan", "Spanish": "Peninsular"}
+
+
+def one_line(text):
+    """Prompt.oneLine: control characters and Unicode line separators become spaces."""
+    return "".join(" " if ord(c) < 32 or 127 <= ord(c) <= 159 or c in "\u2028\u2029" else c for c in text)
+
+
+def user_message(case):
+    language = case.get("language", "auto")
+    if language != "auto":
+        language = f"{language} ({LANGUAGES[language]})"
+    native = case.get("native", "English")
+    settled = "".join(
+        "Settled: " + json.dumps({"about": one_line(about), "answer": one_line(answer)},
+                                 ensure_ascii=False, separators=(",", ":")) + "\n"
+        for about, answer in case.get("settled", [])
+    )
+    return (f"Language: {language}\n"
+            f"Punctuation: {case.get('punctuation', 'moderate')}\n"
+            f"Checks: {case.get('checks', 'both')}\n"
+            f"Native: {native} (write meaning, assumptions and reasons in {native})\n"
+            + settled + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
+
+
+def json_object(value, label):
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def json_array(value, label):
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a JSON array")
+    return value
 
 
 def check_gemini(model, key, system, schema, message):
@@ -49,8 +88,23 @@ def check_gemini(model, key, system, schema, message):
         headers={"x-goog-api-key": key, "Content-Type": "application/json"},
     )
     payload, elapsed = post(request)
-    parts = payload["candidates"][0]["content"]["parts"]
-    answer = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+    payload = json_object(payload, "Gemini response")
+    candidates = json_array(payload.get("candidates", []), "Gemini candidates")
+    if not candidates:
+        feedback = json_object(payload.get("promptFeedback", {}), "Gemini prompt feedback")
+        if feedback.get("blockReason") is not None:
+            raise ValueError(f"Gemini declined the check ({feedback['blockReason']})")
+        raise ValueError("Gemini returned no candidate")
+    candidate = json_object(candidates[0], "Gemini candidate")
+    finish = candidate.get("finishReason")
+    # GeminiClient accepts only STOP, including when another finish carries valid JSON.
+    if finish != "STOP":
+        raise ValueError(f"Gemini did not complete the check ({finish or 'missing finishReason'})")
+    content = json_object(candidate.get("content", {}), "Gemini content")
+    parts = [json_object(part, "Gemini part") for part in json_array(content.get("parts", []), "Gemini parts")]
+    answer = "".join(part.get("text", "") for part in parts if part.get("thought") is not True)
+    if not answer.strip():
+        raise ValueError("Gemini returned no answer text")
     return json.loads(answer), elapsed
 
 
@@ -72,11 +126,25 @@ def check_openai(model, key, system, schema, message):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
     payload, elapsed = post(request)
-    answer = "".join(
-        c.get("text", "")
-        for item in payload["output"] if item.get("type") == "message"
-        for c in item["content"] if c.get("type") == "output_text"
-    )
+    payload = json_object(payload, "OpenAI response")
+    status = payload.get("status")
+    # OpenAIClient also rejects incomplete/failed replies before reading output text.
+    if status != "completed":
+        details = json_object(payload.get("incomplete_details") or {}, "OpenAI incomplete details")
+        reason = details.get("reason")
+        suffix = f": {reason}" if reason else ""
+        raise ValueError(f"OpenAI did not complete the check ({status or 'missing status'}{suffix})")
+    parts = []
+    for item in json_array(payload.get("output", []), "OpenAI output"):
+        item = json_object(item, "OpenAI output item")
+        if item.get("type") == "message":
+            parts.extend(json_object(part, "OpenAI message part")
+                         for part in json_array(item.get("content", []), "OpenAI message content"))
+    if any(part.get("type") == "refusal" for part in parts):
+        raise ValueError("OpenAI declined the check")
+    answer = "".join(part.get("text", "") for part in parts if part.get("type") == "output_text")
+    if not answer.strip():
+        raise ValueError("OpenAI returned no answer text")
     return json.loads(answer), elapsed
 
 
@@ -93,74 +161,88 @@ PROVIDERS = {
 }
 
 
-def main():
+def summarize_answer(case, verdict, elapsed):
+    """Finish validation and formatting before printing a successful case report."""
+    verdict = json_object(verdict, "Model answer")
+    problems = []
+    if "status" in case and verdict["status"] != case["status"]:
+        problems.append(f"status {verdict['status']} != {case['status']}")
+    if "answer_language" in case and verdict.get("language", "") != case["answer_language"]:
+        problems.append(f"language {verdict.get('language', '')!r} != {case['answer_language']!r}")
+    if "fix" in case and verdict["has_errors"] != case["fix"]:
+        problems.append(f"fix {verdict['has_errors']} != {case['fix']}")
+    if "natural" in case and verdict["more_natural"] != case["natural"]:
+        problems.append(f"natural {verdict['more_natural']} != {case['natural']}")
+    if "min_sentences" in case:
+        sentences = sum(verdict.get("corrected", "").count(mark) for mark in ".?!")
+        if sentences < case["min_sentences"]:
+            problems.append(f"{sentences} sentences < {case['min_sentences']} (run-ons left alone?)")
+    if "assumption" in case and bool(verdict.get("assumptions")) != case["assumption"]:
+        problems.append(f"assumptions {verdict.get('assumptions')} (expected {'some' if case['assumption'] else 'none'})")
+    if "max_fixes" in case and len(verdict["fixes"]) > case["max_fixes"]:
+        problems.append(f"{len(verdict['fixes'])} fixes > {case['max_fixes']} (style counted as errors?)")
+    mark = "MISS " if problems else "ok   "
+    lines = [f"{mark}{elapsed:4.1f}s  {case['text']}  [{verdict.get('language', '')}]"]
+    for a in verdict.get("assumptions", []):
+        lines.append(f"        assumed: {a['about']}: {a['assumed']}  (or {', '.join(a['alternatives'])})")
+    if verdict.get("corrected"):
+        lines.append(f"            fix: {verdict['corrected']}")
+        for change in verdict.get("fixes", []):
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
+    if verdict.get("natural"):
+        lines.append(f"        natural: {verdict['natural']}")
+        for change in verdict.get("natural_changes", []):
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
+    lines.extend(f"        !! {problem}" for problem in problems)
+    return problems, "\n".join(lines)
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--provider", choices=PROVIDERS, default="gemini")
     parser.add_argument("--model", help="override the provider's default model")
-    args = parser.parse_args()
+    parser.add_argument("--cases", type=pathlib.Path, default=ROOT / "eval/cases.jsonl", help="curated JSON Lines cases")
+    args = parser.parse_args(argv)
     check, default_model, key_var = PROVIDERS[args.provider]
     model = args.model or default_model
-    key = os.environ[key_var]
+    key = os.environ.get(key_var)
+    if not key:
+        parser.error(f"Set {key_var} to run provider evaluations")
     system = (ASSETS / "check_prompt.md").read_text()
-    schema = json.loads((ASSETS / "check_schema.json").read_text())
-    cases = [json.loads(line) for line in (ROOT / "eval/cases.jsonl").read_text().splitlines() if line.strip()]
+    schema_text = (ASSETS / "check_schema.json").read_text()
+    schema = json.loads(schema_text)
+    cases_text = args.cases.read_text()
+    cases = [json.loads(line) for line in cases_text.splitlines() if line.strip()]
+    if not cases:
+        parser.error("The evaluation dataset has no cases")
+    prompt_hash = hashlib.sha256((system + "\0" + schema_text).encode()).hexdigest()[:12]
+    cases_hash = hashlib.sha256(cases_text.encode()).hexdigest()[:12]
+    print(f"Provider: {args.provider} · model: {model} · prompt: {prompt_hash} · cases: {cases_hash}")
 
     times, failures = [], 0
-    for case in cases:
+    for number, case in enumerate(cases, 1):
         try:
-            message = (f"Language: {case.get('language', 'auto')}\n"
-                       f"Punctuation: {case.get('punctuation', 'moderate')}\n"
-                       f"Checks: {case.get('checks', 'both')}\n"
-                       "Native: English (write meaning, assumptions and reasons in English)\n"
-                       + "".join("Settled: " + json.dumps({"about": about, "answer": answer}, ensure_ascii=False,
-                                                         separators=(",", ":")) + "\n"
-                               for about, answer in case.get("settled", []))
-                       + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
+            message = user_message(case)
             verdict, elapsed = check(model, key, system, schema, message)
-        except (urllib.error.URLError, KeyError, json.JSONDecodeError) as error:
+            problems, report = summarize_answer(case, verdict, elapsed)
+        except (OSError, http.client.HTTPException, LookupError, TypeError, ValueError, AttributeError) as error:
+            # Includes HTTP/network failures and malformed envelopes/answers. Keep later
+            # cases running, without counting or printing a partial successful report.
             failures += 1
-            print(f"ERROR  {case['text']}\n       {error}")
+            label = case.get("text", f"case {number}") if isinstance(case, dict) else f"case {number}"
+            print(f"ERROR  {label}\n       {error}")
             continue
         times.append(elapsed)
-        problems = []
-        if "status" in case and verdict["status"] != case["status"]:
-            problems.append(f"status {verdict['status']} != {case['status']}")
-        if "answer_language" in case and verdict.get("language", "") != case["answer_language"]:
-            problems.append(f"language {verdict.get('language', '')!r} != {case['answer_language']!r}")
-        if "fix" in case and verdict["has_errors"] != case["fix"]:
-            problems.append(f"fix {verdict['has_errors']} != {case['fix']}")
-        if "natural" in case and verdict["more_natural"] != case["natural"]:
-            problems.append(f"natural {verdict['more_natural']} != {case['natural']}")
-        if "min_sentences" in case:
-            sentences = sum(verdict.get("corrected", "").count(mark) for mark in ".?!")
-            if sentences < case["min_sentences"]:
-                problems.append(f"{sentences} sentences < {case['min_sentences']} (run-ons left alone?)")
-        if "assumption" in case and bool(verdict.get("assumptions")) != case["assumption"]:
-            problems.append(f"assumptions {verdict.get('assumptions')} (expected {'some' if case['assumption'] else 'none'})")
-        if "max_fixes" in case and len(verdict["fixes"]) > case["max_fixes"]:
-            problems.append(f"{len(verdict['fixes'])} fixes > {case['max_fixes']} (style counted as errors?)")
         failures += bool(problems)
-        mark = "MISS " if problems else "ok   "
-        print(f"{mark}{elapsed:4.1f}s  {case['text']}  [{verdict.get('language', '')}]")
-        for a in verdict.get("assumptions", []):
-            print(f"        assumed: {a['about']}: {a['assumed']}  (or {', '.join(a['alternatives'])})")
-        if verdict.get("corrected"):
-            print(f"            fix: {verdict['corrected']}")
-            for change in verdict.get("fixes", []):
-                print(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
-        if verdict.get("natural"):
-            print(f"        natural: {verdict['natural']}")
-            for change in verdict.get("natural_changes", []):
-                print(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
-        for problem in problems:
-            print(f"        !! {problem}")
+        print(report)
 
+    print(f"\n{len(cases) - failures}/{len(cases)} as expected")
     if times:
         times.sort()
         p90 = times[min(len(times) - 1, int(len(times) * 0.9))]
-        print(f"\n{len(cases) - failures}/{len(cases)} as expected · "
-              f"median {statistics.median(times):.2f}s · p90 {p90:.2f}s · max {times[-1]:.2f}s")
+        print(f"median {statistics.median(times):.2f}s · p90 {p90:.2f}s · max {times[-1]:.2f}s")
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

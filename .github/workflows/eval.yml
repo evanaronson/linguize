@@ -1,0 +1,23 @@
+name: Check evaluation tooling
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - eval/**
+      - .github/workflows/eval.yml
+
+# The APK workflow already runs these tests on every PR and actual build.
+# Eval-only main pushes need a check without entering the release pipeline.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test evaluation tooling without provider calls
+        run: python3 -m unittest discover -s eval -p 'test_*.py'

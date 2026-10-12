@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,10 @@ import com.evanaronson.linguize.ui.text.titleResource
  */
 @Composable
 fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
+    val deletion = session.deletion
+    LaunchedEffect(deletion) {
+        if (deletion == SessionDeletion.Deleted) onDeleted()
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -52,17 +57,15 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
             SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
             is SessionPage.Shown -> Shown(
                 page,
-                onDelete = {
-                    session.delete()
-                    onDeleted()
-                },
+                deletion = deletion,
+                onDelete = session::delete,
             )
         }
     }
 }
 
 @Composable
-private fun Shown(page: SessionPage.Shown, onDelete: () -> Unit) {
+private fun Shown(page: SessionPage.Shown, deletion: SessionDeletion, onDelete: () -> Unit) {
     val session = page.session
     SessionDetails(session, page.appLabel)
 
@@ -81,7 +84,10 @@ private fun Shown(page: SessionPage.Shown, onDelete: () -> Unit) {
     }
 
     WhatCameOfIt(session)
-    DeleteButton(onDelete)
+    if (deletion == SessionDeletion.Failed) {
+        Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
+    }
+    DeleteButton(onDelete, deleting = deletion == SessionDeletion.Deleting)
 }
 
 @Composable
@@ -127,12 +133,13 @@ private fun WhatCameOfIt(session: SessionRecord) {
 }
 
 @Composable
-private fun DeleteButton(onDelete: () -> Unit) {
+private fun DeleteButton(onDelete: () -> Unit, deleting: Boolean) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     TextButton(
         onClick = { confirming = true },
+        enabled = !deleting,
         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-    ) { Text(stringResource(R.string.delete)) }
+    ) { Text(stringResource(if (deleting) R.string.deleting_check else R.string.delete)) }
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },

@@ -109,6 +109,27 @@ class HistoryPagerTest {
     }
 
     @Test
+    fun retiringADeletedIdCannotExposeItFromALatePage() = runBlocking {
+        withTimeout(5_000) {
+            pager.start()
+            requests.receive().answer.complete(HistoryPage(rows(0, 2), HistoryCursor(99, "1")))
+            pager.state.first { !it.loading }
+            pager.loadMore()
+            val obsolete = requests.receive()
+            pager.remove("0")
+            assertEquals(listOf("1"), pager.state.value.rows.map { it.summary.id })
+            val refresh = requests.receive()
+            assertNull(refresh.cursor)
+            refresh.answer.complete(HistoryPage(rows(1, 2), null))
+            pager.state.first { !it.loading }
+            obsolete.answer.complete(HistoryPage(rows(0, 1), null))
+            obsolete.returned.await()
+            yield()
+            assertEquals(listOf("1", "2"), pager.state.value.rows.map { it.summary.id })
+        }
+    }
+
+    @Test
     fun aRefreshKeepsTheLoadedWindowAndARestoredPositionLoadsEnoughRows() = runBlocking {
         withTimeout(5_000) {
             pager.start(minimumRows = 80)

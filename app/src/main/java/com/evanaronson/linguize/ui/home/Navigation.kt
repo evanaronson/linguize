@@ -1,5 +1,14 @@
 package com.evanaronson.linguize.ui.home
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
+
 /** The launcher activity's screens: few enough for a state and a back handler, no navigation library. */
 internal sealed interface Screen {
     data object Home : Screen
@@ -51,4 +60,18 @@ internal data class Navigation private constructor(private val screens: List<Scr
             .mapNotNull(Screen::restore)
             .fold(Navigation()) { navigation, screen -> navigation.open(screen) }
     }
+}
+
+/** Keeps the live path's screen state, including ancestors' scroll positions. */
+@Composable
+internal fun rememberNavigationStateHolder(navigation: Navigation): SaveableStateHolder {
+    val saved = rememberSaveableStateHolder()
+    var savedScreens by rememberSaveable { mutableStateOf(navigation.saved) }
+    val liveScreens = navigation.saved
+    SideEffect {
+        // Popped screens must not accumulate in the activity's saved Bundle.
+        (savedScreens - liveScreens.toSet()).forEach(saved::removeState)
+        savedScreens = liveScreens
+    }
+    return saved
 }

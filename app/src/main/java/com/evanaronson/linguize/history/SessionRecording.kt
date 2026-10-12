@@ -21,7 +21,8 @@ data class SessionContext(
  *
  * The caller reports, in order: the start (constructor), each attempt as it finishes,
  * every change to the revision the writer makes (accept, accept all, undo), copies,
- * changes of settings ([runWith]) or language ([changeLanguage]), and finally the close. See docs/history-spec.md, "Decisions, defined".
+ * changes of settings ([runWith]) or language ([changeLanguage]), and finally the close.
+ * See docs/history.md for decision semantics and the limits of these observations.
  *
  * The suggestions decided at the close are those of the *decided revision*: the last
  * one an attempt offered. An attempt that offers none (it failed, or found the text

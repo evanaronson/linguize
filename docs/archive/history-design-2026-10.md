@@ -1,4 +1,13 @@
-# History
+# History design — October 2026 archive
+
+> Historical design, retained from the repository at commit
+> [cd7a2798](https://github.com/evanaronson/linguize/blob/cd7a2798a7961874a9be03201b287715b23c22b7/docs/history-spec.md).
+> This document preserves the original decisions, migration notes, and implementation
+> history. Its status labels, proposed copy, open questions, and guarantees are not
+> the current contract. Read [History today](../history.md) for implemented behavior
+> and [Architecture](../architecture.md) for ownership and future learning prerequisites.
+
+## Original document
 
 Status: built (v1), branch `feature/history`. What isn't built yet is marked below (the requirements checklist lists it). Where this document and the code disagree, the code wins.
 

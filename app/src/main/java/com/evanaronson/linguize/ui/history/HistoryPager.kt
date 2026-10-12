@@ -57,6 +57,13 @@ internal class HistoryPager(
         load(append = failedAppend)
     }
 
+    /** Drop an acknowledged deletion before the UI retires its temporary hidden ID. */
+    fun remove(id: String) {
+        current.value = current.value.copy(rows = current.value.rows.filterNot { it.summary.id == id })
+        // A read started before deletion may still contain it. Invalidate that read too.
+        if (observing != null) refresh()
+    }
+
     private fun refresh() = load(append = false)
 
     private fun load(append: Boolean) {

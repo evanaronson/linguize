@@ -26,7 +26,7 @@ class App : Application() {
     val keys by lazy { ApiKeys(this) }
     val menu by lazy { SelectionMenu(this) }
 
-    /** Every check and what came of it. Opens its database on first use, off the main thread. */
+    /** Eligible recorded checks and their outcomes. Opens its database off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
 
     /** One owner serializes exports from Settings and saved checks. */

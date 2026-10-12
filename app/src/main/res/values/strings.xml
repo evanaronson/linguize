@@ -67,6 +67,8 @@
     <string name="outcome_closed">Closed. Nothing was put back in the app.</string>
     <string name="outcome_abandoned">The end of this check wasn\'t saved. Linguize closed, or History was turned off.</string>
     <string name="delete_check_question">Delete this check?</string>
+    <string name="deleting_check">Deleting…</string>
+    <string name="delete_check_failed">Couldn\'t delete this check. Try deleting it again.</string>
     <string name="delete_check_description">It will be deleted from this phone. This can\'t be undone.</string>
     <string name="ai_service">AI service</string>
     <string name="ai_service_description">Linguize sends the text you check to Gemini or OpenAI. You need your own API key from one of them.</string>

@@ -37,9 +37,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check architecture
+      - name: Check architecture and evaluation tooling
         run: |
           python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 -m unittest discover -s eval -p 'test_*.py'
           python3 scripts/check_architecture.py
 
       # Fails the build if gradle-wrapper.jar isn't one Gradle published.

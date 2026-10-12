@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.SessionSummary
 import com.evanaronson.linguize.ui.forgetExports
 import kotlinx.coroutines.Dispatchers
@@ -39,10 +40,13 @@ data class RecentRow(val summary: SessionSummary, val appLabel: String?)
  * The pending row is also noted on disk, so a process that ends during that moment
  * doesn't lose the deletion: the next Home deletes it.
  */
-class HistoryViewModel(private val app: App) : ViewModel() {
+class HistoryViewModel internal constructor(
+    private val app: App,
+    private val history: HistoryStore = app.history,
+) : ViewModel() {
     private val labels = AppLabels(app.packageManager)
 
-    /** Rows off the list: the one whose deletion can still be undone, and those deleted since. */
+    /** Rows awaiting Undo or an acknowledged deletion; never an archive of deleted IDs. */
     private val hidden = MutableStateFlow<Set<String>>(emptySet())
     private val pending = MutableStateFlow<String?>(null)
 
@@ -55,7 +59,7 @@ class HistoryViewModel(private val app: App) : ViewModel() {
     /** Five preview rows plus one to decide whether View all is needed. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val recent: StateFlow<List<RecentRow>?> = hidden.flatMapLatest { excluded ->
-        app.history.recent(PREVIEW_SIZE + 1 + excluded.size).map { rows ->
+        history.recent(PREVIEW_SIZE + 1 + excluded.size).map { rows ->
             rows.filterNot { it.id in excluded }.take(PREVIEW_SIZE + 1)
                 .map { RecentRow(it, labels.of(it.hostApp)) }
         }
@@ -63,7 +67,7 @@ class HistoryViewModel(private val app: App) : ViewModel() {
         // No replay of a stale list once Home comes back (after Clear, say): null until read again.
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), null)
 
-    private val pager = HistoryPager(viewModelScope, app.history.revisions(), app.history::page) {
+    private val pager = HistoryPager(viewModelScope, history.revisions(), history::page) {
         RecentRow(it, labels.of(it.hostApp))
     }
 
@@ -87,7 +91,7 @@ class HistoryViewModel(private val app: App) : ViewModel() {
         hidden.update { it + abandoned }
         if (abandoned.isNotEmpty()) app.appScope.launch {
             for (id in abandoned) {
-                if (app.history.delete(id)) withContext(Dispatchers.Main.immediate) { deletions.remove(id) }
+                if (history.delete(id)) withContext(Dispatchers.Main.immediate) { deletionCommitted(id) }
             }
             app.forgetExports()
         }
@@ -126,11 +130,11 @@ class HistoryViewModel(private val app: App) : ViewModel() {
         // On the app's scope, so it happens even as the screen closes. Any export goes too,
         // since it holds the deleted text.
         app.appScope.launch {
-            val deleted = app.history.delete(pendingId)
+            val deleted = history.delete(pendingId)
             app.forgetExports()
             // Compare and clear on the same thread as delete/undo. An IO-thread
             // read-then-remove could erase a newer pending deletion's durable note.
-            if (deleted) withContext(Dispatchers.Main.immediate) { deletions.remove(pendingId) }
+            if (deleted) withContext(Dispatchers.Main.immediate) { deletionCommitted(pendingId) }
         }
     }
 
@@ -149,6 +153,12 @@ class HistoryViewModel(private val app: App) : ViewModel() {
 
     /** The screen is gone for good (the activity finished): nothing is left to undo with. */
     override fun onCleared() = commitDelete()
+
+    private fun deletionCommitted(id: String) {
+        deletions.remove(id)
+        pager.remove(id)
+        if (pending.value != id) hidden.update { it - id }
+    }
 
     private fun startTimer() {
         timer?.cancel()

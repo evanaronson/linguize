@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/releases.yml
       - scripts/releases.py
+      - scripts/test_releases.py
   workflow_dispatch:
 
 concurrency:
@@ -24,8 +25,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Test release tooling
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Normalize existing displayed release versions
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_MIGRATION_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python3 scripts/releases.py --apply
+          RETAG: ${{ secrets.RELEASE_MIGRATION_TOKEN != '' }}
+        run: |
+          if [ "$RETAG" = true ]; then
+            python3 scripts/releases.py --apply --retag
+          else
+            python3 scripts/releases.py --apply
+          fi

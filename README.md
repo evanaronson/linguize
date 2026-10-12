@@ -134,6 +134,13 @@ release titles while preserving their original tags, download URLs, assets and
 preview status. New builds use the padded tags and filenames. The stable download link is
 [`releases/latest/download/linguize.apk`](https://github.com/evanaronson/linguize/releases/latest/download/linguize.apk).
 
+To normalize historical tags too, add a repository-scoped Actions secret named
+`RELEASE_MIGRATION_TOKEN` with Contents and Workflows write permissions, then run
+**Normalize release versions**. The built-in Actions token cannot create some
+historical preview tags. The migration preserves original Git references and
+assets, checks alias targets before editing, and can be rerun. Historical release
+download URLs then use the new tags; the stable latest APK URL is unchanged.
+
 `.github/workflows/build.yml` builds in two jobs. **build** checks architecture, runs the tests and `lintRelease`, then runs `assembleRelease`, with no secrets and read-only access. It uploads the unsigned APK and keeps test/lint reports in a `check-reports` artifact, including on failures. **sign-and-publish** runs no code from the repo: it downloads that APK, signs it with the runner's own `apksigner`, verifies the signature, attests its provenance and publishes the release, with the certificate's SHA-256 fingerprint in the notes. Its key lives only in the `signing` GitHub environment (`SIGNING_KEYSTORE_BASE64`, a base64 PKCS12 keystore, plus `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`), which only `main` and `feature/*` may use. Without them the job stops with an error saying which are missing. Pull requests only run the unsigned job; each PR or branch has its own concurrency group, while running main builds finish before another main build begins.
 
 Gradle checks what it downloads against two files: `distributionSha256Sum` in `gradle/wrapper/gradle-wrapper.properties` pins the Gradle distribution, and `gradle/verification-metadata.xml` pins the SHA-256 of every plugin and library. To write them, and again after changing the Gradle version or any dependency, run the workflow by hand with **pin_build_inputs** checked (`gh workflow run build.yml --ref <branch> -f pin_build_inputs=true`); it uploads both files, regenerated, as the `build-inputs` artifact to review and commit.

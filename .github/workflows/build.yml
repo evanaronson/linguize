@@ -9,6 +9,9 @@ on:
       - README.md
       - brand/**
       - eval/**
+      - scripts/releases.py
+      - scripts/test_releases.py
+      - .github/workflows/releases.yml
   workflow_dispatch:
     inputs:
       pin_build_inputs:

@@ -76,6 +76,33 @@ class ReleaseVersionsTest(unittest.TestCase):
         normalize(api)
         self.assertEqual(["GET"], calls)
 
+    def test_optional_retag_preserves_original_target_and_is_repeatable(self):
+        release = self.release(1, "build-104", name="v000104")
+        refs = {"build-104": "original-sha"}
+        writes = []
+
+        def api(method, path, body=None):
+            if path.startswith("/releases?"):
+                return [release]
+            if method == "GET":
+                tag = path.removeprefix("/git/ref/tags/")
+                if tag not in refs:
+                    raise urllib.error.HTTPError(path, 404, "Not Found", {}, None)
+                return {"object": {"sha": refs[tag]}}
+            writes.append((method, body))
+            if method == "POST":
+                refs[body["ref"].removeprefix("refs/tags/")] = body["sha"]
+            else:
+                release.update({k: v for k, v in body.items() if k != "make_latest"})
+
+        normalize(api, apply=True, retag=True)
+        self.assertEqual("v000104", release["tag_name"])
+        self.assertEqual("original-sha", refs["build-104"])
+        self.assertEqual("original-sha", refs["v000104"])
+        writes.clear()
+        normalize(api, apply=True, retag=True)
+        self.assertEqual([("PATCH", {"make_latest": "true"})], writes)
+
     @staticmethod
     def release(id, tag, preview=False, name=None):
         return {"id": id, "tag_name": tag, "name": name or tag, "prerelease": preview,

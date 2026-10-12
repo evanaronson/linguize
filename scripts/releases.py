@@ -81,7 +81,7 @@ class GitHub:
                 raise RuntimeError(f"GitHub {method} {path}: {error.code}: {message}") from error
 
 
-def normalize(api, apply=False):
+def normalize(api, apply=False, retag=False):
     releases = []
     page = 1
     while True:
@@ -92,12 +92,35 @@ def normalize(api, apply=False):
         page += 1
     known = [(release, identity(release)) for release in releases if not release["draft"]]
     known = [(release, item) for release, item in known if item is not None]
+    if retag:
+        aliases = []
+        for release, (_, tag, _) in known:
+            if tag == release["tag_name"]:
+                continue
+            old = urllib.parse.quote(release["tag_name"], safe="")
+            sha = api("GET", f"/git/ref/tags/{old}")["object"]["sha"]
+            try:
+                existing = api("GET", f"/git/ref/tags/{tag}")
+            except urllib.error.HTTPError as error:
+                if error.code != 404:
+                    raise
+                aliases.append((tag, sha))
+            else:
+                if existing["object"]["sha"] != sha:
+                    raise ValueError(f"{tag} already points to a different object")
+        for tag, sha in aliases:
+            print(f"Add alias {tag} → {sha}", flush=True)
+            if apply:
+                api("POST", "/git/refs", {"ref": f"refs/tags/{tag}", "sha": sha})
     for release, (_, tag, name) in known:
-        if name == release["name"]:
+        if name == release["name"] and (not retag or tag == release["tag_name"]):
             continue
         print(f"Release {release['id']}: {release['name']} → {name}")
         if apply:
-            api("PATCH", f"/releases/{release['id']}", {"name": name, "make_latest": "false"})
+            changes = {"name": name, "make_latest": "false"}
+            if retag:
+                changes["tag_name"] = tag
+            api("PATCH", f"/releases/{release['id']}", changes)
     stable = [(release, item) for release, item in known
               if not release["prerelease"] and not item[1].endswith("-inputs")]
     if stable:
@@ -110,8 +133,9 @@ def normalize(api, apply=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="apply the metadata migration (default: dry run)")
+    parser.add_argument("--retag", action="store_true", help="also migrate historical tags; requires Contents and Workflows write permissions")
     args = parser.parse_args()
-    normalize(GitHub(os.environ["GH_REPO"], os.environ["GH_TOKEN"]), args.apply)
+    normalize(GitHub(os.environ["GH_REPO"], os.environ["GH_TOKEN"]), args.apply, args.retag)
 
 
 if __name__ == "__main__":

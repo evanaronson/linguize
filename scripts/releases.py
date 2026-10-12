@@ -41,7 +41,7 @@ def identity(release):
 
 class GitHub:
     def __init__(self, repo, token):
-        self.base = f"https://api.github.com/repos/{repo}"
+        self.base = f"https://api.github.com/repos/{repo}" if repo else "https://api.github.com"
         self.token = token
         self.last_write = 0.0
 
@@ -78,7 +78,9 @@ class GitHub:
                     print(f"GitHub rate limit; retrying in {delay}s", flush=True)
                     time.sleep(delay)
                     continue
-                raise RuntimeError(f"GitHub {method} {path}: {error.code}: {message}") from error
+                required = error.headers.get("X-Accepted-GitHub-Permissions")
+                requirement = f"; required permissions: {required}" if required else ""
+                raise RuntimeError(f"GitHub {method} {path}: {error.code}: {message}{requirement}") from error
 
 
 def normalize(api, apply=False, retag=False):
@@ -135,7 +137,14 @@ def main():
     parser.add_argument("--apply", action="store_true", help="apply the metadata migration (default: dry run)")
     parser.add_argument("--retag", action="store_true", help="also migrate historical tags; requires Contents and Workflows write permissions")
     args = parser.parse_args()
-    normalize(GitHub(os.environ["GH_REPO"], os.environ["GH_TOKEN"]), args.apply, args.retag)
+    api = GitHub(os.environ["GH_REPO"], os.environ["GH_TOKEN"])
+    if args.retag:
+        account = GitHub(None, api.token)("GET", "/user")
+        repository = api("GET", "")
+        permissions = repository.get("permissions", {})
+        print(f"Authenticated GitHub account: {account.get('login', 'unknown')}", flush=True)
+        print(f"Repository role: push={permissions.get('push')}, admin={permissions.get('admin')}", flush=True)
+    normalize(api, args.apply, args.retag)
 
 
 if __name__ == "__main__":

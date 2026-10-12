@@ -34,6 +34,7 @@ fun HomeScreen(
     historyOn: Boolean?,
     onOpenSettings: () -> Unit,
     onOpen: (id: String) -> Unit,
+    onViewHistory: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -51,7 +52,7 @@ fun HomeScreen(
             )
             TryIt(check, onOpenSettings)
             AccessibilitySetup()
-            RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings)
+            RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }

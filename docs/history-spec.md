@@ -149,14 +149,16 @@ Two tables. Rows are immutable once the session closes. Everything is designed s
 
 ### Versions and upgrades
 
-The database has a version (`HistorySchema.VERSION`, for `SQLiteOpenHelper`) and every row a `schema` (its shape, as it would travel). Both are 4:
+The database has a version (`HistorySchema.VERSION`, for `SQLiteOpenHelper`) and every row a `schema` (its shape, as it would travel). The database is version 5; row schemas stay at 4:
 
 - **1**, the first history builds: enums stored by constant name (`Accepted`, `Gemini`), the answer under `verdict`, no `nativeLanguage`; the earliest had no `status` column either (builds after the token change added it without changing the version).
 - **2**: tokens, `raw`, `nativeLanguage`. The upgrade from 1 adds the missing columns, rewrites every name-encoded value to its token (so Recent's counts and the reuse lookup, which compare tokens, see old rows), moves each attempt's `verdict` to `raw`, and sets `schema` to 2, in the one transaction the framework opens for it.
 - **3**: `requestedLanguage` as a language code, an attempt's `failure` as a token. The upgrade from 2 (and from 1, after the steps above) rewrites the language names and failure names it knows; the names it spells out are frozen, since those versions are done, and a test holds them to the enums.
 - **4**: one session per card, and nothing from "Try it". The upgrade from 3 (and from 1 and 2, after the steps above) deletes the sessions with origin `tester` and their suggestions (explicitly, though the foreign key cascades too, so the delete doesn't depend on the connection's foreign-key setting; `secure_delete` overwrites the freed pages), and gives each attempt the session's language and settings, which every attempt of those versions ran with.
 
-A version with no way up (none exists; a bug or a hand-edited file) isn't refused, which would turn history off for good with only a log line: the tables are dropped and made afresh, and that is logged. A downgrade (an older build installed over a newer one) is still refused by the framework; history is then off until the newer build is back. Each new version adds its step to `HistorySchema.upgrade` and a test that upgrades a database made with the previous version's statements, as `SqliteHistoryStoreTest` does for version 1 (from commit 7237d59), version 2 and version 3.
+- **5 (database only)**: adds a partial index on `(startedAt DESC, id DESC)` for closed, kept checks. Paging uses that stable order and a cursor rather than offsets, including when timestamps tie or a previous page's last row is deleted. Rows and exported schemas are unchanged.
+
+A version with no way up (none exists; a bug or a hand-edited file) isn't refused, which would turn history off for good with only a log line: the tables are dropped and made afresh, and that is logged. A downgrade (an older build installed over a newer one) is still refused by the framework; history is then off until the newer build is back. Each new version adds its step to `HistorySchema.upgrade` and a test that upgrades a database made with the previous version's statements, as `SqliteHistoryStoreTest` does for version 1 (from commit 7237d59), version 2, version 3 and version 4.
 
 Why not an event log? An append-only log of every tap is the purest shape for sync and would capture undo trajectories exactly, but it needs projection code from day one to show anything, and the insight feature would be a projection too. Two tables that a human can read in a SQLite browser, with the raw verdicts kept as JSON for anything we didn't think of, is the smaller debt. The `attempts` JSON is the escape hatch: if a future question needs something the columns don't have, it's in there.
 
@@ -202,22 +204,24 @@ Two smaller problems: that header (picker + gear) only exists on the accessibili
 
 ### The launcher screen becomes Home
 
-Today the launcher screen is Settings with a tester at the bottom. The tester and history are the same thing, checks, at different times: "check something now" above "what you checked before". So:
+Home groups "check something now" above "what you checked before", with setup for other apps between them. Recent is a small preview; full History has its own page:
 
 **Home**
 > lingu·ize                                   ⚙
-> [ text box ]  Linguize ▾
+> [ text box ]  Auto Detect ▾
 > (the result card, when a check is running)
 > Recent
 > ▸ 9 Oct · WhatsApp · "Hola bebé, estoy en casa…" · 3 fixes · 2 taken
 > ▸ 9 Oct · Telegram · "Com estàs amb la pluja?" · looks good
-> …
+> … (up to five checks)
+> View all (when more than five exist)
 
+- **View all** opens History. It loads 25 checks initially and fetches the next page near the bottom of the lazy list. Reads happen off the main thread; failures keep loaded rows and offer Retry. Deletes and new checks refresh the loaded window.
 - Tap a row: the check opens on its own page, rendered with the card's content, read-only, with Copy. Delete from there, or swipe the row away; either deletes for good once the moment to undo has passed. A swiped row waiting for Undo is noted on disk, so if the process ends in that moment the next Home deletes it.
 - Insights, later, are a strip between the text box and the list. They don't need a new screen either.
-- The gear (top right) opens **Settings**: the existing Checking, Model and Apps-without-the-menu sections, plus a History section (toggle, count, Clear, Export). Browsing lives on Home; controls live in Settings.
-- Three screens of one activity (Home, Settings, and a past check's page), a `BackHandler` and a `Screen` state. No navigation library.
-- The overlay's gear keeps opening the same activity.
+- The gear (top right) opens **Settings**: the Checking and Model sections, plus a History section (toggle, count, Clear, Export). Browsing lives on Home; controls live in Settings.
+- Four screens of one activity (Home, History, Settings and a saved check), a `BackHandler` and a restorable `Navigation` stack. `AppNavigation` names the parent on its Back action. Home → History → saved check returns through all three levels; a Recent row opens directly from Home. Each screen retains its scroll state, including across recreation.
+- Accessibility setup lives on Home. The popup's wordmark opens the app separately while preserving the popup's check; popup Meaning navigation remains local.
 
 Design debt this removes: the app's most interesting content was heading for a settings section, and the launcher screen was going to need splitting anyway when insights arrived. Doing it now is one move instead of two, and it's mostly moving sections that already exist.
 
@@ -279,7 +283,7 @@ Matching is per attempt, since a session's language and settings can change whil
 - [x] `CheckViewModel` reports to `CheckHistory`; `check()` takes an `origin`; the hosts pass it.
 - [x] Open sessions found on process start are marked `abandoned`.
 - [x] Launcher screen split into Home (text box, result card, Recent list) and Settings (gear); `BackHandler`, no nav library.
-- [x] Recent list on Home, newest first (the latest 50); tap opens the check rendered with the card's content; delete one.
+- [x] Recent preview on Home (the latest five), View all when needed and paged History beyond the old 50-check limit; tap opens the check rendered with the card's content; delete one with Undo.
 - [x] Settings · History section: toggle, count, Clear, Export (JSON Lines via the share sheet).
 - [x] Same text checked again within 10 minutes reuses the stored verdict instead of calling the model.
 - [x] Card latency unchanged: the request leaves before any history work.

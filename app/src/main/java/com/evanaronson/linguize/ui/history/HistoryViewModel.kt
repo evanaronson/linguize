@@ -11,6 +11,7 @@ import com.evanaronson.linguize.App
 import com.evanaronson.linguize.history.SessionSummary
 import com.evanaronson.linguize.ui.forgetExports
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -26,11 +28,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-/** A row in Recent: the session, and the name of the app it came from when that's known. */
+/** A history row: the session, and the name of the app it came from when that's known. */
 data class RecentRow(val summary: SessionSummary, val appLabel: String?)
 
 /**
- * The Recent list on Home. Deleting from the list hides the row at once; the row is
+ * The Recent preview and full History list. Deleting hides the row at once; the row is
  * deleted for real once the writer has had the moment to undo. That moment belongs to
  * this view model, not to the screen, so rotating or switching to dark mode while
  * "Check deleted · Undo" shows neither deletes the row early nor loses the Undo.
@@ -50,15 +52,29 @@ class HistoryViewModel(private val app: App) : ViewModel() {
     /** Every screen's pending deletion is durable until that screen commits or undoes it. */
     private val deletions = PendingDeletions(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
 
-    /** Newest first; null until the first read. */
-    val recent: StateFlow<List<RecentRow>?> = combine(
-        app.history.recent(LIMIT)
-            .map { rows -> rows.map { RecentRow(it, labels.of(it.hostApp)) } }
-            .flowOn(Dispatchers.IO),
-        hidden,
-    ) { rows, hidden -> rows.filterNot { it.summary.id in hidden } }
+    /** Five preview rows plus one to decide whether View all is needed. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val recent: StateFlow<List<RecentRow>?> = hidden.flatMapLatest { excluded ->
+        app.history.recent(PREVIEW_SIZE + 1 + excluded.size).map { rows ->
+            rows.filterNot { it.id in excluded }.take(PREVIEW_SIZE + 1)
+                .map { RecentRow(it, labels.of(it.hostApp)) }
+        }
+    }.flowOn(Dispatchers.IO)
         // No replay of a stale list once Home comes back (after Clear, say): null until read again.
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), null)
+
+    private val pager = HistoryPager(viewModelScope, app.history.revisions(), app.history::page) {
+        RecentRow(it, labels.of(it.hostApp))
+    }
+
+    /** Retained while a check is open, so returning doesn't collapse the loaded list. */
+    internal val historyList = combine(pager.state, hidden) { page, excluded ->
+        page.copy(rows = page.rows.filterNot { it.summary.id in excluded })
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, HistoryListState())
+
+    fun showHistory(minimumRows: Int) = pager.start(minimumRows)
+    fun loadMore() = pager.loadMore()
+    fun retryHistory() = pager.retry()
 
     /** The row deleted from the list that can still be undone; null when there's none. */
     val pendingDelete: StateFlow<String?> = pending.asStateFlow()
@@ -145,7 +161,7 @@ class HistoryViewModel(private val app: App) : ViewModel() {
     companion object {
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory { initializer { HistoryViewModel(app) } }
 
-        private const val LIMIT = 50
+        const val PREVIEW_SIZE = 5
 
         /** Recent's own preferences: only the pending deletion. */
         private const val PREFS = "recent"

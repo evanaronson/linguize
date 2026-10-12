@@ -57,10 +57,40 @@ fun RecentSection(
     snackbar: SnackbarHostState,
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onViewAll: () -> Unit,
 ) {
     val rows by history.recent.collectAsState()
-    val pending by history.pendingDelete.collectAsState()
     val time = rememberTimeFormat()
+    HistoryUndo(history, snackbar)
+
+    SectionTitle(stringResource(R.string.recent))
+    if (historyOn == false) HistoryOff(onOpenSettings)
+    val shown = rows ?: return
+    if (shown.isEmpty()) {
+        if (historyOn == true) Quiet(stringResource(R.string.recent_empty))
+        return
+    }
+    val now = System.currentTimeMillis()
+    Column {
+        shown.take(HistoryViewModel.PREVIEW_SIZE).forEachIndexed { index, row ->
+            key(row.summary.id) {
+                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                val delete = { history.delete(row.summary.id) }
+                SwipeToDelete(onDelete = delete) {
+                    SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                }
+            }
+        }
+    }
+    if (shown.size > HistoryViewModel.PREVIEW_SIZE) {
+        TextButton(onClick = onViewAll) { Text(stringResource(R.string.view_all_history)) }
+    }
+}
+
+/** The visible list owns the Undo snackbar; the operation itself stays in the view model. */
+@Composable
+internal fun HistoryUndo(history: HistoryViewModel, snackbar: SnackbarHostState) {
+    val pending by history.pendingDelete.collectAsState()
     val deletedMessage = stringResource(R.string.check_deleted)
     val undoLabel = stringResource(R.string.undo)
 
@@ -79,30 +109,10 @@ fun RecentSection(
             if (!answered) history.undoHidden(id)
         }
     }
-
-    SectionTitle(stringResource(R.string.recent))
-    if (historyOn == false) HistoryOff(onOpenSettings)
-    val shown = rows ?: return
-    if (shown.isEmpty()) {
-        if (historyOn == true) Quiet(stringResource(R.string.recent_empty))
-        return
-    }
-    val now = System.currentTimeMillis()
-    Column {
-        shown.forEachIndexed { index, row ->
-            key(row.summary.id) {
-                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                val delete = { history.delete(row.summary.id) }
-                SwipeToDelete(onDelete = delete) {
-                    SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
-                }
-            }
-        }
-    }
 }
 
 @Composable
-private fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
+internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
     val summary = row.summary
     val resources = LocalResources.current
     val deleteLabel = stringResource(R.string.delete_check)
@@ -141,7 +151,7 @@ private fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCli
 /** Swipe toward the start to delete; screen readers get the row's Delete action instead (see [SessionRow]). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
+internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
     val delete by rememberUpdatedState(onDelete)
     val state = rememberSwipeToDismissBoxState()
     LaunchedEffect(state.currentValue) {
@@ -167,7 +177,7 @@ private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit)
 }
 
 @Composable
-private fun HistoryOff(onOpenSettings: () -> Unit) {
+internal fun HistoryOff(onOpenSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Quiet(stringResource(R.string.history_off), Modifier.weight(1f))
         TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.open_settings)) }
@@ -175,7 +185,7 @@ private fun HistoryOff(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-private fun Quiet(text: String, modifier: Modifier = Modifier) {
+internal fun Quiet(text: String, modifier: Modifier = Modifier) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }
 

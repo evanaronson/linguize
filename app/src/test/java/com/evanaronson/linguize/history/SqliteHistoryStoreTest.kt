@@ -89,6 +89,65 @@ class SqliteHistoryStoreTest {
     )
 
     @Test
+    fun pagesReachAllChecksBeyondTheOldLimitWithDeterministicTimestampTies() = runBlocking<Unit> {
+        for (i in 0 until 63) {
+            val id = "check-" + i.toString().padStart(3, '0')
+            store.close(open(id, (i / 3).toLong()).closed(100), emptyList())
+        }
+        store.save(open("still-open", 1_000))
+        val seen = mutableListOf<String>()
+        var cursor: HistoryCursor? = null
+        do {
+            val page = store.page(cursor, 25)!!
+            assertTrue(page.rows.size <= 25)
+            seen += page.rows.map { it.id }
+            cursor = page.next
+        } while (cursor != null)
+        assertEquals((62 downTo 0).map { "check-" + it.toString().padStart(3, '0') }, seen)
+        assertEquals(63, seen.toSet().size)
+        assertEquals(seen.take(6), store.recent(6).first().map { it.id })
+    }
+
+    @Test
+    fun deletingTheCursorAndAddingANewerCheckDoesNotSkipOlderRows() = runBlocking<Unit> {
+        for (id in listOf("a", "b", "c", "d", "e")) {
+            store.close(open(id, 10).closed(20), emptyList())
+        }
+        val first = store.page(null, 2)!!
+        assertEquals(listOf("e", "d"), first.rows.map { it.id })
+        store.delete("d")
+        store.close(open("new", 100).closed(200), emptyList())
+        val second = store.page(first.next, 2)!!
+        assertEquals(listOf("c", "b"), second.rows.map { it.id })
+        assertEquals(listOf("a"), store.page(second.next, 2)!!.rows.map { it.id })
+        store.clear()
+        val cleared = store.page(second.next, 2)!!
+        assertTrue(cleared.rows.isEmpty())
+        assertNull(cleared.next)
+    }
+
+    @Test
+    fun versionFourGainsThePagingIndexWithoutChangingSavedRecords() = runBlocking<Unit> {
+        val kept = open("kept", 10).answered(11).closed(12)
+        val file = context.getDatabasePath(NAME)
+        file.parentFile!!.mkdirs()
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            HistorySchema.CREATE.filterNot { it == HistorySchema.PAGE_INDEX }.forEach(db::execSQL)
+            db.execSQL(HistorySchema.CLOSE_SESSION, kept.values().values.toTypedArray())
+            db.version = 4
+        }
+        assertEquals(listOf("kept"), store.page(null, 25)!!.rows.map { it.id })
+        assertEquals(kept, store.detail("kept")!!.session)
+        assertEquals(listOf(HistorySchema.PAGE_INDEX), HistorySchema.upgrade(4, HistorySchema.SESSION_COLUMNS.toSet()))
+        SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+            db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'sessions_page'", null).use {
+                assertTrue(it.moveToFirst())
+            }
+            assertEquals(5, db.version)
+        }
+    }
+
+    @Test
     fun aSessionIsSavedOpenAndThenClosedWithItsSuggestions() = runBlocking<Unit> {
         val opened = open("s1", 5_000)
         store.save(opened)

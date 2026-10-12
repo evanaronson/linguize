@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -100,6 +101,17 @@ class SqliteHistoryStore(
 
     override fun recent(limit: Int): Flow<List<SessionSummary>> = observe("read recent sessions", emptyList()) { db ->
         db.select(HistorySchema.recent(limit), read = ::sessionSummary)
+    }
+
+    override fun revisions(): Flow<Long> = changes.asStateFlow()
+
+    override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage? = read("read a history page", null) { db ->
+        val size = limit.coerceIn(1, Int.MAX_VALUE - 1)
+        val values = before?.let { listOf(it.startedAt, it.id) }.orEmpty()
+        val found = db.select(HistorySchema.recent(size + 1, before != null), values, ::sessionSummary)
+        val rows = found.take(size)
+        val next = rows.lastOrNull()?.takeIf { found.size > size }?.let { HistoryCursor(it.startedAt, it.id) }
+        HistoryPage(rows, next)
     }
 
     override suspend fun detail(id: String): SessionDetail? = read("read a session", null) { db ->
@@ -241,6 +253,8 @@ class SqliteHistoryStore(
                 return
             }
             statements.forEach(db::execSQL)
+            // Version 5 only adds the paging index; existing records need no rewrite.
+            if (oldVersion >= 4) return
             val rewritten = buildList {
                 db.eachRow(HistorySchema.ALL_ATTEMPTS) { row ->
                     val stored = row.string("attempts")

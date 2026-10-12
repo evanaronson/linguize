@@ -11,6 +11,7 @@
 
     <!-- Presentation text. Protocol values and model prompts are not translated. -->
     <string name="settings">Settings</string>
+    <string name="saved_check">Saved check</string>
     <string name="back">Back</string>
     <string name="auto_detect">Auto Detect</string>
     <string name="open_linguize">Open Linguize</string>

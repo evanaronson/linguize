@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -33,7 +32,6 @@ import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.ResultCard
-import com.evanaronson.linguize.ui.components.BackButton
 import com.evanaronson.linguize.ui.text.titleResource
 
 /**
@@ -41,15 +39,14 @@ import com.evanaronson.linguize.ui.text.titleResource
  * the app, and Delete.
  */
 @Composable
-fun SessionScreen(session: SessionViewModel, onBack: () -> Unit) {
+fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
     Column(
         Modifier
-            .safeDrawingPadding()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        BackButton(onBack)
         when (val page = session.page) {
             SessionPage.Loading -> Unit
             SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
@@ -57,7 +54,7 @@ fun SessionScreen(session: SessionViewModel, onBack: () -> Unit) {
                 page,
                 onDelete = {
                     session.delete()
-                    onBack()
+                    onDeleted()
                 },
             )
         }
@@ -67,7 +64,7 @@ fun SessionScreen(session: SessionViewModel, onBack: () -> Unit) {
 @Composable
 private fun Shown(page: SessionPage.Shown, onDelete: () -> Unit) {
     val session = page.session
-    Header(session, page.appLabel)
+    SessionDetails(session, page.appLabel)
 
     val card = page.card
     // The card shows the text itself only when it has suggestions to show in it.
@@ -88,7 +85,7 @@ private fun Shown(page: SessionPage.Shown, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun Header(session: SessionRecord, appLabel: String?) {
+private fun SessionDetails(session: SessionRecord, appLabel: String?) {
     val time = rememberTimeFormat()
     val resources = LocalResources.current
     Column {

@@ -59,7 +59,7 @@ Everything is under `app/src/main/java/com/evanaronson/linguize/`. Dependencies 
 | `ui/card/` | The result card and its `CheckViewModel`, which owns a check and the accepted changes and reports to `CheckHistory`; `CardActions.of()` gives the card the same behaviour everywhere. |
 | `ui/components/` | Shared controls, the language picker (auto-detect and `Language.all`, named as the selection menu names them) and date formatting. |
 | `ui/history/` | The Recent list and the page for one past check (the card `Replay` rebuilds, shown with the card's own content), with their view models. |
-| `ui/home/` | `HomeActivity`, the launcher screen: Try it, then Recent, with Settings and a past check's page as screens of the same activity. Accessibility setup instructions live here, above Recent. |
+| `ui/home/` | `HomeActivity` owns the app scaffold, screen state and back action. Home, Settings and saved checks share `AppNavigation`: branding and a settings gear at the root, Back and a page title on child screens. The header stays fixed while content scrolls. Accessibility setup instructions live on Home, above Recent. |
 | `ui/settings/` | The app's settings screen (one file per section, History included) and its view model. |
 | `ui/popup/` | `PopupAppActivity` opens the app in a separate task; `PopupReturn` restores the existing accessibility popup when that visit ends. Settings is reached through the app's gear. |
 | `ui/text/` | Resource mappings for shared option labels and failure messages. Domain enums and stored tokens stay independent of Android resources and UI language. |

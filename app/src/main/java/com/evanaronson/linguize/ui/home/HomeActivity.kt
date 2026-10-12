@@ -8,15 +8,21 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.components.AppNavigation
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.SessionScreen
 import com.evanaronson.linguize.ui.history.SessionViewModel
@@ -39,20 +45,37 @@ class HomeActivity : ComponentActivity() {
         (screen as? Screen.Detail)?.let { session.load(it.id) }
         setContent {
             AppTheme {
-                Surface(Modifier.fillMaxSize()) {
-                    BackHandler(enabled = screen != Screen.Home, onBack = ::back)
-                    val saved = rememberSaveableStateHolder()
-                    when (val current = screen) {
-                        Screen.Home -> saved.SaveableStateProvider(current.saved) {
-                            HomeScreen(check, history,
-                                historyOn = settings.state?.historyEnabled,
-                                onOpenSettings = { screen = Screen.Settings },
-                                onOpen = ::open)
+                val current = screen
+                val openSettings = { screen = Screen.Settings }
+                BackHandler(enabled = current != Screen.Home, onBack = ::back)
+                val saved = rememberSaveableStateHolder()
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = {
+                        AppNavigation(
+                            title = when (current) {
+                                Screen.Home -> null
+                                Screen.Settings -> stringResource(R.string.settings)
+                                is Screen.Detail -> stringResource(R.string.saved_check)
+                            },
+                            onBack = if (current == Screen.Home) null else ::back,
+                            onOpenSettings = if (current == Screen.Home) openSettings else null,
+                        )
+                    },
+                ) { padding ->
+                    Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+                        when (current) {
+                            Screen.Home -> saved.SaveableStateProvider(current.saved) {
+                                HomeScreen(check, history,
+                                    historyOn = settings.state?.historyEnabled,
+                                    onOpenSettings = openSettings,
+                                    onOpen = ::open)
+                            }
+                            Screen.Settings -> saved.SaveableStateProvider(current.saved) {
+                                SettingsScreen(settings)
+                            }
+                            is Screen.Detail -> SessionScreen(session, onDeleted = ::back)
                         }
-                        Screen.Settings -> saved.SaveableStateProvider(current.saved) {
-                            SettingsScreen(settings, onBack = ::back)
-                        }
-                        is Screen.Detail -> SessionScreen(session, onBack = ::back)
                     }
                 }
             }

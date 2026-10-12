@@ -33,12 +33,32 @@ internal object Edits {
     ): List<Edit> {
         val base = render(original, fixes).text
         val placed = place(fixes)
+        val sentences = Sentences.ranges(base)
+        val targetSentences = Sentences.ranges(natural)
+        // Never offer an answer that joins existing sentences or paragraphs.
+        if (targetSentences.size < sentences.size) return emptyList()
+        val located = located(base, natural, reported)
+            ?.takeUnless { spans -> spans.any { Sentences.crosses(sentences, it.start, it.end) } }
+        val suggested = located ?: if (sentences.size == targetSentences.size) {
+            sentences.zip(targetSentences).flatMap { (from, to) ->
+                spans(base.substring(from), natural.substring(to), atomic = false).map {
+                    it.copy(start = it.start + from.first, end = it.end + from.first)
+                }
+            }
+        } else {
+            spans(base, natural, atomic = false)
+        }
         // Tidied in the corrected text, so moving an insertion past a space never jumps
         // over a fix's text, or into it.
-        val inBase = tidy(base, located(base, natural, reported) ?: spans(base, natural, atomic = false)) { at ->
+        val inBase = tidy(base, suggested) { at ->
             placed.any { it.baseStart <= at && at < it.baseEnd }
         }
-        val spans = mergeWithinFixes(inBase, base, placed).map { toOriginal(it, base, original, placed) }
+        val spans = mergeWithinFixes(inBase, base, placed)
+            .filterNot {
+                val (start, end) = widened(it.start, it.end, placed)
+                Sentences.crosses(sentences, start, end)
+            }
+            .map { toOriginal(it, base, original, placed) }
             // Changes that only restate a fix, or undo one, don't change the original.
             .filterNot { Alignment.same(it.from, it.replacement) }
         return toEdits(spans, reported, EditKind.Natural, firstId)
@@ -252,14 +272,14 @@ internal object Edits {
 
         // A deletion that leaves at most a space has nothing to show, so it joins the word change
         // next to it ("y neo" → "Neo"), or else grows to include the nearest unchanged word.
-        // Changes to spacing alone are left as they are; tidy() drops them.
+        // Spacing-only changes also take in a kept word so the highlight is visible.
         fun isKeptSpace(k: Int) = ops[k].isMatch && ops[k].token.type == Type.Space
         fun isKeptWord(k: Int) = ops[k].isMatch && ops[k].token.type == Type.Word
         fun wordGroupAt(k: Int) = joined.firstOrNull { k in it[0]..it[1] }
             ?.takeIf { group -> (group[0]..group[1]).none { ops[it].isPunct } }
         for (group in joined) {
             val onlySpacing = (group[0]..group[1]).all { ops[it].token.type == Type.Space }
-            if (onlySpacing || replacement(ops, group).isNotBlank()) continue
+            if (!onlySpacing && replacement(ops, group).isNotBlank()) continue
             var after = group[1] + 1
             while (after < ops.size && isKeptSpace(after)) after++
             var before = group[0] - 1
@@ -293,12 +313,12 @@ internal object Edits {
 
     /**
      * Keeps spaces out of highlights ("␣estas amb" → "␣portes" becomes "estas amb" →
-     * "portes") and drops changes to spacing alone, which would have nothing to show.
+     * "portes"). Spacing changes retain a neighbouring word so they can be shown.
      * [fixed] tells which characters of [text] a fix put there.
      */
     private fun tidy(text: String, spans: List<Span>, fixed: (Int) -> Boolean = { false }): List<Span> {
         val trimmed = spans.map(::trimSpaces)
-            .filterNot { it.replacement.isEmpty() && it.from.isBlank() || Alignment.same(it.from, it.replacement) }
+            .filterNot { Alignment.same(it.from, it.replacement) }
         val characters by lazy { BreakIterator.getCharacterInstance().apply { setText(text) } }
         return trimmed.map { span ->
             // An inserted "␣al" before a space is the same as "al␣" after it, unless something

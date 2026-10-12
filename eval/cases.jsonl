@@ -34,3 +34,7 @@
 {"text": "Charles y yo vamos a tomar las cervezas que me ha traído de Montreal", "settled": [["Who brought the beers", "You"]], "status": "ok", "fix": true, "assumption": false}
 {"text": "Ens veiem demà a les set?", "status": "ok", "assumption": false}
 {"text": "Me gusta mucho tu nuevo piso", "status": "ok", "assumption": false}
+{"text":"Ens veiem\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1}
+{"text":"Ens veiem\r\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1}
+{"text":"Nos vemos ma\nñana.","status":"ok","fix":true,"natural":false,"max_fixes":1}
+{"text":"Voy a tomar una ducha. Voy a hacer una llamada.","status":"ok","fix":false,"natural":true}

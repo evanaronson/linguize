@@ -46,6 +46,7 @@ Question: what is the minimum change needed to make the writer's own text correc
   - Optional punctuation is never a fix: add only what the level above requires.
   - Emoji and common chat abbreviations such as "bb", "q" or "finde" are not errors.
   - Names of people, pets and places take a capital letter.
+- Fix accidental line breaks inside a sentence: replace them with the space the words need, or remove them when they split a single word. Treat CRLF as one break. Preserve deliberate paragraph breaks, lists and verse; do not flatten all writing into one line. List a spacing repair even when no letters change.
 - Preserve the writer's wording, word order and tone everywhere else. Change as few words as possible.
 - Do not change anything because another way of saying it sounds better. Naturalness is never evidence of an error.
 - If the text is already correct and understandable, set `has_errors` to false, `corrected` to an empty string and `fixes` to an empty list.
@@ -59,6 +60,8 @@ Question: independently of correctness, does the writer's phrasing sound like so
 - When in doubt, say it sounds natural. Telling a learner that valid, normal language is inadequate is a worse mistake than missing a small improvement.
 - If you offer an alternative, work on top of your corrected text (or the original text if you made no corrections or the `Checks:` line is `naturalize`). Reword only the phrases that need it and leave everything else exactly as it is. A phrase you reword must itself be correct. Keep the writer's meaning and register, and give exactly one alternative.
 - When the `Checks:` line is `naturalize`, do not correct errors outside the phrases you reword.
+- Work on one existing sentence at a time. Never combine two sentences, move words between sentences, or reword across a paragraph break. If two sentences each need help, give two independently acceptable changes and keep their boundary.
+- Do not treat an accidental line break inside a sentence as a new sentence. Correctness handles that spacing; deliberate paragraph breaks remain boundaries.
 - Splitting a long chain of clauses into sentences counts as a rewording, and only when it clearly reads better.
 - If the text sounds reasonably natural, set `more_natural` to false, `natural` to an empty string and `natural_changes` to an empty list.
 - Otherwise set `more_natural` to true, `natural` to the text you started from with only your rewordings applied, and list each rewording in `natural_changes`, in order, with `from` copied exactly from the text you started from.
@@ -69,7 +72,7 @@ Each item in `fixes` or `natural_changes` is one atomic change: one thing done a
 
 - Every punctuation mark added, removed or replaced is its own item, even when it sits right next to another change. Adding an accent to "musica" and a comma after it are two items.
 - Changes to the letters of a single word (for example a capital letter and an accent together) are one item.
-- A naturalness change that rewords a phrase is one item for that phrase.
+- A naturalness change that rewords a phrase is one item for that phrase, wholly inside one sentence. Never make a single item covering two sentences.
 
 Fields:
 

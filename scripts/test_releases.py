@@ -42,49 +42,39 @@ class ReleaseVersionsTest(unittest.TestCase):
     def test_migration_keeps_tag_targets_assets_and_preview_status(self):
         releases = [self.release(1, "build-98"), self.release(2, "build-104"),
                     self.release(3, "branch-110", True)]
-        refs = {"build-98": "sha98", "build-104": "sha104", "branch-110": "sha110"}
         writes = []
 
         def api(method, path, body=None):
             if path.startswith("/releases?"):
                 return releases
-            if method == "GET":
-                tag = path.removeprefix("/git/ref/tags/")
-                if tag not in refs:
-                    raise urllib.error.HTTPError(path, 404, "Not Found", {}, None)
-                return {"object": {"sha": refs[tag]}}
+            self.assertEqual("PATCH", method)
             writes.append((method, path, body))
-            if method == "POST":
-                refs[body["ref"].removeprefix("refs/tags/")] = body["sha"]
-            else:
-                release = next(r for r in releases if path == f"/releases/{r['id']}")
-                release.update({k: v for k, v in body.items() if k != "make_latest"})
+            release = next(r for r in releases if path == f"/releases/{r['id']}")
+            release.update({k: v for k, v in body.items() if k != "make_latest"})
             return {}
 
         normalize(api, apply=True)
-        self.assertEqual("sha104", refs["v000104"])
-        self.assertEqual("sha104", refs["build-104"])
+        self.assertEqual("build-104", releases[1]["tag_name"])
+        self.assertEqual("v000104", releases[1]["name"])
+        self.assertEqual("main", releases[1]["target_commitish"])
+        self.assertEqual([{"name": "original.apk"}], releases[1]["assets"])
         self.assertEqual(("PATCH", "/releases/2", {"make_latest": "true"}), writes[-1])
         self.assertTrue(releases[2]["prerelease"])
-        self.assertTrue(all(set(body) <= {"tag_name", "name", "make_latest"}
+        self.assertTrue(all(set(body) <= {"name", "make_latest"}
                             for method, _, body in writes if method == "PATCH"))
         writes.clear()
         normalize(api, apply=True)
         self.assertEqual([("PATCH", "/releases/2", {"make_latest": "true"})], writes)
 
-    def test_conflicting_alias_fails_before_any_writes(self):
-        writes = []
+    def test_dry_run_never_writes(self):
+        calls = []
 
         def api(method, path, body=None):
-            if path.startswith("/releases?"):
-                return [self.release(1, "build-104")]
-            if method == "GET":
-                return {"object": {"sha": "old" if path.endswith("build-104") else "different"}}
-            writes.append(body)
+            calls.append(method)
+            return [self.release(1, "build-104")]
 
-        with self.assertRaises(ValueError):
-            normalize(api, apply=True)
-        self.assertEqual([], writes)
+        normalize(api)
+        self.assertEqual(["GET"], calls)
 
     @staticmethod
     def release(id, tag, preview=False, name=None):

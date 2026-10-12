@@ -129,10 +129,9 @@ Android's numeric version code stays the run number, so updates remain compatibl
 Preview builds use the same sequence and are marked as prereleases; pinned build
 inputs use `v000051-inputs`. Only main builds become Latest.
 
-The [release metadata workflow](.github/workflows/releases.yml) converts existing
-release titles and tags without replacing their assets or changing their preview
-status. Original Git tags remain as aliases to their original objects. Historical
-release download URLs use the new tag after migration; the stable download link is
+The [release metadata workflow](.github/workflows/releases.yml) standardizes existing
+release titles while preserving their original tags, download URLs, assets and
+preview status. New builds use the padded tags and filenames. The stable download link is
 [`releases/latest/download/linguize.apk`](https://github.com/evanaronson/linguize/releases/latest/download/linguize.apk).
 
 `.github/workflows/build.yml` builds in two jobs. **build** checks architecture, runs the tests and `lintRelease`, then runs `assembleRelease`, with no secrets and read-only access. It uploads the unsigned APK and keeps test/lint reports in a `check-reports` artifact, including on failures. **sign-and-publish** runs no code from the repo: it downloads that APK, signs it with the runner's own `apksigner`, verifies the signature, attests its provenance and publishes the release, with the certificate's SHA-256 fingerprint in the notes. Its key lives only in the `signing` GitHub environment (`SIGNING_KEYSTORE_BASE64`, a base64 PKCS12 keystore, plus `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`), which only `main` and `feature/*` may use. Without them the job stops with an error saying which are missing. Pull requests only run the unsigned job; each PR or branch has its own concurrency group, while running main builds finish before another main build begins.

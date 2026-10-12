@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Normalize release metadata to a sortable six-digit version; keep assets and old Git tags."""
+"""Normalize displayed release versions; preserve historical tags, URLs and assets."""
 
 import argparse
 import json
@@ -92,33 +92,12 @@ def normalize(api, apply=False):
         page += 1
     known = [(release, identity(release)) for release in releases if not release["draft"]]
     known = [(release, item) for release, item in known if item is not None]
-    # Check aliases before making any edits; never repoint an existing tag.
-    aliases = []
-    for release, (_, tag, _) in known:
-        if tag == release["tag_name"]:
-            continue
-        old_path = urllib.parse.quote(release["tag_name"], safe="")
-        old_ref = api("GET", f"/git/ref/tags/{old_path}")
-        sha = old_ref["object"]["sha"]
-        try:
-            new_ref = api("GET", f"/git/ref/tags/{tag}")
-        except urllib.error.HTTPError as error:
-            if error.code != 404:
-                raise
-            aliases.append((tag, sha))
-        else:
-            if new_ref["object"]["sha"] != sha:
-                raise ValueError(f"{tag} already points to a different object")
-    for tag, sha in aliases:
-        print(f"Add alias {tag} → {sha}")
-        if apply:
-            api("POST", "/git/refs", {"ref": f"refs/tags/{tag}", "sha": sha})
     for release, (_, tag, name) in known:
-        if tag == release["tag_name"] and name == release["name"]:
+        if name == release["name"]:
             continue
-        print(f"Release {release['id']}: {release['tag_name']} → {tag}")
+        print(f"Release {release['id']}: {release['name']} → {name}")
         if apply:
-            api("PATCH", f"/releases/{release['id']}", {"tag_name": tag, "name": name, "make_latest": "false"})
+            api("PATCH", f"/releases/{release['id']}", {"name": name, "make_latest": "false"})
     stable = [(release, item) for release, item in known
               if not release["prerelease"] and not item[1].endswith("-inputs")]
     if stable:

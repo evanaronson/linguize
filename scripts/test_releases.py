@@ -1,10 +1,29 @@
 import unittest
+import io
+from unittest.mock import patch
 import urllib.error
 
-from releases import identity, normalize, version
+from releases import GitHub, identity, normalize, version
 
 
 class ReleaseVersionsTest(unittest.TestCase):
+    def test_rate_limit_is_paced_and_retried(self):
+        error = urllib.error.HTTPError("url", 403, "Forbidden", {"Retry-After": "60"},
+                                       io.BytesIO(b'{"message":"Secondary rate limit exceeded"}'))
+        with patch("releases.urllib.request.urlopen", side_effect=[error, io.BytesIO(b'{}')]) as request, \
+                patch("releases.time.sleep") as sleep:
+            self.assertEqual({}, GitHub("owner/repo", "unused")("POST", "/git/refs", {}))
+            self.assertEqual(2, request.call_count)
+            self.assertIn(unittest.mock.call(60), sleep.call_args_list)
+
+    def test_permission_errors_are_reported_without_blind_retries(self):
+        error = urllib.error.HTTPError("url", 403, "Forbidden", {},
+                                       io.BytesIO(b'{"message":"Resource not accessible by integration"}'))
+        with patch("releases.urllib.request.urlopen", side_effect=error) as request, patch("releases.time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "Resource not accessible by integration"):
+                GitHub("owner/repo", "unused")("POST", "/git/refs", {})
+            self.assertEqual(1, request.call_count)
+
     def test_text_order_matches_numeric_order(self):
         numbers = [9, 10, 98, 101, 104, 1000, 999_999]
         self.assertEqual([version(n) for n in numbers], sorted(version(n) for n in numbers))

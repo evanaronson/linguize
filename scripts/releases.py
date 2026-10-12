@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -42,6 +43,7 @@ class GitHub:
     def __init__(self, repo, token):
         self.base = f"https://api.github.com/repos/{repo}"
         self.token = token
+        self.last_write = 0.0
 
     def __call__(self, method, path, body=None):
         data = json.dumps(body).encode() if body is not None else None
@@ -51,8 +53,32 @@ class GitHub:
             "X-GitHub-Api-Version": "2022-11-28",
             "Content-Type": "application/json",
         })
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return json.load(response)
+        for attempt in range(5):
+            if method != "GET":
+                time.sleep(max(0, 1.0 - (time.monotonic() - self.last_write)))
+                self.last_write = time.monotonic()
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                # Preserve 404 for the caller's missing-alias check.
+                if error.code == 404:
+                    raise
+                detail = error.read().decode("utf-8", errors="replace")
+                try:
+                    message = json.loads(detail).get("message", detail)
+                except ValueError:
+                    message = detail
+                limited = error.code == 429 or (error.code == 403 and (
+                    error.headers.get("Retry-After") is not None or
+                    error.headers.get("X-RateLimit-Remaining") == "0" or
+                    "rate limit" in message.lower()))
+                if limited and attempt < 4:
+                    delay = max(60, int(error.headers.get("Retry-After", "60")))
+                    print(f"GitHub rate limit; retrying in {delay}s", flush=True)
+                    time.sleep(delay)
+                    continue
+                raise RuntimeError(f"GitHub {method} {path}: {error.code}: {message}") from error
 
 
 def normalize(api, apply=False):

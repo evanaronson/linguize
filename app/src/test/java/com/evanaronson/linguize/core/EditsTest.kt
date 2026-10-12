@@ -58,9 +58,11 @@ class EditsTest {
     }
 
     @Test
-    fun changesToSpacingAloneAreNotSuggested() {
-        assertEquals(listOf("" to "?"), revision("hola  que tal", corrected = "hola que tal?").changes(EditKind.Fix))
-        assertTrue(revision("hola\n\nque tal", corrected = "hola\nque tal").edits(EditKind.Fix).isEmpty())
+    fun changesToSpacingAloneAreSuggestedAndApplied() {
+        assertEquals("hola que tal?", revision("hola  que tal", corrected = "hola que tal?").acceptAll(EditKind.Fix).workingText)
+        val paragraph = revision("hola\n\nque tal", corrected = "hola\nque tal")
+        assertTrue(paragraph.edits(EditKind.Fix).isNotEmpty())
+        assertEquals("hola\nque tal", paragraph.acceptAll(EditKind.Fix).workingText)
     }
 
     @Test

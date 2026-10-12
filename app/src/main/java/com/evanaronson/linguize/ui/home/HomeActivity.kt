@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,7 +51,7 @@ class HomeActivity : ComponentActivity() {
                 val current = navigation.current
                 val openSettings = { navigation = navigation.open(Screen.Settings) }
                 BackHandler(enabled = navigation.parent != null, onBack = ::back)
-                val saved = rememberSaveableStateHolder()
+                val saved = rememberNavigationStateHolder(navigation)
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {

@@ -22,7 +22,7 @@ Replace what you want, in-line, and you're back where you were.
 2. Open **Linguize**, tap the settings gear, pick Google Gemini or OpenAI, paste that provider's API key ([Gemini](https://aistudio.google.com/apikey), [OpenAI](https://platform.openai.com/api-keys)) and tap Save. Keys are stored encrypted on the phone and are never in the code.
 3. Try a sentence in **Try it** on Home. Then select text you've written in any app and look for **Linguize** in the selection menu (on Samsung it can be behind **⋮** in the menu).
 
-Home, the screen Linguize opens to, has Try it and, below it, **Recent**: your last five checks, newest first. When there are more, **View all** opens History, which loads older checks as you scroll. Tap any check to open it; Back returns to the list you came from, at your previous position. Swipe a row to delete it with Undo. Settings is behind the gear. The popup's wordmark button, to the left of **Auto Detect**, opens the app without closing the check or losing accepted changes. Meaning stays inside the popup; Settings belongs to the app. Its **History** section turns remembering off (on by default; what's already kept stays), shows how much is kept, and has **Clear** and **Export** (a JSON Lines file). History stays on the phone.
+Home, the screen Linguize opens to, has Try it and, below it, **Recent**: your last five checks, newest first. When there are more, **View all** opens History, which loads older checks as you scroll. Tap any check to open it; Back returns to the list you came from, at your previous position. Swipe a row to delete it with Undo. Settings is behind the gear. The popup's wordmark button, to the left of **Auto Detect**, opens the app without closing the check or losing accepted changes. Meaning stays inside the popup; Settings belongs to the app. Its **History** section turns saving off (on by default; saved checks stay), shows how much is saved, and has **Delete all** and **Export** (a JSON Lines file). History is stored on the phone; Export lets you share it with another app.
 
 That's all most apps need. Later builds install over the previous one because CI signs each one with the same private key.
 
@@ -32,7 +32,7 @@ To check a download, compare its signing certificate with the SHA-256 fingerprin
 
 ### Optional: apps without the menu entry (e.g. Telegram, the Claude app…)
 
-Some apps don't show other apps' entries in their selection menu. For those, Linguize can add an accessibility button instead: while typing, tap the button and the same card floats over the app, then accepted changes are written back into the text field. It reads the focused text field only when you tap the button, and never a field for passwords, codes, numbers or email addresses. Back, or a tap outside the card, closes it.
+Some apps don't show other apps' entries in their selection menu. For those, Linguize can add an accessibility button instead: while typing, tap the button and the same card floats over the app, then accepted changes are written back into the text field. It reads the focused text field only when you tap the button and skips fields that look like passwords, codes, numbers or email addresses. Back, or a tap outside the card, closes it.
 
 Android makes this a few taps because the app wasn't installed from the Play Store:
 
@@ -44,56 +44,88 @@ The **When Linguize isn't in the menu** section on Home has the same steps and a
 
 ## Code layout
 
-Everything is under `app/src/main/java/com/evanaronson/linguize/`. Dependencies between major packages run one way: `codec` imports nothing else from the app, `core` only `codec`, `llm` only those, `history` only `codec` and `core`, and `data` only `codec`, `core` and `llm` (plus generated resources). The root `App`, `CheckContext` and `Checker` compose those layers; `ui/` uses the root and below; `menu/` and `accessibility/` are entry points above `ui/` and do not depend on each other. `codec` and `core` stay free of Android imports.
+The app has one Gradle module, `:app`. Production Kotlin lives under
+[app/src/main/java/com/evanaronson/linguize/](app/src/main/java/com/evanaronson/linguize/),
+with regression tests in [app/src/test/](app/src/test/). Start with the
+[documentation index](docs/README.md) for current contracts, or the
+[architecture guide](docs/architecture.md) for ownership and the reasons behind
+this structure.
 
-`python3 scripts/check_architecture.py` checks these import directions and package declarations before Gradle runs in CI, reporting the offending path and import. It guards production Kotlin sources, not test fixtures, and treats `ui/` as one layer: popup and full-app hosts share the card, language picker and localized text. It is an import check, so code review still needs to assess fully qualified references and dependencies introduced by libraries.
+Dependencies between major packages run one way: `codec` imports nothing else
+from the app; `core` only `codec`; `llm` and `history` only those two; and `data`
+only `codec`, `core`, and `llm` (plus generated resources). Root classes compose
+them; `ui` uses root and below; `menu` and `accessibility` are entry points above
+`ui` and do not import each other. `codec` and `core` stay free of Android imports.
 
 | Package | Role |
 |---|---|
-| `codec/` | `Tokens`: how an enum is kept. Every kept enum spells out a fixed lowercase `token` on each constant (the same in the database, the export, settings and the prompt) and has one `Tokens` for them; an unknown token reads as null instead of crashing. |
-| `core/` | Pure Kotlin, no Android or network, unit-tested. The check's options (`Language`, with an ISO code and `Language.all`, the list pickers show; `Punctuation`, `Judgments`), the model's answer as the schema defines it (`Verdict`), and the edit engine: `Alignment` and `Edits` turn the answer into `Edit`s anchored to the original text (positions come from aligning the texts, never from the model; each punctuation mark is its own fix; rewordings are found against the corrected text, then mapped back), `Revision` tracks accepting and undoing with the rules written out at its top, and `interpret()` produces a `CheckResult`. `Selection` splits selected text from the whitespace around it. |
-| `llm/` | Talking to models. `Prompt` is the contract: the instructions and schema in `assets/`, the user-message format, the output limit and reading answers. `GeminiClient` and `OpenAIClient` implement `ProviderClient` over plain REST (`Http` is the shared call). Adding a provider takes a `Provider` entry (with its token, which is also what its saved key and model are kept under), a client and an entry in `App`'s client map. `CheckFailure` is every way a check can fail. |
-| `history/` | What the phone remembers about checks; design and decisions in `docs/history-spec.md`. `HistoryModel` has the records (`SessionRecord`, `SuggestionRecord`, `Attempt`, and the `Origin`, `Decision` and `Outcome` enums), built to be uploaded as-is later. Rows keep enums as their tokens (see `codec/`) and the requested language as its code. `SessionRecording` (pure Kotlin, tested) turns what happens on one card into a session and its suggestions with their decisions. `CheckHistory` is what the card talks to: it opens, records and closes sessions off the main thread and races the model against a kept answer for the same text. `Replay` rebuilds the card a past session ended with, from its decided attempt and its suggestion rows. `HistoryStore` is the storage interface; `SqliteHistoryStore` implements it on the framework's SQLite, with its SQL and row mapping in `HistorySchema` and the JSON (the `attempts` column, the export) in `HistoryJson`. |
-| `data/` | What the phone remembers besides history: `Settings`, `ApiKeys` (encrypted with an Android Keystore key, kept under each provider's token; keys saved under a provider's name by earlier builds are moved on first use) and `SelectionMenu` (which menu entries are on, kept as the enabled state of their activity-aliases). `CheckPreferences` and `ProviderKeys` are the small interfaces the checker reads them through. `Exports` owns temporary shared files and serializes writing, deletion and expiry across hosts. It accepts an output-stream writer, so it does not import `history` or know its schema. |
-| root | `CheckContext` is what a check runs with, read once per run: the one place that says what affects a check. `Checker` runs a check with it, on `CheckPreferences` and `ProviderKeys` (so it's tested on the JVM with fakes). `App` is the composition root: it creates settings, keys, the prompt, history and export stores, the checker and its clients, and an application-wide scope for writes that outlive a screen. View-model factories wire these shared services to each host. |
-| `ui/card/` | The result card and its `CheckViewModel`, which owns a check and the accepted changes and reports to `CheckHistory`; `CardActions.of()` gives the card the same behaviour everywhere. |
-| `ui/components/` | Shared controls, the language picker (auto-detect and `Language.all`, named as the selection menu names them) and date formatting. |
-| `ui/history/` | The five-row Recent preview, paged History list and the page for one past check (the card `Replay` rebuilds, shown with the card's own content), with their view models. |
-| `ui/home/` | `HomeActivity` owns the app scaffold, restorable back stack and back action. Home, History, Settings and saved checks share `AppNavigation`: branding and a settings gear at the root, a labeled parent action and a page title on child screens. A check opened from History returns there; one opened from Recent returns directly Home. The header stays fixed while content scrolls. Accessibility setup instructions live on Home, above Recent. |
-| `ui/settings/` | The app's settings screen (one file per section, History included) and its view model. |
-| `ui/popup/` | `PopupAppActivity` opens the app in a separate task; `PopupReturn` restores the existing accessibility popup when that visit ends. Settings is reached through the app's gear. |
-| `ui/text/` | Resource mappings for shared option labels and failure messages. Domain enums and stored tokens stay independent of Android resources and UI language. |
-| `ui/theme/` | The brand theme. |
-| `menu/` | `CheckActivity`, opened from a selection-menu entry; `CheckRateLimit` caps how many checks other apps can start through it (a few a minute per app). |
-| `accessibility/` | The accessibility button: `LinguizeAccessibilityService` reads the focused field and writes accepted changes back; `FocusedField` bounds fallback lookup to the same source window, and `PrivateField` excludes sensitive inputs. `OverlayWindow` owns the popup's views and view models, while `UnlockedScreen` keeps them hidden while the screen is off or locked. |
+| `codec/` | Stable tokens for saved enums and serialization |
+| `core/` | Check options, verdicts, text alignment, anchored edits, and accepting or undoing changes |
+| `llm/` | Prompt contract, Gemini/OpenAI clients, HTTP transport, and check failures |
+| `history/` | Recording, SQLite storage, reuse, and replay; see [History today](docs/history.md) |
+| `data/` | Settings, encrypted API keys, selection-menu configuration, and temporary export files |
+| root | `App` creates shared services; `Checker` runs checks; `CheckContext` captures the settings used |
+| `ui/card/` | The shared result card, actions, and view model used by all three check hosts |
+| `ui/home/`, `ui/history/`, `ui/settings/` | App screens and their state; `HomeActivity` owns the full app's navigation |
+| `ui/popup/` | Opening the app from a popup and returning to the existing check |
+| `ui/components/`, `ui/text/`, `ui/theme/` | Shared controls, localized labels, and theme |
+| `menu/`, `accessibility/` | Selection-menu and accessibility hosts, source-field handling, and replacement |
 
-The prompt and schema live in `app/src/main/assets/` so the eval script uses exactly what the app sends, and a unit test checks every example in the prompt against the schema.
+`python3 scripts/check_architecture.py` checks production imports and package
+declarations before Gradle runs in CI. It treats `ui/` as one layer so hosts can
+share the card and controls. Fully qualified references and dependencies introduced
+by libraries still need code review.
 
-English UI strings and plurals live in `app/src/main/res/values/strings*.xml`, using Android's native localization format. Locale-specific `values-<locale>/` resources can translate the same IDs, and Android handles fallback, formatting and plurals. Provider model IDs, persisted tokens and the model prompt are separate contracts and should not be translated as UI text.
+The [prompt and schema](app/src/main/assets/) are shared with the eval; unit tests
+check the prompt's examples. English UI strings and plurals use Android resources
+in `app/src/main/res/values/strings*.xml`; see [localization](docs/localization.md)
+and [copy style](docs/copy-style.md). Model IDs, stored tokens, and the prompt are
+separate contracts.
+
+History supplies stored evidence for later analysis. The [architecture guide](docs/architecture.md#evidence-first-derived-learning-later)
+explains what is still needed before those observations can support learning claims.
 
 ## Tuning the judgments
 
-The prompt is where most of the product lives. To test a prompt change against real sentences, including how often it nags about text that's already fine, and to measure latency:
+The prompt is where most of the product lives. To test a prompt change against
+curated sentences, including whether it nags about text that's already fine, and
+to measure latency:
 
 ```sh
 GEMINI_API_KEY=... python3 eval/run.py
 OPENAI_API_KEY=... python3 eval/run.py --provider openai
 ```
 
-Add cases to `eval/cases.jsonl` when the app gets something wrong.
+Add a reviewed case to `eval/cases.jsonl` when the app gets something wrong. See
+the [eval guide](eval/README.md) for running and interpreting these checks.
 
 ## Brand
 
 The wordmark is **lingu·ize**: the raised dot (the Catalan *punt volat*, as in col·legi) marks where *-ize* snaps onto a word, as in catalan·ize and castilian·ize. The launcher icon is "·ize", cut straight from the wordmark. It's ink on paper, and cobalt (`#3340F0`, lighter `#7C84FF` in dark mode) is the one colour, used on the wordmark's dot and as the app's accent.
 
-`brand/` holds the SVGs. Every letter is drawn in code from one geometric kit in `brand/source/`; `python3 brand/source/build.py` rebuilds them. The app's copies are vector drawables: `wordmark.xml`, `ic_launcher_foreground.xml` and `ic_launcher_monochrome.xml`.
+[brand/](brand/) holds the wordmarks, icon variants, and construction studies.
+Every letter is drawn in code from one geometric kit in `brand/source/`;
+`python3 brand/source/build.py` rebuilds the SVGs. The app's copies are separate
+vector drawables: `wordmark.xml`, `ic_launcher_foreground.xml`, and
+`ic_launcher_monochrome.xml`. The generator does not update those XML files.
 
 ## Build locally
 
 You need JDK 21 (the Robolectric tests need it) and the Android SDK. `python3 scripts/check_architecture.py` checks package boundaries without the SDK. `./gradlew testDebugUnitTest lintRelease` runs the regression tests and Android lint; `./gradlew installDebug` puts a debug build on a connected phone. `./gradlew assembleRelease` writes an unsigned APK to `app/build/outputs/apk/release/`; add `-PdebugSignedRelease` to sign it with your debug key so it installs. A local build has version 1 and isn't signed with the release key, so it won't install over a build from CI without uninstalling first.
+
+The repository tooling also has offline tests, with no provider credentials needed:
+
+```sh
+python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 -m unittest discover -s eval -p 'test_*.py'
+```
 
 ### How releases are built and signed
 
 `.github/workflows/build.yml` builds in two jobs. **build** checks architecture, runs the tests and `lintRelease`, then runs `assembleRelease`, with no secrets and read-only access. It uploads the unsigned APK and keeps test/lint reports in a `check-reports` artifact, including on failures. **sign-and-publish** runs no code from the repo: it downloads that APK, signs it with the runner's own `apksigner`, verifies the signature, attests its provenance and publishes the release, with the certificate's SHA-256 fingerprint in the notes. Its key lives only in the `signing` GitHub environment (`SIGNING_KEYSTORE_BASE64`, a base64 PKCS12 keystore, plus `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`), which only `main` and `feature/*` may use. Without them the job stops with an error saying which are missing. Pull requests only run the unsigned job; each PR or branch has its own concurrency group, while running main builds finish before another main build begins.
 
 Gradle checks what it downloads against two files: `distributionSha256Sum` in `gradle/wrapper/gradle-wrapper.properties` pins the Gradle distribution, and `gradle/verification-metadata.xml` pins the SHA-256 of every plugin and library. To write them, and again after changing the Gradle version or any dependency, run the workflow by hand with **pin_build_inputs** checked (`gh workflow run build.yml --ref <branch> -f pin_build_inputs=true`); it uploads both files, regenerated, as the `build-inputs` artifact to review and commit.
+
+[The eval workflow](.github/workflows/eval.yml) runs offline evaluation-tool tests
+for eval changes on `main`, including pushes that do not need an APK release.
+The APK workflow runs these tests on every pull request and app build as well.

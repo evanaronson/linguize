@@ -18,6 +18,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -152,11 +153,7 @@ internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCl
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
-    val delete by rememberUpdatedState(onDelete)
-    val state = rememberSwipeToDismissBoxState()
-    LaunchedEffect(state.currentValue) {
-        if (state.currentValue == SwipeToDismissBoxValue.EndToStart) delete()
-    }
+    val state = rememberDeleteSwipeState(onDelete)
     SwipeToDismissBox(
         state = state,
         backgroundContent = {
@@ -174,6 +171,22 @@ internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit
     ) {
         content()
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun rememberDeleteSwipeState(onDelete: () -> Unit): SwipeToDismissBoxState {
+    val delete by rememberUpdatedState(onDelete)
+    val state = rememberSwipeToDismissBoxState()
+    LaunchedEffect(state.currentValue) {
+        if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            // Lazy rows retain saveable state when removed. Undo must restore a settled
+            // row, rather than restoring this dismissal and deleting the row again.
+            state.snapTo(SwipeToDismissBoxValue.Settled)
+            delete()
+        }
+    }
+    return state
 }
 
 @Composable

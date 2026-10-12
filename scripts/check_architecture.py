@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check production Kotlin imports against the package boundaries in README.md.
+"""Check production Kotlin imports against the boundaries in docs/architecture.md.
 
 This is an import guard, not a Kotlin compiler or a transitive dependency analyzer.
 It deliberately treats ui as one layer: hosts may share controls and localized text.
@@ -84,7 +84,7 @@ def inspect_file(path: Path, repo: Path) -> list[str]:
     expected_package = ".".join((APP_PACKAGE, *package_parts))
     errors = []
     if layer not in ALLOWED:
-        return [f"{relative}:1: unknown layer {layer!r}; define its direction in the guard and README"]
+        return [f"{relative}:1: unknown layer {layer!r}; define its direction in the guard and docs/architecture.md"]
     found_package = False
     for line, kind, name in declarations(path.read_text(encoding="utf-8")):
         if kind == "package":

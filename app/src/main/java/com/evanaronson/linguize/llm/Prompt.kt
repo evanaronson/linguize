@@ -14,7 +14,8 @@ import java.security.MessageDigest
 /**
  * The contract with the model: instructions, answer schema, the user message
  * format and how answers are read. The instructions and schema live in assets
- * so the eval script in eval/ tests exactly what the app sends.
+ * so eval/ uses the same prompt and schema. App tests also cover parsing and edits,
+ * which the provider evaluation script does not run.
  */
 class Prompt(val system: String, schemaJson: String) {
     /** The answer format, as JSON Schema. */

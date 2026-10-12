@@ -8,10 +8,10 @@ import com.evanaronson.linguize.core.Verdict
 import kotlinx.serialization.Serializable
 
 /*
- * The history data model: what is stored on the phone and, later, what a sync would
- * upload as-is. Rows use client-made UUIDs, epoch-millisecond UTC timestamps, soft
- * deletion and a schema version, so rows from several devices can merge on a server
- * without translation. See docs/history-spec.md.
+ * The history data model stored on the phone. UUIDs, UTC timestamps, stable tokens
+ * and row schemas preserve the identity and provenance of captured evidence.
+ * Deletion is currently hard deletion; synchronization and learning need their own
+ * conflict, deletion and evidence policies. See docs/history.md.
  *
  * Enums are kept as the lowercase tokens their constants spell out (`token`), the same
  * in the database and the export, and read leniently: see [Tokens]. The export is

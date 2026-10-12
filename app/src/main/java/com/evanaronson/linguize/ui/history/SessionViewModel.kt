@@ -40,10 +40,13 @@ sealed interface SessionPage {
     ) : SessionPage
 }
 
+internal enum class SessionDeletion { Ready, Deleting, Failed, Deleted }
+
 /**
  * Loads the past check the detail page shows, and deletes it. [prompt] reads kept answers
  * as checks do; it's called off the main thread (the app's loads from assets on first use).
- * Deleting runs on [appScope], since the page closes straight away.
+ * Deleting runs on [appScope] so leaving the page cannot cancel an acknowledged action.
+ * The page stays open until storage confirms the deletion, with a retry on failure.
  */
 class SessionViewModel internal constructor(
     private val history: HistoryStore,
@@ -58,12 +61,18 @@ class SessionViewModel internal constructor(
     var page by mutableStateOf<SessionPage>(SessionPage.Loading)
         private set
 
+    internal var deletion by mutableStateOf(SessionDeletion.Ready)
+        private set
+
     /**
      * Shows session [id], read again each time: since it was last shown, its card may have
      * closed or its first save landed. The same session stays on screen while it's reread.
      */
     fun load(id: String) {
-        if (id != this.id) page = SessionPage.Loading
+        if (id != this.id) {
+            page = SessionPage.Loading
+            deletion = SessionDeletion.Ready
+        }
         this.id = id
         job?.cancel()
         job = viewModelScope.launch {
@@ -79,17 +88,24 @@ class SessionViewModel internal constructor(
         }
     }
 
-    /** Deletes the session shown. The page closes straight away, so on the app's scope. */
+    /** Keep the check visible until the write succeeds; a failed write can be retried. */
     fun delete() {
         val id = id ?: return
+        if (deletion == SessionDeletion.Deleting || deletion == SessionDeletion.Deleted) return
         job?.cancel()
-        this.id = null
-        page = SessionPage.Missing
+        deletion = SessionDeletion.Deleting
         appScope.launch(Dispatchers.IO) {
-            history.delete(id)
+            val deleted = history.delete(id)
             // Retire after the row is removed. A separate UI cleanup can run first,
             // allowing another host to recreate an export containing the deleted row.
             retireExports()
+            withContext(Dispatchers.Main.immediate) {
+                // A different saved check may have opened while this write was pending.
+                if (this@SessionViewModel.id == id) {
+                    deletion = if (deleted) SessionDeletion.Deleted else SessionDeletion.Failed
+                    if (deleted) page = SessionPage.Missing
+                }
+            }
         }
     }
 

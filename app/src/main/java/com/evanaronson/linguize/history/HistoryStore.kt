@@ -62,7 +62,7 @@ interface HistoryStore {
     /** True once the session is absent; false when deletion failed, so durable callers can retry. */
     suspend fun delete(id: String): Boolean
 
-    /** Deletes everything, leaving none of the text in the database's files. */
+    /** Hard-deletes all records and attempts database-file cleanup; failures are logged. */
     suspend fun clear()
 
     /**

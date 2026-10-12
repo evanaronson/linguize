@@ -42,7 +42,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.history.Outcome
-import com.evanaronson.linguize.ui.components.SectionTitle
 import com.evanaronson.linguize.ui.components.uiLocale
 import java.time.format.DateTimeFormatter
 import java.time.format.DecimalStyle
@@ -64,7 +63,10 @@ fun RecentSection(
     val time = rememberTimeFormat()
     HistoryUndo(history, snackbar)
 
-    SectionTitle(stringResource(R.string.recent))
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.history), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        TextButton(onClick = onViewAll) { Text(stringResource(R.string.view_all_history)) }
+    }
     if (historyOn == false) HistoryOff(onOpenSettings)
     val shown = rows ?: return
     if (shown.isEmpty()) {
@@ -82,9 +84,6 @@ fun RecentSection(
                 }
             }
         }
-    }
-    if (shown.size > HistoryViewModel.PREVIEW_SIZE) {
-        TextButton(onClick = onViewAll) { Text(stringResource(R.string.view_all_history)) }
     }
 }
 

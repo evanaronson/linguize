@@ -103,6 +103,9 @@ jobs:
     # Pull requests only test and build; they never enter the signing environment.
     if: github.event_name != 'pull_request'
     needs: build
+    concurrency:
+      group: release-metadata
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: signing
     permissions:
@@ -189,10 +192,12 @@ jobs:
           RUN: ${{ github.run_number }}
           MAIN: ${{ github.ref == 'refs/heads/main' }}
         run: |
-          if [ "$MAIN" = true ]; then apk="linguize-$RUN.apk"; else apk="linguize-branch-$RUN.apk"; fi
+          version=$(printf 'v%06d' "$RUN")
+          if [ "$MAIN" = true ]; then apk="linguize-$version.apk"; else apk="linguize-$version-preview.apk"; fi
           mv signed.apk "$apk"
           sha256sum "$apk" > "$apk.sha256"
           echo "APK=$apk" >> "$GITHUB_ENV"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
 
       # Signed provenance (which repo, commit and workflow built it), checkable with
       # gh attestation verify <apk> --repo <owner>/<repo>.
@@ -211,9 +216,9 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           notes=$(printf 'Built from %s\n\nSigning certificate SHA-256: %s' "$BRANCH" "$CERT_SHA256")
-          gh release create "branch-$RUN" "$APK" "$APK.sha256" \
+          gh release create "$VERSION" "$APK" "$APK.sha256" \
             --target "$SHA" \
-            --title "Branch build $RUN ($BRANCH)" \
+            --title "$VERSION (preview: $BRANCH)" \
             --notes "$notes" \
             --prerelease --latest=false
 
@@ -232,9 +237,9 @@ jobs:
           cp "$APK" linguize.apk
           sha256sum linguize.apk > linguize.apk.sha256
           notes=$(printf '%s\n\nSigning certificate SHA-256: %s' "$MESSAGE" "$CERT_SHA256")
-          gh release create "build-$RUN" "$APK" "$APK.sha256" linguize.apk linguize.apk.sha256 \
+          gh release create "$VERSION" "$APK" "$APK.sha256" linguize.apk linguize.apk.sha256 \
             --target "$SHA" \
-            --title "Build $RUN" \
+            --title "$VERSION" \
             --notes "$notes" \
             --latest
 
@@ -331,10 +336,11 @@ jobs:
           SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
         run: |
-          gh release create "build-inputs-$RUN" \
+          version=$(printf 'v%06d' "$RUN")
+          gh release create "$version-inputs" \
             build-inputs/wrapper/gradle-wrapper.properties \
             build-inputs/verification-metadata.xml \
             --target "$SHA" \
-            --title "Pinned build inputs $RUN ($BRANCH)" \
+            --title "$version (build inputs: $BRANCH)" \
             --notes "Gradle distribution checksum and dependency verification metadata, to review and commit." \
             --prerelease --latest=false

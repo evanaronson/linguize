@@ -17,7 +17,8 @@ android {
         minSdk = 30
         targetSdk = 36
         versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.toInt() ?: 1
-        versionName = "0.1.$versionCode"
+        require(versionCode in 1..999_999) { "Release version must fit the six-digit sequence" }
+        versionName = "v" + versionCode.toString().padStart(6, '0')
     }
 
     // Release builds come out unsigned. CI signs the APK afterwards, in a separate job that runs

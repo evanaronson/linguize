@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = App::class)
 class HistoryViewModelTest {
-    private val app = RuntimeEnvironment.getApplication<App>()
+    private val app = RuntimeEnvironment.getApplication() as App
     private val rows = MutableStateFlow((0 until 30).map {
         SessionSummary("$it", 100L - it, null, null, "Text $it", null, 0, 0, 0)
     })

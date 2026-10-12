@@ -29,10 +29,10 @@ One word per idea, everywhere.
 | Either of the two | **change**, changes | edit, suggestion (in counts) |
 | Saying yes to a change on the card | **accept**, accepted | apply, take, taken |
 | Text going back into the other app | **put back** | applied, sent, went back |
-| Text kept on the phone | **saved**; the feature is **History**; the Home list is **Recent** | kept, remembered, recorded |
+| Text kept on the phone | **saved**; the feature and the Home list are **History** | kept, remembered, recorded |
 | Removing it | **delete** | clear, remove |
 | The user's credential | **API key** in titles and field labels, then **key** | token, secret |
-| The thing that checks | **AI**; **AI service** for the company side | model, provider, LLM |
+| The thing that checks | **AI** in prose; **Model** for the settings section | model, provider, LLM |
 | The exact model a user picks | **model**, only in Settings next to the model picker | |
 | Named services | **Gemini**, **OpenAI**, when the person needs to know which | |
 | Languages | **Catalan**, **Spanish** | Castilian, castellano |

@@ -52,11 +52,12 @@
     <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
     <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
     <string name="home_instructions">Select text in any app, then choose Linguize in the selection menu (it may be under ⋮). Or try it below.</string>
+    <string name="check_your_text">Check your text</string>
     <string name="try_it">Try it</string>
     <string name="try_it_placeholder">Type or paste text to check</string>
     <string name="no_text_to_check">No text to check.</string>
     <string name="try_it_not_saved">Checks here aren\'t saved.</string>
-    <string name="recent">Recent</string>
+    <string name="recent">History</string>
     <string name="recent_empty">Checks from other apps will appear here.</string>
     <string name="history_off">History is off. New checks aren\'t saved.</string>
     <string name="check_was_deleted">This check was deleted.</string>
@@ -70,7 +71,7 @@
     <string name="deleting_check">Deleting…</string>
     <string name="delete_check_failed">Couldn\'t delete this check. Try deleting it again.</string>
     <string name="delete_check_description">It will be deleted from this phone. This can\'t be undone.</string>
-    <string name="ai_service">AI service</string>
+    <string name="ai_service">Model</string>
     <string name="ai_service_description">Linguize sends the text you check to Gemini or OpenAI. You need your own API key from one of them.</string>
     <string name="model_loading">Model · loading…</string>
     <string name="model_load_failed">Model · couldn\'t load others</string>

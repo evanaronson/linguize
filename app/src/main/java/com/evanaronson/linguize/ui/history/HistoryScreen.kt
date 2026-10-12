@@ -30,12 +30,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.settings.HistoryDataControls
+import com.evanaronson.linguize.ui.settings.SettingsViewModel
 import kotlinx.coroutines.flow.collect
 
 /** Full history: stable, lazy rows with another bounded database page loaded near the end. */
 @Composable
 fun HistoryScreen(
     history: HistoryViewModel,
+    settings: SettingsViewModel,
     historyOn: Boolean?,
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
@@ -58,32 +61,42 @@ fun HistoryScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        // Don't lay out an empty LazyColumn over a restored scroll position while loading.
-        if (page.rows.isEmpty()) {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (historyOn == false) HistoryOff(onOpenSettings)
-                when {
-                    page.loading || (!page.failed && page.next != null) -> LoadingHistory()
-                    page.failed -> HistoryRetry(history::retryHistory)
-                    else -> Quiet(stringResource(R.string.no_checks_saved))
-                }
+        Column(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                HistoryDataControls(settings)
             }
-        } else {
-            val now = System.currentTimeMillis()
-            LazyColumn(state = list, contentPadding = PaddingValues(20.dp)) {
-                if (historyOn == false) item(key = "history-off", contentType = "notice") { HistoryOff(onOpenSettings) }
-                itemsIndexed(page.rows, key = { _, row -> row.summary.id }, contentType = { _, _ -> "check" }) { index, row ->
-                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    val delete = { history.delete(row.summary.id) }
-                    SwipeToDelete(onDelete = delete) {
-                        SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                // Don't lay out an empty LazyColumn over a restored scroll position while loading.
+                if (page.rows.isEmpty()) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (historyOn == false) HistoryOff(onOpenSettings)
+                        when {
+                            page.loading || (!page.failed && page.next != null) -> LoadingHistory()
+                            page.failed -> HistoryRetry(history::retryHistory)
+                            else -> Quiet(stringResource(R.string.no_checks_saved))
+                        }
                     }
-                }
-                item(key = "history-footer", contentType = "footer") {
-                    when {
-                        page.loading -> LoadingHistory()
-                        page.failed -> HistoryRetry(history::retryHistory)
-                        page.next != null -> TextButton(onClick = history::loadMore) { Text(stringResource(R.string.load_more_checks)) }
+                } else {
+                    val now = System.currentTimeMillis()
+                    LazyColumn(state = list, contentPadding = PaddingValues(20.dp)) {
+                        if (historyOn == false) item(key = "history-off", contentType = "notice") { HistoryOff(onOpenSettings) }
+                        itemsIndexed(page.rows, key = { _, row -> row.summary.id }, contentType = { _, _ -> "check" }) { index, row ->
+                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            val delete = { history.delete(row.summary.id) }
+                            SwipeToDelete(onDelete = delete) {
+                                SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                            }
+                        }
+                        item(key = "history-footer", contentType = "footer") {
+                            when {
+                                page.loading -> LoadingHistory()
+                                page.failed -> HistoryRetry(history::retryHistory)
+                                page.next != null -> TextButton(onClick = history::loadMore) { Text(stringResource(R.string.load_more_checks)) }
+                            }
+                        }
                     }
                 }
             }

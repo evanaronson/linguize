@@ -61,7 +61,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             check.dismiss(applied = false)
         },
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(R.string.try_it)) },
+        label = { Text(stringResource(R.string.your_text)) },
         placeholder = { Text(stringResource(R.string.try_it_placeholder)) },
         supportingText = { Text(if (blank) stringResource(R.string.no_text_to_check) else stringResource(R.string.try_it_not_saved)) },
         isError = blank,

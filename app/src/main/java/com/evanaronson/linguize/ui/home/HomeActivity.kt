@@ -83,7 +83,7 @@ class HomeActivity : ComponentActivity() {
                                     onViewHistory = { navigation = navigation.open(Screen.History) },
                                 )
                                 Screen.History -> HistoryScreen(
-                                    history,
+                                    history, settings,
                                     historyOn = settings.state?.historyEnabled,
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,

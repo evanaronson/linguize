@@ -37,15 +37,9 @@ import com.evanaronson.linguize.ui.components.SectionTitle
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
 
-/** Whether checks are remembered, how many are, and Clear and Export. Browsing them is on Home. */
+/** The save-history preference. Data controls belong to the full History page. */
 @Composable
 internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-    val kept by settings.history.collectAsState()
-    val count = kept?.count ?: 0
-    var confirmingClear by rememberSaveable { mutableStateOf(false) }
-
     SectionTitle(stringResource(R.string.history))
     SwitchRow(stringResource(R.string.save_history), checked = state.historyEnabled, onChange = settings::setHistoryEnabled)
     Text(
@@ -57,6 +51,17 @@ internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+/** Count, delete and export controls, shown only inside the full History page. */
+@Composable
+internal fun HistoryDataControls(settings: SettingsViewModel) {
+    val context = LocalContext.current
+    val resources = LocalResources.current
+    val kept by settings.history.collectAsState()
+    val count = kept?.count ?: 0
+    var confirmingClear by rememberSaveable { mutableStateOf(false) }
+
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(kept?.let { keptLabel(resources, it) }.orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         TextButton(enabled = count > 0, onClick = { confirmingClear = true }) { Text(stringResource(R.string.delete_all)) }

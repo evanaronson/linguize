@@ -1,12 +1,12 @@
-package com.evanaronson.linguize.ui.home
+package com.evanaronson.linguize.ui.popup
 
 /**
- * One accessibility popup's return from an external activity. The gateway carries the
+ * One accessibility popup's return from the full app. The gateway carries the
  * token returned by [await], so a delayed result from an older detour cannot reveal a
  * newer popup. The callback is consumed once and cancelled when its popup closes.
  * Main thread only.
  */
-object SettingsReturn {
+object PopupReturn {
     private var waiting: (() -> Unit)? = null
     private var token = 0L
 
@@ -21,7 +21,7 @@ object SettingsReturn {
         if (waiting === onLeft) waiting = null
     }
 
-    /** The matching external detour ended: tell its waiting card, if it still exists. */
+    /** The matching app visit ended: tell its waiting card, if it still exists. */
     fun left(returnToken: Long) {
         if (returnToken != token) return
         val pending = waiting ?: return

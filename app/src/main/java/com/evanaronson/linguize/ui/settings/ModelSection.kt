@@ -32,6 +32,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.ui.components.Dropdown
@@ -136,7 +137,6 @@ private fun ModelTestRow(test: ModelTest?, onTest: () -> Unit) {
 @Composable
 private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolean, onSave: (String) -> Unit) {
     val context = LocalContext.current
-    val openExternal = LocalSettingsHost.current.openExternal ?: context::openFromSettings
     // Not saveable: the key shouldn't end up in saved instance state.
     var key by remember(provider) { mutableStateOf("") }
     OutlinedTextField(
@@ -165,7 +165,7 @@ private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolea
             // Kept in the field until saved, so a failed save can be retried. A saved key replaces this field.
             onClick = { onSave(key) },
         ) { Text(stringResource(R.string.save)) }
-        TextButton(onClick = { openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl))) }) {
+        TextButton(onClick = { context.openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl))) }) {
             Text(stringResource(R.string.get_key))
         }
     }

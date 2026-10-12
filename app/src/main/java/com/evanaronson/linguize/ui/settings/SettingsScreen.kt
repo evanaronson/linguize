@@ -32,9 +32,9 @@ import com.evanaronson.linguize.ui.text.descriptionResource
 import com.evanaronson.linguize.ui.text.displayName
 import com.evanaronson.linguize.ui.text.labelResource
 
-/** Settings can be entered from Home or a popup; Back returns, Home opens the app. */
+/** Settings belongs to the app; Back returns to its launcher screen. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit, onHome: () -> Unit) {
+fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit) {
     Column(Modifier.safeDrawingPadding()) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -45,18 +45,15 @@ fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit, onHome: () -
                 Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back))
             }
             Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            IconButton(onClick = onHome) {
-                Icon(painterResource(R.drawable.ic_home), contentDescription = stringResource(R.string.home))
-            }
         }
         SettingsContent(settings)
     }
 }
 
 @Composable
-internal fun SettingsContent(settings: SettingsViewModel, modifier: Modifier = Modifier) {
+private fun SettingsContent(settings: SettingsViewModel) {
     Column(
-        modifier
+        Modifier
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -67,7 +64,6 @@ internal fun SettingsContent(settings: SettingsViewModel, modifier: Modifier = M
         CheckingSection(state, settings)
         ModelSection(state, settings)
         HistorySection(state, settings)
-        OtherAppsSection()
     }
 }
 

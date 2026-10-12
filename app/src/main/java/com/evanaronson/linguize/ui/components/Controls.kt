@@ -1,6 +1,5 @@
 package com.evanaronson.linguize.ui.components
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,10 +15,8 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -38,9 +33,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
-
-/** Accessibility overlays cannot attach separate dropdown windows. */
-val LocalInlineControls = staticCompositionLocalOf { false }
 
 /** "‹  Back": to the previous screen, or on the card from its understanding page to the suggestions. */
 @Composable
@@ -80,17 +72,6 @@ fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit, trailing: @C
 fun <T> Dropdown(label: String, selected: T, options: List<T>, optionLabel: (T) -> String, onSelect: (T) -> Unit) {
     val selectedLabel = optionLabel(selected)
     var expanded by remember { mutableStateOf(false) }
-    if (LocalInlineControls.current) {
-        InlineOptions(label, selectedLabel, expanded, onToggle = { expanded = !expanded }) {
-            options.forEach { option ->
-                RadioRow(optionLabel(option), selected = option == selected, onClick = {
-                    expanded = false
-                    onSelect(option)
-                })
-            }
-        }
-        return
-    }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = selectedLabel,
@@ -129,22 +110,6 @@ fun <T> MultiSelectDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val separator = stringResource(R.string.list_separator)
-    if (LocalInlineControls.current) {
-        InlineOptions(label, options.filter { it in selected }.joinToString(separator, transform = optionLabel),
-            expanded, onToggle = { expanded = !expanded }) {
-            options.forEach { option ->
-                Row(
-                    Modifier.fillMaxWidth().toggleable(value = option in selected, role = Role.Checkbox,
-                        onValueChange = { onToggle(option) }).padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(checked = option in selected, onCheckedChange = null)
-                    Text(optionLabel(option), style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-        }
-        return
-    }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = options.filter { it in selected }.joinToString(separator, transform = optionLabel),
@@ -164,25 +129,6 @@ fun <T> MultiSelectDropdown(
                     leadingIcon = { Checkbox(checked = option in selected, onCheckedChange = null) },
                     onClick = { onToggle(option) },
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun InlineOptions(label: String, selected: String, expanded: Boolean, onToggle: () -> Unit,
-    options: @Composable () -> Unit) {
-    Column {
-        OutlinedButton(onClick = onToggle, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.small) {
-            Column(Modifier.weight(1f).padding(vertical = 4.dp)) {
-                Text(label, style = MaterialTheme.typography.labelMedium)
-                Text(selected, style = MaterialTheme.typography.bodyLarge)
-            }
-            Text(if (expanded) "▴" else "▾", Modifier.clearAndSetSemantics {})
-        }
-        if (expanded) {
-            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                Column(Modifier.fillMaxWidth().padding(8.dp)) { options() }
             }
         }
     }

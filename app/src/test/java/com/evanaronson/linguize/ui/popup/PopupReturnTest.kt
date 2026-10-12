@@ -1,53 +1,53 @@
-package com.evanaronson.linguize.ui.home
+package com.evanaronson.linguize.ui.popup
 
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** A card that opened Settings is told once when Settings is left, and only that card. */
-class SettingsReturnTest {
+class PopupReturnTest {
     private val told = mutableListOf<String>()
     private val first: () -> Unit = { told += "first" }
     private val second: () -> Unit = { told += "second" }
 
     @After
     fun forget() {
-        SettingsReturn.cancel(first)
-        SettingsReturn.cancel(second)
+        PopupReturn.cancel(first)
+        PopupReturn.cancel(second)
     }
 
     @Test
     fun theWaitingCardIsToldOnce() {
-        SettingsReturn.left(0) // Nothing waits: nothing happens.
-        val token = SettingsReturn.await(first)
-        SettingsReturn.left(token)
-        SettingsReturn.left(token)
+        PopupReturn.left(0) // Nothing waits: nothing happens.
+        val token = PopupReturn.await(first)
+        PopupReturn.left(token)
+        PopupReturn.left(token)
         assertEquals(listOf("first"), told)
     }
 
     @Test
     fun aLaterCardTakesTheWaitAndAClosedOneLeavesIt() {
-        val old = SettingsReturn.await(first)
-        val current = SettingsReturn.await(second)
+        val old = PopupReturn.await(first)
+        val current = PopupReturn.await(second)
         // Cancelling a card that no longer waits leaves the one that does.
-        SettingsReturn.cancel(first)
-        SettingsReturn.left(old)
+        PopupReturn.cancel(first)
+        PopupReturn.left(old)
         assertEquals(emptyList<String>(), told)
-        SettingsReturn.left(current)
+        PopupReturn.left(current)
         assertEquals(listOf("second"), told)
 
-        val cancelled = SettingsReturn.await(first)
-        SettingsReturn.cancel(first)
-        SettingsReturn.left(cancelled)
+        val cancelled = PopupReturn.await(first)
+        PopupReturn.cancel(first)
+        PopupReturn.left(cancelled)
         assertEquals(listOf("second"), told)
     }
 
     @Test
     fun visitingHomeDoesNotConsumeThePopupReturn() {
-        val token = SettingsReturn.await(first)
+        val token = PopupReturn.await(first)
         assertEquals(emptyList<String>(), told)
-        SettingsReturn.left(token)
-        SettingsReturn.left(token)
+        PopupReturn.left(token)
+        PopupReturn.left(token)
         assertEquals(listOf("first"), told)
     }
 }

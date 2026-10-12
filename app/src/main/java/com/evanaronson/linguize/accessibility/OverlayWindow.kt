@@ -8,7 +8,6 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
-import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
@@ -33,8 +32,8 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
  * and clears them when it's removed.
  *
  * While shown, the window takes key focus so Back reaches [onBack] rather than the app
- * below, which would otherwise leave the screen the card's text field is on. Review
- * keeps the keyboard with the source field; embedded settings can explicitly take it.
+ * below, which would otherwise leave the screen the card's text field is on. The
+ * keyboard stays with that source field.
  */
 internal class OverlayWindow(private val context: Context, private val onBack: () -> Unit) :
     LifecycleOwner,
@@ -54,7 +53,6 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         windowFlags(hidden = false),
         PixelFormat.TRANSLUCENT,
     )
-        .apply { softInputMode = LayoutParams.SOFT_INPUT_ADJUST_RESIZE }
     private var root: View? = null
     private var screenAvailable = false
     private val unlockedScreen = UnlockedScreen(context) {
@@ -79,7 +77,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             addView(ComposeView(context).apply { setContent(content) })
         }
         root.visibility = if (hidden || !screenAvailable) View.INVISIBLE else View.VISIBLE
-        params.flags = windowFlags(hidden || !screenAvailable, editing)
+        params.flags = windowFlags(hidden || !screenAvailable)
         lifecycleRegistry.currentState = if (hidden || !screenAvailable) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
         windowManager.addView(root, params)
         this.root = root
@@ -110,21 +108,10 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         val root = root ?: return
         val invisible = hidden || !screenAvailable
         root.visibility = if (invisible) View.INVISIBLE else View.VISIBLE
-        params.flags = windowFlags(hidden = invisible, editing = editing)
+        params.flags = windowFlags(hidden = invisible)
         windowManager.updateViewLayout(root, params)
         lifecycleRegistry.currentState = if (invisible) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
     }
-
-    /** Embedded settings owns its keyboard; the check leaves the keyboard with the source. */
-    var editing = false
-        set(value) {
-            if (field == value) return
-            field = value
-            val root = root ?: return
-            if (!value) context.getSystemService(InputMethodManager::class.java)
-                .hideSoftInputFromWindow(root.windowToken, 0)
-            unlockedScreen.refresh()
-        }
 
     /**
      * Detaches the focus-taking overlay before [afterDetach] puts text back into the app.
@@ -154,13 +141,11 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
  * keeps its keyboard and field. Hidden, it takes no touches or keys, and must not be an
  * input-method target either: [LayoutParams.FLAG_ALT_FOCUSABLE_IM] inverts what
  * [LayoutParams.FLAG_NOT_FOCUSABLE] says about the keyboard, so keeping it would leave the
- * invisible overlay above the app behind it (Settings) as what the keyboard is placed against.
+ * invisible overlay above the app behind it as what the keyboard is placed against.
  */
-internal fun windowFlags(hidden: Boolean, editing: Boolean = false): Int =
+internal fun windowFlags(hidden: Boolean): Int =
     if (hidden) {
         LayoutParams.FLAG_LAYOUT_IN_SCREEN or LayoutParams.FLAG_NOT_FOCUSABLE or LayoutParams.FLAG_NOT_TOUCHABLE
-    } else if (editing) {
-        LayoutParams.FLAG_LAYOUT_IN_SCREEN
     } else {
         LayoutParams.FLAG_LAYOUT_IN_SCREEN or LayoutParams.FLAG_ALT_FOCUSABLE_IM
     }

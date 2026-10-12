@@ -38,7 +38,7 @@ One word per idea, everywhere.
 | Languages | **Catalan**, **Spanish** | Castilian, castellano |
 | Where Linguize appears in other apps | **selection menu** | text menu, context menu, PROCESS_TEXT |
 
-**Linguize**, **Catalanize** and **Castilianize** are names. Use them only for the selection-menu entries and the language picker that copies them, never in running text.
+**Linguize**, **Catalanize** and **Castilianize** are selection-menu names. The language picker uses **Auto Detect** for automatic detection and keeps **Catalanize** and **Castilianize** for those named choices. The popup app button uses the Linguize wordmark image.
 
 ## Patterns
 

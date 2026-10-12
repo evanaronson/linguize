@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.FakeClient
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.menu.CheckActivity
+import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.QUESTION
 import com.evanaronson.linguize.QUESTION_JSON
@@ -426,7 +427,7 @@ class CheckViewModelTest {
 
     @Test
     @Config(application = App::class)
-    fun openingPopupSettingsDoesNotFinishOrLoseAcceptedEdits() {
+    fun openingTheAppDoesNotFinishTheSelectionOrLoseAcceptedEdits() {
         check.check(QUESTION, null, Origin.Menu)
         reviewed()
         check.acceptAll(EditKind.Fix)
@@ -440,8 +441,10 @@ class CheckViewModelTest {
             check,
         )
         controller.create().start().resume()
-        activity.openSettings()
-        activity.openHome()
+        activity.openApp()
+        val opened = shadowOf(activity).nextStartedActivity
+        assertEquals(HomeActivity::class.java.name, opened.component?.className)
+        assertTrue(opened.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         assertFalse(activity.isFinishing)
         assertEquals("Com estàs?", check.workingText)
         assertTrue(closed().isEmpty())

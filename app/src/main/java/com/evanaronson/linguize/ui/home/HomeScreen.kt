@@ -59,6 +59,7 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TryIt(check, onOpenSettings)
+            AccessibilitySetup()
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())

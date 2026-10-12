@@ -5,15 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.components.SectionTitle
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
@@ -44,8 +42,6 @@ import com.evanaronson.linguize.ui.components.uiLocale
 internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val host = LocalSettingsHost.current
-    val openExternal = host.openExternal ?: context::openFromSettings
     val kept by settings.history.collectAsState()
     val count = kept?.count ?: 0
     var confirmingClear by rememberSaveable { mutableStateOf(false) }
@@ -78,22 +74,10 @@ internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
     val exported = settings.exported
     LaunchedEffect(exported, inFront) {
         if (exported == null || !inFront) return@LaunchedEffect
-        settings.takeExport()?.let { share(context, it, openExternal) }
+        settings.takeExport()?.let { share(context, it) }
     }
 
     if (confirmingClear) {
-        if (host.embedded) {
-            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.delete_all_question), style = MaterialTheme.typography.titleMedium)
-                    Text(pluralStringResource(R.plurals.delete_all_checks_description, count, count))
-                    Row {
-                        TextButton(onClick = { confirmingClear = false }) { Text(stringResource(R.string.cancel)) }
-                        TextButton(onClick = { confirmingClear = false; settings.clearHistory() }) { Text(stringResource(R.string.delete)) }
-                    }
-                }
-            }
-        } else {
         AlertDialog(
             onDismissRequest = { confirmingClear = false },
             title = { Text(stringResource(R.string.delete_all_question)) },
@@ -106,7 +90,6 @@ internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
             },
             dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(stringResource(R.string.cancel)) } },
         )
-        }
     }
 }
 
@@ -133,7 +116,7 @@ private fun keptLabel(resources: Resources, kept: KeptHistory): String {
 }
 
 /** Offers the exported file through the share sheet. */
-private fun share(context: Context, exported: Export, openExternal: (Intent) -> Unit) {
+private fun share(context: Context, exported: Export) {
     val uri = when (exported) {
         is Export.Ready -> exported.uri
         Export.Failed -> {
@@ -146,5 +129,5 @@ private fun share(context: Context, exported: Export, openExternal: (Intent) -> 
         .putExtra(Intent.EXTRA_STREAM, uri)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     send.clipData = ClipData.newRawUri("", uri)
-    openExternal(Intent.createChooser(send, context.getString(R.string.export_history)))
+    context.openExternal(Intent.createChooser(send, context.getString(R.string.export_history)))
 }

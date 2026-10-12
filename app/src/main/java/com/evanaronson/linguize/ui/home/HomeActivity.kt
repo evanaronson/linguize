@@ -50,7 +50,7 @@ class HomeActivity : ComponentActivity() {
                                 onOpen = ::open)
                         }
                         Screen.Settings -> saved.SaveableStateProvider(current.saved) {
-                            SettingsScreen(settings, onBack = ::back, onHome = ::back)
+                            SettingsScreen(settings, onBack = ::back)
                         }
                         is Screen.Detail -> SessionScreen(session, onBack = ::back)
                     }

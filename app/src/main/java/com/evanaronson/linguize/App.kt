@@ -2,9 +2,6 @@ package com.evanaronson.linguize
 
 import android.app.Application
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.evanaronson.linguize.data.ApiKeys
 import com.evanaronson.linguize.data.SelectionMenu
 import com.evanaronson.linguize.data.Settings
@@ -29,16 +26,10 @@ class App : Application() {
     val keys by lazy { ApiKeys(this) }
     val menu by lazy { SelectionMenu(this) }
 
-    // Temporary S21 shortcut probe. Memory only, with no writing or attempt history.
-    // Remove after the ChatGPT shortcut failure is diagnosed.
-    internal var shortcutTestTaps by mutableStateOf(0)
-    internal var shortcutTestStage by mutableStateOf("")
-    internal var shortcutTestAvailable by mutableStateOf<Boolean?>(null)
-
     /** Every check and what came of it. Opens its database on first use, off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
 
-    /** One owner serializes exports from the app and popup settings. */
+    /** One owner serializes exports from Settings and saved checks. */
     val exports by lazy { Exports(cacheDir) }
 
     /** This build's version name. */
@@ -88,7 +79,6 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        shortcutTestStage = getString(R.string.shortcut_stage_no_taps)
         // onCreate runs once per process, so this does too. A session open in the database
         // that this process didn't open was open when an earlier process ended.
         appScope.launch {

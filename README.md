@@ -19,10 +19,10 @@ Replace what you want, in-line, and you're back where you were.
 **[Download the latest APK](https://github.com/evanaronson/linguize/releases/latest/download/linguize.apk)**. Every push to `main` that changes the app builds a new one; older builds are under [Releases](https://github.com/evanaronson/linguize/releases).
 
 1. Open the link on your phone and open the downloaded file. When Android asks, allow your browser to install unknown apps.
-2. Open **Linguize**, pick Google Gemini or OpenAI, paste that provider's API key ([Gemini](https://aistudio.google.com/apikey), [OpenAI](https://platform.openai.com/api-keys)) and tap Save. Keys are stored encrypted on the phone and are never in the code.
-3. Try a sentence in **Try it** on the same screen. Then select text you've written in any app and look for **Linguize** in the selection menu (on Samsung it can be behind **⋮** in the menu).
+2. Open **Linguize**, tap the settings gear, pick Google Gemini or OpenAI, paste that provider's API key ([Gemini](https://aistudio.google.com/apikey), [OpenAI](https://platform.openai.com/api-keys)) and tap Save. Keys are stored encrypted on the phone and are never in the code.
+3. Try a sentence in **Try it** on Home. Then select text you've written in any app and look for **Linguize** in the selection menu (on Samsung it can be behind **⋮** in the menu).
 
-Home, the screen Linguize opens to, has Try it and, below it, **Recent**: the checks you've made, newest first. Tap one to see it as the card showed it; swipe it away to delete it. Settings is behind the gear. Its **History** section turns remembering off (on by default; what's already kept stays), shows how much is kept, and has **Clear** and **Export** (a JSON Lines file). History stays on the phone.
+Home, the screen Linguize opens to, has Try it and, below it, **Recent**: the checks you've made, newest first. Tap one to see it as the card showed it; swipe it away to delete it. Settings is behind the gear. The popup's wordmark button, to the left of **Auto Detect**, opens the app without closing the check or losing accepted changes. Meaning stays inside the popup; Settings belongs to the app. Its **History** section turns remembering off (on by default; what's already kept stays), shows how much is kept, and has **Clear** and **Export** (a JSON Lines file). History stays on the phone.
 
 That's all most apps need. Later builds install over the previous one because CI signs each one with the same private key.
 
@@ -40,13 +40,13 @@ Android makes this a few taps because the app wasn't installed from the Play Sto
 2. **Settings → Apps → Linguize → ⋮ (top right) → Allow restricted settings**, and confirm.
 3. Back in **Settings → Accessibility → Installed apps → Linguize**: turn it on, along with its shortcut. A floating Linguize button appears (on Samsung you can choose between the floating button and the navigation-bar button).
 
-The **Apps without the menu** section of Linguize's settings has the same steps and a button straight to Accessibility settings.
+The **When Linguize isn't in the menu** section on Home has the same steps and a button straight to Accessibility settings.
 
 ## Code layout
 
 Everything is under `app/src/main/java/com/evanaronson/linguize/`. Dependencies between major packages run one way: `codec` imports nothing else from the app, `core` only `codec`, `llm` only those, `history` only `codec` and `core`, and `data` only `codec`, `core` and `llm` (plus generated resources). The root `App`, `CheckContext` and `Checker` compose those layers; `ui/` uses the root and below; `menu/` and `accessibility/` are entry points above `ui/` and do not depend on each other. `codec` and `core` stay free of Android imports.
 
-`python3 scripts/check_architecture.py` checks these import directions and package declarations before Gradle runs in CI, reporting the offending path and import. It guards production Kotlin sources, not test fixtures, and treats `ui/` as one layer: popup and full-app hosts share the card, settings sections, controls and localized text. It is an import check, so code review still needs to assess fully qualified references and dependencies introduced by libraries.
+`python3 scripts/check_architecture.py` checks these import directions and package declarations before Gradle runs in CI, reporting the offending path and import. It guards production Kotlin sources, not test fixtures, and treats `ui/` as one layer: popup and full-app hosts share the card, language picker and localized text. It is an import check, so code review still needs to assess fully qualified references and dependencies introduced by libraries.
 
 | Package | Role |
 |---|---|
@@ -59,13 +59,13 @@ Everything is under `app/src/main/java/com/evanaronson/linguize/`. Dependencies 
 | `ui/card/` | The result card and its `CheckViewModel`, which owns a check and the accepted changes and reports to `CheckHistory`; `CardActions.of()` gives the card the same behaviour everywhere. |
 | `ui/components/` | Shared controls, the language picker (auto-detect and `Language.all`, named as the selection menu names them) and date formatting. |
 | `ui/history/` | The Recent list and the page for one past check (the card `Replay` rebuilds, shown with the card's own content), with their view models. |
-| `ui/home/` | `HomeActivity`, the launcher screen: Try it, then Recent, with Settings and a past check's page as screens of the same activity. `SettingsReturn` owns the callback for an overlay's temporary excursion into another activity. |
-| `ui/settings/` | The settings screen (one file per section, History included), shared settings content for popup hosts, and its view model. |
-| `ui/popup/` | `PopupCard` keeps checking, Meaning and Settings inside one popup, with the same controls used in the full app. `PopupExternalActivity` temporarily opens Home or an external settings link and returns to the existing overlay session. |
+| `ui/home/` | `HomeActivity`, the launcher screen: Try it, then Recent, with Settings and a past check's page as screens of the same activity. Accessibility setup instructions live here, above Recent. |
+| `ui/settings/` | The app's settings screen (one file per section, History included) and its view model. |
+| `ui/popup/` | `PopupAppActivity` opens the app in a separate task; `PopupReturn` restores the existing accessibility popup when that visit ends. Settings is reached through the app's gear. |
 | `ui/text/` | Resource mappings for shared option labels and failure messages. Domain enums and stored tokens stay independent of Android resources and UI language. |
 | `ui/theme/` | The brand theme. |
 | `menu/` | `CheckActivity`, opened from a selection-menu entry; `CheckRateLimit` caps how many checks other apps can start through it (a few a minute per app). |
-| `accessibility/` | The accessibility button: `LinguizeAccessibilityService` reads the focused field and writes accepted changes back; `PrivateField` excludes sensitive inputs. `OverlayWindow` owns the popup's views and view models, while `UnlockedScreen` keeps them hidden while the screen is off or locked. |
+| `accessibility/` | The accessibility button: `LinguizeAccessibilityService` reads the focused field and writes accepted changes back; `FocusedField` bounds fallback lookup to the same source window, and `PrivateField` excludes sensitive inputs. `OverlayWindow` owns the popup's views and view models, while `UnlockedScreen` keeps them hidden while the screen is off or locked. |
 
 The prompt and schema live in `app/src/main/assets/` so the eval script uses exactly what the app sends, and a unit test checks every example in the prompt against the schema.
 

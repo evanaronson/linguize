@@ -45,10 +45,15 @@ internal object Sentences {
         return at
     }
 
-    private fun acronymDot(text: String, dot: Int): Boolean =
-        dot > 0 && text[dot - 1].isUpperCase() &&
-            (dot < 2 || !text[dot - 2].isLetter()) &&
-            dot + 2 < text.length && text[dot + 1].isUpperCase() && text[dot + 2] == '.'
+    private fun acronymDot(text: String, dot: Int): Boolean {
+        var start = dot
+        while (start > 0 && text[start - 1].isLetter()) start--
+        var end = dot + 1
+        while (end < text.length && text[end].isLetter()) end++
+        return start < dot && end > dot + 1 && end < text.length && text[end] == '.' &&
+            text.substring(start, dot).all { it.isUpperCase() } &&
+            text.substring(dot + 1, end).all { it.isUpperCase() }
+    }
 
     private fun abbreviation(text: String, dot: Int): Boolean {
         var start = dot

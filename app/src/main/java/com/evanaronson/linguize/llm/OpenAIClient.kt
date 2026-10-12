@@ -2,6 +2,7 @@ package com.evanaronson.linguize.llm
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -12,7 +13,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 /** OpenAI's Responses API over plain REST. */
-class OpenAIClient(private val http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
+class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
+    private val http = http.forProviderRequests()
     /** Strict structured output rejects Gemini's non-standard propertyOrdering. */
     private val schema = JsonObject(prompt.schema - "propertyOrdering")
 
@@ -22,11 +24,11 @@ class OpenAIClient(private val http: OkHttpClient, private val prompt: Prompt) :
     override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
         // One time limit for the whole check, the retry without reasoning control included.
         val deadline = Deadline(http)
-        val (code, payload) = reasoningNone.send(model) { withoutReasoning ->
+        val (code, payload) = reasoningNone.send(model) { withNoReasoning ->
             val call = Request.Builder()
                 .url("$BASE/responses")
                 .header("Authorization", "Bearer $key")
-                .post(body(model, request, withoutReasoning).toString().toRequestBody(JSON_MEDIA_TYPE))
+                .post(body(model, request, withNoReasoning).toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
             deadline.send(call)
         }
@@ -39,7 +41,7 @@ class OpenAIClient(private val http: OkHttpClient, private val prompt: Prompt) :
         val (code, payload) = Deadline(http).send(call)
         if (code != 200) throw failure(code, payload)
         val ids = readResponse(payload) { page ->
-            page["data"]?.jsonArray.orEmpty().mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.content }
+            requireNotNull(page["data"]).jsonArray.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull }
         }
         return textModels(ids.filter { it.startsWith("gpt-") || Regex("^o\\d").containsMatchIn(it) })
     }
@@ -67,20 +69,25 @@ class OpenAIClient(private val http: OkHttpClient, private val prompt: Prompt) :
 
         /** The text of the output message. Throws [CheckFailure]; TooLong when it was cut off. */
         fun answer(payload: String): String = readResponse(payload) { root ->
-            if (root["status"]?.jsonPrimitive?.content == "incomplete") {
-                val why = root["incomplete_details"]?.jsonObject?.get("reason")?.jsonPrimitive?.content
+            val status = root["status"]?.jsonPrimitive?.contentOrNull
+            if (status == "incomplete") {
+                val why = root["incomplete_details"]?.jsonObject?.get("reason")?.jsonPrimitive?.contentOrNull
                 // Half a JSON object would only fail as "not in the expected format", and again on retry.
                 if (why == "max_output_tokens") throw truncated()
-                if (why == "content_filter") throw declined("OpenAI")
-                throw CheckFailure(CheckFailure.Reason.BadResponse, "The AI stopped before finishing. Reason given: ${why ?: "none"}")
+                if (why == "content_filter") throw declined()
+                throw CheckFailure(CheckFailure.Reason.BadResponse, why, userMessage = CheckFailure.Message.IncompleteReply)
             }
-            root["output"]?.jsonArray.orEmpty()
+            if (status != "completed") {
+                throw CheckFailure(CheckFailure.Reason.BadResponse, errorMessage(payload), userMessage = CheckFailure.Message.IncompleteReply)
+            }
+            val parts = root["output"]?.jsonArray.orEmpty()
                 .map { it.jsonObject }
-                .filter { it["type"]?.jsonPrimitive?.content == "message" }
+                .filter { it["type"]?.jsonPrimitive?.contentOrNull == "message" }
                 .flatMap { it["content"]?.jsonArray.orEmpty() }
                 .map { it.jsonObject }
-                .filter { it["type"]?.jsonPrimitive?.content == "output_text" }
-                .joinToString("") { it["text"]?.jsonPrimitive?.content.orEmpty() }
+            if (parts.any { it["type"]?.jsonPrimitive?.contentOrNull == "refusal" }) throw declined()
+            parts.filter { it["type"]?.jsonPrimitive?.contentOrNull == "output_text" }
+                .joinToString("") { it["text"]?.jsonPrimitive?.contentOrNull.orEmpty() }
         }
 
         /** An HTTP error, with what OpenAI's own error codes say on top of the status code. */

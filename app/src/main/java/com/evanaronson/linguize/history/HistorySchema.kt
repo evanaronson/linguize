@@ -127,7 +127,7 @@ internal object HistorySchema {
     fun markAbandoned(keep: Int): String {
         val kept = if (keep == 0) "" else """ AND "id" NOT IN (${List(keep) { "?" }.joinToString()})"""
         return """
-        UPDATE $SESSIONS SET "closedAt" = ?, "updatedAt" = ?, "outcome" = '${Outcome.Abandoned.token}'
+        UPDATE $SESSIONS SET "closedAt" = ?, "updatedAt" = MAX("updatedAt", ?), "outcome" = '${Outcome.Abandoned.token}'
         WHERE "closedAt" IS NULL$kept
         """.trimIndent()
     }
@@ -157,6 +157,7 @@ internal object HistorySchema {
         ) AS s
         LEFT JOIN $SUGGESTIONS AS g
             ON g."sessionId" = s."id" AND g."deletedAt" IS NULL AND g."decision" != '$SUPERSEDED'
+                AND g."kind" IN ($KNOWN_KINDS) AND g."decision" IN ($KNOWN_DECISIONS)
         GROUP BY s."id"
         ORDER BY s."startedAt" DESC
     """.trimIndent()
@@ -165,6 +166,8 @@ internal object HistorySchema {
     private val NATURAL = EditKind.Natural.token
     private val ACCEPTED = Decision.Accepted.token
     private val SUPERSEDED = Decision.Superseded.token
+    private val KNOWN_KINDS = EditKind.entries.joinToString { "'${it.token}'" }
+    private val KNOWN_DECISIONS = Decision.entries.joinToString { "'${it.token}'" }
 
     const val SESSION = """SELECT * FROM $SESSIONS WHERE "id" = ? AND "deletedAt" IS NULL"""
 
@@ -188,7 +191,6 @@ internal object HistorySchema {
             AND "startedAt" >= ?
             AND "closedAt" IS NOT NULL AND "deletedAt" IS NULL AND "outcome" != '${Outcome.Failed.token}'
         ORDER BY "startedAt" DESC
-        LIMIT 20
         """.trimIndent()
     }
 

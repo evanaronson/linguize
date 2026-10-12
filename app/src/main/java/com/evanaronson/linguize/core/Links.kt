@@ -10,9 +10,6 @@ import java.text.Normalizer
  * So no suggestion may put a link into the text that wasn't already there.
  */
 internal object Links {
-    /** How far a run of text around an edit is looked at, each way. */
-    private const val REACH = 1000
-
     /** The most edits that can share a run of text for every combination of them to be tried; more aren't offered. */
     private const val MOST_TOGETHER = 8
 
@@ -25,7 +22,7 @@ internal object Links {
      * a link, none of those edits is offered.
      */
     fun withoutNew(original: String, edits: List<Edit>): List<Edit> {
-        val known = fold(original)
+        val known = links(original)
         val linking = runs(original, edits).filterNot { run ->
             run.size <= MOST_TOGETHER && (1 until (1 shl run.size)).none { mask ->
                 linking(original, known, shown(run.filterIndexed { k, _ -> mask shr k and 1 == 1 }))
@@ -36,11 +33,18 @@ internal object Links {
     }
 
     /** Whether [text] holds a link that [original] doesn't. */
-    fun hasNewLink(original: String, text: String) = hasNew(fold(original), text)
+    fun hasNewLink(original: String, text: String) = hasNew(links(original), text)
 
-    /** Whether [text] holds a link that isn't in [known], the original text [fold]ed. */
-    private fun hasNew(known: String, text: String) =
-        LINK.findAll(text).any { !isAbbreviation(it.value) && fold(it.value) !in known }
+    /** Complete recognized links, not arbitrary substrings: "evil.com" isn't "notevil.com". */
+    private fun links(text: String): Set<String> = LINK.findAll(text)
+        .map { it.value }
+        .filterNot(::isAbbreviation)
+        .map(::identity)
+        .toSet()
+
+    /** Whether [text] holds a complete link that isn't among the original's [known] links. */
+    private fun hasNew(known: Set<String>, text: String) =
+        LINK.findAll(text).any { !isAbbreviation(it.value) && identity(it.value) !in known }
 
     /** Short capitals joined by dots, like "EE.UU." or "RR.HH.", are abbreviations, not addresses. */
     private fun isAbbreviation(match: String) =
@@ -72,58 +76,55 @@ internal object Links {
         for (edit in edits) {
             for (run in spacesBefore[edit.start]..spacesBefore[edit.end]) runs.getOrPut(run) { mutableListOf() } += edit
         }
-        return runs.values
+        // A phrase spanning many spaces participates in many stretches, often with exactly
+        // the same edits. Their combinations produce the same text; only try each set once.
+        return runs.values.distinct()
     }
 
     /**
-     * Whether [edits], applied together to [original], put a new link in a run of text
-     * without spaces around any of them. Only as much of the text as those runs can reach
-     * is put together.
+     * Compare complete texts: clipping the context could truncate an unchanged adjacent
+     * URL and mistake it for a new destination. Input length and combination count are
+     * bounded by the checker and [MOST_TOGETHER].
      */
-    private fun linking(original: String, known: String, edits: List<Edit>): Boolean {
-        val sorted = edits.sortedWith(editOrder)
-        val out = StringBuilder()
-        val placed = mutableListOf<IntRange>()
-        var pos = maxOf(0, sorted.first().start - REACH)
-        for (edit in sorted) {
-            if (edit.start < pos) continue
-            out.append(original, pos, edit.start)
-            val start = out.length
-            out.append(edit.replacement)
-            placed += start until out.length
-            pos = edit.end
-        }
-        out.append(original, pos, minOf(original.length, pos + REACH))
-        val text = out.toString()
-        return placed.any { hasNew(known, before(text, it.first) + text.substring(it.first, it.last + 1) + after(text, it.last + 1)) }
-    }
-
-    /** The text without spaces that runs up to [at]. */
-    private fun before(text: String, at: Int): String {
-        var start = at
-        while (start > 0 && at - start < REACH && !text[start - 1].isWhitespace()) start--
-        return text.substring(start, at)
-    }
-
-    /** The text without spaces that runs on from [at]. */
-    private fun after(text: String, at: Int): String {
-        var end = at
-        while (end < text.length && end - at < REACH && !text[end].isWhitespace()) end++
-        return text.substring(at, end)
-    }
+    private fun linking(original: String, known: Set<String>, edits: List<Edit>) =
+        hasNew(known, render(original, edits).text)
 
     private const val LABEL = """[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?"""
 
     /** What a link's path may end with: not the punctuation of the sentence around it. */
     private const val PATH = """[^\s]*[^\s.,;:!?)\]}"'»…]"""
 
-    /** A web address with a scheme or "www.", or anything shaped like a domain name. */
+    /**
+     * A web address with a scheme or "www.", or anything shaped like a domain name.
+     * DNS names have at most 127 labels. Bounding their repetition also keeps malformed
+     * model output with thousands of dotted labels from exhausting the regex stack.
+     */
     private val LINK = Regex(
         """(?i)(?:[a-z][a-z0-9+.-]*://|www\.)$PATH""" +
-            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL)*\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:]$PATH)?""",
+            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:?#]$PATH)?""",
     )
 
-    /** Lowercase without accents: a fix to the case or accents of words a dot joins ("estas.Bien") adds no link. */
+    private val SCHEME = Regex("""(?i)^[a-z][a-z0-9+.-]*://""")
+
+    /**
+     * Explicit addresses keep their path, query, credentials and Unicode host identity.
+     * Only the scheme and ASCII host letters are case insensitive. Bare dotted prose
+     * retains the accent heuristic, so correcting "estas.Bien" is still allowed.
+     */
+    private fun identity(link: String): String {
+        val authorityStart = SCHEME.find(link)?.value?.length ?: 0
+        if (authorityStart == 0 && !link.startsWith("www.", ignoreCase = true) && link.none { it in "/:?#" }) return fold(link)
+        val authorityEnd = link.indexOfAny(charArrayOf('/', '?', '#'), authorityStart).takeIf { it >= 0 } ?: link.length
+        val hostStart = (link.lastIndexOf('@', authorityEnd - 1) + 1).coerceAtLeast(authorityStart)
+        return asciiLower(link.substring(0, authorityStart)) + link.substring(authorityStart, hostStart) +
+            asciiLower(link.substring(hostStart, authorityEnd)) + link.substring(authorityEnd)
+    }
+
+    private fun asciiLower(text: String) = buildString(text.length) {
+        for (char in text) append(if (char in 'A'..'Z') char.lowercaseChar() else char)
+    }
+
+    /** Lowercase without accents, only for bare dotted words that may simply need a space. */
     private fun fold(s: String) =
         Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).filterNot { Character.getType(it) == Character.NON_SPACING_MARK.toInt() }
 }

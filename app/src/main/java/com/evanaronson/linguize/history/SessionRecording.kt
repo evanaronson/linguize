@@ -114,6 +114,7 @@ class SessionRecording(
         meaning: String?,
         status: Verdict.Status? = null,
         reusedFrom: String? = null,
+        failureMessage: String? = null,
     ): SessionRecord {
         if (closed != null) return session
         val index = session.attempts.size
@@ -133,6 +134,7 @@ class SessionRecording(
             provider = settings.provider,
             model = settings.model,
             promptHash = settings.promptHash,
+            failureMessage = failureMessage,
         )
         val succeeded = failure == null
         session = session.copy(

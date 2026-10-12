@@ -12,6 +12,7 @@ import com.evanaronson.linguize.llm.GeminiClient
 import com.evanaronson.linguize.llm.OpenAIClient
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.data.Exports
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +29,9 @@ class App : Application() {
     /** Every check and what came of it. Opens its database on first use, off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
 
+    /** One owner serializes exports from Settings and saved checks. */
+    val exports by lazy { Exports(cacheDir) }
+
     /** This build's version name. */
     @Suppress("DEPRECATION") // The PackageInfoFlags overload needs API 33.
     val appVersion: String by lazy { packageManager.getPackageInfo(packageName, 0).versionName.orEmpty() }
@@ -39,6 +43,7 @@ class App : Application() {
      */
     val historyEnvironment = object : HistoryEnvironment {
         override val enabled get() = settings.historyEnabled
+        override val recordingEpoch get() = settings.historyEpoch
         override val deviceId get() = settings.deviceId
         override val appVersion get() = this@App.appVersion
     }

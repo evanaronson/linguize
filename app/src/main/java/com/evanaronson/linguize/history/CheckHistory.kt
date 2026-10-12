@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * What history needs from the app besides its store. Read off the main thread when a
@@ -28,6 +29,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 interface HistoryEnvironment {
     /** Whether checks are recorded. Read before every write. */
     val enabled: Boolean
+
+    /** Advances when recording is turned off, so enabling it again never resumes an old card. */
+    val recordingEpoch: Long get() = 0L
 
     /** A random id made once per install. */
     val deviceId: String
@@ -104,6 +108,9 @@ class CheckHistory(
     /** The open session's record; null when history is off or no card is open. */
     private var recording: SessionRecording? = null
 
+    /** Permission belongs to a session, including its queued writes after the card closes. */
+    private var permission: RecordingPermission? = null
+
     /**
      * Whether the card's session has been decided, opened or refused ([open] got past
      * reading the environment, or found the check isn't recorded), until [close]. Once it
@@ -163,9 +170,11 @@ class CheckHistory(
         // Undispatched: the request is on its way before anything below runs.
         val answer = async(start = CoroutineStart.UNDISPATCHED) { capture { ask() } }
         val key = prepare()
+        val permission = permission
         val since = clock() - reuseWithin
         // Not a child: a blocking query that's slow must never be waited for.
-        val lookup: Deferred<Kept?>? = key?.let { scope.async { find(it, since) } }
+        val lookup: Deferred<Kept?>? = key?.takeIf { permission?.allowed() == true }
+            ?.let { scope.async { if (permission?.allowed() == true) find(it, since) else null } }
         try {
             val kept = lookup?.let {
                 select<Kept?> {
@@ -173,9 +182,9 @@ class CheckHistory(
                     lookup.onAwait { it }
                 }
             }
-            if (kept != null && answer.isActive) {
+            if (kept != null && answer.isActive && permission?.allowed() == true) {
                 val reused = quietly("show a kept answer") { reuse(kept) }
-                if (reused != null && answer.isActive) {
+                if (reused != null && answer.isActive && permission.allowed()) {
                     answer.cancel()
                     return@coroutineScope Answer(reused, kept)
                 }
@@ -217,12 +226,14 @@ class CheckHistory(
      */
     internal suspend fun open(text: String, opening: Opening): SessionRecord? {
         recording = null
+        permission = null
         decided = false
         val context = if (opening.origin.recorded && text.length <= maxChars) {
             withContext(io) {
                 quietly("open a session") {
-                    if (!environment.enabled) return@quietly null
-                    SessionContext(opening, appVersion = environment.appVersion, deviceId = environment.deviceId)
+                    val permission = RecordingPermission(environment.recordingEpoch)
+                    if (!permission.allowed()) return@quietly null
+                    SessionContext(opening, appVersion = environment.appVersion, deviceId = environment.deviceId) to permission
                 }
             }
         } else {
@@ -231,8 +242,11 @@ class CheckHistory(
         // Decided, either way; a cancellation while the environment was read leaves it undecided.
         decided = true
         context ?: return null
-        val started = quietly("open a session") { SessionRecording(text, context, clock(), newId) } ?: return null
+        val started = quietly("open a session") {
+            SessionRecording(text, context.first, clock(), newId).also { store.registerSession(it.session.id) }
+        } ?: return null
         recording = started
+        permission = context.second
         val session = started.session
         write("save a session") { store.save(session) }
         return session.takeIf { recording != null }
@@ -262,10 +276,10 @@ class CheckHistory(
      * An attempt failed for [reason] (a `CheckFailure.Reason` token). [raw] is the model's
      * answer when one came but couldn't be read.
      */
-    fun failed(settled: List<Settled>, reason: String, detail: String?, raw: String? = null) {
+    fun failed(settled: List<Settled>, reason: String, detail: String?, raw: String? = null, message: String? = null) {
         val recording = recording ?: return
         val session = quietly("record a failed attempt") {
-            recording.attempt(clock(), settled, raw, reason, detail, null, null)
+            recording.attempt(clock(), settled, raw, reason, detail, null, null, failureMessage = message)
         } ?: return
         write("save an attempt") { store.save(session) }
     }
@@ -322,14 +336,30 @@ class CheckHistory(
      * turned off, the open session stops being recorded and nothing is written.
      */
     private fun write(what: String, block: suspend () -> Unit) {
-        if (quietly("read whether history is on") { environment.enabled } != true) {
+        val permission = permission
+        if (permission?.allowed() != true) {
             recording = null
             return
         }
         val previous = lastWrite
         lastWrite = scope.launch {
             previous?.join()
-            quietly(what) { block() }
+            // A queued write may start after the toggle changed. Check again at the
+            // storage boundary; its permission cannot be revived by opening another card.
+            if (permission.allowed()) quietly(what) { block() }
+        }
+    }
+
+    private inner class RecordingPermission(private val epoch: Long) {
+        private val active = AtomicBoolean(true)
+
+        fun allowed(): Boolean {
+            if (!active.get()) return false
+            val allowed = quietly("read whether history is on") {
+                environment.enabled && environment.recordingEpoch == epoch
+            } == true
+            if (!allowed) active.set(false)
+            return allowed && active.get()
         }
     }
 

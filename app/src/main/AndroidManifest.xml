@@ -34,7 +34,14 @@
 
         <activity
             android:name=".menu.CheckActivity"
+            android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.Linguize.Overlay" />
+
+        <activity
+            android:name=".ui.popup.PopupAppActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:theme="@style/Theme.Linguize.Overlay" />

@@ -26,17 +26,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 
 /** "‹  Back": to the previous screen, or on the card from its understanding page to the suggestions. */
 @Composable
 fun BackButton(onBack: () -> Unit) {
     TextButton(onClick = onBack, contentPadding = PaddingValues(horizontal = 4.dp)) {
         // The arrow only repeats the word, so screen readers hear just "Back".
-        Text("‹", Modifier.clearAndSetSemantics {})
-        Text("  Back")
+        Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "›" else "‹", Modifier.clearAndSetSemantics {})
+        Text(stringResource(R.string.back), Modifier.padding(start = 8.dp))
     }
 }
 
@@ -65,11 +69,12 @@ fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit, trailing: @C
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun <T> Dropdown(label: String, selected: String, options: List<T>, optionLabel: (T) -> String, onSelect: (T) -> Unit) {
+fun <T> Dropdown(label: String, selected: T, options: List<T>, optionLabel: (T) -> String, onSelect: (T) -> Unit) {
+    val selectedLabel = optionLabel(selected)
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
-            value = selected,
+            value = selectedLabel,
             onValueChange = {},
             readOnly = true,
             singleLine = true,
@@ -104,9 +109,10 @@ fun <T> MultiSelectDropdown(
     onToggle: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val separator = stringResource(R.string.list_separator)
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
-            value = options.filter { it in selected }.joinToString(", ", transform = optionLabel),
+            value = options.filter { it in selected }.joinToString(separator, transform = optionLabel),
             onValueChange = {},
             readOnly = true,
             singleLine = true,

@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.settings
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.res.Resources
 import android.widget.Toast
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,39 +24,46 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.components.SectionTitle
 import com.evanaronson.linguize.ui.components.shortDate
+import com.evanaronson.linguize.ui.components.uiLocale
 
 /** Whether checks are remembered, how many are, and Clear and Export. Browsing them is on Home. */
 @Composable
 internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val kept by settings.history.collectAsState()
     val count = kept?.count ?: 0
     var confirmingClear by rememberSaveable { mutableStateOf(false) }
 
-    SectionTitle("History")
-    SwitchRow("Save checks in History", checked = state.historyEnabled, onChange = settings::setHistoryEnabled)
+    SectionTitle(stringResource(R.string.history))
+    SwitchRow(stringResource(R.string.save_history), checked = state.historyEnabled, onChange = settings::setHistoryEnabled)
     Text(
         if (state.historyEnabled) {
-            "Your text and the suggestions are saved on this phone only."
+            stringResource(R.string.save_history_on)
         } else {
-            "New checks aren't saved. Saved ones stay until you delete them."
+            stringResource(R.string.save_history_off)
         },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(kept?.let(::keptLabel).orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        TextButton(enabled = count > 0, onClick = { confirmingClear = true }) { Text("Delete all") }
+        Text(kept?.let { keptLabel(resources, it) }.orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        TextButton(enabled = count > 0, onClick = { confirmingClear = true }) { Text(stringResource(R.string.delete_all)) }
         TextButton(
             enabled = count > 0 && !settings.exporting,
             onClick = settings::exportHistory,
-        ) { Text(if (settings.exporting) "Exporting…" else "Export") }
+        ) { Text(if (settings.exporting) stringResource(R.string.exporting) else stringResource(R.string.export)) }
     }
 
     // Offered from this composition, so from the activity on screen now, and only once it's
@@ -72,15 +80,15 @@ internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
     if (confirmingClear) {
         AlertDialog(
             onDismissRequest = { confirmingClear = false },
-            title = { Text("Delete all checks?") },
-            text = { Text("This deletes ${checks(count)} from this phone. It can't be undone.") },
+            title = { Text(stringResource(R.string.delete_all_question)) },
+            text = { Text(pluralStringResource(R.plurals.delete_all_checks_description, count, count)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmingClear = false
                     settings.clearHistory()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -99,20 +107,20 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     }
 }
 
-/** "312 checks since 9 Oct". */
-private fun keptLabel(kept: KeptHistory): String {
+/** Count and date are formatted together so translations can reorder them. */
+private fun keptLabel(resources: Resources, kept: KeptHistory): String {
     val since = kept.since
-    return if (kept.count == 0 || since == null) "No checks saved" else "${checks(kept.count)} since ${shortDate(since)}"
+    return if (kept.count == 0 || since == null) resources.getString(R.string.no_checks_saved) else
+        resources.getQuantityString(R.plurals.saved_checks_since, kept.count,
+            kept.count, shortDate(since, locale = resources.uiLocale))
 }
-
-private fun checks(count: Int) = if (count == 1) "1 check" else "$count checks"
 
 /** Offers the exported file through the share sheet. */
 private fun share(context: Context, exported: Export) {
     val uri = when (exported) {
         is Export.Ready -> exported.uri
         Export.Failed -> {
-            Toast.makeText(context, "Couldn't export history. Try again.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, R.string.export_failed, Toast.LENGTH_LONG).show()
             return
         }
     }
@@ -121,5 +129,5 @@ private fun share(context: Context, exported: Export) {
         .putExtra(Intent.EXTRA_STREAM, uri)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     send.clipData = ClipData.newRawUri("", uri)
-    context.openFromSettings(Intent.createChooser(send, "Export history"))
+    context.openExternal(Intent.createChooser(send, context.getString(R.string.export_history)))
 }

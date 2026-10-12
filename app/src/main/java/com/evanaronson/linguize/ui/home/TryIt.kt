@@ -1,8 +1,8 @@
 package com.evanaronson.linguize.ui.home
 
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -13,7 +13,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
@@ -25,7 +27,8 @@ import com.evanaronson.linguize.ui.components.LanguagePicker
 @Composable
 internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
-    var sample by rememberSaveable { mutableStateOf(SAMPLE) }
+    val initialSample = stringResource(R.string.try_it_sample)
+    var sample by rememberSaveable { mutableStateOf(initialSample) }
 
     fun applyAndClose() {
         check.workingText?.let { sample = it }
@@ -58,9 +61,9 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             check.dismiss(applied = false)
         },
         modifier = Modifier.fillMaxWidth(),
-        label = { Text("Try it") },
-        placeholder = { Text("Type or paste text to check") },
-        supportingText = { Text(if (blank) "No text to check." else "Checks here aren't saved.") },
+        label = { Text(stringResource(R.string.try_it)) },
+        placeholder = { Text(stringResource(R.string.try_it_placeholder)) },
+        supportingText = { Text(if (blank) stringResource(R.string.no_text_to_check) else stringResource(R.string.try_it_not_saved)) },
         isError = blank,
         minLines = 2,
     )
@@ -70,7 +73,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             code = it?.code
             run(it)
         })
-        Button(onClick = { run(Language.forCode(code)) }) { Text("Check") }
+        Button(onClick = { run(Language.forCode(code)) }) { Text(stringResource(R.string.check)) }
     }
 
     check.state?.let { state ->
@@ -85,5 +88,3 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
         )
     }
 }
-
-private const val SAMPLE = "Bon dia! Com estas amb la pluja?"

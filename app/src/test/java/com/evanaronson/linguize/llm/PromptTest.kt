@@ -9,6 +9,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -87,6 +88,22 @@ class PromptTest {
         )
         assertEquals(Verdict.Status.Ok, verdict.status)
         assertEquals(listOf("You"), verdict.assumptions.single().alternatives)
+    }
+
+    @Test
+    fun anOversizedRewriteIsRefusedBeforeAlignment() {
+        for (field in listOf("corrected", "natural")) {
+            val raw = """{"status":"ok","$field":${kotlinx.serialization.json.JsonPrimitive("a".repeat(Prompt.MAX_REWRITE_CHARS + 1))}}"""
+            val failure = assertThrows(CheckFailure::class.java) { prompt.read(raw) }
+            assertEquals(CheckFailure.Message.ReplyTooLarge, failure.userMessage)
+            assertEquals(raw, failure.raw)
+        }
+    }
+
+    @Test
+    fun anOversizedVerdictIsRefusedBeforeDecoding() {
+        val failure = assertThrows(CheckFailure::class.java) { prompt.parseVerdict("x".repeat(Prompt.MAX_ANSWER_CHARS + 1)) }
+        assertEquals(CheckFailure.Message.ReplyTooLarge, failure.userMessage)
     }
 
     @Test

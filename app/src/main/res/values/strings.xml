@@ -1,10 +1,207 @@
 <resources>
-    <string name="app_name">Linguize</string>
-    <!-- The writer's own language, as the model should write it: the UI language. -->
-    <string name="native_language" translatable="false">English</string>
+    <string name="app_name" translatable="false">Linguize</string>
+    <!-- The UI language, written in English for the AI prompt. For example: Catalan. -->
+    <string name="native_language">English</string>
     <!-- Text-selection menu entries: auto-detect, then one per language. -->
-    <string name="menu_auto">Linguize</string>
-    <string name="menu_catalan">Catalanize</string>
-    <string name="menu_castilian">Castilianize</string>
+    <string name="menu_auto" translatable="false">Linguize</string>
+    <string name="menu_catalan" translatable="false">Catalanize</string>
+    <string name="menu_castilian" translatable="false">Castilianize</string>
     <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If History is on, checks are saved on this phone. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
+
+
+    <!-- Presentation text. Protocol values and model prompts are not translated. -->
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+    <string name="auto_detect">Auto Detect</string>
+    <string name="open_linguize">Open Linguize</string>
+    <string name="open_settings">Open settings</string>
+    <string name="retry">Retry</string>
+    <string name="undo">Undo</string>
+    <string name="done">Done</string>
+    <string name="accept">Accept</string>
+    <string name="accept_all">Accept all</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="check">Check</string>
+    <string name="test">Test</string>
+    <string name="checking">Checking</string>
+    <string name="looks_good">Looks good</string>
+    <string name="nothing_to_fix">Nothing to fix</string>
+    <string name="sounds_natural">Sounds natural</string>
+    <string name="fixes_accepted">Fixes accepted</string>
+    <string name="rewordings_accepted">Rewordings accepted</string>
+    <string name="copy_with_fixes">Copy with fixes</string>
+    <string name="copy_with_rewordings">Copy with rewordings</string>
+    <string name="meaning">Meaning</string>
+    <string name="assumptions">Assumptions</string>
+    <string name="meaning_description">What your text says, as the AI understood it.</string>
+    <string name="meaning_caution">The AI can be wrong, and text from someone else can mislead it.</string>
+    <string name="assumptions_description">Where your text could mean two things, the AI picked one.</string>
+    <string name="your_choice">Your choice</string>
+    <string name="not_right">Not right</string>
+    <string name="what_did_you_mean">What did you mean?</string>
+    <string name="show_understanding">Show how the AI read it</string>
+    <string name="ai_could_not_understand">The AI couldn\'t tell what this means</string>
+    <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
+    <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
+    <string name="home_instructions">Select text in any app, then choose Linguize in the selection menu (it may be under ⋮). Or try it below.</string>
+    <string name="try_it">Try it</string>
+    <string name="try_it_placeholder">Type or paste text to check</string>
+    <string name="no_text_to_check">No text to check.</string>
+    <string name="try_it_not_saved">Checks here aren\'t saved.</string>
+    <string name="recent">Recent</string>
+    <string name="recent_empty">Checks from other apps will appear here.</string>
+    <string name="history_off">History is off. New checks aren\'t saved.</string>
+    <string name="check_was_deleted">This check was deleted.</string>
+    <string name="your_text">Your text</string>
+    <string name="put_back_in_app">Put back in the app</string>
+    <string name="no_result">No result</string>
+    <string name="outcome_copied">Copied. Nothing was put back in the app.</string>
+    <string name="outcome_closed">Closed. Nothing was put back in the app.</string>
+    <string name="outcome_abandoned">The end of this check wasn\'t saved. Linguize closed, or History was turned off.</string>
+    <string name="delete_check_question">Delete this check?</string>
+    <string name="delete_check_description">It will be deleted from this phone. This can\'t be undone.</string>
+    <string name="ai_service">AI service</string>
+    <string name="ai_service_description">Linguize sends the text you check to Gemini or OpenAI. You need your own API key from one of them.</string>
+    <string name="model_loading">Model · loading…</string>
+    <string name="model_load_failed">Model · couldn\'t load others</string>
+    <string name="model">Model</string>
+    <string name="model_add_key">Model · add a key to see more</string>
+    <string name="key_saved">Key saved</string>
+    <string name="key_lost">Key lost</string>
+    <string name="model_not_tested">Not tested yet</string>
+    <string name="model_testing">Testing…</string>
+    <string name="paste_key">Paste key</string>
+    <string name="key_save_failed">This phone couldn\'t save the key. Try again.</string>
+    <string name="key_unreadable">This phone can no longer read the saved key. Paste it again.</string>
+    <string name="get_key">Get a key</string>
+    <string name="delete_key">Delete key</string>
+    <string name="selection_menu_label">Show in selection menu</string>
+    <string name="selection_menu_keep_one">Keep at least one.</string>
+    <string name="punctuation">Punctuation</string>
+    <string name="what_to_suggest">What to suggest</string>
+    <string name="suggestions_description">Fixes correct mistakes. Rewordings make it sound more natural.</string>
+    <string name="history">History</string>
+    <string name="save_history">Save checks in History</string>
+    <string name="save_history_on">Your text and the suggestions are saved on this phone only.</string>
+    <string name="save_history_off">New checks aren\'t saved. Saved ones stay until you delete them.</string>
+    <string name="delete_all">Delete all</string>
+    <string name="delete_all_question">Delete all checks?</string>
+    <string name="export">Export</string>
+    <string name="exporting">Exporting…</string>
+    <string name="selection_menu_unavailable">When Linguize isn\'t in the menu</string>
+    <string name="open_accessibility">Open Accessibility</string>
+    <string name="open_app_info">Open App info</string>
+    <string name="wrong_language">This isn\'t %1$s</string>
+    <string name="wrong_language_detected">It looks like %1$s. Choose Auto Detect to detect the language.</string>
+    <string name="quoted_text">“%1$s”</string>
+    <string name="model_recommended">%1$s (recommended)</string>
+    <string name="model_test_works">Works · %1$.1f s</string>
+    <string name="model_test_failed">Didn\'t work: %1$s</string>
+    <string name="provider_api_key">%1$s API key</string>
+    <string name="key_privacy">Saved only on this phone, and sent only to %1$s.</string>
+    <string name="provider_key_saved">%1$s key saved</string>
+    <string name="key_last_four">Ends in %1$s</string>
+    <string name="check_failed_reason">Couldn\'t check · %1$s</string>
+    <string name="close_card">Close card</string>
+    <string name="language_accessibility">Language: %1$s, %2$s</string>
+    <string name="detect_language">Detects the language</string>
+    <string name="language_catalan">Catalan</string>
+    <string name="language_spanish">Spanish</string>
+    <string name="menu_entry_description">%1$s (%2$s)</string>
+    <string name="change_why_add">Why add %1$s</string>
+    <string name="change_why_replace">Why %1$s becomes %2$s</string>
+    <string name="change_add">Add %1$s</string>
+    <string name="change_replace">Replace %1$s with %2$s</string>
+    <string name="change_becomes">%1$s becomes %2$s</string>
+    <string name="change_replacement">%1$s → %2$s</string>
+    <string name="not_right_about">Not right: %1$s</string>
+    <string name="delete_check">Delete check</string>
+    <string name="open_check">Open check</string>
+    <string name="check_deleted">Check deleted</string>
+    <string name="no_checks_saved">No checks saved</string>
+    <string name="export_failed">Couldn\'t export history. Try again.</string>
+    <string name="export_history">Export history</string>
+    <string name="open_external_failed">Couldn\'t open that. No app can handle it.</string>
+    <string name="date_today">Today, %1$s</string>
+    <string name="date_yesterday">Yesterday, %1$s</string>
+    <string name="date_and_time">%1$s, %2$s</string>
+    <string name="check_failed">Couldn\'t check</string>
+    <string name="end_not_saved">End not saved</string>
+    <string name="meaning_unclear">Meaning unclear</string>
+    <string name="wrong_language_status">Wrong language</string>
+    <string name="copied_status">copied</string>
+    <string name="provider_gemini" translatable="false">Google Gemini</string>
+    <string name="provider_openai" translatable="false">OpenAI</string>
+    <string name="punctuation_strict">Strict</string>
+    <string name="punctuation_moderate">Moderate</string>
+    <string name="punctuation_casual">Casual</string>
+    <string name="punctuation_strict_description">Flags every missing mark, including final periods, and ¿ and ¡ in Spanish.</string>
+    <string name="punctuation_moderate_description">Flags missing sentence breaks and question marks. Final periods and ¿ are optional.</string>
+    <string name="punctuation_casual_description">Flags missing punctuation only when it would confuse a reader.</string>
+    <string name="judgments_both">Fixes and rewordings</string>
+    <string name="judgments_fix">Fixes only</string>
+    <string name="judgments_rewording">Rewordings only</string>
+    <string name="failure_no_key">No API key</string>
+    <string name="failure_bad_key">API key rejected</string>
+    <string name="failure_bad_model">Model not available</string>
+    <string name="failure_offline">No connection</string>
+    <string name="failure_timeout">The AI took too long</string>
+    <string name="failure_rate_limited">AI usage limit reached</string>
+    <string name="failure_server">AI service unavailable</string>
+    <string name="failure_bad_response">Unusable reply from the AI</string>
+    <string name="failure_too_long">Text too long</string>
+    <string name="failure_too_many">Too many checks in a minute</string>
+    <string name="hint_no_key">Add one in settings</string>
+    <string name="hint_bad_key">Add a working key in settings</string>
+    <string name="hint_bad_model">Pick another model in settings</string>
+    <string name="hint_offline">Connect to the internet, then retry</string>
+    <string name="hint_rate_limited">Wait a minute, then retry</string>
+    <string name="hint_too_long">Select a shorter part, then check again</string>
+    <string name="hint_too_many">Wait a minute, then select the text again</string>
+    <string name="accessibility_setup_description">In some apps, like Telegram, Linguize isn\'t in the selection menu. There, turn on Linguize\'s accessibility button and tap it while you type. It reads only the field you\'re typing in, and only when you tap.</string>
+    <string name="accessibility_setup_steps">1. Open Accessibility, choose Linguize, and turn on Linguize and its shortcut.\n2. If Android says it\'s a restricted setting, open App info, tap ⋮, choose Allow restricted settings, then try step 1 again.</string>
+    <string name="list_separator">", "</string>
+    <string name="status_separator">" · "</string>
+    <string name="try_it_sample" translatable="false">Bon dia! Com estas amb la pluja?</string>
+
+    <!-- Always pass the count as a format argument as well as the quantity. -->
+    <plurals name="fix_count">
+        <item quantity="one">%1$d fix</item>
+        <item quantity="other">%1$d fixes</item>
+    </plurals>
+    <plurals name="rewording_count">
+        <item quantity="one">%1$d rewording</item>
+        <item quantity="other">%1$d rewordings</item>
+    </plurals>
+    <plurals name="assumption_count">
+        <item quantity="one">%1$d assumption</item>
+        <item quantity="other">%1$d assumptions</item>
+    </plurals>
+    <plurals name="changes_accepted_count">
+        <item quantity="one">%1$d change accepted</item>
+        <item quantity="other">%1$d changes accepted</item>
+    </plurals>
+    <plurals name="accepted_count">
+        <item quantity="one">%1$d accepted</item>
+        <item quantity="other">%1$d accepted</item>
+    </plurals>
+    <plurals name="saved_checks_since">
+        <item quantity="one">%1$d check since %2$s</item>
+        <item quantity="other">%1$d checks since %2$s</item>
+    </plurals>
+    <plurals name="delete_all_checks_description">
+        <item quantity="one">This deletes %1$d check from this phone. It can\'t be undone.</item>
+        <item quantity="other">This deletes %1$d checks from this phone. It can\'t be undone.</item>
+    </plurals>
+
+    <string name="message_input_too_long">Linguize checks up to %1$,d characters at a time.</string>
+    <string name="message_invalid_key">The saved key contains invalid characters. Paste the key again in settings.</string>
+    <string name="message_empty_reply">The AI returned an empty reply.</string>
+    <string name="message_reply_too_large">The AI returned too much text. Try a shorter selection.</string>
+    <string name="message_invalid_reply">The AI\'s reply could not be read. Try again.</string>
+    <string name="message_truncated_reply">The AI\'s reply was cut off. Try again.</string>
+    <string name="message_incomplete_reply">The AI did not finish its reply. Try again.</string>
+    <string name="message_declined">The AI declined to check this text.</string>
 </resources>

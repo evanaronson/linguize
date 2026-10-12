@@ -51,6 +51,21 @@ class PrivateFieldTest {
     }
 
     @Test
+    fun acronymPrefixesInCustomCodeFieldsAreRecognised() {
+        for (name in listOf("OTPInput", "PINEntry", "CVVField", "CVCInput")) {
+            assertTrue(name, PrivateField.matches(text, null, "com.bank:id/$name"))
+        }
+        assertFalse(PrivateField.matches(message, "Compose message", "com.chat:id/URLMessage"))
+    }
+
+    @Test
+    fun dateAndTimeFieldsAreNotProse() {
+        assertTrue(PrivateField.matches(InputType.TYPE_CLASS_DATETIME, "Birthday", null))
+        assertTrue(PrivateField.matches(InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_DATE, null, null))
+        assertTrue(PrivateField.matches(InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME, null, null))
+    }
+
+    @Test
     fun catalanAndSpanishNamesAreRecognisedWithOrWithoutAccents() {
         assertTrue(PrivateField.matches(text, "Contrasenya", null))
         assertTrue(PrivateField.matches(text, "Contraseña", null))

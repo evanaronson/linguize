@@ -14,22 +14,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
@@ -41,11 +45,12 @@ import com.evanaronson.linguize.core.Settled
 @Composable
 internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     // How the text was understood is a page of its own: in from the right, back to the left.
-    var showingUnderstanding by remember(result, settled) { mutableStateOf(false) }
+    var showingUnderstanding by rememberSaveable(result, settled) { mutableStateOf(false) }
+    val forward = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
     AnimatedContent(
         targetState = showingUnderstanding,
         transitionSpec = {
-            val direction = if (targetState) 1 else -1
+            val direction = if (targetState) forward else -forward
             (slideInHorizontally { direction * it / 3 } + fadeIn()) togetherWith
                 (slideOutHorizontally { -direction * it / 3 } + fadeOut())
         },
@@ -73,8 +78,8 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
 @Composable
 private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
     if (result.looksGood) {
-        val checked = result.kinds.map { if (it == EditKind.Fix) "Nothing to fix" else "Sounds natural" }
-        Outcome(Mark.Good, "Looks good", checked.joinToString(" · "))
+        val checked = result.kinds.map { if (it == EditKind.Fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural) }
+        Outcome(Mark.Good, stringResource(R.string.looks_good), checked.joinToString(stringResource(R.string.status_separator)))
         return
     }
 
@@ -90,13 +95,13 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
         Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             val count = result.revision.acceptedCount
             Text(
-                if (count == 1) "1 change accepted" else "$count changes accepted",
+                pluralStringResource(R.plurals.changes_accepted_count, count, count),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = review.onUndo) { Text("Undo") }
-            FilledTonalButton(onClick = review.onDone) { Text("Done") }
+            TextButton(onClick = review.onUndo) { Text(stringResource(R.string.undo)) }
+            FilledTonalButton(onClick = review.onDone) { Text(stringResource(R.string.done)) }
         }
     }
 }
@@ -106,15 +111,14 @@ private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, Edi
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
     when {
-        revision.edits(kind).isEmpty() -> StatusLine(Mark.Good, if (fix) "Nothing to fix" else "Sounds natural")
-        remaining.isEmpty() -> StatusLine(Mark.Good, if (fix) "Fixes accepted" else "Rewordings accepted")
+        revision.edits(kind).isEmpty() -> StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
+        remaining.isEmpty() -> StatusLine(Mark.Good, if (fix) stringResource(R.string.fixes_accepted) else stringResource(R.string.rewordings_accepted))
         else -> {
             val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            val label = when {
-                fix -> if (remaining.size == 1) "1 fix" else "${remaining.size} fixes"
-                remaining.size == 1 -> "1 rewording"
-                else -> "${remaining.size} rewordings"
-            }
+            val label = pluralStringResource(
+                if (fix) R.plurals.fix_count else R.plurals.rewording_count,
+                remaining.size, remaining.size,
+            )
             val preview = revision.preview(kind)
             val highlights = remaining.mapNotNull { edit ->
                 preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
@@ -133,12 +137,12 @@ private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, Edi
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (review != null) {
-                    FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text("Accept all") }
+                    FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text(stringResource(R.string.accept_all)) }
                 }
                 IconButton(onClick = { onCopy(preview.text, kind) }) {
                     Icon(
-                        painterResource(R.drawable.ic_clipboard),
-                        contentDescription = if (fix) "Copy with fixes" else "Copy with rewordings",
+                        painterResource(R.drawable.ic_copy),
+                        contentDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

@@ -18,9 +18,7 @@ import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.data.MenuEntry
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
-import com.evanaronson.linguize.ui.Exports
-import com.evanaronson.linguize.ui.card.title
-import com.evanaronson.linguize.ui.forgetExports
+import com.evanaronson.linguize.data.Exports
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,6 +31,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.io.File
 import java.time.LocalDate
 
 data class SettingsState(
@@ -67,7 +66,7 @@ data class KeptHistory(val count: Int, val since: Long?)
 /** A finished export, waiting for the screen to offer it. */
 sealed interface Export {
     /** Written; [uri] is a shareable link to the file. */
-    data class Ready(val uri: Uri) : Export
+    data class Ready(val uri: Uri, internal val file: File) : Export
 
     data object Failed : Export
 }
@@ -76,18 +75,24 @@ sealed interface Export {
 sealed interface ModelTest {
     data object Testing : ModelTest
     data class Works(val millis: Long) : ModelTest
-    /** [title] says what went wrong; [detail] is the AI service's own words, when it gave any. */
-    data class Failed(val title: String, val detail: String?) : ModelTest
+    /** [reason] is localized by the UI; [detail] is the AI service's own words, when it gave any. */
+    data class Failed(
+        val reason: CheckFailure.Reason,
+        val detail: String?,
+        val userMessage: CheckFailure.Message? = null,
+    ) : ModelTest
 }
 
 class SettingsViewModel(private val app: App) : ViewModel() {
+    private var refreshJob: Job? = null
     private var modelsJob: Job? = null
     private var testJob: Job? = null
     private var modelsRequested = false
-    private val exports = Exports(app.cacheDir)
+    private val exports = app.exports
 
     /** Selection-menu writes, one at a time (see [toggleMenuEntry]). */
     private val menuWrites = Mutex()
+    private val keyWrites = Mutex()
 
     /** Null until the saved settings have been read. */
     var state by mutableStateOf<SettingsState?>(null)
@@ -111,23 +116,47 @@ class SettingsViewModel(private val app: App) : ViewModel() {
 
     /** When [exported] finished, on the uptime clock. */
     private var exportedAt = 0L
+    private var exportRequest = 0L
 
     init {
         // Exports left from earlier visits, once whatever they were shared with has had its time.
         app.appScope.launch(Dispatchers.IO) { exports.prune() }
-        viewModelScope.launch {
-            state = withContext(Dispatchers.IO) {
+        refresh()
+    }
+
+    /** Another host may have changed settings while this popup or screen was hidden. */
+    fun refresh() = refresh {}
+
+    private fun refresh(afterRead: () -> Unit) {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            val fresh = withContext(Dispatchers.IO) {
                 val settings = app.settings
+                val provider = settings.provider
                 SettingsState(
                     menu = app.menu.enabled().ifEmpty { setOf(MenuEntry.Auto) },
                     punctuation = settings.punctuation,
                     judgments = settings.judgments,
-                    provider = settings.provider,
+                    provider = provider,
                     keys = Provider.entries.associateWith { app.keys.status(it) },
-                    model = settings.model(settings.provider),
+                    model = settings.model(provider),
                     historyEnabled = settings.historyEnabled,
                 )
             }
+            val previous = state
+            val sameService = previous != null && previous.provider == fresh.provider &&
+                previous.model == fresh.model && previous.keys == fresh.keys
+            val reloadModels = modelsRequested && !sameService
+            state = if (sameService) fresh.copy(models = previous!!.models,
+                modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else fresh
+            refreshJob = null
+            if (!sameService) {
+                modelsRequested = false
+                modelsJob?.cancel()
+                testJob?.cancel()
+                if (reloadModels) loadModels()
+            }
+            afterRead()
         }
     }
 
@@ -190,14 +219,16 @@ class SettingsViewModel(private val app: App) : ViewModel() {
         val provider = current.provider
         val model = current.model ?: provider.recommendedModel
         testJob?.cancel()
-        change { it.copy(modelTest = ModelTest.Testing) }
+        updateState { it.copy(modelTest = ModelTest.Testing) }
         testJob = viewModelScope.launch {
             val result = try {
                 ModelTest.Works(checker().testModel(provider, model))
             } catch (failure: CheckFailure) {
-                ModelTest.Failed(failure.reason.title, failure.detail)
+                ModelTest.Failed(failure.reason, failure.detail, failure.userMessage)
             }
-            change { if (it.provider == provider) it.copy(modelTest = result) else it }
+            updateState {
+                if (it.provider == provider && (it.model ?: provider.recommendedModel) == model) it.copy(modelTest = result) else it
+            }
         }
     }
 
@@ -208,15 +239,28 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     fun saveKey(value: String) {
         val provider = state?.provider ?: return
         viewModelScope.launch {
-            val (saved, status) = withContext(Dispatchers.IO) {
-                app.keys.set(provider, value) to app.keys.status(provider)
+            // Enter the mutex on the main thread, before dispatching the write: rapid Save /
+            // Remove actions must persist in the order the writer asked for them.
+            keyWrites.withLock {
+                val (saved, status) = withContext(Dispatchers.IO) {
+                    app.keys.set(provider, value) to app.keys.status(provider)
+                }
+                val stillSelected = state?.provider == provider
+                // An older provider's write must not cancel the current provider's test.
+                if (stillSelected) testJob?.cancel()
+                updateState {
+                    val updated = it.copy(keys = it.keys + (provider to status))
+                    if (it.provider == provider) updated.copy(modelTest = null, keySaveFailed = !saved) else updated
+                }
+                // Reconcile other hosts' changes and the completed key write in one fresh
+                // snapshot. A late key result must not cancel refresh and retain old settings.
+                refresh {
+                    if (state?.provider == provider) {
+                        loadModels()
+                        if (saved && status is KeyStatus.Saved) testModel()
+                    }
+                }
             }
-            // A test still running used the key just replaced; its answer says nothing about this one.
-            testJob?.cancel()
-            change { it.copy(keys = it.keys + (provider to status), modelTest = null, keySaveFailed = !saved) }
-            if (state?.provider != provider) return@launch
-            loadModels()
-            if (saved && status is KeyStatus.Saved) testModel()
         }
     }
 
@@ -233,8 +277,12 @@ class SettingsViewModel(private val app: App) : ViewModel() {
      * doesn't stop it halfway.
      */
     fun clearHistory() {
-        app.appScope.launch { app.history.clear() }
-        app.forgetExports()
+        exportRequest++
+        exported = null
+        app.appScope.launch(Dispatchers.IO) {
+            app.history.clear()
+            exports.clear()
+        }
     }
 
     /**
@@ -246,32 +294,44 @@ class SettingsViewModel(private val app: App) : ViewModel() {
         if (exporting) return
         exporting = true
         exported = null
+        val request = ++exportRequest
         viewModelScope.launch {
-            val uri = withContext(Dispatchers.IO) {
-                val shared = try {
-                    val file = exports.create(LocalDate.now())
-                    val written = file.outputStream().buffered().use { app.history.export(it) }
-                    // A partial file isn't worth sharing.
-                    if (written) FileProvider.getUriForFile(app, "${app.packageName}.files", file) else null
-                } catch (_: IOException) {
-                    null
-                } catch (_: IllegalArgumentException) {
-                    // FileProvider: the folder isn't one res/xml/file_paths.xml shares.
-                    null
+            var created: File? = null
+            var offered = false
+            try {
+                val ready = withContext(Dispatchers.IO) {
+                    try {
+                        val file = exports.write(LocalDate.now()) { app.history.export(it) }
+                        created = file
+                        file?.let {
+                            Export.Ready(FileProvider.getUriForFile(app, "${app.packageName}.files", it), it)
+                        }
+                    } catch (_: IOException) {
+                        null
+                    } catch (_: IllegalArgumentException) {
+                        // FileProvider: the folder isn't one res/xml/file_paths.xml shares.
+                        null
+                    }
                 }
-                // Nothing of a failed export is left behind.
-                if (shared == null) exports.clear()
-                shared
-            }
-            exporting = false
-            exportedAt = SystemClock.elapsedRealtime()
-            exported = uri?.let { Export.Ready(it) } ?: Export.Failed
-            if (uri != null) {
-                // Long enough for the app it's shared with to read it; if the process ends first,
-                // the next visit to settings removes it.
-                app.appScope.launch {
-                    delay(Exports.KEEP_MILLIS + PRUNE_SLACK_MILLIS)
-                    withContext(Dispatchers.IO) { exports.prune() }
+                // Clear may have been pressed while the file was still being written.
+                if (request != exportRequest) return@launch
+                exportedAt = SystemClock.elapsedRealtime()
+                exported = ready ?: Export.Failed
+                offered = ready != null
+                if (ready != null) {
+                    // Long enough for the receiving app to read it. A later export has a different
+                    // name, so this cleanup can never remove another host's newer result.
+                    app.appScope.launch {
+                        delay(Exports.KEEP_MILLIS + PRUNE_SLACK_MILLIS)
+                        withContext(Dispatchers.IO) { exports.discard(ready.file) }
+                    }
+                }
+            } finally {
+                exporting = false
+                // Handles cancellation too, including after the file was written but before
+                // withContext could return it to a screen that has since gone away.
+                if (!offered) created?.let { file ->
+                    app.appScope.launch(Dispatchers.IO) { exports.discard(file) }
                 }
             }
         }
@@ -286,8 +346,11 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     fun takeExport(): Export? {
         val export = exported ?: return null
         exported = null
-        if (SystemClock.elapsedRealtime() - exportedAt <= OFFER_WITHIN_MILLIS) return export
-        if (export is Export.Ready) app.appScope.launch(Dispatchers.IO) { exports.clear() }
+        if (SystemClock.elapsedRealtime() - exportedAt <= OFFER_WITHIN_MILLIS) {
+            // Another host may have replaced it, or Clear may have retired it meanwhile.
+            return if (export is Export.Ready && !exports.isCurrent(export.file)) null else export
+        }
+        if (export is Export.Ready) app.appScope.launch(Dispatchers.IO) { exports.discard(export.file) }
         return null
     }
 
@@ -300,22 +363,28 @@ class SettingsViewModel(private val app: App) : ViewModel() {
         val provider = current.provider
         modelsJob?.cancel()
         if (!current.hasKey) {
-            change { it.copy(models = ModelList.Loaded(emptyList())) }
+            updateState { it.copy(models = ModelList.Loaded(emptyList())) }
             return
         }
-        change { it.copy(models = ModelList.Loading) }
+        updateState { it.copy(models = ModelList.Loading) }
         modelsJob = viewModelScope.launch {
             val models = try {
                 ModelList.Loaded(checker().models(provider))
             } catch (_: CheckFailure) {
                 ModelList.Failed
             }
-            change { if (it.provider == provider) it.copy(models = models) else it }
+            updateState { if (it.provider == provider) it.copy(models = models) else it }
         }
     }
 
     /** Applies [update] once the settings have loaded; returns the new state. Preference writes are asynchronous. */
     private fun change(update: (SettingsState) -> SettingsState): SettingsState? {
+        refreshJob?.cancel()
+        return updateState(update)
+    }
+
+    /** Async presentation results must not cancel a read of changes made by another host. */
+    private fun updateState(update: (SettingsState) -> SettingsState): SettingsState? {
         val current = state ?: return null
         return update(current).also { state = it }
     }

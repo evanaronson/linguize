@@ -32,8 +32,8 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
  * and clears them when it's removed.
  *
  * While shown, the window takes key focus so Back reaches [onBack] rather than the app
- * below, which would otherwise leave the screen the card's text field is on. It never
- * takes the keyboard, which stays with that field.
+ * below, which would otherwise leave the screen the card's text field is on. The
+ * keyboard stays with that source field.
  */
 internal class OverlayWindow(private val context: Context, private val onBack: () -> Unit) :
     LifecycleOwner,
@@ -54,6 +54,11 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         PixelFormat.TRANSLUCENT,
     )
     private var root: View? = null
+    private var screenAvailable = false
+    private val unlockedScreen = UnlockedScreen(context) {
+        screenAvailable = it
+        updateVisibility()
+    }
 
     /** Back on Android 13 and later, where apps that opt in (as targeting 16 does) get no Back key events. */
     private var backCallback: Any? = null
@@ -64,13 +69,16 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
     }
 
     fun show(content: @Composable () -> Unit) {
+        unlockedScreen.start()
         val root = BackKeyLayout(context, onBack).apply {
             setViewTreeLifecycleOwner(this@OverlayWindow)
             setViewTreeSavedStateRegistryOwner(this@OverlayWindow)
             setViewTreeViewModelStoreOwner(this@OverlayWindow)
             addView(ComposeView(context).apply { setContent(content) })
         }
-        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+        root.visibility = if (hidden || !screenAvailable) View.INVISIBLE else View.VISIBLE
+        params.flags = windowFlags(hidden || !screenAvailable)
+        lifecycleRegistry.currentState = if (hidden || !screenAvailable) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
         windowManager.addView(root, params)
         this.root = root
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -93,17 +101,24 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             if (field == value) return
             field = value
             hiddenSince = if (value) SystemClock.elapsedRealtime() else null
-            val root = root ?: return
-            root.visibility = if (value) View.INVISIBLE else View.VISIBLE
-            params.flags = windowFlags(hidden = value)
-            windowManager.updateViewLayout(root, params)
+            unlockedScreen.refresh()
         }
+
+    private fun updateVisibility() {
+        val root = root ?: return
+        val invisible = hidden || !screenAvailable
+        root.visibility = if (invisible) View.INVISIBLE else View.VISIBLE
+        params.flags = windowFlags(hidden = invisible)
+        windowManager.updateViewLayout(root, params)
+        lifecycleRegistry.currentState = if (invisible) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
+    }
 
     /**
      * Detaches the focus-taking overlay before [afterDetach] puts text back into the app.
      * Its view models stay alive until that callback has reported the actual outcome.
      */
     fun remove(afterDetach: () -> Unit = {}) {
+        unlockedScreen.stop()
         root?.let { root ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 (backCallback as? OnBackInvokedCallback)?.let { root.findOnBackInvokedDispatcher()?.unregisterOnBackInvokedCallback(it) }
@@ -126,7 +141,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
  * keeps its keyboard and field. Hidden, it takes no touches or keys, and must not be an
  * input-method target either: [LayoutParams.FLAG_ALT_FOCUSABLE_IM] inverts what
  * [LayoutParams.FLAG_NOT_FOCUSABLE] says about the keyboard, so keeping it would leave the
- * invisible overlay above the app behind it (Settings) as what the keyboard is placed against.
+ * invisible overlay above the app behind it as what the keyboard is placed against.
  */
 internal fun windowFlags(hidden: Boolean): Int =
     if (hidden) {

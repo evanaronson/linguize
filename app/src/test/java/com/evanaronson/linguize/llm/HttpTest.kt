@@ -77,4 +77,10 @@ class HttpTest {
         val ids = listOf("gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-embedding-001", "gemini-3.5-flash-lite", "gemini-2.5-flash-tts")
         assertEquals(listOf("gemini-3.5-flash-lite", "gemini-2.5-flash"), textModels(ids))
     }
+
+    @Test
+    fun modelVersionsAreComparedByComponentsInsteadOfDecimalFractions() {
+        val ids = listOf("gpt-5.9", "gpt-5.10", "gpt-5.2", "gpt-5.10.2", "gpt-5.10.11", "gpt-6", "gpt-6-AUDIO")
+        assertEquals(listOf("gpt-6", "gpt-5.10.11", "gpt-5.10.2", "gpt-5.10", "gpt-5.9", "gpt-5.2"), textModels(ids))
+    }
 }

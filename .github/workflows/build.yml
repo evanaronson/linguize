@@ -1,6 +1,7 @@
 name: Build APK
 
 on:
+  pull_request:
   push:
     branches: [main]
     # Docs, design sources and the eval script don't change the app.
@@ -15,10 +16,10 @@ on:
         type: boolean
         default: false
 
-# One build at a time, so releases are published in push order and the newest is always "latest".
+# PRs and branches run independently. Only one main build runs at a time, without cancelling it.
 concurrency:
-  group: build
-  cancel-in-progress: false
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Nothing by default; each job asks for what it needs.
 permissions: {}
@@ -36,6 +37,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check architecture
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 scripts/check_architecture.py
+
       # Fails the build if gradle-wrapper.jar isn't one Gradle published.
       - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
@@ -51,6 +57,11 @@ jobs:
           set -o pipefail
           ./gradlew testDebugUnitTest 2>&1 | tee build.log
 
+      - name: Lint
+        run: |
+          set -o pipefail
+          ./gradlew lintRelease 2>&1 | tee -a build.log
+
       - name: Build
         run: |
           set -o pipefail
@@ -60,10 +71,22 @@ jobs:
       - name: Summarize errors
         if: failure()
         run: |
+          if [ ! -f build.log ]; then exit 0; fi
           errors=$(grep -E -A12 '^e: |^\* What went wrong|FAILED$|^ERROR:' build.log | head -120)
           errors="${errors//'%'/'%25'}"
           errors="${errors//$'\n'/'%0A'}"
           echo "::error title=Build errors::${errors}"
+
+      - name: Upload check reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: check-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -76,6 +99,8 @@ jobs:
   # runner's own apksigner, gh and the pinned actions below. The key is in the "signing"
   # environment, which only main and feature/* may use, so no other branch's workflow can read it.
   sign-and-publish:
+    # Pull requests only test and build; they never enter the signing environment.
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment: signing
@@ -269,11 +294,11 @@ jobs:
           </verification-metadata>
           XML
           fi
-          ./gradlew --no-configuration-cache --write-verification-metadata sha256 testDebugUnitTest assembleRelease
+          ./gradlew --no-configuration-cache --write-verification-metadata sha256 testDebugUnitTest lintRelease assembleRelease
 
       # Proves the pinned files work: a clean build with verification on.
       - name: Check a build verifies
-        run: ./gradlew --no-build-cache --refresh-dependencies assembleRelease
+        run: ./gradlew --no-build-cache --refresh-dependencies lintRelease assembleRelease
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

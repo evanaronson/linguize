@@ -54,11 +54,12 @@ fun HomeScreen(
         ) {
             Header(onOpenSettings)
             Text(
-                "Select text in any app, then choose Linguize in the selection menu (it may be under ⋮). Or try it below.",
+                stringResource(R.string.home_instructions),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TryIt(check, onOpenSettings)
+            AccessibilitySetup()
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
@@ -75,7 +76,7 @@ private fun Header(onOpenSettings: () -> Unit) {
         )
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onOpenSettings) {
-            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
+            Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
         }
     }
 }

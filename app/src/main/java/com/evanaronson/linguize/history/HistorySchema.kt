@@ -21,7 +21,8 @@ import com.evanaronson.linguize.core.Verdict
  * at first, an attempt's answer under `verdict`); 2 adds `nativeLanguage` and stores
  * tokens and `raw`; 3 stores the requested language as a code and an attempt's failure
  * as a token; 4 records no checks from the app's own "Try it" card, and an attempt keeps
- * the language and settings it ran with (a card is one session, whatever changes). [upgrade] says how to get from each older version to this one.
+ * the language and settings it ran with (a card is one session, whatever changes).
+ * Version 5 adds the paging index, leaving row schemas at 4. [upgrade] gives each step.
  */
 internal object HistorySchema {
     const val NAME = "history.db"
@@ -30,10 +31,13 @@ internal object HistorySchema {
      * The database's version, for SQLiteOpenHelper. Separate from [SessionRecord.SCHEMA],
      * which is the shape of a row as it would travel to a server.
      */
-    const val VERSION = 4
+    const val VERSION = 5
 
     const val SESSIONS = "sessions"
     const val SUGGESTIONS = "suggestions"
+
+    /** Matches the keyset order without scanning open or deleted sessions. */
+    const val PAGE_INDEX = """CREATE INDEX IF NOT EXISTS sessions_page ON sessions("startedAt" DESC, "id" DESC) WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL"""
 
     /** In [SessionRecord]'s field order; a test holds the two together. */
     val SESSION_COLUMNS = listOf(
@@ -100,6 +104,7 @@ internal object HistorySchema {
         """,
         // Recent, the count and the oldest date: kept rows, by start.
         """CREATE INDEX sessions_kept ON $SESSIONS("deletedAt", "startedAt")""",
+        PAGE_INDEX,
         // reusable(): the same text, recently.
         """CREATE INDEX sessions_text ON $SESSIONS("textHash", "startedAt")""",
         // A session's suggestions, for Recent's counts, the detail view and the cascade.
@@ -143,7 +148,7 @@ internal object HistorySchema {
      * superseded: those are the ones decided at the close. Only the start of each text is
      * read: a row shows one line of it.
      */
-    fun recent(limit: Int) = """
+    fun recent(limit: Int, before: Boolean = false) = """
         SELECT s."id", s."startedAt", s."origin", s."hostApp", s."text", s."outcome", s."status",
             COALESCE(SUM(g."kind" = '$FIX'), 0) AS "fixes",
             COALESCE(SUM(g."kind" = '$NATURAL'), 0) AS "rewordings",
@@ -152,14 +157,15 @@ internal object HistorySchema {
             SELECT "id", "startedAt", "origin", "hostApp", substr("text", 1, ${SessionSummary.TEXT_PREFIX}) AS "text", "outcome", "status"
             FROM $SESSIONS
             WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL
-            ORDER BY "startedAt" DESC
-            LIMIT $limit
+                ${if (before) """AND ("startedAt", "id") < (?, ?)""" else ""}
+            ORDER BY "startedAt" DESC, "id" DESC
+            LIMIT ${limit.coerceAtLeast(0)}
         ) AS s
         LEFT JOIN $SUGGESTIONS AS g
             ON g."sessionId" = s."id" AND g."deletedAt" IS NULL AND g."decision" != '$SUPERSEDED'
                 AND g."kind" IN ($KNOWN_KINDS) AND g."decision" IN ($KNOWN_DECISIONS)
         GROUP BY s."id"
-        ORDER BY s."startedAt" DESC
+        ORDER BY s."startedAt" DESC, s."id" DESC
     """.trimIndent()
 
     private val FIX = EditKind.Fix.token
@@ -221,7 +227,7 @@ internal object HistorySchema {
     /**
      * The statements that bring a database from version [from] to [VERSION], given the
      * columns its `sessions` table has; null when there's no way (then it's made afresh).
-     * Attempts are rewritten separately, row by row ([upgradeAttempts]).
+     * Attempts from versions 1–3 are rewritten separately, row by row ([upgradeAttempts]).
      *
      * Version 1 came in two shapes: the first builds had no `status` column, and builds
      * from the token change on added it without changing the version. Both had enums by
@@ -234,7 +240,9 @@ internal object HistorySchema {
      */
     fun upgrade(from: Int, sessionColumns: Set<String>): List<String>? {
         if (from !in 1 until VERSION) return null
+        if (from == 4) return listOf(PAGE_INDEX)
         return buildList {
+            add(PAGE_INDEX)
             if (from == 1) {
                 if ("status" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "status" TEXT""")
                 if ("nativeLanguage" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "nativeLanguage" TEXT""")

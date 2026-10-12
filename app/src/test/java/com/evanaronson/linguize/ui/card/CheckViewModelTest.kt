@@ -592,6 +592,9 @@ class CheckViewModelTest {
         override fun count(): Flow<Int> = flowOf(0)
         override fun since(): Flow<Long?> = flowOf(null)
         override fun recent(limit: Int): Flow<List<SessionSummary>> = flowOf(emptyList())
+        override fun revisions(): Flow<Long> = flowOf(0L)
+        override suspend fun page(before: com.evanaronson.linguize.history.HistoryCursor?, limit: Int) =
+            com.evanaronson.linguize.history.HistoryPage(emptyList(), null)
         override suspend fun detail(id: String): SessionDetail? = null
         override suspend fun delete(id: String) = true
         override suspend fun clear() = Unit

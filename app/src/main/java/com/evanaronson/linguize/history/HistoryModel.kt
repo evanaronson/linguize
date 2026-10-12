@@ -272,7 +272,13 @@ data class ReuseKey(
     val settings: SessionSettings,
 )
 
-/** A row in the Recent list. */
+/** A stable position in newest-first history, including checks with the same timestamp. */
+data class HistoryCursor(val startedAt: Long, val id: String)
+
+/** One bounded read of history; a null cursor means the end has been reached. */
+data class HistoryPage(val rows: List<SessionSummary>, val next: HistoryCursor?)
+
+/** A row in the Recent preview or full History list. */
 data class SessionSummary(
     val id: String,
     val startedAt: Long,

@@ -44,6 +44,12 @@ interface HistoryStore {
     /** Newest first, closed sessions only, not counting deleted ones. */
     fun recent(limit: Int): Flow<List<SessionSummary>>
 
+    /** Emits immediately and after writes, so a loaded history window can stay current. */
+    fun revisions(): Flow<Long>
+
+    /** Older than [before], in timestamp/id order. Null means a read failed and can be retried. */
+    suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage?
+
     suspend fun detail(id: String): SessionDetail?
 
     /**

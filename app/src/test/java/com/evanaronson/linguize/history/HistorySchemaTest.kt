@@ -299,7 +299,7 @@ class HistorySchemaTest {
 
     @Test
     fun everyVersionUpgradesByDeletingTheTestersSessions() {
-        assertEquals(4, HistorySchema.VERSION)
+        assertEquals(5, HistorySchema.VERSION)
         for (from in 1..3) {
             val statements = HistorySchema.upgrade(from, HistorySchema.SESSION_COLUMNS.toSet())!!
             val deletes = statements.filter { it.startsWith("DELETE") }

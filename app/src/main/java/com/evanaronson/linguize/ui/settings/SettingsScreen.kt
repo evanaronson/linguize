@@ -2,22 +2,16 @@ package com.evanaronson.linguize.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
@@ -32,28 +26,12 @@ import com.evanaronson.linguize.ui.text.descriptionResource
 import com.evanaronson.linguize.ui.text.displayName
 import com.evanaronson.linguize.ui.text.labelResource
 
-/** Settings belongs to the app; Back returns to its launcher screen. */
+/** Settings content; the activity owns the shared navigation bar and system insets. */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onBack: () -> Unit) {
-    Column(Modifier.safeDrawingPadding()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back))
-            }
-            Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        }
-        SettingsContent(settings)
-    }
-}
-
-@Composable
-private fun SettingsContent(settings: SettingsViewModel) {
+fun SettingsScreen(settings: SettingsViewModel) {
     Column(
         Modifier
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),

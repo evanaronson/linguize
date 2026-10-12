@@ -117,7 +117,8 @@ def check_openai(model, key, system, schema, message):
         "input": message,
         "store": False,
         "max_output_tokens": MAX_OUTPUT_TOKENS,
-        "reasoning": {"effort": "none"},
+        "reasoning": {"effort": "low" if model == "gpt-6.1-sol" or model.startswith("gpt-6.1-sol-")\
+                          or model == "gpt-6-astra" or model.startswith("gpt-6-astra-") else "none"},
         "text": {"format": {"type": "json_schema", "name": "check", "strict": True, "schema": schema}},
     }
     request = urllib.request.Request(
@@ -157,7 +158,7 @@ def post(request):
 
 PROVIDERS = {
     "gemini": (check_gemini, "gemini-3.5-flash-lite", "GEMINI_API_KEY"),
-    "openai": (check_openai, "gpt-6-sol", "OPENAI_API_KEY"),
+    "openai": (check_openai, "gpt-6.1-sol", "OPENAI_API_KEY"),
 }
 
 

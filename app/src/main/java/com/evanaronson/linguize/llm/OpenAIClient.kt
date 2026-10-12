@@ -18,7 +18,7 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
     /** Strict structured output rejects Gemini's non-standard propertyOrdering. */
     private val schema = JsonObject(prompt.schema - "propertyOrdering")
 
-    /** Reasoning effort "none"; models that reject it get their default instead. */
+    /** Minimal supported reasoning; models that reject the option get their default instead. */
     private val reasoningNone = DroppableOption(refusal = "reasoning")
 
     override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
@@ -43,7 +43,7 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
         val ids = readResponse(payload) { page ->
             requireNotNull(page["data"]).jsonArray.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull }
         }
-        return textModels(ids.filter { it.startsWith("gpt-") || Regex("^o\\d").containsMatchIn(it) })
+        return textModels(ids.filter { it == "chat-latest" || it.startsWith("gpt-") || Regex("^o\\d").containsMatchIn(it) })
     }
 
     private fun body(model: String, request: CheckRequest, noReasoning: Boolean): JsonObject = buildJsonObject {
@@ -52,8 +52,12 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
         put("input", prompt.userMessage(request))
         put("store", false)
         put("max_output_tokens", Prompt.MAX_OUTPUT_TOKENS)
-        // No reasoning keeps a check inside the ~2 s budget.
-        if (noReasoning) putJsonObject("reasoning") { put("effort", "none") }
+        // Use the least reasoning supported by the current family. Unknown models
+        // retain the existing retry without this option if they reject it.
+        if (noReasoning) putJsonObject("reasoning") {
+            val needsLow = listOf("gpt-6.1-sol", "gpt-6-astra").any { model == it || model.startsWith("$it-") }
+            put("effort", if (needsLow) "low" else "none")
+        }
         putJsonObject("text") {
             putJsonObject("format") {
                 put("type", "json_schema")

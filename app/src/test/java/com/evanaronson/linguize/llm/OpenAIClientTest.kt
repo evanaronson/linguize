@@ -89,4 +89,36 @@ class OpenAIClientTest {
 
     private fun answer(text: String) =
         """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":${JsonPrimitive(text)}}]}]}"""
+
+    @Test
+    fun theLiveListIncludesChatLatestAndCurrentGeneralModelsOnly() {
+        val http = FakeHttp { _, _ -> 200 to """{"data":[
+            {"id":"chat-latest"},{"id":"gpt-6.1-sol"},{"id":"gpt-6-astra"},{"id":"gpt-6-luna"},
+            {"id":"gpt-6.1-sol"},{"id":"gpt-image-2.5-flare"},{"id":"chatgpt-image-latest"},
+            {"id":"gpt-realtime-2"},{"id":"text-embedding-3-small"}
+        ]}""" }
+        val models = runBlocking { OpenAIClient(http.client, prompt).models("key") }
+        assertEquals(setOf("chat-latest", "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"), models.toSet())
+        assertEquals(4, models.size)
+        assertEquals("gpt-6.1-sol", models.first())
+    }
+
+    @Test
+    fun newerReasoningModelsStartWithLowWithoutAnAvoidableRetry() {
+        for (model in listOf("gpt-6.1-sol", "gpt-6.1-sol-2026-09-29", "gpt-6-astra")) {
+            val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
+            runBlocking { OpenAIClient(http.client, prompt).check("key", model, request) }
+            assertEquals(1, http.requests.size)
+            assertTrue(http.body(0).contains("\"effort\":\"low\""))
+        }
+    }
+
+    @Test
+    fun efficientAndOlderModelsKeepTheirNoReasoningRequest() {
+        for (model in listOf("gpt-6-luna", "gpt-6-sol", "chat-latest")) {
+            val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
+            runBlocking { OpenAIClient(http.client, prompt).check("key", model, request) }
+            assertTrue(http.body(0).contains("\"effort\":\"none\""))
+        }
+    }
 }

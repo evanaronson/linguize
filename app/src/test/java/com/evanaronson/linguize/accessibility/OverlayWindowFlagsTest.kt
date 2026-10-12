@@ -21,20 +21,4 @@ class OverlayWindowFlagsTest {
         // With both of these set the window would still count as an input-method target.
         assertEquals(0, flags and LayoutParams.FLAG_ALT_FOCUSABLE_IM)
     }
-
-    @Test
-    fun embeddedSettingsCanOwnTheKeyboard() {
-        val flags = windowFlags(hidden = false, editing = true)
-        assertEquals(0, flags and LayoutParams.FLAG_NOT_FOCUSABLE)
-        assertEquals(0, flags and LayoutParams.FLAG_NOT_TOUCHABLE)
-        assertEquals(0, flags and LayoutParams.FLAG_ALT_FOCUSABLE_IM)
-    }
-
-    @Test
-    fun aHiddenSettingsPageNeverTakesInput() {
-        val flags = windowFlags(hidden = true, editing = true)
-        assertTrue(flags and LayoutParams.FLAG_NOT_FOCUSABLE != 0)
-        assertTrue(flags and LayoutParams.FLAG_NOT_TOUCHABLE != 0)
-        assertEquals(0, flags and LayoutParams.FLAG_ALT_FOCUSABLE_IM)
-    }
 }

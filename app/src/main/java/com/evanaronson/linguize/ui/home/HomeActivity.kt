@@ -16,8 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.evanaronson.linguize.App
-import com.evanaronson.linguize.llm.CheckFailure.Reason
-import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.SessionScreen
@@ -52,7 +50,7 @@ class HomeActivity : ComponentActivity() {
                                 onOpen = ::open)
                         }
                         Screen.Settings -> saved.SaveableStateProvider(current.saved) {
-                            SettingsScreen(settings, onBack = ::back, onHome = ::back)
+                            SettingsScreen(settings, onBack = ::back)
                         }
                         is Screen.Detail -> SessionScreen(session, onBack = ::back)
                     }
@@ -83,15 +81,13 @@ class HomeActivity : ComponentActivity() {
 
     private fun back() {
         if (screen == Screen.Settings) {
-            val failed = check.state as? CardState.Failed
-            if (failed?.reason in FIXED_IN_SETTINGS) check.recheck()
+            check.recheckIfStale()
         }
         screen = Screen.Home
     }
 
     companion object {
         private const val SCREEN = "screen"
-        private val FIXED_IN_SETTINGS = setOf(Reason.NoKey, Reason.BadKey, Reason.BadModel)
         fun homeIntent(context: Context) = Intent(context, HomeActivity::class.java)
     }
 }

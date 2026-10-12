@@ -4,6 +4,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -31,9 +33,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.ui.text.displayName
 
 /**
- * "Linguize ▾": picks the language to check as, from auto-detect (null) and every language
+ * "Auto Detect ▾": picks the language to check as, from auto-detect (null) and every language
  * in [Language.all]. The list opens inline below the button rather than in a popup window,
  * so it also works in the accessibility overlay, where popup windows can't attach.
  * Opening it scrolls the list into view.
@@ -51,11 +54,13 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
         }
     }
     val name = label(selected)
+    val description = stringResource(R.string.language_accessibility, name,
+        selected?.displayName() ?: stringResource(R.string.detect_language))
     Column(modifier) {
         FilledTonalButton(
             onClick = { open = !open },
-            modifier = Modifier.semantics {
-                contentDescription = "Language: $name, ${selected?.name ?: "detects the language"}"
+            modifier = Modifier.heightIn(min = 48.dp).semantics {
+                contentDescription = description
             },
         ) {
             Text(name)
@@ -73,6 +78,7 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
                     (listOf(null) + Language.all).forEach { entry ->
                         Row(
                             Modifier
+                                .fillMaxWidth()
                                 .selectable(selected = entry == selected, role = Role.RadioButton) {
                                     open = false
                                     onSelect(entry)
@@ -80,10 +86,10 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(Modifier.widthIn(min = 160.dp)) {
+                            Column(Modifier.weight(1f)) {
                                 Text(label(entry), style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    entry?.name ?: "Detects the language",
+                                    entry?.displayName() ?: stringResource(R.string.detect_language),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -103,16 +109,16 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
 }
 
 /**
- * What the picker calls a choice: the name its selection-menu entry has (Linguize,
- * Catalanize, Castilianize), or a language's own name when it has no such name.
+ * Auto-detect is an action, distinct from the app's brand. Named languages keep their
+ * selection-menu labels, or use the language's own name when it has no such label.
  */
 @Composable
 private fun label(language: Language?): String {
     val named = when (language) {
-        null -> R.string.menu_auto
+        null -> R.string.auto_detect
         Language.Catalan -> R.string.menu_catalan
         Language.Spanish -> R.string.menu_castilian
         else -> null
     }
-    return named?.let { stringResource(it) } ?: language?.name.orEmpty()
+    return named?.let { stringResource(it) } ?: language?.displayName().orEmpty()
 }

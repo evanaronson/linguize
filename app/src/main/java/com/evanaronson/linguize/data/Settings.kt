@@ -35,7 +35,19 @@ class Settings(private val context: Context) : CheckPreferences {
     /** Whether checks are kept in history. Turning it off keeps what's already there. */
     var historyEnabled: Boolean
         get() = prefs.getBoolean(HISTORY, true)
-        set(value) = prefs.edit().putBoolean(HISTORY, value).apply()
+        set(value) = synchronized(historyLock) {
+            val edit = prefs.edit().putBoolean(HISTORY, value)
+            if (!value && historyEnabled) edit.putLong(HISTORY_EPOCH, historyEpoch + 1)
+            edit.apply()
+        }
+
+    /**
+     * Advances whenever recording is turned off. A card opened before that change stays
+     * unrecorded even if history is enabled again before its next result or close.
+     * Stored with the toggle in one preferences edit, shared by every Settings instance.
+     */
+    val historyEpoch: Long
+        get() = prefs.getLong(HISTORY_EPOCH, 0L)
 
     /**
      * A random id made once per install, so history rows from several phones can merge later.
@@ -70,9 +82,11 @@ class Settings(private val context: Context) : CheckPreferences {
         const val PUNCTUATION = "punctuation"
         const val JUDGMENTS = "judgments"
         const val HISTORY = "history"
+        const val HISTORY_EPOCH = "historyEpoch"
         const val DEVICE_ID = "deviceId"
 
         /** One for every Settings, since each reads the same preferences file. */
         val deviceIdLock = Any()
+        val historyLock = Any()
     }
 }

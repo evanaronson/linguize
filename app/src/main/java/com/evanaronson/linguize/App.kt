@@ -2,9 +2,6 @@ package com.evanaronson.linguize
 
 import android.app.Application
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.evanaronson.linguize.data.ApiKeys
 import com.evanaronson.linguize.data.SelectionMenu
 import com.evanaronson.linguize.data.Settings
@@ -15,6 +12,7 @@ import com.evanaronson.linguize.llm.GeminiClient
 import com.evanaronson.linguize.llm.OpenAIClient
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.data.Exports
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,14 +26,11 @@ class App : Application() {
     val keys by lazy { ApiKeys(this) }
     val menu by lazy { SelectionMenu(this) }
 
-    // Temporary S21 shortcut probe. Memory only, with no writing or attempt history.
-    // Remove after the ChatGPT shortcut failure is diagnosed.
-    internal var shortcutTestTaps by mutableStateOf(0)
-    internal var shortcutTestStage by mutableStateOf("No taps since this app started")
-    internal var shortcutTestAvailable by mutableStateOf<Boolean?>(null)
-
     /** Every check and what came of it. Opens its database on first use, off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
+
+    /** One owner serializes exports from Settings and saved checks. */
+    val exports by lazy { Exports(cacheDir) }
 
     /** This build's version name. */
     @Suppress("DEPRECATION") // The PackageInfoFlags overload needs API 33.
@@ -48,6 +43,7 @@ class App : Application() {
      */
     val historyEnvironment = object : HistoryEnvironment {
         override val enabled get() = settings.historyEnabled
+        override val recordingEpoch get() = settings.historyEpoch
         override val deviceId get() = settings.deviceId
         override val appVersion get() = this@App.appVersion
     }

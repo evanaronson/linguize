@@ -38,7 +38,9 @@ internal object Alignment {
      * cells, too much memory for long texts, so only what the walk needs is kept: the
      * tokens both texts share at their start and end need no table, and of the rest only
      * every few rows are kept and the rows between them worked out again as the walk
-     * reaches them.
+     * reaches them. A simple valid edit script bounds the cost: a cheaper path cannot
+     * stray farther from the diagonal than that bound, so light corrections need only
+     * a narrow band, even when changes at both ends surround a long unchanged passage.
      */
     fun align(original: String, target: String): List<Op> {
         val a = tokenize(original)
@@ -58,13 +60,25 @@ internal object Alignment {
         val gapsB = IntArray(m + 1).also { for (k in 0 until m) it[k + 1] = it[k] + gap(b[k]) }
         fun shared(i: Int, j: Int) = if (j >= i) gapsB[j] - gapsB[i] else gapsA[i] - gapsA[j]
 
+        // Pair tokens at the same positions, then add/remove the tail. This may not be
+        // cheapest, but it is a valid path. Every step away from the diagonal costs at
+        // least one, so no optimal path can leave the band it defines.
+        val paired = minOf(n, m)
+        var bound = gapsA[n] - gapsA[paired] + gapsB[m] - gapsB[paired]
+        for (k in prefix until paired) bound += substitution(a[k], b[k]) ?: (gap(a[k]) + gap(b[k]))
+
         // The table covers i and j from prefix on; row r holds i = prefix + r.
         val rows = n - prefix
         val columns = m - prefix
-        fun fill(row: IntArray, above: IntArray, r: Int) {
+        // Model output is untrusted. Bound even a completely rewritten answer before
+        // allocating its table; checkpoints recompute at most one additional full pass.
+        val cells = rows.toLong() * minOf(columns + 1L, 2L * bound + 1)
+        require(cells <= MAX_CELLS) { "Text alignment exceeds the work limit" }
+        fun fill(row: Row, above: Row, r: Int) {
             val i = prefix + r
-            row[0] = shared(i, prefix)
-            for (c in 1..columns) {
+            row.reset(maxOf(0, r - bound), minOf(columns, r + bound) + 1)
+            if (row.first == 0) row[0] = shared(i, prefix)
+            for (c in maxOf(1, row.first) until row.end) {
                 val j = prefix + c
                 var best = minOf(above[c] + gap(a[i - 1]), row[c - 1] + gap(b[j - 1]))
                 substitution(a[i - 1], b[j - 1])?.let { best = minOf(best, above[c - 1] + it) }
@@ -72,24 +86,26 @@ internal object Alignment {
             }
         }
         val step = maxOf(1, Math.ceil(Math.sqrt(rows + 1.0)).toInt())
-        val kept = arrayOfNulls<IntArray>(rows / step + 1)
-        var above = IntArray(columns + 1) { shared(prefix, prefix + it) }
-        var row = IntArray(columns + 1)
-        kept[0] = above.copyOf()
+        val kept = arrayOfNulls<Row>(rows / step + 1)
+        var above = Row().apply {
+            reset(0, minOf(columns, bound) + 1)
+            for (c in first until end) this[c] = shared(prefix, prefix + c)
+        }
+        var row = Row()
+        kept[0] = above.copy()
         for (r in 1..rows) {
             fill(row, above, r)
-            if (r % step == 0) kept[r / step] = row.copyOf()
+            if (r % step == 0) kept[r / step] = row.copy()
             above = row.also { row = above }
         }
         // Rows first..first + step, worked out again from the kept row at first.
-        val block = Array(step + 1) { IntArray(0) }
+        val block = Array(step + 1) { Row() }
         var first = -1
-        fun row(r: Int): IntArray {
+        fun row(r: Int): Row {
             if (first < 0 || r < first || r > first + step) {
                 first = (if (r == 0) 0 else (r - 1) / step) * step
                 block[0] = kept[first / step]!!
                 for (k in 1..minOf(step, rows - first)) {
-                    if (block[k].size != columns + 1) block[k] = IntArray(columns + 1)
                     fill(block[k], block[k - 1], first + k)
                 }
             }
@@ -111,6 +127,33 @@ internal object Alignment {
             }
         }
         return ops
+    }
+
+    /** One reusable band of a row; cells outside it cannot be on a cheapest path. */
+    private class Row {
+        var first = 0
+            private set
+        var end = 0
+            private set
+        private var cells = IntArray(0)
+
+        fun reset(first: Int, end: Int) {
+            this.first = first
+            this.end = end
+            val size = end - first
+            if (cells.size < size) cells = IntArray(size)
+        }
+
+        operator fun get(column: Int): Int = if (column in first until end) cells[column - first] else Int.MAX_VALUE / 4
+
+        operator fun set(column: Int, cost: Int) {
+            cells[column - first] = cost
+        }
+
+        fun copy() = Row().also { copy ->
+            copy.reset(first, end)
+            cells.copyInto(copy.cells, endIndex = end - first)
+        }
     }
 
     /** Words, runs of spaces and single punctuation marks, never splitting a character such as an emoji. */
@@ -179,4 +222,7 @@ internal object Alignment {
         Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).filterNot { Character.getType(it) == Character.NON_SPACING_MARK.toInt() }
 
     private val JOINERS = setOf('-', '·', '‐')
+
+    /** Per pass; leaves room for every pair in a 3,000-character check. */
+    private const val MAX_CELLS = 20_000_000L
 }

@@ -7,7 +7,14 @@ import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Verdict
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.CoroutineContext
 
 /** The store on a real SQLite, as Robolectric runs it. A plain Application, so the app's own start-up doesn't touch the database. */
 @RunWith(RobolectricTestRunner::class)
@@ -147,6 +155,43 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    fun clearingBeforeAnOpenCardsFirstQueuedWriteStillKeepsItsTextGone() = runBlocking<Unit> {
+        val queued = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
+        val dispatcher = object : CoroutineDispatcher() {
+            override fun dispatch(context: CoroutineContext, block: Runnable) { queued.add(block) }
+        }
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        val environment = object : HistoryEnvironment {
+            override val enabled = true
+            override val deviceId = "device"
+            override val appVersion = "1.0"
+        }
+        val recording = CheckHistory(store, environment, scope)
+        val opening = Opening(Origin.Menu, null, "ca", open("template", 0).settings)
+        try {
+            val beforeClear = recording.open("private text", opening)!!
+            recording.close(null)
+            store.clear()
+            val afterClear = recording.open("new text", opening)!!
+            recording.close(null)
+
+            withTimeout(5_000) {
+                val flushed = async { recording.flush() }
+                while (!flushed.isCompleted) {
+                    while (true) (queued.poll() ?: break).run()
+                    delay(1)
+                }
+                flushed.await()
+            }
+            assertNull(store.detail(beforeClear.id))
+            assertEquals("new text", store.detail(afterClear.id)!!.session.text)
+            assertEquals(1, store.count().first())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun deletingAnOpenSessionKeepsItGone() = runBlocking<Unit> {
         val opened = open("s1", 5_000)
         store.save(opened)
@@ -158,6 +203,22 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    fun failedDeletionIsNotAcknowledgedAndCanBeRetried() = runBlocking<Unit> {
+        store.close(open("s1", 5_000).closed(6_000), emptyList())
+        raw { db ->
+            db.execSQL("""CREATE TRIGGER block_delete BEFORE DELETE ON sessions BEGIN SELECT RAISE(FAIL, 'delete blocked'); END""")
+        }
+        assertFalse(store.delete("s1"))
+        assertNotNull(store.detail("s1"))
+
+        raw { it.execSQL("DROP TRIGGER block_delete") }
+        assertTrue(store.delete("s1"))
+        assertNull(store.detail("s1"))
+        // Retrying after a successful delete is acknowledged too.
+        assertTrue(store.delete("s1"))
+    }
+
+    @Test
     fun sessionsLeftOpenByAnEarlierProcessAreAbandoned() = runBlocking<Unit> {
         // The earlier process opened "old" at a time later than "new" by the clock: only who opened it counts.
         SqliteHistoryStore(context, NAME).save(open("old", 50_000))
@@ -166,6 +227,7 @@ class SqliteHistoryStoreTest {
         val old = store.detail("old")!!.session
         assertEquals(Outcome.Abandoned, old.outcome)
         assertEquals(30_000L, old.closedAt)
+        assertEquals(50_000L, old.updatedAt)
         assertNull(store.detail("new")!!.session.closedAt)
         assertEquals(listOf("old"), store.recent(10).first().map { it.id })
     }
@@ -180,6 +242,27 @@ class SqliteHistoryStoreTest {
         assertEquals(SessionSummary.TEXT_PREFIX, recent[1].text.length)
         assertEquals(listOf("s2"), store.recent(1).first().map { it.id })
         assertEquals(long, store.detail("s1")!!.session.text)
+    }
+
+    @Test
+    fun recentCountsOnlySuggestionKindsAndDecisionsThisBuildCanRead() = runBlocking<Unit> {
+        val closed = open("s1", 5_000).answered(5_500).closed(6_000)
+        store.close(closed, listOf(
+            suggestion(closed, "known", EditKind.Fix, Decision.Ignored),
+            suggestion(closed, "new-kind", EditKind.Natural, Decision.Accepted),
+            suggestion(closed, "new-decision", EditKind.Fix, Decision.Ignored),
+            suggestion(closed, "old", EditKind.Fix, Decision.Superseded),
+        ))
+        raw { db ->
+            db.execSQL("""UPDATE suggestions SET "kind" = 'style' WHERE "id" = 'new-kind'""")
+            db.execSQL("""UPDATE suggestions SET "decision" = 'postponed' WHERE "id" = 'new-decision'""")
+        }
+
+        val summary = store.recent(10).first().single()
+        assertEquals(1, summary.fixes)
+        assertEquals(0, summary.rewordings)
+        assertEquals(0, summary.taken)
+        assertEquals(setOf("known", "old"), store.detail("s1")!!.suggestions.map { it.id }.toSet())
     }
 
     @Test
@@ -214,6 +297,19 @@ class SqliteHistoryStoreTest {
         store.close(changed, listOf(suggestion(changed, "g5", EditKind.Fix, Decision.Ignored, attempt = 0)))
         assertEquals(0, store.detail("s5")!!.decidedAttempt())
         assertNull(store.reusable(changed.reuseKey, since = 4_000))
+    }
+
+    @Test
+    fun reuseFindsAValidAnswerBehindManyRecentSessionsWithAnOlderDecidedAttempt() = runBlocking<Unit> {
+        val valid = open("valid", 1_000, model = "after").answered(1_100).closed(1_200)
+        store.close(valid, emptyList())
+        repeat(25) { index ->
+            val changed = open("changed-$index", 2_000L + index, model = "before").answered(3_000)
+                .copy(model = "after").answered(4_000).closed(5_000)
+            store.close(changed, listOf(suggestion(changed, "g-$index", EditKind.Fix, Decision.Ignored, attempt = 0)))
+        }
+
+        assertEquals("valid", store.reusable(valid.reuseKey, since = 1_000)?.session?.id)
     }
 
     @Test

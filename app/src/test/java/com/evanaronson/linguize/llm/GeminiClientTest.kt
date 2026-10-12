@@ -50,9 +50,37 @@ class GeminiClientTest {
     fun aSafetyStopIsSaidPlainly() {
         val payload = """{"candidates":[{"finishReason":"SAFETY"}]}"""
         val failure = assertThrows(CheckFailure::class.java) { GeminiClient.answer(payload) }
-        assertEquals("Gemini declined to check this text.", failure.detail)
+        assertEquals(CheckFailure.Message.Declined, failure.userMessage)
         val blocked = """{"promptFeedback":{"blockReason":"SAFETY"}}"""
-        assertEquals("Gemini declined to check this text.", assertThrows(CheckFailure::class.java) { GeminiClient.answer(blocked) }.detail)
+        assertEquals(CheckFailure.Message.Declined, assertThrows(CheckFailure::class.java) { GeminiClient.answer(blocked) }.userMessage)
+    }
+
+    @Test
+    fun aValidLookingAnswerWithAnUnfinishedReasonIsRefused() {
+        for (finish in listOf("OTHER", "MALFORMED_FUNCTION_CALL", "FINISH_REASON_UNSPECIFIED")) {
+            val payload = answer(VERDICT_JSON).replace("\"STOP\"", "\"$finish\"")
+            val failure = assertThrows(CheckFailure::class.java) { GeminiClient.answer(payload) }
+            assertEquals(Reason.BadResponse, failure.reason)
+            assertEquals(CheckFailure.Message.IncompleteReply, failure.userMessage)
+        }
+    }
+
+    @Test
+    fun aModelNameCannotChangeTheRequestPathOrQuery() {
+        val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
+        val model = "gemini-test/elsewhere?key=unexpected#fragment"
+        runBlocking { GeminiClient(http.client, prompt).check("key", model, request) }
+        val url = http.requests.single().url
+        assertEquals(listOf("v1beta", "models", "$model:generateContent"), url.pathSegments)
+        assertEquals(null, url.query)
+        assertEquals(null, url.fragment)
+    }
+
+    @Test
+    fun aNullPageTokenEndsTheModelList() {
+        val http = FakeHttp { _, _ -> 200 to """{"models":[],"nextPageToken":null}""" }
+        assertEquals(emptyList<String>(), runBlocking { GeminiClient(http.client, prompt).models("key") })
+        assertEquals(1, http.requests.size)
     }
 
     @Test

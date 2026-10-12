@@ -217,6 +217,8 @@ data class Attempt(
     val provider: String? = null,
     val model: String? = null,
     val promptHash: String? = null,
+    /** App-owned error message token; localized when displayed, unlike provider diagnostics. */
+    val failureMessage: String? = null,
 ) {
     /** Whether a verdict came back and was read: the card showed it. */
     val succeeded: Boolean get() = failure == null && raw != null

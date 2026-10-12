@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
     alias(libs.plugins.android.application)
@@ -48,6 +49,9 @@ android {
     testOptions {
         // Robolectric tests read the app's resources and manifest.
         unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.testLogging.exceptionFormat = TestExceptionFormat.FULL
+        }
     }
 }
 

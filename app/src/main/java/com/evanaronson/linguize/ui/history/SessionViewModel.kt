@@ -50,6 +50,7 @@ class SessionViewModel internal constructor(
     private val prompt: () -> Prompt,
     private val labels: AppLabels,
     private val appScope: CoroutineScope,
+    private val retireExports: suspend () -> Unit,
 ) : ViewModel() {
     private var id: String? = null
     private var job: Job? = null
@@ -81,8 +82,15 @@ class SessionViewModel internal constructor(
     /** Deletes the session shown. The page closes straight away, so on the app's scope. */
     fun delete() {
         val id = id ?: return
+        job?.cancel()
         this.id = null
-        appScope.launch { history.delete(id) }
+        page = SessionPage.Missing
+        appScope.launch(Dispatchers.IO) {
+            history.delete(id)
+            // Retire after the row is removed. A separate UI cleanup can run first,
+            // allowing another host to recreate an export containing the deleted row.
+            retireExports()
+        }
     }
 
     /** [replayed] is the card the session ended with ([replay]); null when there's none to show. */
@@ -94,7 +102,10 @@ class SessionViewModel internal constructor(
 
     companion object {
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
-            initializer { SessionViewModel(app.history, prompt = { app.prompt }, AppLabels(app.packageManager), app.appScope) }
+            initializer {
+                SessionViewModel(app.history, prompt = { app.prompt }, AppLabels(app.packageManager), app.appScope,
+                    retireExports = { app.exports.clear() })
+            }
         }
     }
 }

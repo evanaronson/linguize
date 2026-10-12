@@ -47,24 +47,32 @@ class SqliteHistoryStore(
     /** Bumped after every write, so the observed queries run again. */
     private val changes = MutableStateFlow(0L)
 
-    override suspend fun save(session: SessionRecord) = write("save a session") { db ->
-        if (forgotten.saving(session.id)) db.execute(HistorySchema.SAVE_SESSION, session.values().values)
+    override fun registerSession(id: String) {
+        forgotten.saving(id)
     }
 
-    override suspend fun close(session: SessionRecord, suggestions: List<SuggestionRecord>) = write("close a session") { db ->
-        if (!forgotten.closing(session.id)) return@write
-        db.execute(HistorySchema.CLOSE_SESSION, session.values().values)
-        // Closing twice writes the same rows again rather than adding to them.
-        db.execute(HistorySchema.DELETE_SUGGESTIONS_OF, listOf(session.id))
-        val insert = db.compileStatement(HistorySchema.INSERT_SUGGESTION)
-        try {
-            for (suggestion in suggestions) {
-                insert.clearBindings()
-                insert.bindAll(suggestion.values().values)
-                insert.executeInsert()
+    override suspend fun save(session: SessionRecord) {
+        write("save a session") { db ->
+            if (forgotten.saving(session.id)) db.execute(HistorySchema.SAVE_SESSION, session.values().values)
+        }
+    }
+
+    override suspend fun close(session: SessionRecord, suggestions: List<SuggestionRecord>) {
+        write("close a session") { db ->
+            if (!forgotten.closing(session.id)) return@write
+            db.execute(HistorySchema.CLOSE_SESSION, session.values().values)
+            // Closing twice writes the same rows again rather than adding to them.
+            db.execute(HistorySchema.DELETE_SUGGESTIONS_OF, listOf(session.id))
+            val insert = db.compileStatement(HistorySchema.INSERT_SUGGESTION)
+            try {
+                for (suggestion in suggestions) {
+                    insert.clearBindings()
+                    insert.bindAll(suggestion.values().values)
+                    insert.executeInsert()
+                }
+            } finally {
+                insert.close()
             }
-        } finally {
-            insert.close()
         }
     }
 
@@ -94,7 +102,9 @@ class SqliteHistoryStore(
         db.select(HistorySchema.recent(limit), read = ::sessionSummary)
     }
 
-    override suspend fun detail(id: String): SessionDetail? = read("read a session", null) { db -> db.detail(id) }
+    override suspend fun detail(id: String): SessionDetail? = read("read a session", null) { db ->
+        db.snapshot { db.detail(id) }
+    }
 
     /**
      * The query finds sessions whose latest attempt ran with [key]'s language and settings;
@@ -102,20 +112,25 @@ class SqliteHistoryStore(
      * ran with them itself ([SessionDetail.keptFor]): within a session they can change.
      */
     override suspend fun reusable(key: ReuseKey, since: Long): SessionDetail? = read("look for a kept answer", null) { db ->
-        db.select(HistorySchema.reusable(key), HistorySchema.reusableArgs(key, since), ::sessionRecord)
-            .asSequence()
-            .filter { it.lastAttemptSucceeded() }
-            .map { SessionDetail(it, db.suggestions(it.id)) }
-            .firstOrNull { it.keptFor(key) != null }
+        db.snapshot {
+            // Stream newest first and stop at the first usable answer. A fixed candidate
+            // limit can hide a valid answer behind recent attempts made with other settings.
+            db.firstMatch(HistorySchema.reusable(key), HistorySchema.reusableArgs(key, since)) { row ->
+                val session = sessionRecord(row)
+                if (!session.lastAttemptSucceeded()) return@firstMatch null
+                SessionDetail(session, db.suggestions(session.id)).takeIf { it.keptFor(key) != null }
+            }
+        }
     }
 
     /** Removes the session and, by cascade, its suggestions. */
-    override suspend fun delete(id: String) {
-        write("delete a session") { db ->
+    override suspend fun delete(id: String): Boolean {
+        val deleted = write("delete a session") { db ->
             forgotten.deleted(id)
             db.execute(HistorySchema.DELETE_SESSION, listOf(id))
         }
-        read("checkpoint after a delete", Unit) { db -> db.checkpoint() }
+        if (!deleted) return false
+        return read("checkpoint after a delete", false) { db -> db.checkpoint() }
     }
 
     override suspend fun clear() {
@@ -167,7 +182,7 @@ class SqliteHistoryStore(
         select(HistorySchema.SESSION_SUGGESTIONS, listOf(sessionId), ::suggestionRecord).filterNotNull()
 
     /** Runs [block] in a transaction on [Dispatchers.IO], then tells the observed queries. Logs a failure. */
-    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit) {
+    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit): Boolean {
         val written = read(what, false) { db ->
             db.beginTransaction()
             try {
@@ -179,6 +194,7 @@ class SqliteHistoryStore(
             true
         }
         if (written) changes.update { it + 1 }
+        return written
     }
 
     /** [block] on [Dispatchers.IO] with the database; [fallback] when it fails. */
@@ -243,7 +259,21 @@ private fun SQLiteDatabase.pragma(pragma: String) {
 }
 
 /** Copies the write-ahead log into the database and empties it. */
-private fun SQLiteDatabase.checkpoint() = pragma("wal_checkpoint(TRUNCATE)")
+private fun SQLiteDatabase.checkpoint(): Boolean = rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { cursor ->
+    // SQLite reports a busy checkpoint as a result row, not an exception. Keep the
+    // deletion's durable note until a retry can also retire the old WAL contents.
+    cursor.moveToFirst() && cursor.getInt(0) == 0
+}
+
+/** Reads related rows from one snapshot, so a concurrent delete or close cannot split them. */
+private inline fun <T> SQLiteDatabase.snapshot(block: () -> T): T {
+    beginTransactionNonExclusive()
+    try {
+        return block().also { setTransactionSuccessful() }
+    } finally {
+        endTransaction()
+    }
+}
 
 /** The names of [table]'s columns. */
 private fun SQLiteDatabase.columns(table: String): Set<String> =
@@ -286,6 +316,15 @@ private fun SQLiteDatabase.eachRow(sql: String, args: List<String> = emptyList()
 
 private fun <T> SQLiteDatabase.select(sql: String, args: List<String> = emptyList(), read: (Row) -> T): List<T> =
     buildList { eachRow(sql, args) { add(read(it)) } }
+
+/** Stops reading as soon as [read] recognizes a usable row, without allocating the other candidates. */
+private inline fun <T : Any> SQLiteDatabase.firstMatch(sql: String, args: List<String>, read: (Row) -> T?): T? {
+    return rawQuery(sql, args.toTypedArray()).use { cursor ->
+        val row = CursorRow(cursor)
+        while (cursor.moveToNext()) read(row)?.let { return it }
+        null
+    }
+}
 
 /** Runs one statement with [values] bound in order; returns the rows changed. */
 private fun SQLiteDatabase.execute(sql: String, values: Collection<Any?>): Int {

@@ -2,22 +2,25 @@ package com.evanaronson.linguize.menu
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.BadParcelableException
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Selection
+import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure.Reason
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import com.evanaronson.linguize.ui.popup.PopupCard
-import com.evanaronson.linguize.ui.settings.SettingsViewModel
+import com.evanaronson.linguize.ui.card.FloatingCard
+import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.theme.AppTheme
 
@@ -29,22 +32,31 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
+    private var readOnly = true
     private var limited = false
-    private var returningFromSettings = false
-    private var settingsOpen by mutableStateOf(false)
-    private val settings: SettingsViewModel by viewModels { SettingsViewModel.factory(App.of(this)) }
+    private var returningFromApp = false
+    private var language by mutableStateOf<Language?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        returningFromSettings = savedInstanceState?.getBoolean(KEY_SETTINGS) == true
-        settingsOpen = savedInstanceState?.getBoolean(KEY_SETTINGS_OPEN) == true
-        val selected = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty()
+        returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
+        // Exported aliases are callable by any app. Reject malformed launches before
+        // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.
+        if (intent.action != Intent.ACTION_PROCESS_TEXT) return finish()
+        val selected = try {
+            readOnly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
+            intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty()
+        } catch (_: BadParcelableException) {
+            return finish()
+        } catch (_: ClassCastException) {
+            return finish()
+        }
         // Whitespace around the selection isn't checked, and stays where it was.
         val selection = Selection.of(selected).takeIf { it.text.isNotEmpty() } ?: return finish()
         this.selection = selection
-        val readOnly = intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
         // Which menu entry was tapped decides the language: Catalanize, Castilianize, or Linguize to detect it.
         val entry = App.of(this).menu.entryFor(intent.component)
+        language = if (savedInstanceState == null) entry.language else Language.forCode(savedInstanceState.getString(KEY_LANGUAGE))
 
         // Any app can open this entry, so each one gets only a few checks a minute. A card already
         // limited stays limited when it's recreated, without counting again.
@@ -52,53 +64,44 @@ class CheckActivity : ComponentActivity() {
             (savedInstanceState?.getBoolean(KEY_LIMITED) == true || !CheckRateLimit.menu.tryAcquire(callingPackage))
 
         // Start the request before the first frame is drawn.
-        if (check.state == null && !limited) check.check(selection.text, entry.language, Origin.Menu, callingPackage)
+        if (check.state == null && !limited) check.check(selection.text, language, Origin.Menu, callingPackage)
 
         val actions = CardActions.of(
             check,
             context = this,
             onClose = ::finish,
-            onOpenSettings = ::openSettings,
+            onOpenSettings = null,
             canReplace = !readOnly,
             onCopyClose = ::finishAfterCopy,
         )
         setContent {
             AppTheme {
-                BackHandler(enabled = settingsOpen, onBack = ::backFromSettings)
-                val state = if (limited) CardState.Failed(Reason.TooMany, TOO_MANY_DETAIL) else check.state
+                val state = if (limited) CardState.Failed(Reason.TooMany, getString(R.string.menu_check_not_sent)) else check.state
                 state?.let {
-                    PopupCard(it, actions, settings, settingsOpen,
-                        onBackFromSettings = ::backFromSettings,
+                    FloatingCard(it, actions,
                         onDismiss = ::finish,
-                        onOpenHome = ::openHome,
-                        onOpenExternal = { external ->
-                            startActivity(external.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
-                        })
+                        onOpenApp = ::openApp,
+                    ) {
+                        LanguagePicker(language, onSelect = { selected ->
+                            language = selected
+                            if (!limited) check.changeLanguage(selected)
+                        }, modifier = Modifier.weight(1f, fill = false))
+                    }
                 }
             }
         }
     }
 
-    /** Settings and Home are a detour: keep this activity, its result channel and its edits. */
-    internal fun openSettings() {
-        settingsOpen = true
-    }
-
-    private fun backFromSettings() {
-        settingsOpen = false
-        check.recheckIfStale()
-    }
-
-    internal fun openHome() {
-        returningFromSettings = true
+    /** Open the app separately, keeping this selection's result channel and accepted edits. */
+    internal fun openApp() {
+        returningFromApp = true
         startActivity(HomeActivity.homeIntent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     override fun onResume() {
         super.onResume()
-        settings.refresh()
-        if (returningFromSettings) {
-            returningFromSettings = false
+        if (returningFromApp) {
+            returningFromApp = false
             check.recheckIfStale()
         }
     }
@@ -112,8 +115,8 @@ class CheckActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_LIMITED, limited)
-        outState.putBoolean(KEY_SETTINGS, returningFromSettings)
-        outState.putBoolean(KEY_SETTINGS_OPEN, settingsOpen)
+        outState.putBoolean(KEY_RETURNING, returningFromApp)
+        outState.putString(KEY_LANGUAGE, language?.code)
     }
 
     /**
@@ -130,7 +133,7 @@ class CheckActivity : ComponentActivity() {
     override fun finish() {
         val accepted = check.workingText
         val selection = selection
-        val handedBack = if (accepted != null && selection != null) {
+        val handedBack = if (!readOnly && accepted != null && selection != null) {
             setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, selection.with(accepted)))
             true
         } else {
@@ -142,11 +145,10 @@ class CheckActivity : ComponentActivity() {
 
     private companion object {
         const val KEY_LIMITED = "limited"
-        const val KEY_SETTINGS = "returningFromSettings"
-        const val KEY_SETTINGS_OPEN = "settingsOpen"
+        const val KEY_RETURNING = "returningFromApp"
+        const val KEY_LANGUAGE = "language"
 
         /** How long finishing may wait for the session's close to be written. */
         const val CLOSE_WAIT_MS = 500L
-        const val TOO_MANY_DETAIL = "This one wasn't sent to the AI."
     }
 }

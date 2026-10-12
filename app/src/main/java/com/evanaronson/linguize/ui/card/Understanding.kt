@@ -24,12 +24,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.ui.components.BackButton
@@ -41,15 +46,15 @@ import com.evanaronson.linguize.ui.components.BackButton
 @Composable
 internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () -> Unit) {
     val parts = buildList {
-        if (meaning.isNotBlank()) add("Meaning")
-        if (assumptions == 1) add("1 assumption") else if (assumptions > 1) add("$assumptions assumptions")
+        if (meaning.isNotBlank()) add(stringResource(R.string.meaning))
+        if (assumptions > 0) add(pluralStringResource(R.plurals.assumption_count, assumptions, assumptions))
     }
     if (parts.isEmpty()) return
     Row(
         Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClickLabel = "Show how the AI read it", onClick = onOpen)
+            .clickable(onClickLabel = stringResource(R.string.show_understanding), onClick = onOpen)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -61,13 +66,13 @@ internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () ->
             modifier = Modifier.clearAndSetSemantics {},
         )
         Text(
-            parts.joinToString(" · "),
+            parts.joinToString(stringResource(R.string.status_separator)),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Text(
-            "›",
+            if (LocalLayoutDirection.current == LayoutDirection.Rtl) "‹" else "›",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.clearAndSetSemantics {},
@@ -96,9 +101,9 @@ internal fun UnderstandingPage(
 ) {
     BackButton(onBack)
     if (meaning.isNotBlank()) {
-        Text("Meaning", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.meaning), style = MaterialTheme.typography.titleMedium)
         Text(
-            "What your text says, as the AI understood it.",
+            stringResource(R.string.meaning_description),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -121,7 +126,7 @@ internal fun UnderstandingPage(
     }
     Spacer(Modifier.height(16.dp))
     Text(
-        "The AI can be wrong, and text from someone else can mislead it.",
+        stringResource(R.string.meaning_caution),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -132,9 +137,9 @@ internal fun UnderstandingPage(
 private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, onSettle: ((String, String) -> Unit)?) {
     val open = assumptions.filterNot { a -> settled.any { it.about == a.about } }
     var changing by remember { mutableStateOf<String?>(null) }
-    Text("Assumptions", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.titleMedium)
     Text(
-        "Where your text could mean two things, the AI picked one.",
+        stringResource(R.string.assumptions_description),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -147,7 +152,7 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
                 Label(answer.about)
                 Text(answer.answer, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
             }
-            Text("Your choice", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.your_choice), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
     }
     open.forEachIndexed { index, assumption ->
@@ -159,22 +164,23 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
                     Text(assumption.assumed, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     if (assumption.words.isNotBlank()) {
                         Text(
-                            "“${assumption.words}”",
+                            stringResource(R.string.quoted_text, assumption.words),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
                 if (onSettle != null && assumption.alternatives.isNotEmpty() && changing != assumption.about) {
+                    val notRight = stringResource(R.string.not_right_about, assumption.about)
                     TextButton(
                         onClick = { changing = assumption.about },
-                        modifier = Modifier.semantics { contentDescription = "Not right: ${assumption.about}" },
-                    ) { Text("Not right") }
+                        modifier = Modifier.semantics { contentDescription = notRight },
+                    ) { Text(stringResource(R.string.not_right)) }
                 }
             }
             if (onSettle != null && changing == assumption.about) {
                 Spacer(Modifier.height(4.dp))
-                Text("What did you mean?", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.what_did_you_mean), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     assumption.alternatives.forEach { alternative ->

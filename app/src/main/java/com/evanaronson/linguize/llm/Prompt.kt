@@ -44,15 +44,28 @@ class Prompt(val system: String, schemaJson: String) {
     }
 
     fun parseVerdict(answer: String): Verdict {
-        if (answer.isBlank()) throw CheckFailure(CheckFailure.Reason.BadResponse, "The AI sent an empty reply.")
+        if (answer.isBlank()) throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
+        if (answer.length > MAX_ANSWER_CHARS) throw replyTooLarge()
         return try {
-            json.decodeFromString<Verdict>(answer)
+            json.decodeFromString<Verdict>(answer).also(::validateSize)
         } catch (e: SerializationException) {
-            throw CheckFailure(CheckFailure.Reason.BadResponse, "The AI's reply wasn't in the form Linguize needs.", e)
+            throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, userMessage = CheckFailure.Message.InvalidReply)
         } catch (e: IllegalArgumentException) {
-            throw CheckFailure(CheckFailure.Reason.BadResponse, "The AI's reply wasn't in the form Linguize needs.", e)
+            throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, userMessage = CheckFailure.Message.InvalidReply)
         }
     }
+
+    /**
+     * The HTTP body cap alone doesn't bound alignment work. Reject implausibly large
+     * rewrites before they can enter the domain, including answers replayed from history.
+     */
+    internal fun validateSize(verdict: Verdict) {
+        if (verdict.corrected.length > MAX_REWRITE_CHARS || verdict.natural.length > MAX_REWRITE_CHARS) {
+            throw replyTooLarge()
+        }
+    }
+
+    private fun replyTooLarge() = CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.ReplyTooLarge)
 
     /** {"about":…,"answer":…} on one line: JSON escapes line breaks; the rest are spaces first. */
     private fun settledJson(settled: Settled): String = buildJsonObject {
@@ -73,6 +86,10 @@ class Prompt(val system: String, schemaJson: String) {
          * times (corrected, natural, meaning) plus the lists of changes; a cut-off answer fails as TooLong.
          */
         const val MAX_OUTPUT_TOKENS = 8192
+
+        /** Generous bounds for 3,000-character checks; malformed responses must not drive unbounded work. */
+        internal const val MAX_REWRITE_CHARS = 12_000
+        internal const val MAX_ANSWER_CHARS = 128 * 1024
 
         private val json = Json { ignoreUnknownKeys = true }
 

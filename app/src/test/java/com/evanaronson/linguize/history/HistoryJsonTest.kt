@@ -62,6 +62,15 @@ class HistoryJsonTest {
         assertEquals(emptyList<Attempt>(), decodeAttempts("{broken"))
     }
 
+    @Test
+    fun errorMessageTokensRoundTripAndOlderAttemptsNeedNoMigration() {
+        val attempt = Attempt(at = 1, failure = "bad_response", failureMessage = "empty_reply")
+        assertEquals(listOf(attempt), decodeAttempts(encodeAttempts(listOf(attempt))))
+        val older = decodeAttempts("""[{"at":1,"failure":"bad_response","failureDetail":"Empty reply"}]""").single()
+        assertEquals(null, older.failureMessage)
+        assertEquals("Empty reply", older.failureDetail)
+    }
+
     @OptIn(ExperimentalSerializationApi::class)
     private fun names(descriptor: SerialDescriptor) = (0 until descriptor.elementsCount).map(descriptor::getElementName)
 }

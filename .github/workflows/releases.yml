@@ -1,0 +1,31 @@
+name: Normalize release versions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/releases.yml
+      - scripts/releases.py
+  workflow_dispatch:
+
+concurrency:
+  group: release-metadata
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  normalize:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Normalize existing release names and tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/releases.py --apply

@@ -44,6 +44,7 @@ import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -224,10 +225,21 @@ class CheckViewModelTest {
         check.acceptAll(EditKind.Fix)
         assertEquals("Com estàs?", check.workingText)
 
-        check.recheck()
-        // While the new answer comes, what was accepted still counts.
-        assertTrue(check.state is CardState.Loading)
-        assertEquals("Com estàs?", check.workingText)
+        // Hold the fake answer so these assertions cannot race an immediate response.
+        val answer = CompletableDeferred<Unit>()
+        client.answer = {
+            answer.await()
+            ModelAnswer(QUESTION_VERDICT, QUESTION_JSON)
+        }
+        try {
+            check.recheck()
+            waitFor("recheck request") { client.checks.size == 2 }
+            // While the new answer comes, what was accepted still counts.
+            assertTrue(check.state is CardState.Loading)
+            assertEquals("Com estàs?", check.workingText)
+        } finally {
+            answer.complete(Unit)
+        }
         assertEquals(1, reviewed().revision.acceptedCount)
         assertEquals("Com estàs?", check.workingText)
 

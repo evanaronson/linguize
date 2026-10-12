@@ -89,6 +89,8 @@ class InputStringsTest {
         for ((original, merged) in listOf(
             "voy a tomar una ducha. te llamo después." to "me voy a duchar y te llamo.",
             "Com estàs? Què fas?" to "Com et va tot i què fas?",
+            "Com estàs?Què fas?" to "Com et va tot i què fas?",
+            "Voy a ducharme.Te llamo." to "Voy a ducharme y te llamo.",
             "Va dir «Bon dia!». Va marxar." to "Va saludar i va marxar.",
             "Bon dia\n\nCom estàs" to "Bon dia, com et va tot",
         )) {
@@ -109,7 +111,7 @@ class InputStringsTest {
     }
 
     @Test fun singleCrlfAbbreviationsAndDecimalsDoNotInventSentenceBoundaries() {
-        for (text in listOf("Bon\r\ndia", "El Dr. Garcia arriba.", "Costa 3.5 euros.", "Espera... que vinc.")) {
+        for (text in listOf("Bon\r\ndia", "El Dr. Garcia arriba.", "Costa 3.5 euros.", "Espera... que vinc.", "Viu als EE.UU.", "Mira https://example.com.")) {
             assertEquals(text, 1, Sentences.ranges(text).size)
         }
         assertEquals(2, Sentences.ranges("Bon dia. com estàs?").size)

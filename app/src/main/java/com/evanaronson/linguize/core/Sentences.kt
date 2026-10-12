@@ -14,7 +14,12 @@ internal object Sentences {
             if (index + 1 < text.length && text[index + 1] in ".!?…") continue
             var end = index + 1
             while (end < text.length && text[end] in closers) end++
-            if (end < text.length && !text[end].isWhitespace()) continue
+            if (end < text.length && !text[end].isWhitespace()) {
+                // Questions and exclamations still end without a following space.
+                // A dot inside a number, URL or acronym is not a sentence boundary.
+                if (mark == '.' && (!text[end].isUpperCase() || acronymDot(text, index))) continue
+                if (!text[end].isLetterOrDigit() && text[end] !in openers) continue
+            }
             val next = skipSpace(text, end)
             if (next >= text.length) continue
             if (mark == '.' && abbreviation(text, index)) continue
@@ -40,6 +45,11 @@ internal object Sentences {
         return at
     }
 
+    private fun acronymDot(text: String, dot: Int): Boolean =
+        dot > 0 && text[dot - 1].isUpperCase() &&
+            (dot < 2 || !text[dot - 2].isLetter()) &&
+            dot + 2 < text.length && text[dot + 1].isUpperCase() && text[dot + 2] == '.'
+
     private fun abbreviation(text: String, dot: Int): Boolean {
         var start = dot
         while (start > 0 && text[start - 1].isLetter()) start--
@@ -48,5 +58,6 @@ internal object Sentences {
 
     private val abbreviations = setOf("dr", "dra", "sr", "sra", "srta", "mr", "mrs", "ms", "prof", "núm", "num", "etc")
     private val closers = setOf('"', '\'', '”', '’', '»', ')', ']', '}')
+    private val openers = setOf('"', '\'', '“', '‘', '«', '¿', '¡')
     private val paragraphBreak = Regex("(?:\\r\\n|\\r(?!\\n)|(?<!\\r)\\n|[\\u0085\\u2028])[\\t \\u00a0]*(?:\\r\\n|\\r(?!\\n)|(?<!\\r)\\n|[\\u0085\\u2028])|\\u2029")
 }

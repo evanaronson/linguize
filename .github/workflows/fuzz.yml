@@ -1,0 +1,180 @@
+name: Corruption audit
+on:
+  push:
+    branches: [feature/fuzz-100]
+    paths: [eval/fuzz/request.json]
+  workflow_dispatch:
+    inputs:
+      live:
+        description: Make billed provider requests; false replays saved evidence offline
+        type: boolean
+        default: false
+      provider:
+        description: Provider adapter
+        type: choice
+        options: [gemini, openai]
+        default: gemini
+      model:
+        description: Model ID; empty uses the provider default
+        type: string
+        default: ''
+      fallbacks:
+        description: Optional ordered PROVIDER:MODEL targets, one per line
+        type: string
+        default: ''
+      reuse_run:
+        description: Optional previous evidence run ID; retain successful replies and retry failures
+        type: string
+        default: ''
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
+      - name: Choose resume source
+        id: request
+        env:
+          LIVE_INPUT: ${{ inputs.live }}
+          REUSE_INPUT: ${{ inputs.reuse_run }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          config = json.loads(pathlib.Path("eval/fuzz/request.json").read_text())
+          dispatched = os.environ["EVENT_NAME"] == "workflow_dispatch"
+          reuse = os.environ.get("REUSE_INPUT", "") if dispatched else config.get("reuse_run", "")
+          live = os.environ.get("LIVE_INPUT") == "true" if dispatched else config.get("live", True)
+          if reuse and not str(reuse).isdigit():
+              raise ValueError("Resume run ID must be numeric")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("reuse_run=" + str(reuse) + "\n")
+              output.write("live=" + str(bool(live)).lower() + "\n")
+          PY
+      - name: Reuse previous answers
+        if: steps.request.outputs.reuse_run != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: fuzz-100-evidence
+          run-id: ${{ steps.request.outputs.reuse_run }}
+          github-token: ${{ github.token }}
+          path: previous
+      - name: Preserve successful checks
+        if: steps.request.outputs.reuse_run != ''
+        run: |
+          python3 - <<'PY'
+          import pathlib, shutil
+          source = next(pathlib.Path("previous").rglob("replies.jsonl"))
+          target = pathlib.Path("eval/fuzz/results/replies.jsonl")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(source, target)
+          PY
+      - name: Load committed offline evidence
+        if: steps.request.outputs.live != 'true' && steps.request.outputs.reuse_run == ''
+        run: |
+          mkdir -p eval/fuzz/results
+          cp eval/fuzz/baseline/replies.jsonl eval/fuzz/results/replies.jsonl
+      - name: Generate and verify corpus
+        run: |
+          python3 -m unittest discover -s eval -p 'test_*.py'
+          python3 eval/fuzz.py
+      - name: Check each language and Auto Detect
+        if: steps.request.outputs.live == 'true'
+        id: provider
+        timeout-minutes: 40
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EVENT_NAME: ${{ github.event_name }}
+          PROVIDER_INPUT: ${{ inputs.provider }}
+          MODEL_INPUT: ${{ inputs.model }}
+          FALLBACKS_INPUT: ${{ inputs.fallbacks }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, sys
+          config = json.loads(pathlib.Path("eval/fuzz/request.json").read_text())
+          if os.environ["EVENT_NAME"] == "workflow_dispatch":
+              config = {"provider": os.environ.get("PROVIDER_INPUT") or "gemini",
+                        "model": os.environ.get("MODEL_INPUT", ""),
+                        "fallbacks": os.environ.get("FALLBACKS_INPUT", "").splitlines()}
+          argv = [sys.executable, "eval/fuzz.py", "--live", "--workers", "4", "--interval", "12",
+                  "--tries", "1", "--timeout", "90", "--retry-errors",
+                  "--provider", config.get("provider", "gemini")]
+          if config.get("model"):
+              argv += ["--model", config["model"]]
+          for fallback in config.get("fallbacks", []):
+              if fallback.strip():
+                  argv += ["--fallback", fallback.strip()]
+          raise SystemExit(subprocess.call(argv))
+          PY
+      - name: Replay through the production checker and Accept engine
+        if: always()
+        env:
+          LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
+          LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
+        run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
+      - name: Build complete review sheet
+        if: always()
+        run: python3 eval/fuzz_report.py
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: fuzz-100-evidence
+          path: |
+            eval/fuzz/generated.jsonl
+            eval/fuzz/results/
+            app/build/test-results/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Fail incomplete evidence capture
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          rows = [json.loads(line) for line in pathlib.Path("eval/fuzz/results/replies.jsonl").read_text().split("\n") if line]
+          assert len(rows) == 200 and len({r["case"]["request_id"] for r in rows}) == 200
+          assert all("verdict" in row and "error" not in row for row in rows), "Some provider requests failed"
+          PY
+  review:
+    if: always()
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        part: [0, 1, 2, 3]
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: fuzz-100-evidence
+          path: evidence
+      - name: Read synthetic results for review
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, os
+          root = pathlib.Path("evidence")
+          rows = [json.loads(l) for l in next(root.rglob("replies.jsonl")).read_text().split("\n") if l]
+          engine = {r["request_id"]: r for r in (json.loads(l) for l in next(root.rglob("engine.jsonl")).read_text().split("\n") if l)}
+          print("REVIEW_BEGIN")
+          for i, row in enumerate(sorted(rows, key=lambda r: r["case"]["request_id"])):
+              if i % 4 == int(os.environ["PART"]):
+                  print(json.dumps({**row, "engine": engine[row["case"]["request_id"]]}, ensure_ascii=False))
+          print("REVIEW_END")
+          PY

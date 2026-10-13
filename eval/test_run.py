@@ -111,6 +111,22 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
         self.assertEqual(2, calls)
         self.assertIn("1/2 as expected", output)
 
+    def test_literal_unicode_line_separator_does_not_split_a_jsonl_case(self):
+        text = "Bon\u2028dia. Com estàs?"
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "cases.jsonl"
+            path.write_text(json.dumps({"text": text, "status": "ok"}, ensure_ascii=False) + "\n")
+            messages = []
+            def answer(*args):
+                messages.append(args[-1])
+                return {"status": "ok"}, 0.01
+            with patch.dict(run.PROVIDERS, {"fake": (answer, "any-model", "EVAL_FIXTURE_KEY")}), \
+                    patch.dict(os.environ, {"EVAL_FIXTURE_KEY": "fixture"}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, run.main(["--provider", "fake", "--cases", str(path)]))
+            self.assertEqual(1, len(messages))
+            self.assertIn("<text>" + text + "</text>", messages[0])
+
     def test_language_varieties_match_the_apps_options(self):
         source = (run.ROOT / "app/src/main/java/com/evanaronson/linguize/core/CheckOptions.kt").read_text()
         languages = re.findall(r'Language\("[a-z]+", "([^"]+)", "([^"]+)"\)', source)
@@ -209,6 +225,30 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
                 status, output = self.evaluate_payloads(adapter, payload)
                 self.assertEqual(0, status)
                 self.assertIn("1/1 as expected", output)
+
+    def test_gemini_retries_without_a_thinking_option_rejected_by_an_older_model(self):
+        error = urllib.error.HTTPError("https://example.invalid", 400, "Bad Request", {},
+                                       io.BytesIO(b'{"error":{"message":"thinkingLevel not supported"}}'))
+        requests = []
+
+        def post(request):
+            requests.append(json.loads(request.data))
+            if len(requests) == 1:
+                raise error
+            return self.gemini(), 0.01
+
+        with patch.object(run, "post", side_effect=post):
+            verdict, _ = run.check_gemini("arbitrary-model", "fixture", "prompt", {}, "message")
+        self.assertEqual(self.verdict, verdict)
+        self.assertIn("thinkingConfig", requests[0]["generationConfig"])
+        self.assertNotIn("thinkingConfig", requests[1]["generationConfig"])
+
+    def test_gemini_does_not_mask_other_bad_request_errors(self):
+        error = urllib.error.HTTPError("https://example.invalid", 400, "Bad Request", {},
+                                       io.BytesIO(b'{"error":{"message":"invalid schema"}}'))
+        with patch.object(run, "post", side_effect=error) as post, self.assertRaises(urllib.error.HTTPError):
+            run.check_gemini("arbitrary-model", "fixture", "prompt", {}, "message")
+        self.assertEqual(1, post.call_count)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,841 @@
+[
+  {
+    "request_id": "ca-005:auto",
+    "original": "El gos s'ha adorimt alsofà.Si truques al tibmre, es despertarà.",
+    "verdict": {
+      "status": "ok",
+      "language": "Catalan",
+      "meaning": "The dog has fallen asleep on the sofa. If you ring the doorbell, it will wake up.",
+      "assumptions": [],
+      "has_errors": true,
+      "corrected": "El gos s'ha adormit al sofà. Si truques al timbre, es despertarà.",
+      "fixes": [
+        {
+          "from": "adorimt",
+          "to": "adormit",
+          "why": "Typo in past participle"
+        },
+        {
+          "from": "alsofà",
+          "to": "al sofà",
+          "why": "Missing space"
+        },
+        {
+          "from": ".Si",
+          "to": ". Si",
+          "why": "Missing space"
+        },
+        {
+          "from": "tibmre",
+          "to": "timbre",
+          "why": "Typo in tibmre"
+        }
+      ],
+      "more_natural": false,
+      "natural": "",
+      "natural_changes": []
+    },
+    "expected_fix_text": "El gos s'ha adormit al sofà. Si truques al timbre, es despertarà.",
+    "observed": {
+      "request_id": "ca-005:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "El gos s'ha adormit al alsofà.Si truques al timbre, es despertarà.",
+      "natural_preview": "El gos s'ha adorimt alsofà.Si truques al tibmre, es despertarà.",
+      "accepted_all": "El gos s'ha adormit al alsofà.Si truques al timbre, es despertarà.",
+      "meaning": "The dog has fallen asleep on the sofa. If you ring the doorbell, it will wake up.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 12,
+          "end": 12,
+          "from": "",
+          "to": "adormit ",
+          "why": "Typo in past participle",
+          "includes": [],
+          "accepted_text": "El gos s'ha adormit adorimt alsofà.Si truques al tibmre, es despertarà."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 12,
+          "end": 19,
+          "from": "adorimt",
+          "to": "al",
+          "why": null,
+          "includes": [],
+          "accepted_text": "El gos s'ha al alsofà.Si truques al tibmre, es despertarà."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 41,
+          "end": 47,
+          "from": "tibmre",
+          "to": "timbre",
+          "why": "Typo in tibmre",
+          "includes": [],
+          "accepted_text": "El gos s'ha adorimt alsofà.Si truques al timbre, es despertarà."
+        }
+      ],
+      "flags": [
+        "fix_reconstruction_mismatch"
+      ]
+    },
+    "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
+  },
+  {
+    "request_id": "ca-035:auto",
+    "original": "La pel·lícula comença a dos quarst de nou. Mi llor que hi arrbem una micaabans.",
+    "verdict": {
+      "status": "ok",
+      "language": "Catalan",
+      "meaning": "The film starts at eight thirty. I think we will arrive a little earlier.",
+      "assumptions": [
+        {
+          "about": "Spelling of the second sentence",
+          "assumed": "Mi llor que hi arrbem una micaabans means Millor que hi arribem una mica abans",
+          "words": "Mi llor que hi arrbem una micaabans",
+          "alternatives": [
+            "Meaning is entirely unclear"
+          ]
+        }
+      ],
+      "has_errors": true,
+      "corrected": "La pel·lícula comença a dos quarts de nou. Millor que hi arribem una mica abans.",
+      "fixes": [
+        {
+          "from": "quarst",
+          "to": "quarts",
+          "why": "Spelling error"
+        },
+        {
+          "from": "Mi llor",
+          "to": "Millor",
+          "why": "Spelling error"
+        },
+        {
+          "from": "arrbem",
+          "to": "arribem",
+          "why": "Spelling error"
+        },
+        {
+          "from": "micaabans",
+          "to": "mica abans",
+          "why": "Missing space"
+        }
+      ],
+      "more_natural": false,
+      "natural": "",
+      "natural_changes": []
+    },
+    "expected_fix_text": "La pel·lícula comença a dos quarts de nou. Millor que hi arribem una mica abans.",
+    "observed": {
+      "request_id": "ca-035:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "La pel·lícula comença a dos quarts de nou. Millor que hi arribem una mica abans.",
+      "natural_preview": "La pel·lícula comença a dos quarst de nou. Mi llor que hi arrbem una micaabans.",
+      "accepted_all": "La pel·lícula comença a dos quarts de nou. Millor que hi arribem una mica abans.",
+      "meaning": "The film starts at eight thirty. I think we will arrive a little earlier.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 28,
+          "end": 34,
+          "from": "quarst",
+          "to": "quarts",
+          "why": "Spelling error",
+          "includes": [],
+          "accepted_text": "La pel·lícula comença a dos quarts de nou. Mi llor que hi arrbem una micaabans."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 43,
+          "end": 50,
+          "from": "Mi llor",
+          "to": "Millor",
+          "why": "Spelling error",
+          "includes": [],
+          "accepted_text": "La pel·lícula comença a dos quarst de nou. Millor que hi arrbem una micaabans."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 58,
+          "end": 64,
+          "from": "arrbem",
+          "to": "arribem",
+          "why": "Spelling error",
+          "includes": [],
+          "accepted_text": "La pel·lícula comença a dos quarst de nou. Mi llor que hi arribem una micaabans."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 69,
+          "end": 69,
+          "from": "",
+          "to": "mica ",
+          "why": null,
+          "includes": [],
+          "accepted_text": "La pel·lícula comença a dos quarst de nou. Mi llor que hi arrbem una mica micaabans."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 69,
+          "end": 78,
+          "from": "micaabans",
+          "to": "abans",
+          "why": "Missing space",
+          "includes": [],
+          "accepted_text": "La pel·lícula comença a dos quarst de nou. Mi llor que hi arrbem una abans."
+        }
+      ],
+      "flags": [
+        "dependent_word_split:3"
+      ]
+    },
+    "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
+  },
+  {
+    "request_id": "sp-016:Spanish",
+    "original": "Me he equivocado de calle. Ahora estoy delante dela biblioteca. Envíame la ubicación, por f¿avor.",
+    "verdict": {
+      "status": "ok",
+      "language": "Spanish",
+      "meaning": "I took the wrong street. Now I am in front of the library. Send me your location, please.",
+      "assumptions": [],
+      "has_errors": true,
+      "corrected": "Me he equivocado de calle. Ahora estoy delante de la biblioteca. Envíame la ubicación, por favor.",
+      "fixes": [
+        {
+          "from": "dela",
+          "to": "de la",
+          "why": "Missing space"
+        },
+        {
+          "from": "f¿avor",
+          "to": "favor",
+          "why": "Typo with question mark"
+        }
+      ],
+      "more_natural": false,
+      "natural": "",
+      "natural_changes": []
+    },
+    "expected_fix_text": "Me he equivocado de calle. Ahora estoy delante de la biblioteca. Envíame la ubicación, por favor.",
+    "observed": {
+      "request_id": "sp-016:Spanish",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "Me he equivocado de calle. Ahora estoy delante de la biblioteca. Envíame la ubicación, por favor.",
+      "natural_preview": "Me he equivocado de calle. Ahora estoy delante dela biblioteca. Envíame la ubicación, por f¿avor.",
+      "accepted_all": "Me he equivocado de calle. Ahora estoy delante de la biblioteca. Envíame la ubicación, por favor.",
+      "meaning": "I took the wrong street. Now I am in front of the library. Send me your location, please.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 47,
+          "end": 47,
+          "from": "",
+          "to": "de ",
+          "why": null,
+          "includes": [],
+          "accepted_text": "Me he equivocado de calle. Ahora estoy delante de dela biblioteca. Envíame la ubicación, por f¿avor."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 47,
+          "end": 51,
+          "from": "dela",
+          "to": "la",
+          "why": "Missing space",
+          "includes": [],
+          "accepted_text": "Me he equivocado de calle. Ahora estoy delante la biblioteca. Envíame la ubicación, por f¿avor."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 86,
+          "end": 91,
+          "from": "por f",
+          "to": "por ",
+          "why": null,
+          "includes": [],
+          "accepted_text": "Me he equivocado de calle. Ahora estoy delante dela biblioteca. Envíame la ubicación, por ¿avor."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 91,
+          "end": 96,
+          "from": "¿avor",
+          "to": "favor",
+          "why": "Typo with question mark",
+          "includes": [],
+          "accepted_text": "Me he equivocado de calle. Ahora estoy delante dela biblioteca. Envíame la ubicación, por ffavor."
+        }
+      ],
+      "flags": [
+        "dependent_word_split:0"
+      ]
+    },
+    "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
+  },
+  {
+    "request_id": "sp-036:Spanish",
+    "original": "He recib ido tu correo. Revisarelos docum:entos despés de comer. Te resp onderé antes de las seis.",
+    "verdict": {
+      "status": "ok",
+      "language": "Spanish",
+      "meaning": "I have received your email. I will review the documents after lunch. I will reply to you before six.",
+      "assumptions": [],
+      "has_errors": true,
+      "corrected": "He recibido tu correo. Revisaré los documentos después de comer. Te responderé antes de las seis.",
+      "fixes": [
+        {
+          "from": "recib ido",
+          "to": "recibido",
+          "why": "Spaced out word"
+        },
+        {
+          "from": "Revisarelos",
+          "to": "Revisaré los",
+          "why": "Missing space and accent"
+        },
+        {
+          "from": "docum:entos",
+          "to": "documentos",
+          "why": "Misplaced colon"
+        },
+        {
+          "from": "despés",
+          "to": "después",
+          "why": "Missing accent"
+        },
+        {
+          "from": "resp onderé",
+          "to": "responderé",
+          "why": "Spaced out word"
+        }
+      ],
+      "more_natural": false,
+      "natural": "",
+      "natural_changes": []
+    },
+    "expected_fix_text": "He recibido tu correo. Revisaré los documentos después de comer. Te responderé antes de las seis.",
+    "observed": {
+      "request_id": "sp-036:Spanish",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "He recibido tu correo. Revisaré los documentos después de comer. Te responderé antes de las seis.",
+      "natural_preview": "He recib ido tu correo. Revisarelos docum:entos despés de comer. Te resp onderé antes de las seis.",
+      "accepted_all": "He recibido tu correo. Revisaré los documentos después de comer. Te responderé antes de las seis.",
+      "meaning": "I have received your email. I will review the documents after lunch. I will reply to you before six.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 3,
+          "end": 12,
+          "from": "recib ido",
+          "to": "recibido",
+          "why": "Spaced out word",
+          "includes": [],
+          "accepted_text": "He recibido tu correo. Revisarelos docum:entos despés de comer. Te resp onderé antes de las seis."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 24,
+          "end": 35,
+          "from": "Revisarelos",
+          "to": "Revisaré",
+          "why": "Missing space and accent",
+          "includes": [],
+          "accepted_text": "He recib ido tu correo. Revisaré docum:entos despés de comer. Te resp onderé antes de las seis."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 36,
+          "end": 41,
+          "from": "docum",
+          "to": "los ",
+          "why": null,
+          "includes": [],
+          "accepted_text": "He recib ido tu correo. Revisarelos los :entos despés de comer. Te resp onderé antes de las seis."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 41,
+          "end": 47,
+          "from": ":entos",
+          "to": "documentos",
+          "why": "Misplaced colon",
+          "includes": [],
+          "accepted_text": "He recib ido tu correo. Revisarelos documdocumentos despés de comer. Te resp onderé antes de las seis."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 48,
+          "end": 54,
+          "from": "despés",
+          "to": "después",
+          "why": "Missing accent",
+          "includes": [],
+          "accepted_text": "He recib ido tu correo. Revisarelos docum:entos después de comer. Te resp onderé antes de las seis."
+        },
+        {
+          "id": 5,
+          "kind": "fix",
+          "start": 68,
+          "end": 79,
+          "from": "resp onderé",
+          "to": "responderé",
+          "why": "Spaced out word",
+          "includes": [],
+          "accepted_text": "He recib ido tu correo. Revisarelos docum:entos despés de comer. Te responderé antes de las seis."
+        }
+      ],
+      "flags": []
+    },
+    "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
+  },
+  {
+    "request_id": "sp-050:auto",
+    "original": "Todavía no he decidido quévoy a hace\r\nr. Necesito pensarlo un poco mas. Te dir é algo mañana.",
+    "verdict": {
+      "status": "ok",
+      "language": "Spanish",
+      "meaning": "I haven't decided yet what I'm going to do. I need to think about it a little more. I'll tell you something tomorrow.",
+      "assumptions": [],
+      "has_errors": true,
+      "corrected": "Todavía no he decidido qué voy a hacer. Necesito pensarlo un poco más. Te diré algo mañana.",
+      "fixes": [
+        {
+          "from": "quévoy",
+          "to": "qué voy",
+          "why": "Missing space"
+        },
+        {
+          "from": "hace\nr.",
+          "to": "hacer.",
+          "why": "Line break inside word"
+        },
+        {
+          "from": "mas",
+          "to": "más",
+          "why": "Missing accent"
+        },
+        {
+          "from": "dir é",
+          "to": "diré",
+          "why": "Space inside word"
+        }
+      ],
+      "more_natural": false,
+      "natural": "",
+      "natural_changes": []
+    },
+    "expected_fix_text": "Todavía no he decidido qué voy a hacer. Necesito pensarlo un poco más. Te diré algo mañana.",
+    "observed": {
+      "request_id": "sp-050:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "Todavía no he decidido qué voy a hacer. Necesito pensarlo un poco más. Te diré algo mañana.",
+      "natural_preview": "Todavía no he decidido quévoy a hace\r\nr. Necesito pensarlo un poco mas. Te dir é algo mañana.",
+      "accepted_all": "Todavía no he decidido qué voy a hacer. Necesito pensarlo un poco más. Te diré algo mañana.",
+      "meaning": "I haven't decided yet what I'm going to do. I need to think about it a little more. I'll tell you something tomorrow.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 23,
+          "end": 29,
+          "from": "quévoy",
+          "to": "qué",
+          "why": "Missing space",
+          "includes": [],
+          "accepted_text": "Todavía no he decidido qué a hace\r\nr. Necesito pensarlo un poco mas. Te dir é algo mañana."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 30,
+          "end": 31,
+          "from": "a",
+          "to": "voy",
+          "why": null,
+          "includes": [],
+          "accepted_text": "Todavía no he decidido quévoy voy hace\r\nr. Necesito pensarlo un poco mas. Te dir é algo mañana."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 32,
+          "end": 39,
+          "from": "hace\r\nr",
+          "to": "a hacer",
+          "why": null,
+          "includes": [],
+          "accepted_text": "Todavía no he decidido quévoy a a hacer. Necesito pensarlo un poco mas. Te dir é algo mañana."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 67,
+          "end": 70,
+          "from": "mas",
+          "to": "más",
+          "why": "Missing accent",
+          "includes": [],
+          "accepted_text": "Todavía no he decidido quévoy a hace\r\nr. Necesito pensarlo un poco más. Te dir é algo mañana."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 75,
+          "end": 80,
+          "from": "dir é",
+          "to": "diré",
+          "why": "Space inside word",
+          "includes": [],
+          "accepted_text": "Todavía no he decidido quévoy a hace\r\nr. Necesito pensarlo un poco mas. Te diré algo mañana."
+        }
+      ],
+      "flags": []
+    },
+    "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
+  },
+  {
+    "request_id": "sp-012:auto",
+    "original": "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso.",
+    "verdict": {
+      "status": "ok",
+      "language": "Spanish",
+      "meaning": "The flight arrives at 21:30. Julia will wait for us at the exit. I'll let her know if there is any delay.",
+      "assumptions": [
+        {
+          "about": "Meaning of abuelo retraso",
+          "assumed": "Typo for a delay (algún retraso)",
+          "words": "hay abuelo retraso",
+          "alternatives": [
+            "Grandfather delay"
+          ]
+        }
+      ],
+      "has_errors": true,
+      "corrected": "El vuelo llega a las 2130. Julia nos esperará a la salida. La avisaré si hay algún retraso.",
+      "fixes": [
+        {
+          "from": "uelo",
+          "to": "vuelo",
+          "why": "Missing letter"
+        },
+        {
+          "from": "llegga",
+          "to": "llega",
+          "why": "Spelling"
+        },
+        {
+          "from": "salwida",
+          "to": "salida",
+          "why": "Spelling"
+        },
+        {
+          "from": "pero",
+          "to": "si",
+          "why": "Wrong conjunction for condition"
+        },
+        {
+          "from": "abuelo",
+          "to": "algún",
+          "why": "Typo / wrong word"
+        }
+      ],
+      "more_natural": true,
+      "natural": "El vuelo llega a las 21:30. Julia nos esperará en la salida. Le avisaré si hay algún retraso.",
+      "natural_changes": [
+        {
+          "from": "a la salida",
+          "to": "en la salida",
+          "why": "More natural preposition"
+        },
+        {
+          "from": "La avisaré",
+          "to": "Le avisaré",
+          "why": "Le is correct for people"
+        }
+      ]
+    },
+    "observed": {
+      "request_id": "sp-012:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "El vuelo llega a las 2130. Julia nos esperará a la salida. La avisaré si hay algún retraso.",
+      "natural_preview": "El uelo llegga a las 2130. Julia nos esperará en la salwida. Le avisaré pero hay abuelo retraso.",
+      "accepted_all": "El vuelo llega a las 2130. Julia nos esperará en la salida. Le avisaré si hay algún retraso.",
+      "meaning": "The flight arrives at 21:30. Julia will wait for us at the exit. I'll let her know if there is any delay.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 3,
+          "end": 7,
+          "from": "uelo",
+          "to": "vuelo",
+          "why": "Missing letter",
+          "includes": [],
+          "accepted_text": "El vuelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 8,
+          "end": 14,
+          "from": "llegga",
+          "to": "llega",
+          "why": "Spelling",
+          "includes": [],
+          "accepted_text": "El uelo llega a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 51,
+          "end": 58,
+          "from": "salwida",
+          "to": "salida",
+          "why": "Spelling",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 71,
+          "end": 75,
+          "from": "pero",
+          "to": "si",
+          "why": "Wrong conjunction for condition",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré si hay abuelo retraso."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 80,
+          "end": 86,
+          "from": "abuelo",
+          "to": "algún",
+          "why": "Typo / wrong word",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay algún retraso."
+        },
+        {
+          "id": 5,
+          "kind": "natural",
+          "start": 21,
+          "end": 21,
+          "from": "",
+          "to": "21",
+          "why": null,
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 212130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 6,
+          "kind": "natural",
+          "start": 21,
+          "end": 25,
+          "from": "2130",
+          "to": "30",
+          "why": null,
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 30. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 7,
+          "kind": "natural",
+          "start": 46,
+          "end": 47,
+          "from": "a",
+          "to": "en",
+          "why": "More natural preposition",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará en la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 8,
+          "kind": "natural",
+          "start": 60,
+          "end": 62,
+          "from": "La",
+          "to": "Le",
+          "why": "Le is correct for people",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. Le avisaré pero hay abuelo retraso."
+        }
+      ],
+      "flags": [
+        "natural_changes_digits:5",
+        "dependent_word_split:5",
+        "natural_changes_digits:6"
+      ]
+    },
+    "review": "Time formatting must not create natural edits that individually produce 212130 or 30."
+  },
+  {
+    "request_id": "ca-024:auto",
+    "original": "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
+    "verdict": {
+      "status": "ok",
+      "language": "Catalan",
+      "meaning": "I have to take this pill after dinner as the doctor told me not to take two. I have it written down on the calendar.",
+      "assumptions": [],
+      "has_errors": true,
+      "corrected": "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "fixes": [
+        {
+          "from": "pasti:lla",
+          "to": "pastilla",
+          "why": "Typo with colon"
+        },
+        {
+          "from": "despres",
+          "to": "després",
+          "why": "Missing accent"
+        },
+        {
+          "from": "aL",
+          "to": "ja que la",
+          "why": "Wrong words and typo"
+        },
+        {
+          "from": "metgessa m'ha veure",
+          "to": "metgessa m'ha dit",
+          "why": "Wrong verb form"
+        },
+        {
+          "from": "ti nc",
+          "to": "tinc",
+          "why": "Space inside word"
+        }
+      ],
+      "more_natural": true,
+      "natural": "M'he de prendre aquesta pastilla després de sopar perquè la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "natural_changes": [
+        {
+          "from": "He de prendre",
+          "to": "M'he de prendre",
+          "why": "More natural with reflexive pronoun"
+        }
+      ]
+    },
+    "expected_fix_text": "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+    "observed": {
+      "request_id": "ca-024:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "natural_preview": "M'he de prendre aquesta pasti:lla despres de sopar perquè aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
+      "accepted_all": "M'he de prendre aquesta pastilla després de sopar perquè la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "meaning": "I have to take this pill after dinner as the doctor told me not to take two. I have it written down on the calendar.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 22,
+          "end": 42,
+          "from": "pasti:lla despres de",
+          "to": "pastilla després de",
+          "why": "Typo with colon",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pastilla després de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 49,
+          "end": 49,
+          "from": "",
+          "to": "ja que ",
+          "why": null,
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar ja que aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 49,
+          "end": 51,
+          "from": "aL",
+          "to": "la",
+          "why": "Wrong words and typo",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar la metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 66,
+          "end": 71,
+          "from": "veure",
+          "to": "dit",
+          "why": "Wrong verb form",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha dit que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 99,
+          "end": 104,
+          "from": "ti nc",
+          "to": "tinc",
+          "why": "Space inside word",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho tinc apuntat al calendari."
+        },
+        {
+          "id": 5,
+          "kind": "natural",
+          "start": 0,
+          "end": 2,
+          "from": "He",
+          "to": "M'he",
+          "why": "More natural with reflexive pronoun",
+          "includes": [],
+          "accepted_text": "M'he de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 6,
+          "kind": "natural",
+          "start": 49,
+          "end": 49,
+          "from": "",
+          "to": "perquè ",
+          "why": null,
+          "includes": [
+            1
+          ],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar perquè aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        }
+      ],
+      "flags": [
+        "bundled_word_fixes:0"
+      ]
+    },
+    "review": "pasti:lla → pastilla and despres → després repair different words and must not share one fix."
+  }
+]

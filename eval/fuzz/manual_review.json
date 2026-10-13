@@ -1,0 +1,2882 @@
+[
+  {
+    "request_id": "ca-001:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1268178219dd36e2d82161cdc1e96f5d2b8764ec425fe1ab9103a2cd7bbf5d40",
+    "engine_sha256": "9f36daa600cdcadc6777ee28c8066c180da15f911121cdbb92cf2062296ed7eb"
+  },
+  {
+    "request_id": "ca-001:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fe689e76c43d29a75db4627902040a940ad9fe425ef39236d279922195e4434d",
+    "engine_sha256": "18d2e606df3729b5039e498713b923640c8de2522ffeecb39f9d13cdc524ae6c"
+  },
+  {
+    "request_id": "ca-002:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "586aff6111594291faedef2c8028b66429d124de4cc09d0aca2feba24472a2f3",
+    "engine_sha256": "36e8c0b9ec9c98c1ecbd88c243c6a723c9b4638df5090c8ee24a7294550779fd"
+  },
+  {
+    "request_id": "ca-002:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "781979d6a8ec564d72beade7543ee9debdfe54f9a3dc49846b1e4ccc710813fd",
+    "engine_sha256": "22128839ebace8f3873bbc89f2d637a48622621cfcb35c97ef5fcf2464daa604"
+  },
+  {
+    "request_id": "ca-003:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "5d531b79c04f48e447a1e37e5c36b093330bc177cb607a2d5eae35e7b4669a24",
+    "engine_sha256": "e2e4ca506d9dd0bd8dd4b4dcef488ca7424053b9929c2e86432e0033b20ce953"
+  },
+  {
+    "request_id": "ca-003:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7bce2959aa8091f49496366f3cfbea5d59b75ff4ade5b756ac62aaaf6891d3c5",
+    "engine_sha256": "f9597befef453775ac3bd6291fb9cbe9435fc29fdde437640911d3f09f9919ac"
+  },
+  {
+    "request_id": "ca-004:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "2b9ae61d2cce42a045158610f96bc82913c0add094e375c5b01d4d1e4327f46e",
+    "engine_sha256": "71e114ef436930f10e2cb3d88b66916ff2f451b6b294b21f01f70b48a519b64c"
+  },
+  {
+    "request_id": "ca-004:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a7fb7405a8b29dcb9afcb6d0490aaaa4a6f3a3c275ff361cb4e9710e4110a1f8",
+    "engine_sha256": "7aeddd8c6c6c979e0a938d8ce7e5354d2ad57ccd898705b382028e41858284bf"
+  },
+  {
+    "request_id": "ca-005:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "E2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d6ee0657b42e33a3bfbee98b6c835243149bc986bc8b96c9e94a15a645d32a8f",
+    "engine_sha256": "6b8de6371998413c6c35d8bd2b31024ff81df4c6afa3f83d8710fd9a187fc863"
+  },
+  {
+    "request_id": "ca-005:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "E2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cb4c6fc2f5614ecda1b6f346a1f7be3faa42ffd30384da184cf60b61aa438b28",
+    "engine_sha256": "ef47eef85fa51b4e00df63e5d53511fa652b94dd3c097d63fb931b21c4d11c92"
+  },
+  {
+    "request_id": "ca-006:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9855bcabb80d24d9e67b6f0a0f7cbaf7357671d994606f6e26666d62befbb7d5",
+    "engine_sha256": "fc3459f57bc508e683d13ca7dffde7fc1202cf4112d821408c15ea47a9318d19"
+  },
+  {
+    "request_id": "ca-006:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "41b01a1448ae5a6de4d3050e3172eae6711205f350e975615b480c9591f239e7",
+    "engine_sha256": "b277e2638517a47d8a1ab7f9d2a88de540d7645718bacd6292cb200755a260a8"
+  },
+  {
+    "request_id": "ca-007:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "753f1d89669d7dd59adaa12b6d75d8e1dc178608519bbed86fd5f2edc9140b85",
+    "engine_sha256": "266e8f21545e7f91663996ac636cda900fc5408f687a2be18dc2fbee4225b019"
+  },
+  {
+    "request_id": "ca-007:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8dab7abcde41aca20de8385f82632e6aad75db10da440bb7779434963ab1827a",
+    "engine_sha256": "d7c1b5b49f3adbbbbe620be07139cd8cae2cc8f8e670cca39cc71ca5a9b5d3ef"
+  },
+  {
+    "request_id": "ca-008:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "4d314ebd5e13e85378797856c5172b6151ebd6d65e6fa6c5a389856c21a954fc",
+    "engine_sha256": "dbb7235b85736ecdc1a06998688fc717af174e0ca8d395776342cca0d9aef30f"
+  },
+  {
+    "request_id": "ca-008:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7f5c4a3a53bb73f08dd721b33a0d397245038e7084cee11e3e76106d17362b2b",
+    "engine_sha256": "556a4f2f45df80dd19f2afc6b30e99fa014a29c5b16a8d474bc0a6754e204557"
+  },
+  {
+    "request_id": "ca-009:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "138552713feba1484ec9bd1bf89d4fb9c8ae597e41b6ec51e0034aac44b1d06e",
+    "engine_sha256": "41491202cc2cb7ec629175207bb2a7a117b2691cc238cbf9ebf0a80e75c756fc"
+  },
+  {
+    "request_id": "ca-009:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "13123a00088b5af106ff2157e5af9d4e5a7027c872b2fa7c40ef195c57762b4e",
+    "engine_sha256": "d58a4f70fbbaa55b42e4335d13e35316e05e1f2c1f468d72356fae1ca12a17d3"
+  },
+  {
+    "request_id": "ca-010:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "95d27e6badae3e9b8e52a93b08a4bd2c188b462bf719b24b74fd4d6742a44291",
+    "engine_sha256": "8bcf7c86c7962e3588102a9fa8d21dbc64a29ad53010a344bafe626e179daaac"
+  },
+  {
+    "request_id": "ca-010:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "51f384058d4cffba8f40b64e1a9d454f214f51c204c2ca4755ec4241b8910bd0",
+    "engine_sha256": "c703ba376140f32971d09903ef6015a6c09eb534dbf73d8fe05c1c0c0812af18"
+  },
+  {
+    "request_id": "ca-011:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a045dadbfc56afe06d44f44ef0d401664f17c00df2585c1cf7caae7225551e3a",
+    "engine_sha256": "449e07d92ee7e084832c73209ef88c31f7851078fe1d7faadb631c1bd001ecc0"
+  },
+  {
+    "request_id": "ca-011:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cf5d44018fe0ba8dc9a60d7a65fda3ff74e8589e12f41e490b67a60317316cd6",
+    "engine_sha256": "2de6e91551b34099689ae7c710a6db6479b470d8ebf1d94fbabf559c06fac461"
+  },
+  {
+    "request_id": "ca-012:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "af30f1b534efe187252eb9e509a1651a8c126bf23c06704bf7ef1179571b0d1f",
+    "engine_sha256": "3f110a85b979fe965783a16d56f558185011bdca4ddb14759b1f00e2378e9d5e"
+  },
+  {
+    "request_id": "ca-012:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "562e045ce8193f1602f389ba2ad7dfbdd5efb51606e1b942ba1b12120a9a4c2f",
+    "engine_sha256": "dfb0ebdc89dc5ecdd1cd2d4c910022b642a8678dc112e59d7c019d7af880dafe"
+  },
+  {
+    "request_id": "ca-013:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "12c36d2c9bcbfd54fa14e67c7f1634fc250212200d8ed0c0a4258518c6f67ce7",
+    "engine_sha256": "90ce531898dacd3cfddad14691c54e39bdc605f53e22f9b3d8cd42058cef2760"
+  },
+  {
+    "request_id": "ca-013:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cff41ec5b2b65efa618cabde9e58f59a6579e8a1b13d1147af37301004054bd1",
+    "engine_sha256": "b6ffe098e72a72ca9b6d5047b6376386284dc864dc9ef57c2321f90c4e06fe18"
+  },
+  {
+    "request_id": "ca-014:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fee32df82236fae49b06ed3fa0577d888644813c1e3d5564068ce4d22ffb54ca",
+    "engine_sha256": "e058729e5f7b864ade221b7c6371261ed31165e75ae48daf17d784fc837703ad"
+  },
+  {
+    "request_id": "ca-014:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "5546e71c4059841bf88e8d6a75ce86c5bd341db77d286d2b46b9d0913f0fec10",
+    "engine_sha256": "a958e409c09ac7044b3fea11796d6c19b98c4981615f589c604e805899d9e42f"
+  },
+  {
+    "request_id": "ca-015:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d0c173a5d99f4cbdaf8d69aa8ae9110b7ff614bcd0cf12bf108ba2e1c41da620",
+    "engine_sha256": "24e854746602f507a97654ac0bfe8e31b694781e7905309db72e0b44eb9dd64e"
+  },
+  {
+    "request_id": "ca-015:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8f20f9e19102c012def32f80c76ff9706c67628a5e5c9a98aabc14ef31df225c",
+    "engine_sha256": "824a0bf4e011a3b63d7afd2677aa7c460a97ae16d0d3dc9a00ffe5c2f7925ad0"
+  },
+  {
+    "request_id": "ca-016:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "da6c428022616ac1e65bc80479d6325bbd7f8f6f030e5cbe5dfe3cb7e488f3fe",
+    "engine_sha256": "ea2fdb17cb3fa3731ea4aa2a580e0b1705171c23a65780f2a3caf66440cbdc21"
+  },
+  {
+    "request_id": "ca-016:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d2cdaf3ec8370c13554a522047106d24d85a5268c2b4709f2e0fc39d702627b6",
+    "engine_sha256": "d776d1f4095861ec244c84d5d6a122889ea84d948cc28471224b3e5c56b34760"
+  },
+  {
+    "request_id": "ca-017:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ce8d1c7ee4306e7aae0d906ebb922337e52df04ea5a0027716f6d7ac5d3a82e4",
+    "engine_sha256": "52f1aabfff27e7da112c51a5223028a05fff850eb2299a44df2197b34409a863"
+  },
+  {
+    "request_id": "ca-017:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "2d38eb5d86832cf496f6d07aab2b1fa25f14e541ff38eeb2f3c4da41cbfbe70b",
+    "engine_sha256": "6084c4bca7b32d30f7b5f9ee08041ee9480a5c01f3dca84d120df4c5bf6fd98e"
+  },
+  {
+    "request_id": "ca-018:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "33563ec5b78782e9810e53268a4290b23b19a61b40417feb2e774a1517016989",
+    "engine_sha256": "7abfcb6e4fa7952c3bc3bdb795b55f7f580faffc46877031967585cc2f2247fb"
+  },
+  {
+    "request_id": "ca-018:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8c77e585aee22a2af5b54fbf1cb76c05bdc9c144e35a19bce2e852380612c247",
+    "engine_sha256": "c750feb4ebf47b41f29a31fe622ba69f3636eaa918250d7d454f0fa84a17dd10"
+  },
+  {
+    "request_id": "ca-019:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "71042580103da41268255627c79cfc85b94adf1c648fbd071ae76fc226d9f538",
+    "engine_sha256": "37cb722c0e28229bd3287dc8f301195209e8256d820a696612dad6ac5ee7b847"
+  },
+  {
+    "request_id": "ca-019:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a70ef820eb157f779c4d54c0210529afefa0cad9e2267a93eaeed39826a74361",
+    "engine_sha256": "6c79df137430e04dad304c3d814cf21ac1f861a4953a3f31ca2aa0f7ba44c5e6"
+  },
+  {
+    "request_id": "ca-020:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "6f6b77c81cfe42978cf20cb7c23445fd5021603b844be9323de8706dd32e5d1e",
+    "engine_sha256": "4666dd66fc9122097889b803fd89709d740b4e56187463928bf956eb065dcf1e"
+  },
+  {
+    "request_id": "ca-020:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b1f8216ad8d66979cf5a10dcddf3a6f164e0f077288da8be49c253da7f3e67db",
+    "engine_sha256": "2e795f0cbcc8e36f02b495bd904d1fe83ff1d6be968fb8357b2a36e1963bd388"
+  },
+  {
+    "request_id": "ca-021:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9ed04543dd43006a503a942a1984d0024ef5940b21c96880be73cc3a2ac4c83c",
+    "engine_sha256": "fa31d56f04c1bb197d6cf6f597cf7193d4e7fd3b5f4148d6c228e0ccf22dbc05"
+  },
+  {
+    "request_id": "ca-021:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ca9ad85d295e37b822d00aacecbba46eba69a5930122189d4f868cebbf089c03",
+    "engine_sha256": "39e3eebb2a14992031f9608616c661c5ec12fd98643822560a8abe0a1cf31d22"
+  },
+  {
+    "request_id": "ca-022:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "20374db4b7f9ea2f7674aa734104259835b40f8c93c8a636785e2031a16112f3",
+    "engine_sha256": "ee5fad280bc73c5b6f8f4ea22089c77cbeb6627461291d6b65227a403bd1d7e1"
+  },
+  {
+    "request_id": "ca-022:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "55294f3a08f883ab77903f48e419742616133fc3820ea571f63412042f189e94",
+    "engine_sha256": "3f636e37750d619be4c037ff3132e9b9ba2188f2ac628a86a9eaaf4c79482051"
+  },
+  {
+    "request_id": "ca-023:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "60682ff2f8eccaedba75803b7d83aa4facaae203ed6f4b69131fb9a559c165cd",
+    "engine_sha256": "ac3af7f13290df337ebb7211be05f2ca9daaa49858471414087e767f9a49eded"
+  },
+  {
+    "request_id": "ca-023:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "0a7bfea4dc89c32622a1c579f584e4e27ebea219481ca3525b7203a2243f8b2d",
+    "engine_sha256": "5d5bc0a7a642afbf2224900d5a96cc33e627bfb1e918c7dbed545ab6d9726625"
+  },
+  {
+    "request_id": "ca-024:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "E4",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "590ece3ed1448afcfa43dae270ed971de0d63c0f7f1e1c7cbbcdeedd0a796b84",
+    "engine_sha256": "93f6b154d21464d02175b84bc46db064cdbe74ed1b6feba3e774ae9eda4345be"
+  },
+  {
+    "request_id": "ca-024:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "50713be04d5acdd0586b0d5aba891bc5dfc2ac4fc50ac894dd86993edcb8dc8c",
+    "engine_sha256": "36589dc68a0f343cf5d4f72b616ba89fda756c0d65e4ccbb076522982140b22d"
+  },
+  {
+    "request_id": "ca-025:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "11388d9963e542835e032963d5852f34e9130df612cca5f497bcd1f539cc81d0",
+    "engine_sha256": "8a4887fb78b83094e36ec45beaf45c835be34d1f14458298525e9db0188a23c0"
+  },
+  {
+    "request_id": "ca-025:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "11388d9963e542835e032963d5852f34e9130df612cca5f497bcd1f539cc81d0",
+    "engine_sha256": "9921f312ec0b1921656c4cb8cf4e9f52ecbb99fbd7519453ab0209bd6f89e8b9"
+  },
+  {
+    "request_id": "ca-026:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "74b1eb5ee5bb2fcca3073a28ddb2026709e1fc0aaf656b53177b10c60611a9ab",
+    "engine_sha256": "02286513dc4a032a26a5a55d9b083c55afbdf55fb0846c3a12d43c2b018fcdaa"
+  },
+  {
+    "request_id": "ca-026:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "10e082558146cdcc56d3d94b6fe58574617008d156c2a65a0462d0841948e8fc",
+    "engine_sha256": "1f2ccd46f4a6d8cb033e6fb8170decc45690902d8a3ff5c7c945003c5e49db67"
+  },
+  {
+    "request_id": "ca-027:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ff535491260682cdb8fafe438beb8cf7c9a463b387a7b7617ac61f174ae16627",
+    "engine_sha256": "9682b5199be69010567d7cce1cadd5aa5cc1d1c15bc24addc58d5e7e6c8bba8e"
+  },
+  {
+    "request_id": "ca-027:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L3",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cb5fef76e548da8fa9c0513677a5647c019bf45a126295def725ad546216cf6c",
+    "engine_sha256": "cc7d4903527564a494c268a7e22aa84a1ed9fd013ebed53fa1f4c82f0c479e06"
+  },
+  {
+    "request_id": "ca-028:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "22867e95bdcc14c6a07b489a38d34744ae2a6a256c58dea8d6187e756e92f159",
+    "engine_sha256": "f975cdca915ccdd401846695693a1a216a7cd589c0234f8b8e80ee4f0911fdc2"
+  },
+  {
+    "request_id": "ca-028:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "35be3fc26d47b692a0ee13227df0aa4f5c91af43f59a097a475165f5759d8d87",
+    "engine_sha256": "78410b56313ce5f22f518cfe2fdc2e2e2ec042516979c1c3a3ff227307580785"
+  },
+  {
+    "request_id": "ca-029:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "42a298f04cfc8f5a56ce0010069aa807e0d2231f842e823b03fc8bfc9ffa3f1b",
+    "engine_sha256": "4fa2d733ef871f3c1790180face4583319b5b3ded33120687964a7209b9383ae"
+  },
+  {
+    "request_id": "ca-029:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "230280a901ae5140ad0713743e25c0e57fe36ca73cbed57aa2459ade74edf2de",
+    "engine_sha256": "cd1ae3615ae5e618fe246c9b9dfca77236e4f5b95d2ca3ddf56446c89922eb5b"
+  },
+  {
+    "request_id": "ca-030:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ecb7c92f113baef2df456ab0ecc542856ff9ba00acb78dcd6ace38ba2c62daf0",
+    "engine_sha256": "e297a9eee4ccefe8e28ebe11d0897bbfd46f84709e7d0f9f3229ddff2447ec28"
+  },
+  {
+    "request_id": "ca-030:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "90a08884b27ff0d12c5540983b0a5cfe0fef4d8608e1beeb64cc88eb512ef6c3",
+    "engine_sha256": "484d83459c9e584abf08ab5c786a48cfa76ab04a5f0b980c5354363c6963b34e"
+  },
+  {
+    "request_id": "ca-031:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "28cd1f0b7a8399e4bda20d86f2a9e78c4e94b07c2e25f2160ae218735014ad0b",
+    "engine_sha256": "38728352a5de323d5b2058fd5d6b586ee2c166ff733280930fbb20e53984837e"
+  },
+  {
+    "request_id": "ca-031:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "75815e7c42e15cd8bbbaa45b0ac23ba58376d45d300c55cfea900aaa9261083c",
+    "engine_sha256": "a463d34c7be4c0a4249f626305fb50d57005dcafac8442acb6e6e93454899534"
+  },
+  {
+    "request_id": "ca-032:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b951115f48b28e6bf0327cb46ba362775dd13bffcb80b060b804c28837350435",
+    "engine_sha256": "41e83ac3c2e4218320054ad4bb0a0ab9024e97ba5fe95de1cce8551ade9f2e2e"
+  },
+  {
+    "request_id": "ca-032:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d2b2b586094667f94ecec368b0ea7a30bbe259fd9f221b92deb7fdf1ef0d7fa3",
+    "engine_sha256": "6af18a6f7b92986620cecd84ea707ce8b3c367e372bcf38275f2d093149258c7"
+  },
+  {
+    "request_id": "ca-033:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9b680b7403b6526e522eeca9007585f647b4a580efc0ba334cc8a007924a809c",
+    "engine_sha256": "5317538a749be76cef575cb88fbd150b20091991757bbe9f6a01c677567ede39"
+  },
+  {
+    "request_id": "ca-033:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "53b8aee15563fb7c72ec2337c0b9af96402198f16dc09e87f21ffd19fc300b43",
+    "engine_sha256": "f09cd639ae55064185335cd8fbb84cb5afe9bb410c98c0f5cec617b2fe68ee62"
+  },
+  {
+    "request_id": "ca-034:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7ee96528d09a06fbd89a0ca0fb77bb0667e3752ba333f1bb55d7f2e14560d9b4",
+    "engine_sha256": "33013ba5ca60312bad78cb573f54e8593ea7c7081e7ea5c5e12bb72c0e2a0da4"
+  },
+  {
+    "request_id": "ca-034:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cab988493442bf8e7e84f310505107b5b8d98458f567deb7c112076aade1af80",
+    "engine_sha256": "8b201fb3f6af8f146b816b5f516a34450edc5f525d6da8f2a79bba3aba491184"
+  },
+  {
+    "request_id": "ca-035:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "5613d10b74cc98390f236a6a9c13b4fd5fcb370654dbb05642810f455db1bcd6",
+    "engine_sha256": "6c44ce2c2fe53dc9da8230c691c4e936aebe0d60fe9719a521c5f660e770855e"
+  },
+  {
+    "request_id": "ca-035:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "15a0f9c7ef146212f83d47d364ae4498518d02b7278b3a48f14494eaf5461450",
+    "engine_sha256": "fac894b943150d8f7a7873d2023680f21513b1cab19eff1dbbc9b8893254d9aa"
+  },
+  {
+    "request_id": "ca-036:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "4114346960a513766a340e68052dbcac7d1038c969220388701ebb108954b407",
+    "engine_sha256": "015bc6355400bf719d694a839d9b95c9f6ad08e8c5fe2ca7094a979beb44aad7"
+  },
+  {
+    "request_id": "ca-036:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "2070a2c035412343340638f5bf7e120292e6ce1bc5165281a39bc3abe4708527",
+    "engine_sha256": "30ee71a08f8a0aa43388e5878d706efd7584825c85bce940c530aa83df28b957"
+  },
+  {
+    "request_id": "ca-037:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "44cc8d2b808e654fd5c79c09f99445639abeafe704ce90ab370d08d0e2f00485",
+    "engine_sha256": "1c8f48cb7893d898cc6ab6b8bd0397534735ec59f0b636880839c72b15668cb5"
+  },
+  {
+    "request_id": "ca-037:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a2069a3ef37027f688199f7eb8fa62b116104969db7a14579cde77d379cc5cda",
+    "engine_sha256": "9a5879f8c7026444a1dc5f01e8b5fe383251f914b74bb53f5943911f5c69a887"
+  },
+  {
+    "request_id": "ca-038:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "78e89ee71e4ef4698094a74321b76c8c094e7d9f6c1f884847c08b4d17b683f7",
+    "engine_sha256": "b38c239b101b7eb8ea847cf44e3969b2907777f3af35b4a66afb4935ff0e0913"
+  },
+  {
+    "request_id": "ca-038:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "edbb03dbe8db68b883977bcfe5bf64240cd062e5bc35b4f53957dbe413d8a1c1",
+    "engine_sha256": "bd176749eef99dd945baecc81e81d9e4b788920f2587a32745a27fb52a67c067"
+  },
+  {
+    "request_id": "ca-039:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "f601af5745a6b6020d2ac1a2b5655c3ed780dbfaf590dc7a29644fd276bef3e2",
+    "engine_sha256": "e97dae92e5c006dceb2000c75ac4bc8bae45a0eeedbd84504af51b229335305e"
+  },
+  {
+    "request_id": "ca-039:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "413e20a6945de81daa8b44f5019628e0c5d9e1142124ecd0373f3b3ab50eb3e8",
+    "engine_sha256": "4e4c24440c9b3673793bd415caf9de7acb2de72f6b6d789c7b6ebf16f7b0795f"
+  },
+  {
+    "request_id": "ca-040:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "3d107eefc51029dd4529fee302810cb44817dadb8dccb3c8c29661fc1c8d897a",
+    "engine_sha256": "36c0adbbb638a5b057b355cc85b6d35b9fb40ad4653ffda494ef56b86b038015"
+  },
+  {
+    "request_id": "ca-040:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7037d29d02133b01276bc6cc2f3c1ef1a3d9c774e40f5d82b439cf60574eb404",
+    "engine_sha256": "2adc226c79117b58e197a0f8bacc5e8b791e70db70a5ea07a6005e40544d949d"
+  },
+  {
+    "request_id": "ca-041:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9b9ff4aeb77e532129dfacbd255d41a367ae03c86672d0edc87a2ffde32825f5",
+    "engine_sha256": "f56676bca98587f3d5ddb08301fe4242aba48572b9edf161b5a582f768c6a4fd"
+  },
+  {
+    "request_id": "ca-041:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "bcab862170e188f80b513cc17efc7aefba76adf379532c1000affb279639e045",
+    "engine_sha256": "701e5e5c65e8b8d51409d87a3c1718ebc71458ce8bbd77202f003321a1a08b48"
+  },
+  {
+    "request_id": "ca-042:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "be78f0fba7d21f0968f6f1b4195b2ebeb1b4e9f2b919b7b4320cc3eb1b7a7fc4",
+    "engine_sha256": "c698a213f52b509a022998cd41ac2439f8365277449285af16d0c461a54ed841"
+  },
+  {
+    "request_id": "ca-042:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "68e7603b73f67089cf45df147185cce206219125ef175c48c35adbd18d47a423",
+    "engine_sha256": "32280f7a802ed249b5fcae1f407b410b301c1882c68df40e80a1763df3777ef6"
+  },
+  {
+    "request_id": "ca-043:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ed1f5aba6eaa5b2d7de91c2fc8a33547b3925122739b1515577db087ded0d165",
+    "engine_sha256": "eda4918a2f46737d462ec7cac1b442710d2936992237f17e2b2a69d453be68fc"
+  },
+  {
+    "request_id": "ca-043:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fed916df216d157847a67b2aee5c585522a823afe3fea8fe91f69570d17f7c27",
+    "engine_sha256": "bf5252bb54ea35f9f5d301c039752f98dc4d5a713d0ee69d3f6c679b2f87a456"
+  },
+  {
+    "request_id": "ca-044:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9e62637cef8e80b05ddf40b5f2af0a74f45d64ebed1a2a6dd77d7bc184d64dab",
+    "engine_sha256": "b9ac354e3311b952e076a2b27f3708bf27ee1bbd95a40863b15162435c5ede25"
+  },
+  {
+    "request_id": "ca-044:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "49f513e2cfd6ba537922bf69763f62c68347c25e9a294c1531708d7024d5de10",
+    "engine_sha256": "54fdc0da9dc0af86b03018bf65d6983c927707b07e2e4f514ea3ddb890412c87"
+  },
+  {
+    "request_id": "ca-045:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "f0c4ce1b534f9aea800c50405b2d0839661040d835c26597ab8eace30a85ab7d",
+    "engine_sha256": "d8acfaa64d070fc606235724780bf4f6ac75788ae10b6db79111d6229e6bd920"
+  },
+  {
+    "request_id": "ca-045:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ebb58a714ebc027a00d6c8206a80bc1126cd303dc767badb445738b33748470f",
+    "engine_sha256": "d034837865d17fffaaca7455142d8844dca6e43d5a9bab6f4289de047c1af505"
+  },
+  {
+    "request_id": "ca-046:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fba7b738aadacb247f6f4b2204d8fa25dc040625f4a232ba49810a177c8176ce",
+    "engine_sha256": "e333b400d967af71c23e87dd4a24092a93e6e7457740264f60c53854b8068192"
+  },
+  {
+    "request_id": "ca-046:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "f65b1295baab772391c99bdbe64022649b2f8b5069eb300f35835247759eed88",
+    "engine_sha256": "e85cb34cd4766240b4fe61bf8d6981a804ac0e3f45b328ce25a783a3d1abedf7"
+  },
+  {
+    "request_id": "ca-047:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "6a8c9202f772016277738cc02ad51769c0873b4f3df4bd5505232f20784eea23",
+    "engine_sha256": "b1cbf25e234c061b4377676ae96aa48234d8d72d4c55b1614a9199aee1a1c616"
+  },
+  {
+    "request_id": "ca-047:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "db0eeff30da9f6f5906fa34ca7e00d620f0e6ef3f63c0b1b52df00c1f574c84f",
+    "engine_sha256": "3247ca5dd23988b4eb1fcc3b7ed52641f48ce4bfa5808063b90b2f8789fff4c5"
+  },
+  {
+    "request_id": "ca-048:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "4391f4ce1e3c2f3350d0d9c13f655430a010d33e494b0aaeaa4c87e2b3eff250",
+    "engine_sha256": "e85c3dac6ad380b092ee012007ea45911b2378d00b77afef818cde30ad3d979b"
+  },
+  {
+    "request_id": "ca-048:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1b4dddc49418724539ef19f60c2f7259e154ef1cfd45e30b31293a6038d44264",
+    "engine_sha256": "ab7c9f11960f514363160a8d55a9084fe5a2a9741144f54777239220fa0c24f3"
+  },
+  {
+    "request_id": "ca-049:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fba2dba508fd7cdc1a29f39e05591d0386e02a33cf57102efe70cfbea6f83290",
+    "engine_sha256": "1f4211c24e80d4c7be7c1ec2c95d0358e504dd89b76a64040914ea2e3d8b68a7"
+  },
+  {
+    "request_id": "ca-049:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1a9e67a17a35b0ca1dce4e1f541b3544eeebf5c074f72168f50d3887fe9cff92",
+    "engine_sha256": "827886f5df43ac4591b377adf852e38ff77c31a95cc5b0a10facc359e5db0f93"
+  },
+  {
+    "request_id": "ca-050:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "95c3c72980b3e7aaa9533d221ff2d15e3187a8d4aed21ab96d0cefb7fa6b3eee",
+    "engine_sha256": "bc74f9f73dbb1450544aa27b0e89eb42a6717d19e919078545309744d5b55a76"
+  },
+  {
+    "request_id": "ca-050:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "2ac8f75497311ec78f1d816586a15e030b2243278e22e38b2ecb6a2a086ef15a",
+    "engine_sha256": "0bd47528741c220aa5579cab4486333e19f5126b4f53b85f1af5f359d55ea4d6"
+  },
+  {
+    "request_id": "sp-001:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "62a0d57e13e8744693a7b43b24e124590e29ad1bf6280299b33d8b0389c20574",
+    "engine_sha256": "805fa73f44bab33623d57961817752c8475bec7905b6a5d98aeda4d7e59c63e1"
+  },
+  {
+    "request_id": "sp-001:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "5e93ccc6de73c9e60cf2ff751f6b987e1bd3df782bb30073d234a179935a1db0",
+    "engine_sha256": "960c3446dbc93f39b92815b45c93f6b871631e6f9976eb8a848d25fbb84b2e86"
+  },
+  {
+    "request_id": "sp-002:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8f8d637bda6575ef869079ede12abca7e42d30733ba43347a5b38242fbf6f0a8",
+    "engine_sha256": "5bf4ba5991d527d3459e0c73fad47082d3e66a28bd4f7b8f57e28fc18ee01235"
+  },
+  {
+    "request_id": "sp-002:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8f8d637bda6575ef869079ede12abca7e42d30733ba43347a5b38242fbf6f0a8",
+    "engine_sha256": "ca05889d77c7ccc27429259da21d6cf0f5eebe4c739d08026d85cb1d996a2aa8"
+  },
+  {
+    "request_id": "sp-003:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "5a514679851e401d9847c5bd6a5eac5ab10aa8bafad22c7e23f4f2e6648dd297",
+    "engine_sha256": "2033f20bff2a21ab659088f47492e029955d8c41dc488fa3b3cd8c9c93f77af0"
+  },
+  {
+    "request_id": "sp-003:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9f4bee3e8b07ea4acfc36dc611c50ee85d609874b86a4d2afecb27413265ffb4",
+    "engine_sha256": "1412062c2e4b556f9bace17ff942c8ac4953e108cc89f5b387f7feb45a08a6e2"
+  },
+  {
+    "request_id": "sp-004:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "f49f36afc850490255b889f37ef57de437615b56af4fc90bfe56780f836fe723",
+    "engine_sha256": "0aff88a69b8007df5add69558256cf6909cc662a38e94da31d42957db95e8b60"
+  },
+  {
+    "request_id": "sp-004:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "0aab2d1e1ffddc84cd7ce6d94ed87977bc0f7b4ac963f413d6733fd66102e9b2",
+    "engine_sha256": "cbb6512d7eba517796894a12c023a5e0906c9dc291c91e49a13dd4c0e3c3a773"
+  },
+  {
+    "request_id": "sp-005:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "879abf00cb32e44388b93e2b519e338bef5c743cdee122816bd17a929ebca25a",
+    "engine_sha256": "486c7b72be7b605b14062d5503ca71c797a50254a58ee7e9d504ebac47498281"
+  },
+  {
+    "request_id": "sp-005:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "879abf00cb32e44388b93e2b519e338bef5c743cdee122816bd17a929ebca25a",
+    "engine_sha256": "2cff5bb453a76b60842c471e65a2bc8a1e0b40ba1023b8db000b2b7f2a0b1c4f"
+  },
+  {
+    "request_id": "sp-006:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a768fd35fe1dde212a35df674b2ec5bef02a99acdda596ece7a2ce76e1b5c5e3",
+    "engine_sha256": "70c901cf62e6bd6273a803982487b3f6f4697a97d05bb2473886981f92454ab4"
+  },
+  {
+    "request_id": "sp-006:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9cbcad2a88c0e92991cb8d8369c815d177b4a07808cddd39ea8eb416bb0a0820",
+    "engine_sha256": "6102ff4bd067680c5c8109540a64c9560a47987d588de47e70571b9c6c77934a"
+  },
+  {
+    "request_id": "sp-007:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "99a7008a67b64767c7327d7827557dce8cc758d85028dbacd04cf9a2a298a272",
+    "engine_sha256": "bbad2c99bc140722fc62993c9bbdf104f46c19486ac0908e4092551dc6f2d9c0"
+  },
+  {
+    "request_id": "sp-007:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "2b309bc2a70afc7bdd68ce158f439118ee578844fb7de46b4057c9b1adf996d9",
+    "engine_sha256": "7b3e6d19514841755fa1bceebb932423c629fa04664af3132dc38cec6d713e84"
+  },
+  {
+    "request_id": "sp-008:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "bd3751e08072700dfd53e7d01879ca2279b9883886909f9017235e8e6765b784",
+    "engine_sha256": "137847ee1e7997ca70e23d5243d9fe3f454c928f8bb754ceb6b5eb4d4274c75e"
+  },
+  {
+    "request_id": "sp-008:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9063e15f0979ae092c786ca6a43c79e61687c0262834ef5667ad9d01ed4b072f",
+    "engine_sha256": "e96691bc2737c95def170ed63033b07aeeebe2d80f3f847113e530732c6a3469"
+  },
+  {
+    "request_id": "sp-009:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "72efb3d99fdec30815afdc1c0cf4bf164188281be6e6bbf6b6c11b3d8d8fe00d",
+    "engine_sha256": "d6a02f7dae10d3f8f5981c55ec06c3a51df39d3c929f3db75b8b7bed120bd429"
+  },
+  {
+    "request_id": "sp-009:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L1",
+      "L3",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1a1f4da042732926ae4e690e7bbeba27d9c9a3d95fe2f612a613a6536dd53c8d",
+    "engine_sha256": "0fadf83ffeaf1de3306e219a735d93e21ea1c645530b7f49e9de7c11df6bf87e"
+  },
+  {
+    "request_id": "sp-010:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cbc60b6013394dd438744652c7955f1133329eea95c801851faadd8b21f7944c",
+    "engine_sha256": "45c6338966354f5f5dd50778760f7e99bba2422fb213963d16100d547061fa53"
+  },
+  {
+    "request_id": "sp-010:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "10ce963aa2de4cfa62351f5a1bda71e1cd8f2590c2c023adc0864b1a2c987c3b",
+    "engine_sha256": "e59c5c47289c5a68b9c99983f26b4ea3851566ddf702eb04723188d66d55b8de"
+  },
+  {
+    "request_id": "sp-011:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "4624d4b383c56e56c5addc79e165bba1416c8b6564fa6e7561aa08579986685e",
+    "engine_sha256": "70fa2f5dc56e8828adc8d0bbcab2c6d6adc3b1f16e4d54f3bbf37b4defca388f"
+  },
+  {
+    "request_id": "sp-011:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "e09c28a52796449a7e0d47b72b696fdbf9118adfa65a252dbcb44539203e3ae7",
+    "engine_sha256": "11868e48e9e63c8802e964b8ec5cc9581f885fed05bca9b6c02247a5a893e00b"
+  },
+  {
+    "request_id": "sp-012:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E6",
+      "L3",
+      "L5",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "003433ed311156da2dfa6cb86d90249112f57481d809fea60698e383f85d92d2",
+    "engine_sha256": "724e89aaf84bd09866a198fbff30952d897af7f838da123d60160f5ad85e662f"
+  },
+  {
+    "request_id": "sp-012:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "2ff64913c10a2b5afa6242f82a124f9d8c543a4cac9c19f3201b3e498d26bc16",
+    "engine_sha256": "9224435f355c0a9bfe330a60cd69857ba3d2d7154f1b3dbbe290cd55a0744b4a"
+  },
+  {
+    "request_id": "sp-013:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d1ee02b7f9d281bfd2dd6ce3e931cc08df89208877b1c979bc21298b29399127",
+    "engine_sha256": "31a23ee3cd38e4f0f80438567d5ee861b8af8a9b1b3c2c8c1ec73a182d390596"
+  },
+  {
+    "request_id": "sp-013:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "052c74d0131ec294ea1f2139bcb9f74e8d68714a37ad014b100ef1c636fad96d",
+    "engine_sha256": "780a3ac588b3a7500a44ff6defc2c63dcaba26d93e5184d639a822ce3e1e71c2"
+  },
+  {
+    "request_id": "sp-014:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "dbf0e649cd6468c6c16d7c85d0db759a4b2d87c0af793dd818fcc35fb9a17537",
+    "engine_sha256": "3636cc4b931a00154a054cb938ff5c85d2de9ec36829d053793d1787e11524a7"
+  },
+  {
+    "request_id": "sp-014:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fc3e015c0b2ca5bc380cc59c881dc892306870b026346270832abdade95a61d8",
+    "engine_sha256": "3393f9a93611d2f0bfe285ad81e04e2907658b97eadc45188a420d57b5f41ec9"
+  },
+  {
+    "request_id": "sp-015:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7d32ab54a3e26ad100d3e261725bba2f2a9be0cb9b8218e8bc2a5d76fdd170bc",
+    "engine_sha256": "967fcd9765aa3b1dddd5f79374765f518f0026feb98bcb986eb45a65ece80431"
+  },
+  {
+    "request_id": "sp-015:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b916b53523ce3043525e9b5edabcfdba827f6b827d95ea51537a969c2d4d0cf0",
+    "engine_sha256": "c7be8ed16483b2b013b39d47346f0bcbb40b76af577abff3d9e24939c95673b9"
+  },
+  {
+    "request_id": "sp-016:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "241d57fed4c61b3df9993801547ec2b06c1ea29f1252c6ec30509805a0219f15",
+    "engine_sha256": "2da58eb522174a8f17a905dc6b280c9c220a3966dfed0f179dbc533a95f71a13"
+  },
+  {
+    "request_id": "sp-016:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "3372f154fbcca85f7cbaf567324d8ddc707a0d7f338cf53753dc455680efc8ed",
+    "engine_sha256": "da73588acc50821fb425d4adc780dd43f2d10da295ef1de5d897b08202fe8390"
+  },
+  {
+    "request_id": "sp-017:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "c0550aa97a6ac9d764dbd91d42a0869c30643c4981061089432b235edfd52665",
+    "engine_sha256": "27e9ffcecdc83de533e8e3add4e3de25c249dd578c4a9afc21dce36744851c42"
+  },
+  {
+    "request_id": "sp-017:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7cc70e342f99955f66088564aca639440d6c8ee92bb5e18ba493ab338429993f",
+    "engine_sha256": "663123624af2b112e1a01fe4f4aaf2d533cb030245386b8a9f55c86d2eef1302"
+  },
+  {
+    "request_id": "sp-018:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d88e8401ed4e0f63f6c6e2c638d88a853caf49ee8addb2b32514ab23b70d223f",
+    "engine_sha256": "67541ad9ffee06d7ff06effb045f6d611b29d11d90368aad061471c6a7257acf"
+  },
+  {
+    "request_id": "sp-018:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d1421170a17ac8e16488c0e4e68a1945bf3804633f59db0233d95926fe054e60",
+    "engine_sha256": "3aa1b4936f01eed8b1d2aee32d3d1504c7b85d6548494678dcbc119e34eca0b5"
+  },
+  {
+    "request_id": "sp-019:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "00c8ef150d4fa526332f55dce9fb2a71c72d0f706b454ff01be4e90147687579",
+    "engine_sha256": "f1150c5bb41300ad1c59ceefd0fe43c23c02f259b89d1916edaafc749cf26f3b"
+  },
+  {
+    "request_id": "sp-019:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "68cbd9a275133814d3708d8f838311f079b412a8425a772edd5543125954f694",
+    "engine_sha256": "eb9a7e7e1a40c571812e7593466d16698e58804cdf3e96ef2046678b72b1c26e"
+  },
+  {
+    "request_id": "sp-020:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "120213d35f90ebb41b096c163eca98ed34f22078cb0b56b2021bad6abe1ef7fa",
+    "engine_sha256": "491f73f0d7377523f211e93b0b7076a4b988e0ddb4cded72dd9113c1c400e19e"
+  },
+  {
+    "request_id": "sp-020:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "e43c8cf0020893af243b3b15ccf191dfa648b6c91815a49a662a5c1c656b1a46",
+    "engine_sha256": "70ffffafb7e34fd7009dfbbc704016a7f534ab403d5feca68cb3bf5c64781deb"
+  },
+  {
+    "request_id": "sp-021:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "da7100960ba6949787b921477e8c988d115c7c24007f0fe6a3bc4a3d81fa9db6",
+    "engine_sha256": "5121f9f15f9cd6f74c16c5ba5e5f75215d505dbbe634a4b011d7d78ad4ba78b9"
+  },
+  {
+    "request_id": "sp-021:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "631d6f0bfe1cb6b236ccdd629f4ae09c5e44357447e893c0ae6ecf3f1dbcd429",
+    "engine_sha256": "acc9ddc5cd7119be992812a3e00ddca5a71acf6b90fad28febdca864e5fd010f"
+  },
+  {
+    "request_id": "sp-022:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "38d2dbb66dfb3da415e0c0974eb320c423ae7e050a0919a90821beef52a2829d",
+    "engine_sha256": "5c7a7223d805ee69e5a52a418fc98ddc637d12686ff60c527ae328637bb1c1a6"
+  },
+  {
+    "request_id": "sp-022:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "0b1522727a4a2100f247f8a8341e1095be0e43f50fefaaf054739efb1923f79a",
+    "engine_sha256": "5a884326787fe170f7b18eddd552c93b0aa6d8932cf2598da5a87d0b326c790a"
+  },
+  {
+    "request_id": "sp-023:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fc3276eb5503ea84fc53896210a5bdb82ccbcb2e219d9ab9a4910899ce129640",
+    "engine_sha256": "dd42871412da3080dd76ceaa6c5cd85b21fd92b45b39d1d2d451930648bb35d3"
+  },
+  {
+    "request_id": "sp-023:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "93a57a475ce5a1b1451cced9e281e5f12d4968aefd910f9474c07e0621e9737e",
+    "engine_sha256": "2d01537b8226e0a29a32559aa8b23a70e9fcf8a0c6a5717a5c8581fa755d752b"
+  },
+  {
+    "request_id": "sp-024:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1ee7faa2f866d2240514acc38e1d8d48ac9f124743423d83519d596bd8f5a44a",
+    "engine_sha256": "61db5ad32c9914ad749ff698dba6fe74d8142c05d01e4761b92a83c9aef0b773"
+  },
+  {
+    "request_id": "sp-024:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b73b065ba3e6c892b00fb866e155d48001d5aa8c5a045ecfbbafcb6b72ef84bf",
+    "engine_sha256": "ddf43e91d4153ec6c0d7f8abd079b02f42aa79ab3eb32f14457640e8030a299c"
+  },
+  {
+    "request_id": "sp-025:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "fa1bfc79affcd654295f3c0510c279dd9f697b7c8574964d5dec54873058758f",
+    "engine_sha256": "6f0519d00cf9fd7e8c3691c93e9687e15641afb847b567b5c4ed1dfb7277b02d"
+  },
+  {
+    "request_id": "sp-025:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "411156ed274938198c3aec232229b35e86b629f1918692813cccd0ec24662e48",
+    "engine_sha256": "8741de68a6400c6764897a3a14e664fff05e9eb31a0ea16fe817541ae14ce4f2"
+  },
+  {
+    "request_id": "sp-026:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "7f94fc1cc57a9ce3496b37ce03f857957712cfdd648db7cddb553cf8e2b5b1b2",
+    "engine_sha256": "c1c1921239e186013f22933640e3270152bafec624205db969ab1da4619fb3ae"
+  },
+  {
+    "request_id": "sp-026:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "6de282c103b384836c28c3e340a1143e21b3d6fbd9bf3004c612fc56bd2eb2f6",
+    "engine_sha256": "8e32f53b4631e4af254f842201002d8207658447f8d0bc3de8b2a46eca617332"
+  },
+  {
+    "request_id": "sp-027:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "49eb15b68a5cf1d822c20964ccac489fd05fc521467b41fc61a798a1ddda15db",
+    "engine_sha256": "f19c9c7c9876634e7ccd002e7c3bc1379867422d983cd0ed78125ce48b2f9d59"
+  },
+  {
+    "request_id": "sp-027:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "674558cda8b7dbc655f34fc1aa2ebc735af0f12d8c9c86958305d9e3eaadd4b6",
+    "engine_sha256": "d215d774c024bbc3e5dfdecf9bc535e979b69d9d90b73b360227f9f3b38015fe"
+  },
+  {
+    "request_id": "sp-028:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "410f926e428d3bd7903e8b9056ef84878811c287a894b8cf9a72eb507c23bf8c",
+    "engine_sha256": "839c3b711b2b9ef381fc382891dbb5a80eebc4e76a5c298ed8c0ad2947b81e42"
+  },
+  {
+    "request_id": "sp-028:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "802bc08fac8a41b35ec2f3735aa96f7ca3b9584da7f3569e09fd7778deed8e2c",
+    "engine_sha256": "93b9e2cbf7118b45314de1e3d1f24603a39e5aa5c6b7ebe5e5c4dcfb65fbaadb"
+  },
+  {
+    "request_id": "sp-029:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "e1e2c5f78cac60cc2a4e5ace8cb11c111939c9cee5afe016f3c81c3a8f304a28",
+    "engine_sha256": "7f48a7fce69cfff99eccf2de8841845fe3e43ed22d3e2a5310a60276604bc633"
+  },
+  {
+    "request_id": "sp-029:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "234e9bea822fee95270041127dd7490efab9d6670d7b7558ce5cb56ead519b40",
+    "engine_sha256": "a36fdc920e8b04ea5c89eb2ef740e2ee004ff9f2eded326c000631f0b6daeb66"
+  },
+  {
+    "request_id": "sp-030:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "99ae433bc0294d6c3e7f01d034ec63a4e47f769c94ff865db0780d1b008dce61",
+    "engine_sha256": "f9603ba566e75eaaa736168aa1ccfa4ce3e0786f11eaaff9cafa0db2c3c081d7"
+  },
+  {
+    "request_id": "sp-030:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "3cce1b7c20a06df5c4e6e0317d0e98ee056f9b51c1129ced46c3a3d519e616c6",
+    "engine_sha256": "c4b09d9db8fc44d30b4f09089c1397a4d04803a4415cc16e6c3f213452ae96c5"
+  },
+  {
+    "request_id": "sp-031:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ef9ea98d4925d81e441d33a7c81ccd532876cd27be58a11f1e1443c93e7dd212",
+    "engine_sha256": "071f1f11566fbf4099933c5a34240a2025edddc1815a2be35abd64dcdd951501"
+  },
+  {
+    "request_id": "sp-031:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "f490f2b68b32f7e26cc08281d8dd82d55852fefadc699e6505a1c159565103c2",
+    "engine_sha256": "b2a16136beb47208c9f4c6ea426db51215fd44ee5af5ea4ec78cce4a81bfdb13"
+  },
+  {
+    "request_id": "sp-032:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9a6c4a039b85e1dbeb1d233941bf8e5f4367d1c012c258455a1f0a1f10cf219b",
+    "engine_sha256": "042b23c6e34237a9ae14427add52611cb46e16d67c5cfaa7f3ddf62331aefeb1"
+  },
+  {
+    "request_id": "sp-032:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "6d1d3c35da349d77aa4d7415b5f1b44e944f7f04fbf98b95e888d9122e491c2f",
+    "engine_sha256": "de3fb1d23f1995a4b04795685d255f2f9857414932dfa9b2352d42450cb933e6"
+  },
+  {
+    "request_id": "sp-033:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "3ad72fc7f22ea3e72277c4f99ebb2f79fb7e451e976d66ffeea4afb8e659457f",
+    "engine_sha256": "f5df588501d5af6c3783fc9c2b4a3520441f2920328b9d47a44363845154ec2e"
+  },
+  {
+    "request_id": "sp-033:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8ffed2be9d247b202744e1b62573faaeb7c00826b42279594a83b96f0531ce12",
+    "engine_sha256": "ba04b3be0340bcf71b57f96ca807e9e4a023acc200332ec23b6a4d41ea198419"
+  },
+  {
+    "request_id": "sp-034:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1e2c24ccf6086738db72fef099f510012e71779d2dcce64fb83f5ae7fb8b713b",
+    "engine_sha256": "3a89c4d5a61e09308ac8e0c7ed00900a8f77a0794a687970f6d6d89138c9fd42"
+  },
+  {
+    "request_id": "sp-034:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d267c51fc324949ccc0c6bec76f244764fa84b4b126b763eb2721f2e6ed478ff",
+    "engine_sha256": "190d08e058b8ebb2b6f15e866118b4c06ae3638baf325fc6ff40c7400c110354"
+  },
+  {
+    "request_id": "sp-035:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b1a41b31f865ef656d04bd7eb31c1af6526cfa8047c97356f8f23aad93a47b96",
+    "engine_sha256": "7bb9339142250a3e0c59e0686874101b77fe4b0c6e340dc7d841d12b67ff43eb"
+  },
+  {
+    "request_id": "sp-035:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a12cc87c38c3341b75ecbe2aecd929e105f356acd5de6cdb107dbb0e112fbd26",
+    "engine_sha256": "6ce85a91fae65d5af9be1e94185060910d919dec9afd7271df2a3e2087e2ec13"
+  },
+  {
+    "request_id": "sp-036:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "6d315bbf72b177fe70830a96106b519d3a9b0bb6829b766ee7aa7712e8b6b4af",
+    "engine_sha256": "d8bb2f8d64a93b8bfed92420f38699d626e0ccd4138c37d512c513615332994c"
+  },
+  {
+    "request_id": "sp-036:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "1019bf4bf2e5ac055e8bfcbe2fc51c56aca52c90a183c644720df90c7c97e894",
+    "engine_sha256": "f53a07441e1932ecf89a31622c0c1d5560e8262afd2ed8b2825e3a824832124b"
+  },
+  {
+    "request_id": "sp-037:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "c7909981fa912b9f38c251d4ed8de7faa07722c5d1aa73551c76e0322494445d",
+    "engine_sha256": "b9e77595ed5cb82c3746da0086ec895a5f47701736b2825e9b23eb1482cf2a49"
+  },
+  {
+    "request_id": "sp-037:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "c7909981fa912b9f38c251d4ed8de7faa07722c5d1aa73551c76e0322494445d",
+    "engine_sha256": "323ef7966c9c4b83ab4597023410d8d4cdef0f88081036da97c1775dbbb2f2bb"
+  },
+  {
+    "request_id": "sp-038:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "4d32e6f5e0b89a23bb6ef04845c4e0cf5f97b89deada8a44c0045e15c66f77b4",
+    "engine_sha256": "c847cb76f102d52d5de1d50d1e684aae7d932e1dd439bdabef38349ce65b5f03"
+  },
+  {
+    "request_id": "sp-038:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "bbf930937a423c09b6d3d7b2d7c2e48e4ae389127ee40b33eba7a53abd0ec44a",
+    "engine_sha256": "f75c59ed18deda589e43366a019e265374e8733d40c93e874f6c904c731ede8e"
+  },
+  {
+    "request_id": "sp-039:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9f6e7a686d055f10b96ec2119c39b06efeb2ea890eab022f927afdd693bfc2b6",
+    "engine_sha256": "d665e51038cf0619e47587afaf2e404f63671e434048b3eb67a1bfff4853706d"
+  },
+  {
+    "request_id": "sp-039:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ca26440e5df09e4d3ec1a008f89743cb68fbd0669089d1257a66767b4e769a5e",
+    "engine_sha256": "3125a9d6c14d95fee95f50441ffc2fc8adec0fb6b8f99b3fd69fbb702d9e8229"
+  },
+  {
+    "request_id": "sp-040:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "dd18bf30d396695033a416dfa26b50e3925a8e0f85f9c05e69bebfe5552fc43b",
+    "engine_sha256": "d64b673ccc06aefd539abbca9d074ea25114a21d8b195b70fd94d35ce6a182f5"
+  },
+  {
+    "request_id": "sp-040:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "9bb9fedd05ca0952690c1c8a919c2daacda4ff87c9ebf602c11b6cb977ffa580",
+    "engine_sha256": "42d12cde678a4c94733a7c732f457b90ad35b3bf3428bdb93f2f88150b5762b8"
+  },
+  {
+    "request_id": "sp-041:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "8f6a6337c8a4ebe87bc6665aaeb1c21551374f0394333fe744367d732c0e40c9",
+    "engine_sha256": "7f7c1ea9abbeaa5f3423f48089d918539ae47d95ec6a68e88fb6cf7f59f01170"
+  },
+  {
+    "request_id": "sp-041:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "86e77376ea457f5b1e157e4c332cf69f5a57f2f87d02d73b80e001f5a6a95705",
+    "engine_sha256": "4a814eead27a9c89bf47a1cc04171ceef5e03f3edfd68df3fc91e49261a7c3b7"
+  },
+  {
+    "request_id": "sp-042:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "93804ef3374a7e6f2294b0a6dead8204ca6b7ba48a87876084bbbc7864c0ee44",
+    "engine_sha256": "4ccd771e1781053839720ed784247454ed291874c5e1dd96628f2bca96a9b92f"
+  },
+  {
+    "request_id": "sp-042:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "39ea32fb62bf962428b93140d6ebbda918da8abacec145402b8d1aac9ca8e564",
+    "engine_sha256": "fe445d52ce97270e0254ab758ec6f706c4e9ecaa229a4545e76c3f48885330d1"
+  },
+  {
+    "request_id": "sp-043:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ddd26365621bf3792d59982d9a97a7c112501e6289dea5f9dda4ebf7e46274de",
+    "engine_sha256": "b001dd895ed49f1749afdbe89424caa3028873b9fc33b49548274107b83ce04a"
+  },
+  {
+    "request_id": "sp-043:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d3557af62c3ce46674732d3e3590aa1c8ee234b3a9f8db0679bb5609aa0be418",
+    "engine_sha256": "bfff64fd7d08ffc42ffe2a7e871a9366969af8d180d01a933f8305ed25c0046c"
+  },
+  {
+    "request_id": "sp-044:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "ec60fc7a486bf97abf2aa2edd0ef06a2582dc1755c4670b42f6d515be519373c",
+    "engine_sha256": "2f7f80f880e345b73f85c2395762001c41d88cd06ed54ce838a6b566bed5044e"
+  },
+  {
+    "request_id": "sp-044:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.6-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b43c1f751e088a836568f8764b2108ff208a26bfc5a64086109073e991508014",
+    "engine_sha256": "45605811bc03d2351b4b1ae5b831470aab1ede233ce3f2ca760863e460be4b9f"
+  },
+  {
+    "request_id": "sp-045:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.6-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "c1509c7481c7f17acd755896bb594f03fc70058a7af56aa78b3f97b6ba82eeb8",
+    "engine_sha256": "871e8345038f63da293c6c2541f45157e1805771559d9f69c59192ad9b09f340"
+  },
+  {
+    "request_id": "sp-045:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "b0de4942f88ab3ad295046ef7b870c610a391cc7ebcb3a90664ed8d8f420420f",
+    "engine_sha256": "c4cb364e92624f36e32baee2ddef4cf0bce88614cc698eaeeaf7ef2e7e226e25"
+  },
+  {
+    "request_id": "sp-046:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4",
+      "L5",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "c623858e2653002e5260425685a77a4f6accbbf813c0a5be3adc8db26f7a02c6",
+    "engine_sha256": "b3d28602caaa7fabc4454e4a962970a64b074310a038933c6000960518f346c6"
+  },
+  {
+    "request_id": "sp-046:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L4",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.6-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "d525ae79493229210321354c098dc7714c971924f738c557e66d405acb7bced4",
+    "engine_sha256": "88c97afe69c084b9f2641be58884571fb1a9f5c480013de725a429725d1d9eab"
+  },
+  {
+    "request_id": "sp-047:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "0a4526ec73adfe686f6cd0478128e092bad0cdd29c7f16d438aa1e1c485289fa",
+    "engine_sha256": "1d7ce451c200baa26a8aae8503a0c071d0ec27caec05c2635ec0a6a5124950b7"
+  },
+  {
+    "request_id": "sp-047:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.1-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "a9f1c71a534059c38847457764dcf8c4e29d9fc2729f51ebe3d3644ae2dc6a47",
+    "engine_sha256": "e3c3915de5afc6a096040fcbba43a780d2683c8a1b19f01178147b3fefcd88da"
+  },
+  {
+    "request_id": "sp-048:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "571352957902e60e06f601815a1b7b24d9a5ec8b449cd696f836d6ad6017e374",
+    "engine_sha256": "1cc0c4925ddb270876de6f57b9523b6128d475e38e37efb34c135eee29ad4000"
+  },
+  {
+    "request_id": "sp-048:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.1-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "cf4963ef039db82890d32276fd9b6db9748788961a1835bfa189f2f7adb202c1",
+    "engine_sha256": "c846c39189c62c1bf1f5bed22b25bb7c72eed308a4911024dd56042d61e8c4f3"
+  },
+  {
+    "request_id": "sp-049:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.6-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "03646cf5ad023be3d847aad49348396c13892050d765cbbff8e841a20cee00a5",
+    "engine_sha256": "868dc8a2bf3e94ffffca1d984dd5987115af000b03ef6160d093620d8e15794a"
+  },
+  {
+    "request_id": "sp-049:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "5f307594428bd7bdfa2b35064204b54de6e21bc4c297696034b83374fc694b99",
+    "engine_sha256": "2fd4184faf24adeb14c2599cc3756933e1b79210828a3f142852b9797661bbde"
+  },
+  {
+    "request_id": "sp-050:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "878cc3e648106d868d7146505fd53af10628486ea13c47ca40535d4a00a69334",
+    "engine_sha256": "489a40176c0e173a7e74a7457fe8a58d00f3e1361594f2b53024e3d1c471934d"
+  },
+  {
+    "request_id": "sp-050:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness.",
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "language_quality_flags_are_review_candidates": true,
+    "prompt_sha256": "314febcd08ea23a6c3320be314bb9dad3e21ad4988c831692747bc2300b1717a",
+    "corpus_sha256": "b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075",
+    "verdict_sha256": "06350943bf4e64952a5192aa7d460b1cd908a9d3934a836d797ba34a5a54190f",
+    "engine_sha256": "dc5a04ccd77422d8c3a895fc928a9da201209f8f40d04ca0e96611b28fca73e9"
+  }
+]

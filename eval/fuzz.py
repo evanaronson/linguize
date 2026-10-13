@@ -12,6 +12,7 @@ import random
 import re
 import sys
 import time
+import threading
 import unicodedata
 import urllib.error
 
@@ -151,6 +152,8 @@ def main(argv=None):
     parser.add_argument("--model")
     parser.add_argument("--replies", type=Path, default=ROOT / "eval/fuzz/results/replies.jsonl")
     parser.add_argument("--workers", type=int, choices=range(1, 5), default=2)
+    parser.add_argument("--interval", type=float, default=5.0, help="minimum seconds between request starts")
+    parser.add_argument("--retry-errors", action="store_true", help="retry saved failures without repeating successful checks")
     args = parser.parse_args(argv)
     records = generate(args.seed)
     corpus = "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records)
@@ -175,35 +178,59 @@ def main(argv=None):
     args.replies.parent.mkdir(parents=True, exist_ok=True)
     existing = {}
     if args.replies.exists():
-        for line in args.replies.read_text().splitlines():
+        for line in args.replies.read_text().split("\n"):
+            if not line:
+                continue
             item = json.loads(line)
             if (item["provider"], item["model"], item["prompt_sha256"], item["corpus_sha256"]) != (
                     args.provider, model, prompt_hash, digest(corpus)):
                 parser.error("Resume file belongs to a different provider, model, prompt or corpus")
             existing[item["case"]["request_id"]] = item
-    pending = [case for case in requests(records) if case["request_id"] not in existing]
+    pending = [case for case in requests(records) if case["request_id"] not in existing or
+               (args.retry_errors and "error" in existing[case["request_id"]])]
+    pace_lock = threading.Lock()
+    next_start = [0.0]
+
+    def paced_start():
+        with pace_lock:
+            wait = max(0, next_start[0] - time.monotonic())
+            if wait:
+                time.sleep(wait)
+            next_start[0] = time.monotonic() + args.interval
 
     def execute(case):
         entry = {"case": case, "provider": args.provider, "model": model,
                  "prompt_sha256": prompt_hash, "corpus_sha256": digest(corpus)}
-        try:
-            verdict, elapsed = check(model, key, system, schema, runner.user_message(case))
-            entry.update(verdict=verdict, latency_seconds=elapsed)
-        except Exception as error:
-            # Never write request headers, credential values or raw error response bodies.
-            entry["error"] = type(error).__name__
-            if isinstance(error, urllib.error.HTTPError):
-                entry["http_status"] = error.code
-        return entry
+        for attempt in range(1, 4):
+            paced_start()
+            try:
+                verdict, elapsed = check(model, key, system, schema, runner.user_message(case))
+                entry.update(verdict=verdict, latency_seconds=elapsed, attempts=attempt)
+                return entry
+            except Exception as error:
+                retryable = isinstance(error, (TimeoutError, urllib.error.URLError))
+                status = error.code if isinstance(error, urllib.error.HTTPError) else None
+                if status is not None:
+                    retryable = status in (429, 500, 502, 503, 504)
+                if not retryable or attempt == 3:
+                    entry["error"] = type(error).__name__
+                    entry["attempts"] = attempt
+                    if status is not None:
+                        entry["http_status"] = status
+                    return entry
+                time.sleep((15 if status == 429 else 5) * attempt)
 
-    with args.replies.open("a") as output, concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = [pool.submit(execute, case) for case in pending]
-        for number, future in enumerate(concurrent.futures.as_completed(futures), len(existing) + 1):
+        for number, future in enumerate(concurrent.futures.as_completed(futures), 1):
             item = future.result()
-            output.write(json.dumps(item, ensure_ascii=False) + "\n")
-            output.flush()
             existing[item["case"]["request_id"]] = item
-            print(f"{number}/200 {item['case']['request_id']} {'ERROR' if 'error' in item else 'answered'}", flush=True)
+            # Keep one latest record per request, even if a resumed run is interrupted.
+            saved = "".join(json.dumps(existing[k], ensure_ascii=False) + "\n" for k in sorted(existing))
+            temporary = args.replies.with_suffix(".tmp")
+            temporary.write_text(saved)
+            temporary.replace(args.replies)
+            print(f"pending {number}/{len(pending)} {item['case']['request_id']} {'ERROR' if 'error' in item else 'answered'}", flush=True)
     summary = {
         "provider": args.provider, "model": model, "prompt_sha256": prompt_hash,
         "corpus_sha256": digest(corpus), "requests": len(existing),

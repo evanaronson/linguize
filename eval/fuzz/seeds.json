@@ -1,0 +1,602 @@
+[
+  {
+    "topic": "greeting",
+    "Catalan": [
+      "Hola, què tal?",
+      "Avui arribaré una mica tard."
+    ],
+    "Spanish": [
+      "Hola, ¿qué tal?",
+      "Hoy llegaré un poco tarde."
+    ]
+  },
+  {
+    "topic": "train",
+    "Catalan": [
+      "El tren surt a les vuit.",
+      "Ens podem trobar davant de l'estació.",
+      "Ja tinc els bitllets."
+    ],
+    "Spanish": [
+      "El tren sale a las ocho.",
+      "Podemos encontrarnos delante de la estación.",
+      "Ya tengo los billetes."
+    ]
+  },
+  {
+    "topic": "lunch",
+    "Catalan": [
+      "He deixat el dinar a la nevera.",
+      "Escalfa'l abans de menjar."
+    ],
+    "Spanish": [
+      "He dejado la comida en la nevera.",
+      "Caliéntala antes de comer."
+    ]
+  },
+  {
+    "topic": "doctor",
+    "Catalan": [
+      "Demà tinc visita amb la metgessa.",
+      "No podré venir a la reunió.",
+      "T'enviaré les notes després."
+    ],
+    "Spanish": [
+      "Mañana tengo cita con la médica.",
+      "No podré ir a la reunión.",
+      "Te enviaré las notas después."
+    ]
+  },
+  {
+    "topic": "dog",
+    "Catalan": [
+      "El gos s'ha adormit al sofà.",
+      "Si truques al timbre, es despertarà."
+    ],
+    "Spanish": [
+      "El perro se ha dormido en el sofá.",
+      "Si llamas al timbre, se despertará."
+    ]
+  },
+  {
+    "topic": "keys",
+    "Catalan": [
+      "No trobo les claus de casa.",
+      "Crec que les vaig deixar a la cuina.",
+      "Pots mirar si són damunt de la taula?"
+    ],
+    "Spanish": [
+      "No encuentro las llaves de casa.",
+      "Creo que las dejé en la cocina.",
+      "¿Puedes mirar si están encima de la mesa?"
+    ]
+  },
+  {
+    "topic": "weather",
+    "Catalan": [
+      "Sembla que aquesta tarda plourà.",
+      "Portaré un paraigua per si de cas."
+    ],
+    "Spanish": [
+      "Parece que esta tarde va a llover.",
+      "Llevaré un paraguas por si acaso."
+    ]
+  },
+  {
+    "topic": "invoice",
+    "Catalan": [
+      "La factura és de 125 euros.",
+      "L'hem de pagar abans de divendres.",
+      "Ja he comprovat el número de compte."
+    ],
+    "Spanish": [
+      "La factura es de 125 euros.",
+      "Tenemos que pagarla antes del viernes.",
+      "Ya he comprobado el número de cuenta."
+    ]
+  },
+  {
+    "topic": "birthday",
+    "Catalan": [
+      "Moltes felicitats, Marta!",
+      "Espero que passis un dia molt bonic."
+    ],
+    "Spanish": [
+      "¡Muchas felicidades, Marta!",
+      "Espero que pases un día muy bonito."
+    ]
+  },
+  {
+    "topic": "shopping",
+    "Catalan": [
+      "Necessitem pa, llet i tomàquets.",
+      "Passaré pel mercat quan surti de la feina.",
+      "Vols que compri alguna cosa més?"
+    ],
+    "Spanish": [
+      "Necesitamos pan, leche y tomates.",
+      "Pasaré por el mercado cuando salga del trabajo.",
+      "¿Quieres que compre algo más?"
+    ]
+  },
+  {
+    "topic": "book",
+    "Catalan": [
+      "Aquest llibre m'ha agradat molt.",
+      "Te'l puc deixar quan l'acabi."
+    ],
+    "Spanish": [
+      "Este libro me ha gustado mucho.",
+      "Te lo puedo prestar cuando lo termine."
+    ]
+  },
+  {
+    "topic": "flight",
+    "Catalan": [
+      "El vol arriba a les 21:30.",
+      "La Júlia ens esperarà a la sortida.",
+      "L'avisaré si hi ha cap retard."
+    ],
+    "Spanish": [
+      "El vuelo llega a las 21:30.",
+      "Julia nos esperará a la salida.",
+      "La avisaré si hay algún retraso."
+    ]
+  },
+  {
+    "topic": "shower",
+    "Catalan": [
+      "Em vull dutxar abans de sortir.",
+      "Després et trucaré."
+    ],
+    "Spanish": [
+      "Quiero ducharme antes de salir.",
+      "Después te llamaré."
+    ]
+  },
+  {
+    "topic": "meeting",
+    "Catalan": [
+      "La reunió ha durat mitja hora.",
+      "Hem acordat ajornar el projecte.",
+      "Dilluns tornarem a parlar-ne."
+    ],
+    "Spanish": [
+      "La reunión ha durado media hora.",
+      "Hemos acordado aplazar el proyecto.",
+      "El lunes volveremos a hablar del tema."
+    ]
+  },
+  {
+    "topic": "coffee",
+    "Catalan": [
+      "Vols prendre un cafè amb mi?",
+      "Conec un lloc tranquil a prop d'aquí."
+    ],
+    "Spanish": [
+      "¿Quieres tomar un café conmigo?",
+      "Conozco un sitio tranquilo cerca de aquí."
+    ]
+  },
+  {
+    "topic": "lost",
+    "Catalan": [
+      "M'he equivocat de carrer.",
+      "Ara soc davant de la biblioteca.",
+      "Envia'm la ubicació, si us plau."
+    ],
+    "Spanish": [
+      "Me he equivocado de calle.",
+      "Ahora estoy delante de la biblioteca.",
+      "Envíame la ubicación, por favor."
+    ]
+  },
+  {
+    "topic": "garden",
+    "Catalan": [
+      "Les plantes del balcó necessiten aigua.",
+      "Les regaré quan baixi el sol."
+    ],
+    "Spanish": [
+      "Las plantas del balcón necesitan agua.",
+      "Las regaré cuando baje el sol."
+    ]
+  },
+  {
+    "topic": "school",
+    "Catalan": [
+      "Els nens surten de l'escola a les cinc.",
+      "Avui els anirà a buscar el seu avi.",
+      "Jo els esperaré a casa."
+    ],
+    "Spanish": [
+      "Los niños salen del colegio a las cinco.",
+      "Hoy los irá a recoger su abuelo.",
+      "Yo los esperaré en casa."
+    ]
+  },
+  {
+    "topic": "noise",
+    "Catalan": [
+      "Els veïns estan fent obres.",
+      "Em costa concentrar-me amb tant de soroll."
+    ],
+    "Spanish": [
+      "Los vecinos están haciendo obras.",
+      "Me cuesta concentrarme con tanto ruido."
+    ]
+  },
+  {
+    "topic": "ticket",
+    "Catalan": [
+      "He comprat dues entrades per al concert.",
+      "Una és per a tu.",
+      "Les portes obren a les set."
+    ],
+    "Spanish": [
+      "He comprado dos entradas para el concierto.",
+      "Una es para ti.",
+      "Las puertas abren a las siete."
+    ]
+  },
+  {
+    "topic": "wifi",
+    "Catalan": [
+      "La connexió a internet va molt lenta.",
+      "Provaré de reiniciar l'encaminador."
+    ],
+    "Spanish": [
+      "La conexión a internet va muy lenta.",
+      "Voy a probar a reiniciar el router."
+    ]
+  },
+  {
+    "topic": "cooking",
+    "Catalan": [
+      "El forn ja és calent.",
+      "Posa-hi la safata amb cura.",
+      "El sopar estarà llest d'aquí a vint minuts."
+    ],
+    "Spanish": [
+      "El horno ya está caliente.",
+      "Mete la bandeja con cuidado.",
+      "La cena estará lista dentro de veinte minutos."
+    ]
+  },
+  {
+    "topic": "deadline",
+    "Catalan": [
+      "Necessito acabar l'informe avui.",
+      "Et demanaré ajuda si em quedo encallat."
+    ],
+    "Spanish": [
+      "Necesito terminar el informe hoy.",
+      "Te pediré ayuda si me atasco."
+    ]
+  },
+  {
+    "topic": "medicine",
+    "Catalan": [
+      "He de prendre aquesta pastilla després de sopar.",
+      "La metgessa m'ha dit que no en prengui dues.",
+      "Ho tinc apuntat al calendari."
+    ],
+    "Spanish": [
+      "Tengo que tomar esta pastilla después de cenar.",
+      "La médica me ha dicho que no tome dos.",
+      "Lo tengo apuntado en el calendario."
+    ]
+  },
+  {
+    "topic": "park",
+    "Catalan": [
+      "Hem caminat fins al parc.",
+      "Ens hem assegut una estona a l'ombra."
+    ],
+    "Spanish": [
+      "Hemos caminado hasta el parque.",
+      "Nos hemos sentado un rato a la sombra."
+    ]
+  },
+  {
+    "topic": "return",
+    "Catalan": [
+      "La jaqueta que vaig comprar és massa petita.",
+      "Demà la tornaré a la botiga.",
+      "Encara tinc el tiquet."
+    ],
+    "Spanish": [
+      "La chaqueta que compré es demasiado pequeña.",
+      "Mañana la devolveré en la tienda.",
+      "Todavía tengo el recibo."
+    ]
+  },
+  {
+    "topic": "photos",
+    "Catalan": [
+      "Les fotos del viatge han quedat molt bé.",
+      "Te les enviaré aquesta nit."
+    ],
+    "Spanish": [
+      "Las fotos del viaje han quedado muy bien.",
+      "Te las enviaré esta noche."
+    ]
+  },
+  {
+    "topic": "battery",
+    "Catalan": [
+      "El mòbil només té un 10% de bateria.",
+      "Deixaré de mirar vídeos.",
+      "Em pots prestar un carregador?"
+    ],
+    "Spanish": [
+      "El móvil solo tiene un 10% de batería.",
+      "Voy a dejar de ver vídeos.",
+      "¿Me puedes prestar un cargador?"
+    ]
+  },
+  {
+    "topic": "quiet",
+    "Catalan": [
+      "Ara no puc parlar.",
+      "Soc en una biblioteca."
+    ],
+    "Spanish": [
+      "Ahora no puedo hablar.",
+      "Estoy en una biblioteca."
+    ]
+  },
+  {
+    "topic": "visit",
+    "Catalan": [
+      "Els meus pares vindran diumenge.",
+      "Prepararem un dinar per a tots.",
+      "No cal que portis res."
+    ],
+    "Spanish": [
+      "Mis padres vendrán el domingo.",
+      "Prepararemos una comida para todos.",
+      "No hace falta que traigas nada."
+    ]
+  },
+  {
+    "topic": "cycle",
+    "Catalan": [
+      "La bicicleta té una roda punxada.",
+      "Aniré a la feina amb autobús."
+    ],
+    "Spanish": [
+      "La bicicleta tiene una rueda pinchada.",
+      "Iré al trabajo en autobús."
+    ]
+  },
+  {
+    "topic": "music",
+    "Catalan": [
+      "Aquesta cançó em recorda l'estiu.",
+      "La vam escoltar a la platja.",
+      "Encara em sé la tornada."
+    ],
+    "Spanish": [
+      "Esta canción me recuerda al verano.",
+      "La escuchamos en la playa.",
+      "Todavía me sé el estribillo."
+    ]
+  },
+  {
+    "topic": "laundry",
+    "Catalan": [
+      "La roba encara és humida.",
+      "La deixaré estesa una estona més."
+    ],
+    "Spanish": [
+      "La ropa todavía está húmeda.",
+      "La dejaré tendida un rato más."
+    ]
+  },
+  {
+    "topic": "birthday-plan",
+    "Catalan": [
+      "Dissabte és l'aniversari d'en Pau.",
+      "Li farem un pastís de xocolata.",
+      "Mantinguem la sorpresa fins al vespre."
+    ],
+    "Spanish": [
+      "El sábado es el cumpleaños de Pablo.",
+      "Le haremos una tarta de chocolate.",
+      "Mantengamos la sorpresa hasta la noche."
+    ]
+  },
+  {
+    "topic": "cinema",
+    "Catalan": [
+      "La pel·lícula comença a dos quarts de nou.",
+      "Millor que hi arribem una mica abans."
+    ],
+    "Spanish": [
+      "La película empieza a las ocho y media.",
+      "Es mejor que lleguemos un poco antes."
+    ]
+  },
+  {
+    "topic": "email",
+    "Catalan": [
+      "He rebut el teu correu.",
+      "Revisaré els documents després de dinar.",
+      "Et respondré abans de les sis."
+    ],
+    "Spanish": [
+      "He recibido tu correo.",
+      "Revisaré los documentos después de comer.",
+      "Te responderé antes de las seis."
+    ]
+  },
+  {
+    "topic": "rain-plan",
+    "Catalan": [
+      "Si plou, ens quedarem a casa.",
+      "Podem fer una partida de cartes."
+    ],
+    "Spanish": [
+      "Si llueve, nos quedaremos en casa.",
+      "Podemos jugar una partida de cartas."
+    ]
+  },
+  {
+    "topic": "package",
+    "Catalan": [
+      "El paquet encara no ha arribat.",
+      "El repartidor ha deixat una nota a la porta.",
+      "Demà tornarà a passar."
+    ],
+    "Spanish": [
+      "El paquete todavía no ha llegado.",
+      "El repartidor ha dejado una nota en la puerta.",
+      "Mañana volverá a pasar."
+    ]
+  },
+  {
+    "topic": "allergy",
+    "Catalan": [
+      "No puc menjar fruits secs.",
+      "Tinc una al·lèrgia."
+    ],
+    "Spanish": [
+      "No puedo comer frutos secos.",
+      "Tengo una alergia."
+    ]
+  },
+  {
+    "topic": "appointment",
+    "Catalan": [
+      "Tinc hora a la perruqueria a les quatre.",
+      "Després passaré a veure't.",
+      "Si vaig tard, t'enviaré un missatge."
+    ],
+    "Spanish": [
+      "Tengo cita en la peluquería a las cuatro.",
+      "Después pasaré a verte.",
+      "Si voy tarde, te mandaré un mensaje."
+    ]
+  },
+  {
+    "topic": "quotation",
+    "Catalan": [
+      "La Clara ha dit: «No vindré avui».",
+      "Potser la veurem demà."
+    ],
+    "Spanish": [
+      "Clara ha dicho: «No voy a ir hoy».",
+      "Quizá la veamos mañana."
+    ]
+  },
+  {
+    "topic": "link",
+    "Catalan": [
+      "La informació és a https://example.org/horaris.",
+      "Consulta-la abans de sortir.",
+      "Els horaris poden canviar."
+    ],
+    "Spanish": [
+      "La información está en https://example.org/horarios.",
+      "Consúltala antes de salir.",
+      "Los horarios pueden cambiar."
+    ]
+  },
+  {
+    "topic": "decimal",
+    "Catalan": [
+      "La bossa pesa 2,5 quilos.",
+      "No és gaire còmoda de portar."
+    ],
+    "Spanish": [
+      "La bolsa pesa 2,5 kilos.",
+      "No es muy cómoda de llevar."
+    ]
+  },
+  {
+    "topic": "negative",
+    "Catalan": [
+      "No he cancel·lat la reserva.",
+      "Només he canviat l'hora d'arribada.",
+      "Continuem anant-hi demà."
+    ],
+    "Spanish": [
+      "No he cancelado la reserva.",
+      "Solo he cambiado la hora de llegada.",
+      "Seguimos yendo mañana."
+    ]
+  },
+  {
+    "topic": "pronouns",
+    "Catalan": [
+      "Li he deixat el llibre a l'Anna.",
+      "Demà me'l tornarà."
+    ],
+    "Spanish": [
+      "Le he prestado el libro a Ana.",
+      "Mañana me lo devolverá."
+    ]
+  },
+  {
+    "topic": "instructions",
+    "Catalan": [
+      "Apaga el llum abans de sortir.",
+      "Tanca també la finestra.",
+      "La porta es tanca sola."
+    ],
+    "Spanish": [
+      "Apaga la luz antes de salir.",
+      "Cierra también la ventana.",
+      "La puerta se cierra sola."
+    ]
+  },
+  {
+    "topic": "emotion",
+    "Catalan": [
+      "Estic content de veure't 🙂.",
+      "Feia molt de temps que no parlàvem."
+    ],
+    "Spanish": [
+      "Me alegro de verte 🙂.",
+      "Hacía mucho tiempo que no hablábamos."
+    ]
+  },
+  {
+    "topic": "past",
+    "Catalan": [
+      "Ahir vam sopar junts.",
+      "La conversa va ser molt agradable.",
+      "Espero que ho puguem repetir."
+    ],
+    "Spanish": [
+      "Ayer cenamos juntos.",
+      "La conversación fue muy agradable.",
+      "Espero que podamos repetirlo."
+    ]
+  },
+  {
+    "topic": "comparison",
+    "Catalan": [
+      "Aquest pis és més gran que l'anterior.",
+      "També té més llum natural."
+    ],
+    "Spanish": [
+      "Este piso es más grande que el anterior.",
+      "También tiene más luz natural."
+    ]
+  },
+  {
+    "topic": "decision",
+    "Catalan": [
+      "Encara no he decidit què faré.",
+      "Necessito pensar-m'ho una mica més.",
+      "Et diré alguna cosa demà."
+    ],
+    "Spanish": [
+      "Todavía no he decidido qué voy a hacer.",
+      "Necesito pensarlo un poco más.",
+      "Te diré algo mañana."
+    ]
+  }
+]

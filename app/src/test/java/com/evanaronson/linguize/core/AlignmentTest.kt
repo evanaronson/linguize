@@ -18,6 +18,12 @@ class AlignmentTest {
         assertEquals(",/_ ,/, aa/b", ops(",,aa", ",b"))
     }
 
+    @Test
+    fun aVerbInflectionPairsBeforeDeletingTheFollowingPreposition() {
+        assertEquals("pensés/pensis  /_ de/_", ops("pensés de", "pensis"))
+        assertEquals("pensis/penses", ops("pensis", "penses"))
+    }
+
     @Test(timeout = 10_000)
     fun longTextsAlignWithoutATableForEveryPairOfTokens() {
         // Changes at both ends surround a long unchanged passage. Neither the shared
@@ -54,10 +60,22 @@ class AlignmentTest {
         val a = Alignment.align(original, "").mapNotNull { it.a }
         val b = Alignment.align("", target).mapNotNull { it.b }
         fun gap(token: Alignment.Token) = if (token.type == Alignment.Type.Space) 1 else 2
+        fun close(x: String, y: String): Boolean {
+            if (minOf(x.length, y.length) < 4) return false
+            val d = Array(x.length + 1) { IntArray(y.length + 1) }
+            for (i in 0..x.length) d[i][0] = i
+            for (j in 0..y.length) d[0][j] = j
+            for (i in 1..x.length) for (j in 1..y.length)
+                d[i][j] = minOf(d[i - 1][j] + 1, d[i][j - 1] + 1,
+                    d[i - 1][j - 1] + if (x[i - 1] == y[j - 1]) 0 else 1)
+            return d[x.length][y.length] <= 1
+        }
+        fun stem(word: String): String =
+            if (word.length >= 6 && word[0] in "dlsnmt" && word[1] in "'’") word.drop(2) else word
         fun pair(x: Alignment.Token, y: Alignment.Token): Int? = when {
             x.normal == y.normal -> 0
             x.type != y.type -> null
-            x.type == Alignment.Type.Space || x.type == Alignment.Type.Word && x.folded == y.folded -> 1
+            x.type == Alignment.Type.Space || x.type == Alignment.Type.Word && (x.folded == y.folded || close(x.folded, y.folded) || stem(x.folded) == stem(y.folded)) -> 1
             else -> 2
         }
         val costs = Array(a.size + 1) { IntArray(b.size + 1) }

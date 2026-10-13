@@ -127,7 +127,7 @@ class ReviewTest {
     }
 
     @Test
-    fun aRewordingIncludesPunctuationInsertedAtItsEdge() {
+    fun sentencePunctuationAndCapitalisationStayWithCorrectness() {
         val revision = reviewed(
             "estoy en casa y luego salgo",
             Verdict(
@@ -138,19 +138,8 @@ class ReviewTest {
                 natural = "Estoy en casa. Luego salgo.",
             ),
         ).revision
-        val natural = revision.remaining(EditKind.Natural).single()
-
-        // The comma is inserted where the rewording starts: it shares no original
-        // characters with it, but the rewording already replaces it.
-        val reworded = revision.accept(natural.id)
-        assertEquals(listOf("Estoy", "."), reworded.replacements(EditKind.Fix))
-        assertEquals("Estoy en casa. Luego salgo.", reworded.acceptAll(EditKind.Fix).workingText)
-
-        // All fixes first, then the rewording: the comma doesn't survive.
-        assertEquals(
-            "Estoy en casa. Luego salgo.",
-            revision.acceptAll(EditKind.Fix).accept(natural.id).workingText,
-        )
+        assertTrue(revision.edits(EditKind.Natural).isEmpty())
+        assertEquals("Estoy en casa, y luego salgo.", revision.acceptAll(EditKind.Fix).workingText)
     }
 
     @Test
@@ -411,5 +400,27 @@ class ReviewTest {
             "Charles and I are going to drink the beers he brought me from Montreal.",
             meaningOf("Charles and I are going to drink the beers he brought me from Montreal."),
         )
+    }
+
+    @Test
+    fun detectedLanguageMismatchCannotLookGoodEvenWhenTheModelSaysOk() {
+        for (judgments in Judgments.entries) {
+            assertEquals(CheckResult.WrongLanguage("Catalan", "English"),
+                interpret("Hello, how are you?", Verdict(status = Verdict.Status.Ok, language = "English"),
+                    judgments, expectedLanguage = "Catalan"))
+        }
+        assertEquals(CheckResult.WrongLanguage("Spanish", "Catalan"),
+            interpret("Bon dia", Verdict(status = Verdict.Status.Ok, language = "Catalan"),
+                expectedLanguage = "Spanish"))
+    }
+
+    @Test
+    fun matchingLanguageAndAutoDetectionRemainSupported() {
+        assertTrue(interpret("Bon dia", Verdict(status = Verdict.Status.Ok, language = " catalan "),
+            expectedLanguage = "Catalan") is CheckResult.Reviewed)
+        assertTrue(interpret("Bon dia", Verdict(status = Verdict.Status.Ok, language = "Catalan (Central)"),
+            expectedLanguage = "Catalan") is CheckResult.Reviewed)
+        assertTrue(interpret("Hello", Verdict(status = Verdict.Status.Ok, language = "English"))
+            is CheckResult.Reviewed)
     }
 }

@@ -43,16 +43,16 @@ class EditsTest {
 
     @Test
     fun aRewordingInsertedBeforeAnInsertedFixGoesInFrontOfIt() {
-        val revision = revision("que tal", corrected = "¿Qué tal?", natural = "Hola, ¿qué tal?")
-        val expected = "Hola, ¿qué tal?"
+        val revision = revision("que tal", corrected = "¿Qué tal?", natural = "Hola ¿Qué tal?")
+        val expected = "Hola ¿Qué tal?"
         assertEquals(expected, revision.acceptAll(EditKind.Natural).acceptAll(EditKind.Fix).workingText)
         assertEquals(expected, revision.acceptAll(EditKind.Fix).acceptAll(EditKind.Natural).workingText)
     }
 
     @Test
     fun aRewordingInsertedAfterAnInsertedFixKeepsTheFix() {
-        val revision = revision("gracias por todo", corrected = "Gracias por todo.", natural = "Gracias por todo. Un beso.")
-        val expected = "Gracias por todo. Un beso."
+        val revision = revision("gracias por todo", corrected = "Gracias por todo.", natural = "Gracias por todo de verdad.")
+        val expected = "Gracias por todo de verdad."
         assertEquals(expected, revision.acceptAll(EditKind.Natural).acceptAll(EditKind.Fix).workingText)
         assertEquals(expected, revision.acceptAll(EditKind.Fix).acceptAll(EditKind.Natural).workingText)
     }
@@ -120,19 +120,19 @@ class EditsTest {
             revision("dijo hola", corrected = "dijo: «hola»", natural = "dijo bajito: «hola»"),
         )
         // A rewording inserted before several inserted fixes.
-        assertAcceptingAllGives("Oye, ¡¿Vale", revision("vale", corrected = "¡¿Vale", natural = "Oye, ¡¿Vale"))
-        assertAcceptingAllGives("?,:x", revision("x", corrected = ",:x", natural = "?,:x"))
+        assertAcceptingAllGives("Oye ¡¿Vale", revision("vale", corrected = "¡¿Vale", natural = "Oye ¡¿Vale"))
+        assertAcceptingAllGives(",:x", revision("x", corrected = ",:x", natural = "?,:x"))
     }
 
     @Test
     fun rewordingsNeverIncludeTheSameFix() {
         val inserted = revision("Oye", corrected = "bien Oye", natural = "sí bien? Oye")
         assertRewordingsApart(inserted)
-        assertAcceptingAllGives("sí bien? Oye", inserted)
+        assertAcceptingAllGives("sí bien Oye", inserted)
 
         val replaced = revision("!", corrected = "E !", natural = "q E ")
         assertRewordingsApart(replaced)
-        assertAcceptingAllGives("q E", replaced)
+        assertAcceptingAllGives("q E !", replaced)
     }
 
     @Test

@@ -38,3 +38,6 @@
 {"text":"Ens veiem\r\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1}
 {"text":"Nos vemos ma\nñana.","status":"ok","fix":true,"natural":false,"max_fixes":1}
 {"text":"Voy a tomar una ducha. Voy a hacer una llamada.","status":"ok","fix":false,"natural":true}
+{"text":"Hola, què tal? Estic bé.","language":"Catalan (standard Central Catalan)","status":"ok","fix":false,"natural":false}
+{"text":"Què tal?","language":"Catalan (standard Central Catalan)","status":"ok","fix":false,"natural":false}
+{"text":"Què tal el cap de setmana?","language":"Catalan (standard Central Catalan)","status":"ok","fix":false,"natural":false}

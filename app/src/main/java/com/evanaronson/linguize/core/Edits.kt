@@ -48,9 +48,16 @@ internal object Edits {
         } else {
             spans(base, natural, atomic = false)
         }
+        // Reported spans are not trusted as atomic. Re-align each phrase so formatting
+        // and separate changed regions cannot hide behind one reported reason.
+        val wording = suggested.flatMap { span ->
+            spans(span.from, span.replacement, atomic = false, wordingOnly = true).map {
+                it.copy(start = it.start + span.start, end = it.end + span.start, why = span.why)
+            }
+        }.filterNot { greetingPreference(it.from, it.replacement) }
         // Tidied in the corrected text, so moving an insertion past a space never jumps
         // over a fix's text, or into it.
-        val inBase = tidy(base, suggested) { at ->
+        val inBase = tidy(base, wording) { at ->
             placed.any { it.baseStart <= at && at < it.baseEnd }
         }
         val spans = mergeWithinFixes(inBase, base, placed)
@@ -60,7 +67,8 @@ internal object Edits {
             }
             .map { toOriginal(it, base, original, placed) }
             // Changes that only restate a fix, or undo one, don't change the original.
-            .filterNot { Alignment.same(it.from, it.replacement) }
+            .filterNot { Alignment.same(it.from, it.replacement) ||
+                Sentences.crosses(Sentences.ranges(original), it.start, it.end) }
         return toEdits(spans, reported, EditKind.Natural, firstId)
     }
 
@@ -220,7 +228,7 @@ internal object Edits {
     // --- Grouping the alignment into spans ---------------------------------
 
     /** Spans of [base] that change to reach [target]: atomic for fixes, whole phrases for rewordings. */
-    private fun spans(base: String, target: String, atomic: Boolean): List<Span> {
+    private fun spans(base: String, target: String, atomic: Boolean, wordingOnly: Boolean = false): List<Span> {
         val ops = Alignment.align(base, target)
         if (ops.isEmpty()) return emptyList()
 
@@ -232,7 +240,7 @@ internal object Edits {
             op.a?.let { pos = it.end }
         }
 
-        return group(ops, atomic).map { group ->
+        return group(ops, atomic, wordingOnly).map { group ->
             val removed = (group[0]..group[1]).mapNotNull { ops[it].a }
             val start = removed.firstOrNull()?.start ?: before[group[0]]
             val end = removed.lastOrNull()?.end ?: start
@@ -241,17 +249,31 @@ internal object Edits {
     }
 
     /** Op-index ranges, each one edit. */
-    private fun group(ops: List<Op>, atomic: Boolean): List<IntArray> {
+    private fun group(ops: List<Op>, atomic: Boolean, wordingOnly: Boolean): List<IntArray> {
         // Consecutive changes form a group; for fixes, every punctuation mark stands alone.
         val groups = mutableListOf<IntArray>()
+        val blocked = BooleanArray(ops.size)
         var current: IntArray? = null
         for ((k, op) in ops.withIndex()) {
             val open = current
+            if (wordingOnly && (op.isPunct || orthographyOnly(op))) {
+                // Lowercasing the old first word after an inserted phrase prefix
+                // belongs to that phrase ("Voy ..." -> "Me voy ...").
+                val partOfPrefix = orthographyOnly(op) && open != null &&
+                    op.a?.start == 0 && op.b!!.start > 0 &&
+                    op.a!!.text.first().isUpperCase() && op.b.text.first().isLowerCase()
+                if (!partOfPrefix) {
+                    blocked[k] = true
+                    current = null
+                    continue
+                }
+            }
             if (op.isMatch) {
                 // In a rewording, a single kept space between two changes doesn't end the phrase.
                 val bridges = !atomic && open != null && op.token.type == Type.Space &&
                     k + 1 < ops.size && !ops[k + 1].isMatch
-                if (bridges) open!![1] = k else current = null
+                val phraseBridge = wordingOnly && open != null && bridgeWords(ops, k)
+                if (bridges || phraseBridge) open!![1] = k else current = null
             } else if (atomic && op.isPunct) {
                 groups += intArrayOf(k, k)
                 current = null
@@ -305,8 +327,34 @@ internal object Edits {
             val previous = merged.lastOrNull()
             if (previous != null && group[0] <= previous[1]) previous[1] = maxOf(previous[1], group[1]) else merged += group
         }
-        return merged
+        return if (wordingOnly) merged.filter { group ->
+            (group[0]..group[1]).none { blocked[it] } && (group[0]..group[1]).any { index ->
+                val op = ops[index]
+                !op.isMatch && !op.isPunct && op.token.type == Type.Word && !orthographyOnly(op)
+            }
+        } else merged
     }
+
+    /** Case/accent changes to the same word belong to correctness, not naturalness. */
+    private fun orthographyOnly(op: Op): Boolean =
+        !op.isMatch && op.a?.type == Type.Word && op.b?.type == Type.Word && op.a.folded == op.b.folded
+
+    /** Kept function words can bind one phrase; kept content words separate changes. */
+    private fun bridgeWords(ops: List<Op>, from: Int): Boolean {
+        for (index in from until ops.size) {
+            val op = ops[index]
+            if (!op.isMatch) return !op.isPunct && op.token.type == Type.Word && !orthographyOnly(op)
+            if (op.token.type != Type.Space &&
+                (op.token.type != Type.Word || op.token.text.lowercase() !in PHRASE_WORDS)) return false
+        }
+        return false
+    }
+
+    private val PHRASE_WORDS = setOf("a", "de", "del", "el", "la", "els", "les", "un", "una", "que", "to", "the", "of")
+
+    /** Known valid greeting: this alternative is preference, not an improvement. */
+    private fun greetingPreference(from: String, to: String): Boolean =
+        from.trim().lowercase() in setOf("què tal", "que tal") && to.trim().lowercase() in setOf("com vas", "com va", "com et va")
 
     private fun replacement(ops: List<Op>, group: IntArray) =
         (group[0]..group[1]).mapNotNull { ops[it].b?.text }.joinToString("")

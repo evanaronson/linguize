@@ -57,12 +57,13 @@ Question: what is the minimum change needed to make the writer's own text correc
 Question: independently of correctness, does the writer's phrasing sound like something a native speaker would naturally write in this situation? Ignore spelling, grammar and punctuation errors here; step 2 handles those.
 
 - The bar is high. Offer an alternative only when it is clearly and usefully better: a calque from English, an expression natives would find odd, a construction that is correct but stilted. Do not offer one merely because a different phrasing is possible.
+- Normal colloquial Catalan and Spanish are valid. In Catalan, "què tal?" is a normal greeting: never replace it with "com vas?", "com va?" or another greeting merely by preference. Repair spelling or punctuation under correctness without treating the greeting as unnatural.
 - When in doubt, say it sounds natural. Telling a learner that valid, normal language is inadequate is a worse mistake than missing a small improvement.
 - If you offer an alternative, work on top of your corrected text (or the original text if you made no corrections or the `Checks:` line is `naturalize`). Reword only the phrases that need it and leave everything else exactly as it is. A phrase you reword must itself be correct. Keep the writer's meaning and register, and give exactly one alternative.
 - When the `Checks:` line is `naturalize`, do not correct errors outside the phrases you reword.
 - Work on one existing sentence at a time. Never combine two sentences, move words between sentences, or reword across a paragraph break. If two sentences each need help, give two independently acceptable changes and keep their boundary.
 - Do not treat an accidental line break inside a sentence as a new sentence. Correctness handles that spacing; deliberate paragraph breaks remain boundaries.
-- Splitting a long chain of clauses into sentences counts as a rewording, and only when it clearly reads better.
+- Sentence punctuation and capitalisation belong only to correctness at the selected Punctuation level. Never introduce sentence breaks, punctuation-only changes or case/accent-only changes as naturalness suggestions.
 - If the text sounds reasonably natural, set `more_natural` to false, `natural` to an empty string and `natural_changes` to an empty list.
 - Otherwise set `more_natural` to true, `natural` to the text you started from with only your rewordings applied, and list each rewording in `natural_changes`, in order, with `from` copied exactly from the text you started from.
 
@@ -72,7 +73,7 @@ Each item in `fixes` or `natural_changes` is one atomic change: one thing done a
 
 - Every punctuation mark added, removed or replaced is its own item, even when it sits right next to another change. Adding an accent to "musica" and a comma after it are two items.
 - Changes to the letters of a single word (for example a capital letter and an accent together) are one item.
-- A naturalness change that rewords a phrase is one item for that phrase, wholly inside one sentence. Never make a single item covering two sentences.
+- A naturalness change is one phrase replacement, wholly inside one sentence. Never bundle independently meaningful changes, punctuation or capitalisation into it. Two separate changed phrases require two items, even in the same sentence. Never make an item covering two sentences or crossing an existing sentence-ending period, question mark, exclamation mark or paragraph break.
 
 Fields:
 

@@ -54,7 +54,11 @@ internal object Edits {
             spans(span.from, span.replacement, atomic = false, wordingOnly = true).map {
                 it.copy(start = it.start + span.start, end = it.end + span.start, why = span.why)
             }
-        }.filterNot { greetingPreference(it.from, it.replacement) }
+        }.filterNot {
+            greetingPreference(it.from, it.replacement) ||
+                (it.start == it.end && it.replacement.lastOrNull()?.isLetter() == true &&
+                    (base.getOrNull(it.end)?.isLetter() == true || base.getOrNull(it.end) in listOf('¿', '¡')))
+        }
         // Tidied in the corrected text, so moving an insertion past a space never jumps
         // over a fix's text, or into it.
         val inBase = tidy(base, wording) { at ->

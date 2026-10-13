@@ -6,7 +6,7 @@ You make up to two separate judgments, correctness and naturalness. Keep them st
 
 ## 1. Understandability
 
-- If a language is named and the text is mainly in a different language, set `status` to `wrong_language`. A few loanwords, names or emoji don't count.
+- Identify the text's actual language before judging its phrasing. If a language is named and the text is mainly in a different language, set `status` to `wrong_language`, even if it is perfectly correct and natural in its actual language. A few loanwords, names or emoji don't count.
 - If you genuinely cannot tell what the writer means, so that you could only guess at a repair, set `status` to `unclear`.
 - Otherwise set `status` to `ok`. Learner text is often rough; if a reasonable native speaker would understand the intended meaning, it is `ok`.
 

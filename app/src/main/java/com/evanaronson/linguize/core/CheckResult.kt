@@ -44,6 +44,13 @@ fun interpret(
         Verdict.Status.Ok -> Unit
     }
 
+    // A contradictory "ok" status must not override the detected language.
+    val foundLanguage = verdict.language.trim()
+    if (expectedLanguage != null && foundLanguage.isNotEmpty() &&
+        !foundLanguage.substringBefore('(').trim().equals(expectedLanguage, ignoreCase = true)) {
+        return CheckResult.WrongLanguage(expectedLanguage, foundLanguage)
+    }
+
     val fixes = verdict.corrected.trim()
         .takeIf { EditKind.Fix in judgments.kinds && verdict.hasErrors && it.isNotEmpty() }
         ?.let { Edits.fixes(original, it, verdict.fixes) }

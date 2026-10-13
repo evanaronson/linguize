@@ -33,6 +33,7 @@ internal object Edits {
     ): List<Edit> {
         val base = render(original, fixes).text
         val placed = place(fixes)
+        if (Links.hasNewLink(base, natural)) return emptyList()
         val sentences = Sentences.ranges(base)
         val targetSentences = Sentences.ranges(natural)
         // Never offer an answer that joins existing sentences or paragraphs.
@@ -51,6 +52,8 @@ internal object Edits {
         // Reported spans are not trusted as atomic. Re-align each phrase so formatting
         // and separate changed regions cannot hide behind one reported reason.
         val wording = suggested.flatMap { span ->
+            // Adding an entire new sentence is not a phrase rewording.
+            if (span.from.isEmpty() && PUNCTUATION.containsMatchIn(span.replacement)) return@flatMap emptyList()
             spans(span.from, span.replacement, atomic = false, wordingOnly = true).map {
                 it.copy(start = it.start + span.start, end = it.end + span.start, why = span.why)
             }
@@ -260,7 +263,7 @@ internal object Edits {
         var current: IntArray? = null
         for ((k, op) in ops.withIndex()) {
             val open = current
-            if (wordingOnly && (op.isPunct || orthographyOnly(op))) {
+            if (wordingOnly && (formatting(op) || orthographyOnly(op))) {
                 // Lowercasing the old first word after an inserted phrase prefix
                 // belongs to that phrase ("Voy ..." -> "Me voy ...").
                 val partOfPrefix = orthographyOnly(op) && open != null &&
@@ -332,12 +335,18 @@ internal object Edits {
             if (previous != null && group[0] <= previous[1]) previous[1] = maxOf(previous[1], group[1]) else merged += group
         }
         return if (wordingOnly) merged.filter { group ->
-            (group[0]..group[1]).none { blocked[it] } && (group[0]..group[1]).any { index ->
+            replacement(ops, group).isNotBlank() && (group[0]..group[1]).none { blocked[it] } && (group[0]..group[1]).any { index ->
                 val op = ops[index]
-                !op.isMatch && !op.isPunct && op.token.type == Type.Word && !orthographyOnly(op)
+                !op.isMatch && !formatting(op) && op.token.type != Type.Space && !orthographyOnly(op)
             }
         } else merged
     }
+
+    /** Punctuation is a boundary; emoji and other content symbols are not punctuation. */
+    private fun formatting(op: Op): Boolean =
+        op.isPunct && PUNCTUATION.containsMatchIn(op.token.text)
+
+    private val PUNCTUATION = Regex("""\p{P}""")
 
     /** Case/accent changes to the same word belong to correctness, not naturalness. */
     private fun orthographyOnly(op: Op): Boolean =

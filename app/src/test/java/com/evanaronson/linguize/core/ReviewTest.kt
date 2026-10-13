@@ -401,4 +401,26 @@ class ReviewTest {
             meaningOf("Charles and I are going to drink the beers he brought me from Montreal."),
         )
     }
+
+    @Test
+    fun detectedLanguageMismatchCannotLookGoodEvenWhenTheModelSaysOk() {
+        for (judgments in Judgments.entries) {
+            assertEquals(CheckResult.WrongLanguage("Catalan", "English"),
+                interpret("Hello, how are you?", Verdict(status = Verdict.Status.Ok, language = "English"),
+                    judgments, expectedLanguage = "Catalan"))
+        }
+        assertEquals(CheckResult.WrongLanguage("Spanish", "Catalan"),
+            interpret("Bon dia", Verdict(status = Verdict.Status.Ok, language = "Catalan"),
+                expectedLanguage = "Spanish"))
+    }
+
+    @Test
+    fun matchingLanguageAndAutoDetectionRemainSupported() {
+        assertTrue(interpret("Bon dia", Verdict(status = Verdict.Status.Ok, language = " catalan "),
+            expectedLanguage = "Catalan") is CheckResult.Reviewed)
+        assertTrue(interpret("Bon dia", Verdict(status = Verdict.Status.Ok, language = "Catalan (Central)"),
+            expectedLanguage = "Catalan") is CheckResult.Reviewed)
+        assertTrue(interpret("Hello", Verdict(status = Verdict.Status.Ok, language = "English"))
+            is CheckResult.Reviewed)
+    }
 }

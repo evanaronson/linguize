@@ -86,6 +86,74 @@ class FuzzCorpusTest(unittest.TestCase):
             self.assertEqual(200, len({r["case"]["request_id"] for r in saved}))
             self.assertTrue(all("verdict" in r for r in saved))
 
+    def test_fallback_is_provider_agnostic_keeps_failures_and_resumes_without_repeating_answers(self):
+        import contextlib
+        import io
+        import json
+        import os
+        import tempfile
+        from unittest.mock import patch
+        runner = fuzz.load_runner()
+        calls = []
+
+        def unavailable(model, *args):
+            calls.append(model)
+            raise TimeoutError("a provider failed")
+
+        def answer(model, *args):
+            calls.append(model)
+            return {"status": "ok", "has_errors": False}, 0.01
+
+        with tempfile.TemporaryDirectory() as folder:
+            replies = Path(folder) / "replies.jsonl"
+            argv = ["--live", "--model", "primary-fixture", "--fallback", "openai:secondary-fixture",
+                    "--tries", "1", "--workers", "1", "--interval", "0",
+                    "--output", str(Path(folder) / "corpus.jsonl"), "--replies", str(replies)]
+            providers = {"gemini": (unavailable, "primary-fixture", "FUZZ_A_KEY"),
+                         "openai": (answer, "secondary-fixture", "FUZZ_B_KEY")}
+            output = io.StringIO()
+            with patch.object(fuzz, "load_runner", return_value=runner), patch.dict(runner.PROVIDERS, providers), \
+                    patch.dict(os.environ, {"FUZZ_A_KEY": "private-a-fixture", "FUZZ_B_KEY": "private-b-fixture"}), \
+                    contextlib.redirect_stdout(output):
+                self.assertEqual(0, fuzz.main(argv))
+                self.assertEqual(400, len(calls))
+                self.assertEqual(0, fuzz.main(argv + ["--retry-errors"]))
+                self.assertEqual(400, len(calls))
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    fuzz.main(argv + ["--model", "a-different-experiment"])
+                self.assertEqual(400, len(calls))
+            rows = [json.loads(line) for line in replies.read_text().split("\n") if line]
+            self.assertEqual(200, len(rows))
+            self.assertTrue(all(r["provider"] == "openai" and r["model"] == "secondary-fixture" for r in rows))
+            self.assertTrue(all(r["requested_model"] == "primary-fixture" and
+                                r["failures"][0]["model"] == "primary-fixture" for r in rows))
+            self.assertNotIn("private-a-fixture", replies.read_text() + output.getvalue())
+            self.assertNotIn("private-b-fixture", replies.read_text() + output.getvalue())
+
+    def test_an_unfavorable_judgment_does_not_trigger_fallback(self):
+        import contextlib
+        import io
+        import os
+        import tempfile
+        from unittest.mock import patch
+        runner = fuzz.load_runner()
+        calls = []
+
+        def answer(model, *args):
+            calls.append(model)
+            return {"status": "unclear", "has_errors": False}, 0.01
+
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.object(fuzz, "load_runner", return_value=runner), \
+                patch.dict(runner.PROVIDERS, {"gemini": (answer, "primary-fixture", "FUZZ_FIXTURE_KEY")}), \
+                patch.dict(os.environ, {"FUZZ_FIXTURE_KEY": "fixture"}), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, fuzz.main(["--live", "--tries", "1", "--interval", "0",
+                                         "--fallback", "gemini:secondary-fixture",
+                                         "--output", str(Path(folder) / "corpus.jsonl"),
+                                         "--replies", str(Path(folder) / "replies.jsonl")]))
+        self.assertEqual(["primary-fixture"] * 200, calls)
+
 
 if __name__ == "__main__":
     unittest.main()
+

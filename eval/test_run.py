@@ -210,6 +210,30 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
                 self.assertEqual(0, status)
                 self.assertIn("1/1 as expected", output)
 
+    def test_gemini_retries_without_a_thinking_option_rejected_by_an_older_model(self):
+        error = urllib.error.HTTPError("https://example.invalid", 400, "Bad Request", {},
+                                       io.BytesIO(b'{"error":{"message":"thinkingLevel not supported"}}'))
+        requests = []
+
+        def post(request):
+            requests.append(json.loads(request.data))
+            if len(requests) == 1:
+                raise error
+            return self.gemini(), 0.01
+
+        with patch.object(run, "post", side_effect=post):
+            verdict, _ = run.check_gemini("arbitrary-model", "fixture", "prompt", {}, "message")
+        self.assertEqual(self.verdict, verdict)
+        self.assertIn("thinkingConfig", requests[0]["generationConfig"])
+        self.assertNotIn("thinkingConfig", requests[1]["generationConfig"])
+
+    def test_gemini_does_not_mask_other_bad_request_errors(self):
+        error = urllib.error.HTTPError("https://example.invalid", 400, "Bad Request", {},
+                                       io.BytesIO(b'{"error":{"message":"invalid schema"}}'))
+        with patch.object(run, "post", side_effect=error) as post, self.assertRaises(urllib.error.HTTPError):
+            run.check_gemini("arbitrary-model", "fixture", "prompt", {}, "message")
+        self.assertEqual(1, post.call_count)
+
 
 if __name__ == "__main__":
     unittest.main()

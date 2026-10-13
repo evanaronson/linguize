@@ -25,6 +25,7 @@ import pathlib
 import statistics
 import time
 import urllib.request
+import urllib.error
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "app/src/main/assets"
@@ -87,7 +88,15 @@ def check_gemini(model, key, system, schema, message):
         data=json.dumps(body).encode(),
         headers={"x-goog-api-key": key, "Content-Type": "application/json"},
     )
-    payload, elapsed = post(request)
+    try:
+        payload, elapsed = post(request)
+    except urllib.error.HTTPError as error:
+        # Mirrors GeminiClient's DroppableOption for models without thinkingLevel.
+        if error.code != 400 or b"thinking" not in error.read().lower():
+            raise
+        del body["generationConfig"]["thinkingConfig"]
+        request = urllib.request.Request(request.full_url, data=json.dumps(body).encode(), headers=request.headers)
+        payload, elapsed = post(request)
     payload = json_object(payload, "Gemini response")
     candidates = json_array(payload.get("candidates", []), "Gemini candidates")
     if not candidates:
@@ -247,3 +256,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

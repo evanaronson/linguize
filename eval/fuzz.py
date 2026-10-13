@@ -150,11 +150,17 @@ def main(argv=None):
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--provider", choices=("gemini", "openai"), default="gemini")
     parser.add_argument("--model")
+    parser.add_argument("--fallback", action="append", default=[], metavar="PROVIDER:MODEL",
+                        help="ordered fallback targets after request failures; judgments never trigger fallback")
+    parser.add_argument("--tries", type=int, choices=range(1, 4), default=3)
+    parser.add_argument("--timeout", type=float, default=30, help="HTTP timeout; >30 s is a diagnostic extension")
     parser.add_argument("--replies", type=Path, default=ROOT / "eval/fuzz/results/replies.jsonl")
     parser.add_argument("--workers", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--interval", type=float, default=5.0, help="minimum seconds between request starts")
     parser.add_argument("--retry-errors", action="store_true", help="retry saved failures without repeating successful checks")
     args = parser.parse_args(argv)
+    if args.interval < 0 or args.timeout <= 0:
+        parser.error("Interval must be nonnegative and timeout must be positive")
     records = generate(args.seed)
     corpus = "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -166,15 +172,24 @@ def main(argv=None):
     if not args.live:
         return 0
     runner = load_runner()
-    check, default_model, key_variable = runner.PROVIDERS[args.provider]
-    key = os.environ.get(key_variable)
-    if not key:
-        parser.error(f"Missing repository secret {key_variable}; no live requests made")
+    _, default_model, _ = runner.PROVIDERS[args.provider]
     model = args.model or default_model
-    # Long provider queueing must not turn every late answer into a synthetic timeout.
+    targets = [(args.provider, model)]
+    for target in args.fallback:
+        provider, separator, fallback_model = target.partition(":")
+        if not separator or not fallback_model or provider not in runner.PROVIDERS:
+            parser.error("Fallback must be a supported PROVIDER:MODEL")
+        if (provider, fallback_model) not in targets:
+            targets.append((provider, fallback_model))
+    credentials = {}
+    for provider, _ in targets:
+        variable = runner.PROVIDERS[provider][2]
+        credentials[provider] = os.environ.get(variable)
+        if not credentials[provider]:
+            parser.error(f"Missing repository secret {variable}; no live requests made")
     def diagnostic_post(request):
         started = time.monotonic()
-        with runner.urllib.request.urlopen(request, timeout=90) as response:
+        with runner.urllib.request.urlopen(request, timeout=args.timeout) as response:
             payload = json.load(response)
         return payload, time.monotonic() - started
     runner.post = diagnostic_post
@@ -189,7 +204,8 @@ def main(argv=None):
             if not line:
                 continue
             item = json.loads(line)
-            if (item["provider"], item["model"], item["prompt_sha256"], item["corpus_sha256"]) != (
+            if (item.get("requested_provider", item["provider"]),
+                    item.get("requested_model", item["model"]), item["prompt_sha256"], item["corpus_sha256"]) != (
                     args.provider, model, prompt_hash, digest(corpus)):
                 parser.error("Resume file belongs to a different provider, model, prompt or corpus")
             existing[item["case"]["request_id"]] = item
@@ -207,25 +223,38 @@ def main(argv=None):
 
     def execute(case):
         entry = {"case": case, "provider": args.provider, "model": model,
+                 "requested_provider": args.provider, "requested_model": model,
+                 "timeout_seconds": args.timeout,
                  "prompt_sha256": prompt_hash, "corpus_sha256": digest(corpus)}
-        for attempt in range(1, 4):
-            paced_start()
-            try:
-                verdict, elapsed = check(model, key, system, schema, runner.user_message(case))
-                entry.update(verdict=verdict, latency_seconds=elapsed, attempts=attempt)
-                return entry
-            except Exception as error:
-                retryable = isinstance(error, (TimeoutError, urllib.error.URLError))
-                status = error.code if isinstance(error, urllib.error.HTTPError) else None
-                if status is not None:
-                    retryable = status in (429, 500, 502, 503, 504)
-                if not retryable or attempt == 3:
-                    entry["error"] = type(error).__name__
-                    entry["attempts"] = attempt
-                    if status is not None:
-                        entry["http_status"] = status
+        previous = existing.get(case["request_id"], {})
+        failures = list(previous.get("failures", []))
+        if "error" in previous and not failures:
+            failures.append({k: previous[k] for k in ("provider", "model", "error", "http_status", "attempts") if k in previous})
+        attempts = 0
+        for provider, target_model in targets:
+            check = runner.PROVIDERS[provider][0]
+            for attempt in range(1, args.tries + 1):
+                attempts += 1
+                paced_start()
+                try:
+                    verdict, elapsed = check(target_model, credentials[provider], system, schema, runner.user_message(case))
+                    entry.update(provider=provider, model=target_model, verdict=verdict,
+                                 latency_seconds=elapsed, attempts=attempts, failures=failures)
                     return entry
-                time.sleep((15 if status == 429 else 5) * attempt)
+                except Exception as error:
+                    retryable = isinstance(error, (TimeoutError, urllib.error.URLError))
+                    status = error.code if isinstance(error, urllib.error.HTTPError) else None
+                    if status is not None:
+                        retryable = status in (429, 500, 502, 503, 504)
+                    failure = {"provider": provider, "model": target_model, "error": type(error).__name__}
+                    if status is not None:
+                        failure["http_status"] = status
+                    failures.append(failure)
+                    if not retryable or attempt == args.tries:
+                        break
+                    time.sleep((15 if status == 429 else 5) * attempt)
+        entry.update(failures[-1], attempts=attempts, failures=failures)
+        return entry
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = [pool.submit(execute, case) for case in pending]
@@ -243,6 +272,9 @@ def main(argv=None):
         "corpus_sha256": digest(corpus), "requests": len(existing),
         "answered": sum("verdict" in item for item in existing.values()),
         "errors": sum("error" in item for item in existing.values()),
+        "answer_models": dict(collections.Counter(item["provider"] + ":" + item["model"]
+                                                   for item in existing.values() if "verdict" in item)),
+        "over_app_timeout": sum(item.get("latency_seconds", 0) > 30 for item in existing.values()),
     }
     args.replies.with_name("run.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary))
@@ -251,3 +283,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

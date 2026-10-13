@@ -3,6 +3,9 @@
   "provider": "gemini",
   "requests": 200,
   "baseline": "c953fd0445e87cc54f9e6ea1bf79d924c925924f",
-  "attempt": 5,
-  "reuse_run": 38411520182
+  "attempt": 6,
+  "reuse_run": 38417778086,
+  "fallbacks": [
+    "gemini:gemini-2.5-flash"
+  ]
 }

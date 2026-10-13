@@ -2,10 +2,12 @@
 
 Status: delivered. The owner-tested lookup behavior comes from build 72
 ([33fd5fc7](https://github.com/evanaronson/linguize/commit/33fd5fc7346b8624531c097d31c9a7e84c5e39ef)).
-The temporary diagnostic probe is absent from the current implementation.
+Main has no diagnostic probe. This preview retains the temporary tap report while the chat-switch retry is checked on the owner's phone.
 This document keeps the reliability evidence and the contracts that remain in force.
 
 ## Evidence and outcome
+
+The owner's build 143 screenshot establishes that both taps reached the service: tap 1 returned a container and reached the bounded lookup limit; tap 2 returned an editor and displayed the card. This rules out lost callback delivery for that reproduction. The preview retries a limited lookup once after 100 ms, within the original tap and source window. This still requires handset verification.
 
 On the owner's Galaxy S21, WhatsApp and Telegram worked while ChatGPT initially appeared to do nothing. The temporary probe established that ChatGPT's tap reached Linguize, but Android's service-wide input-focus lookup returned a non-editable item, without edit actions or an input-focused flag.
 
@@ -21,6 +23,7 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 - If the service-wide focus query is missing or returns a container, query input focus within the active source window before scanning. This handles a missing global focus result without requiring a second tap when the window already exposes its focused editor.
 - For fallback, require the source app and window to match the active root. Search the returned item's subtree first, then the same-window root only if the complete subtree has no candidate.
 - Accept only one visible, enabled, input-focused editor. Bound each scan to 128 nodes and 150 ms. A private, ambiguous or incomplete scan stops the attempt. A lone unfocused editor is insufficient.
+- In this preview, a lookup-limit result may schedule one fresh query within the original tap after 100 ms. A new tap, service destruction, screen lock or source-window change cancels it. Private, ambiguous and genuinely empty fields do not schedule retries, and a second limited lookup stops with feedback.
 - Check password and private-field metadata before reading contents. Refresh every candidate, including the direct result, before reading text; cached nodes may still hold the text from before focus changed. Recheck fallback eligibility and the active source window before reading.
 - Give a short toast on failure, with instructions to focus the field and retry or paste into Try it. The temporary settings line, tap count, availability state, and stage tracking have been removed.
 

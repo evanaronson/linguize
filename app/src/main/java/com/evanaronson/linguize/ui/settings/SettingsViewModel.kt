@@ -161,12 +161,12 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     }
 
     /**
-     * The settings screen is showing: reads the provider's model list the first time. Not
+     * The settings screen is showing: refreshes the provider's model list on each visit. Not
      * before, so that Home, which only reads a setting or two, doesn't send the key to the
      * provider on every launch.
      */
     fun showModels() {
-        if (!modelsRequested) loadModels()
+        if (state?.models != ModelList.Loading) loadModels()
     }
 
     /** Adds or removes a selection-menu entry; the last one can't be removed. */

@@ -9,7 +9,7 @@ enum class Provider(
     val recommendedModel: String,
 ) {
     Gemini("gemini", "https://aistudio.google.com/apikey", "gemini-3.5-flash-lite"),
-    OpenAI("openai", "https://platform.openai.com/api-keys", "gpt-6-sol"),
+    OpenAI("openai", "https://platform.openai.com/api-keys", "gpt-6.1-sol"),
     ;
 
     companion object {

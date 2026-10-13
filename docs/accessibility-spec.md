@@ -17,9 +17,11 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 
 - Read writing only after an explicit shortcut tap. Keep the existing selection, card and manual Try it interaction.
 - Keep the direct input-focus lookup. Recognize an editable node or one exposing Set text.
+- On Android 13+, clear the accessibility node cache at the start of each explicit tap. Chat navigation can replace virtual editors while cached input focus still identifies the previous editor; refreshing that node cannot discover the replacement. Older Android versions retain the existing lookup path.
+- If the service-wide focus query is missing or returns a container, query input focus within the active source window before scanning. This handles a missing global focus result without requiring a second tap when the window already exposes its focused editor.
 - For fallback, require the source app and window to match the active root. Search the returned item's subtree first, then the same-window root only if the complete subtree has no candidate.
 - Accept only one visible, enabled, input-focused editor. Bound each scan to 128 nodes and 150 ms. A private, ambiguous or incomplete scan stops the attempt. A lone unfocused editor is insufficient.
-- Check password and private-field metadata before reading contents. Refresh a fallback candidate and recheck eligibility and the active source window before reading.
+- Check password and private-field metadata before reading contents. Refresh every candidate, including the direct result, before reading text; cached nodes may still hold the text from before focus changed. Recheck fallback eligibility and the active source window before reading.
 - Give a short toast on failure, with instructions to focus the field and retry or paste into Try it. The temporary settings line, tap count, availability state, and stage tracking have been removed.
 
 ## Existing contracts
@@ -35,6 +37,10 @@ Keep one History session per popup, Origin.Button, the source package and existi
 The diagnostic releases passed unit tests and release builds. Regression checks
 cover private, ambiguous, hidden, disabled, other-app and other-window nodes,
 unfocused editors, scan limits, and a focused subtree within a large conversation.
+Focus-resolution regressions also cover missing service-wide focus, window-local
+focus in a large conversation, and private or foreign-window results. These cover
+the lookup gap; the owner's intermittent first-tap symptom still needs a handset
+check to establish whether that gap was its cause.
 Current changes must pass `testDebugUnitTest`, `lintRelease`, and `assembleRelease`,
 as the [build workflow](../.github/workflows/build.yml) requires. Unit tests cover
 the app's rules; handset checks remain necessary to establish behavior in another app.

@@ -236,7 +236,27 @@ internal object Edits {
 
     /** Spans of [base] that change to reach [target]: atomic for fixes, whole phrases for rewordings. */
     private fun spans(base: String, target: String, atomic: Boolean, wordingOnly: Boolean = false): List<Span> {
-        val ops = Alignment.align(base, target)
+        val ops = Alignment.align(base, target).toMutableList()
+        // A deleted phrase between changed words has two equivalent space alignments.
+        // Keep the first space, so the deletion joins the following word change rather
+        // than swallowing the preceding verb ("pensés de aquest" -> "pensis d'aquest").
+        for (k in 1 until ops.lastIndex) {
+            val first = ops[k]
+            val prior = ops[k - 1]
+            if (first.a?.type != Type.Space || first.b != null ||
+                prior.a?.type != Type.Word || prior.b?.type != Type.Word) continue
+            var end = k + 1
+            while (end < ops.size && ops[end].b == null) end++
+            if (end >= ops.lastIndex) continue
+            val kept = ops[end]
+            val next = ops[end + 1]
+            if (kept.isMatch && kept.a?.type == Type.Space && first.a.normal == kept.a.normal &&
+                next.a?.type == Type.Word && next.b?.type == Type.Word &&
+                !prior.isMatch && !next.isMatch) {
+                ops[k] = Op(first.a, kept.b)
+                ops[end] = Op(kept.a, null)
+            }
+        }
         if (ops.isEmpty()) return emptyList()
 
         // Position in the base text before each op, for placing insertions.

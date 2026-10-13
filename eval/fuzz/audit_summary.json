@@ -1,0 +1,32 @@
+{
+  "requests": 200,
+  "reviewed": 200,
+  "provider_errors": 0,
+  "answer_models": {
+    "gemini:gemini-3.5-flash-lite": 186,
+    "gemini:gemini-3.5-flash": 8,
+    "gemini:gemini-3.6-flash": 4,
+    "gemini:gemini-3.1-flash-lite": 2
+  },
+  "requests_with_manual_findings": 115,
+  "requests_with_engine_findings": 77,
+  "manual_finding_occurrences": {
+    "E1": 71,
+    "L1": 10,
+    "L3": 21,
+    "E2": 2,
+    "L2": 3,
+    "L4": 25,
+    "L5": 15,
+    "L6": 11,
+    "E4": 6,
+    "E6": 1
+  },
+  "engine_diagnostic_occurrences": {
+    "dependent_word_split": 29,
+    "fix_reconstruction_mismatch": 2,
+    "bundled_word_fixes": 2,
+    "natural_changes_digits": 2
+  },
+  "answers_over_app_30s_timeout": 51
+}

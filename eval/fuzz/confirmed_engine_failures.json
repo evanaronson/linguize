@@ -196,7 +196,9 @@
           "accepted_text": "La pel·lícula comença a dos quarst de nou. Mi llor que hi arrbem una abans."
         }
       ],
-      "flags": []
+      "flags": [
+        "dependent_word_split:3"
+      ]
     },
     "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
   },
@@ -281,7 +283,9 @@
           "accepted_text": "Me he equivocado de calle. Ahora estoy delante dela biblioteca. Envíame la ubicación, por ffavor."
         }
       ],
-      "flags": []
+      "flags": [
+        "dependent_word_split:0"
+      ]
     },
     "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
   },
@@ -683,8 +687,155 @@
           "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. Le avisaré pero hay abuelo retraso."
         }
       ],
-      "flags": []
+      "flags": [
+        "natural_changes_digits:5",
+        "dependent_word_split:5",
+        "natural_changes_digits:6"
+      ]
     },
     "review": "Time formatting must not create natural edits that individually produce 212130 or 30."
+  },
+  {
+    "request_id": "ca-024:auto",
+    "original": "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
+    "verdict": {
+      "status": "ok",
+      "language": "Catalan",
+      "meaning": "I have to take this pill after dinner as the doctor told me not to take two. I have it written down on the calendar.",
+      "assumptions": [],
+      "has_errors": true,
+      "corrected": "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "fixes": [
+        {
+          "from": "pasti:lla",
+          "to": "pastilla",
+          "why": "Typo with colon"
+        },
+        {
+          "from": "despres",
+          "to": "després",
+          "why": "Missing accent"
+        },
+        {
+          "from": "aL",
+          "to": "ja que la",
+          "why": "Wrong words and typo"
+        },
+        {
+          "from": "metgessa m'ha veure",
+          "to": "metgessa m'ha dit",
+          "why": "Wrong verb form"
+        },
+        {
+          "from": "ti nc",
+          "to": "tinc",
+          "why": "Space inside word"
+        }
+      ],
+      "more_natural": true,
+      "natural": "M'he de prendre aquesta pastilla després de sopar perquè la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "natural_changes": [
+        {
+          "from": "He de prendre",
+          "to": "M'he de prendre",
+          "why": "More natural with reflexive pronoun"
+        }
+      ]
+    },
+    "expected_fix_text": "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+    "observed": {
+      "request_id": "ca-024:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "natural_preview": "M'he de prendre aquesta pasti:lla despres de sopar perquè aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
+      "accepted_all": "M'he de prendre aquesta pastilla després de sopar perquè la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+      "meaning": "I have to take this pill after dinner as the doctor told me not to take two. I have it written down on the calendar.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 22,
+          "end": 42,
+          "from": "pasti:lla despres de",
+          "to": "pastilla després de",
+          "why": "Typo with colon",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pastilla després de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 49,
+          "end": 49,
+          "from": "",
+          "to": "ja que ",
+          "why": null,
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar ja que aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 49,
+          "end": 51,
+          "from": "aL",
+          "to": "la",
+          "why": "Wrong words and typo",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar la metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 66,
+          "end": 71,
+          "from": "veure",
+          "to": "dit",
+          "why": "Wrong verb form",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha dit que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 99,
+          "end": 104,
+          "from": "ti nc",
+          "to": "tinc",
+          "why": "Space inside word",
+          "includes": [],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho tinc apuntat al calendari."
+        },
+        {
+          "id": 5,
+          "kind": "natural",
+          "start": 0,
+          "end": 2,
+          "from": "He",
+          "to": "M'he",
+          "why": "More natural with reflexive pronoun",
+          "includes": [],
+          "accepted_text": "M'he de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        },
+        {
+          "id": 6,
+          "kind": "natural",
+          "start": 49,
+          "end": 49,
+          "from": "",
+          "to": "perquè ",
+          "why": null,
+          "includes": [
+            1
+          ],
+          "accepted_text": "He de prendre aquesta pasti:lla despres de sopar perquè aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari."
+        }
+      ],
+      "flags": [
+        "bundled_word_fixes:0"
+      ]
+    },
+    "review": "pasti:lla → pastilla and despres → després repair different words and must not share one fix."
   }
 ]

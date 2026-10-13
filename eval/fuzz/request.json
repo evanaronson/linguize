@@ -3,12 +3,7 @@
   "provider": "gemini",
   "requests": 200,
   "baseline": "c953fd0445e87cc54f9e6ea1bf79d924c925924f",
-  "attempt": 9,
-  "reuse_run": 38420917058,
-  "live": true,
-  "fallbacks": [
-    "gemini:gemini-3.8-flash",
-    "gemini:gemini-3.6-flash",
-    "gemini:gemini-3.7-flash"
-  ]
+  "attempt": 10,
+  "reuse_run": 38422276933,
+  "live": false
 }

@@ -13,3 +13,10 @@ __pycache__/
 *.jks
 *.keystore
 *.p12
+
+# Generated corruption-audit artifacts; frozen baseline evidence is tracked separately.
+eval/fuzz/generated.jsonl
+eval/fuzz/results/
+eval/fuzz/baseline/review.html
+eval/fuzz/baseline/review.jsonl
+eval/fuzz/baseline/summary.json

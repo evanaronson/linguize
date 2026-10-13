@@ -3,8 +3,24 @@
 import argparse
 import collections
 import html
+import hashlib
 import json
 from pathlib import Path
+
+
+def evidence_digest(value):
+    canonical = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def matching_review(reply, engine, note):
+    """A new model answer or changed engine output must receive a fresh review."""
+    if note and all(note.get(field) == reply.get(field) for field in
+                    ("provider", "model", "prompt_sha256", "corpus_sha256")) and \
+            note.get("verdict_sha256") == evidence_digest(reply.get("verdict")) and \
+            note.get("engine_sha256") == evidence_digest(engine):
+        return note
+    return {"review_status": "not_reviewed_for_this_answer"}
 
 
 def main():
@@ -25,7 +41,8 @@ def main():
     for reply in sorted(replies, key=lambda r: r["case"]["request_id"]):
         case = reply["case"]
         engine = engines[case["request_id"]]
-        joined.append({**reply, "engine": engine, "manual_review": reviews.get(case["request_id"], {})})
+        review = matching_review(reply, engine, reviews.get(case["request_id"]))
+        joined.append({**reply, "engine": engine, "manual_review": review})
     if len(joined) != 200 or len(engines) != 200:
         raise ValueError("Review needs all 200 results")
     (args.results / "review.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in joined))

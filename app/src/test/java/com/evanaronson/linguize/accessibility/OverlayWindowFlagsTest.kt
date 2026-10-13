@@ -7,10 +7,10 @@ import org.junit.Test
 
 class OverlayWindowFlagsTest {
     @Test
-    fun shownTakesKeysButNotTheKeyboard() {
+    fun shownTakesFocusAndClosesTheSourceKeyboard() {
         val flags = windowFlags(hidden = false)
         assertEquals(0, flags and LayoutParams.FLAG_NOT_FOCUSABLE)
-        assertTrue(flags and LayoutParams.FLAG_ALT_FOCUSABLE_IM != 0)
+        assertEquals(0, flags and LayoutParams.FLAG_ALT_FOCUSABLE_IM)
     }
 
     @Test

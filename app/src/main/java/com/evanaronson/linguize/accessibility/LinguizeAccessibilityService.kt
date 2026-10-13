@@ -10,9 +10,7 @@ import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
@@ -22,8 +20,9 @@ import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.card.FloatingCard
-import com.evanaronson.linguize.ui.popup.PopupAppActivity
 import com.evanaronson.linguize.ui.components.LanguagePicker
+import com.evanaronson.linguize.ui.components.MenuState
+import com.evanaronson.linguize.ui.popup.PopupAppActivity
 import com.evanaronson.linguize.ui.popup.PopupReturn
 import com.evanaronson.linguize.ui.theme.AppTheme
 
@@ -161,7 +160,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
             // text or records a Copy decision.
             end { check.workingText?.let { writeBack(field, selection, it) } == true }
         }
-        onBack = close
+        val menus = MenuState()
+        onBack = { if (!menus.dismiss()) close() }
 
         val actions = CardActions.of(
             check, context = this, onClose = close, onOpenSettings = null,
@@ -169,14 +169,11 @@ class LinguizeAccessibilityService : AccessibilityService() {
         )
         try {
             window.show {
-                AppTheme {
+                AppTheme(menuState = menus) {
                     check.state?.let { state ->
-                        // At the top, clear of the keyboard that's open for the field.
                         FloatingCard(state, actions,
                             onDismiss = close,
                             onOpenApp = openApp,
-                            alignment = Alignment.TopCenter,
-                            topPadding = 32.dp,
                         ) {
                             // Another language checks again on the same card: one history session for it.
                             LanguagePicker(language, onSelect = {

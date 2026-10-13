@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,12 +15,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -30,7 +32,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 
@@ -48,9 +49,6 @@ fun FloatingCard(
     actions: CardActions,
     onDismiss: () -> Unit,
     onOpenApp: () -> Unit,
-    alignment: Alignment = Alignment.BottomCenter,
-    /** Extra space at the top, for windows that get no system insets. */
-    topPadding: Dp = 0.dp,
     header: @Composable RowScope.() -> Unit = {},
 ) {
     val appName = stringResource(R.string.app_name)
@@ -70,9 +68,8 @@ fun FloatingCard(
             Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(top = topPadding)
                 .padding(16.dp),
-            contentAlignment = alignment,
+            contentAlignment = Alignment.BottomCenter,
         ) {
             // Long text scrolls inside the card; keep some of the app visible to tap away.
             val cardMaxHeight = maxHeight * 0.8f
@@ -90,6 +87,7 @@ fun FloatingCard(
                 ) {
                     FilledTonalButton(
                         onClick = onOpenApp,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.heightIn(min = 48.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                     ) {

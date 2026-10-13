@@ -5,15 +5,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import com.evanaronson.linguize.ui.components.MenuHost
+import com.evanaronson.linguize.ui.components.MenuState
 
 /**
  * The brand: ink on paper, neutral greys, and cobalt as the one colour (buttons,
  * selection, rewordings). Fixes keep the error red. Follows dark mode.
  */
 @Composable
-fun AppTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light, content = content)
+fun AppTheme(menuState: MenuState = remember { MenuState() }, content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light) {
+        MenuHost(menuState, content)
+    }
 }
 
 // The same values as res/values/colors.xml, which the launcher icon and wordmark use.

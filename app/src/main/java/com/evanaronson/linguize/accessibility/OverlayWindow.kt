@@ -52,9 +52,8 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
         windowFlags(hidden = false),
         PixelFormat.TRANSLUCENT,
-    )
-    init {
-        params.softInputMode = LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    ).apply {
+        softInputMode = LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE
     }
 
     private var root: View? = null
@@ -160,4 +159,3 @@ private class BackKeyLayout(context: Context, private val onBack: () -> Unit) : 
         return true
     }
 }
-

@@ -20,9 +20,9 @@ import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.card.FloatingCard
-import com.evanaronson.linguize.ui.popup.PopupAppActivity
-import com.evanaronson.linguize.ui.components.MenuState
 import com.evanaronson.linguize.ui.components.LanguagePicker
+import com.evanaronson.linguize.ui.components.MenuState
+import com.evanaronson.linguize.ui.popup.PopupAppActivity
 import com.evanaronson.linguize.ui.popup.PopupReturn
 import com.evanaronson.linguize.ui.theme.AppTheme
 
@@ -234,4 +234,3 @@ class LinguizeAccessibilityService : AccessibilityService() {
         const val MAX_HIDDEN_MILLIS = 15 * 60_000L
     }
 }
-

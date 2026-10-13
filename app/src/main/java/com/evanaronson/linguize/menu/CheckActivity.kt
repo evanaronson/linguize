@@ -1,20 +1,20 @@
 package com.evanaronson.linguize.menu
 
 import android.content.Intent
-import android.view.WindowManager.LayoutParams
-import android.os.Bundle
 import android.os.BadParcelableException
+import android.os.Bundle
+import android.view.WindowManager.LayoutParams
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure.Reason
 import com.evanaronson.linguize.ui.card.CardActions
@@ -154,4 +154,3 @@ class CheckActivity : ComponentActivity() {
         const val CLOSE_WAIT_MS = 500L
     }
 }
-

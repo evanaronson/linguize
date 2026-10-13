@@ -22,4 +22,3 @@ class OverlayWindowFlagsTest {
         assertEquals(0, flags and LayoutParams.FLAG_ALT_FOCUSABLE_IM)
     }
 }
-

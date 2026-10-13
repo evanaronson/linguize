@@ -135,4 +135,3 @@ private fun Failure(reason: Reason, userMessage: CheckFailure.Message?, provider
         else -> FilledTonalButton(onClick = actions.onRetry) { Text(stringResource(R.string.retry)) }
     }
 }
-

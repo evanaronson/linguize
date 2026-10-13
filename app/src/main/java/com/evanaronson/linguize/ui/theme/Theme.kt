@@ -4,11 +4,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import com.evanaronson.linguize.ui.components.MenuHost
 import com.evanaronson.linguize.ui.components.MenuState
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 
 /**
  * The brand: ink on paper, neutral greys, and cobalt as the one colour (buttons,
@@ -94,4 +94,3 @@ private val Dark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF272725),
     surfaceContainerHighest = Color(0xFF32322F),
 )
-

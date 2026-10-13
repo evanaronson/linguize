@@ -25,11 +25,12 @@ import org.robolectric.annotation.Implements
 import org.robolectric.annotation.LooperMode
 import org.robolectric.shadow.api.Shadow
 import org.robolectric.shadows.ShadowAccessibilityService
+import org.robolectric.shadows.ShadowAccessibilityNodeInfo
 import org.robolectric.util.ReflectionHelpers
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class, shadows = [ShortcutRetryTest.FocusShadow::class])
+@Config(sdk = [35], application = Application::class, shadows = [ShortcutRetryTest.FocusShadow::class, ShortcutRetryTest.WindowFocusShadow::class])
 @LooperMode(LooperMode.Mode.PAUSED)
 class ShortcutRetryTest {
     private lateinit var service: LinguizeAccessibilityService
@@ -139,6 +140,16 @@ class ShortcutRetryTest {
             assertEquals(AccessibilityNodeInfo.FOCUS_INPUT, type)
             queries++
             return current
+        }
+    }
+
+    /** Simulate the window query missing focus, so the bounded fallback must run.
+     * Synthetic nodes are not sealed/connected to a remote accessibility process. */
+    @Implements(AccessibilityNodeInfo::class)
+    class WindowFocusShadow : ShadowAccessibilityNodeInfo() {
+        @Implementation protected fun findFocus(type: Int): AccessibilityNodeInfo? {
+            assertEquals(AccessibilityNodeInfo.FOCUS_INPUT, type)
+            return null
         }
     }
 }

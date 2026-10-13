@@ -10,23 +10,30 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      matrix:
+        part: [0, 1, 2, 3]
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: fuzz-100-evidence
-          run-id: 38399239455
+          run-id: 38404204649
           github-token: ${{ github.token }}
           path: evidence
       - name: Read saved evidence
+        env:
+          PART: ${{ matrix.part }}
         run: |
           python3 - <<'PY'
-          import json, pathlib, collections
+          import json, pathlib, collections, os
           root = pathlib.Path("evidence")
-          for name in ("run.json", "replies.jsonl", "engine.jsonl"):
-              path = next(root.rglob(name))
-              print("EVIDENCE_BEGIN " + name)
-              print(path.read_text())
-              print("EVIDENCE_END " + name)
-          rows = [json.loads(line) for line in next(root.rglob("replies.jsonl")).read_text().split("\n") if line]
-          print("ERROR_COUNTS", collections.Counter((row.get("error"), row.get("http_status")) for row in rows if "error" in row))
+          rows = [json.loads(l) for l in next(root.rglob("replies.jsonl")).read_text().split("\n") if l]
+          engine = {r["request_id"]: r for r in (json.loads(l) for l in next(root.rglob("engine.jsonl")).read_text().split("\n") if l)}
+          print("REVIEW_BEGIN")
+          for i, row in enumerate(sorted(rows, key=lambda r: r["case"]["request_id"])):
+              if i % 4 == int(os.environ["PART"]):
+                  print(json.dumps({**row, "engine": engine[row["case"]["request_id"]]}, ensure_ascii=False))
+          print("REVIEW_END")
+          print("ERROR_COUNTS", collections.Counter((r.get("error"), r.get("http_status")) for r in rows if "error" in r))
+          print("SUMMARY", json.dumps({"requests": len(rows), "answered": sum("verdict" in r for r in rows), "errors": sum("error" in r for r in rows)}))
           PY

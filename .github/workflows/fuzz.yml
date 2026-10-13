@@ -72,7 +72,7 @@ jobs:
         continue-on-error: true
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python3 eval/fuzz.py --live --workers 4 --interval 8 --retry-errors
+        run: python3 eval/fuzz.py --live --workers 4 --interval 12 --retry-errors
       - name: Replay through the production checker and Accept engine
         if: always()
         env:

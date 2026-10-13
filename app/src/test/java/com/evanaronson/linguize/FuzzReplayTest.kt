@@ -7,6 +7,7 @@ import com.evanaronson.linguize.core.Links
 import com.evanaronson.linguize.core.Sentences
 import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
+import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import org.junit.Assert.assertEquals
@@ -46,16 +47,23 @@ class FuzzReplayTest {
                     try {
                         val verdict = prompt.parseVerdict(raw)
                         val client = FakeClient { ModelAnswer(verdict, raw) }
-                        val checker = fakeChecker(FakePreferences(), client, prompt = prompt)
+                        val preferences = FakePreferences().apply {
+                            provider = Provider.entries.first { it.token == entry.getValue("provider").jsonPrimitive.content }
+                            models[provider] = entry.getValue("model").jsonPrimitive.content
+                        }
+                        val checker = fakeChecker(preferences, client, prompt = prompt)
                         val selected = Language.all.firstOrNull { it.name == language }
-                        val checked = checker.check(original, selected)
+                        val checked = runBlocking { checker.check(original, selected) }
+                        if (checked.context.provider != preferences.provider ||
+                            checked.context.model != entry.getValue("model").jsonPrimitive.content)
+                            flags += "model_context_drift"
                         val expectedMessage = "Language: " +
                             (selected?.let { it.name + " (" + it.variety + ")" } ?: "auto") +
                             "\nPunctuation: moderate\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)" +
                             "\nText: <text>" + original + "</text>"
                         if (prompt.userMessage(client.checks.single().third) != expectedMessage)
                             flags += "request_contract_drift"
-                        if (checker.reuse(original, selected, raw, checked.context).result != checked.result)
+                        if (runBlocking { checker.reuse(original, selected, raw, checked.context) }.result != checked.result)
                             flags += "reuse_differs_from_fresh_check"
                         when (val result = checked.result) {
                             CheckResult.Unclear -> put("result", "unclear")

@@ -74,7 +74,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
             }
             Toast.makeText(this, R.string.shortcut_open_failed, Toast.LENGTH_LONG).show()
         } finally {
-            Toast.makeText(this, getString(R.string.shortcut_probe, probeTap, probeTrail.joinToString(" / ")), Toast.LENGTH_LONG).show()
+            // Android limits text toasts to two lines; show the final stages.
+            Toast.makeText(this, getString(R.string.shortcut_probe, probeTap, probeTrail.takeLast(2).joinToString(" / ")), Toast.LENGTH_LONG).show()
         }
     }
 

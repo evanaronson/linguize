@@ -1,4 +1,4 @@
-name: Diagnose evaluation quota
+name: Inspect available evaluation models
 on:
   push:
     branches: [feature/fuzz-100]
@@ -6,37 +6,30 @@ on:
 permissions:
   contents: read
 jobs:
-  probe:
+  catalog:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Inspect one request outcome without exposing credentials
+      - name: Read available text model IDs
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib, sys, urllib.error
-          sys.path.insert(0, "eval")
-          import run, fuzz
-          case = list(fuzz.requests(fuzz.generate()))[0]
-          try:
-              verdict, elapsed = run.check_gemini("gemini-3.5-flash-lite", os.environ["GEMINI_API_KEY"],
-                  (run.ASSETS / "check_prompt.md").read_text(),
-                  json.loads((run.ASSETS / "check_schema.json").read_text()), run.user_message(case))
-              print("PROBE", json.dumps({"status": "answered", "seconds": elapsed}))
-          except urllib.error.HTTPError as error:
-              body = json.loads(error.read())
-              details = body.get("error", {}).get("details", [])
-              safe = {"status": error.code}
-              safe["capacity_message"] = any(w in body.get("error", {}).get("message", "").lower()
-                                             for w in ("overload", "high demand", "capacity"))
-              safe["quota"] = [{k: v for k, v in violation.items() if k in ("quotaMetric", "quotaId", "quotaValue")}
-                               for detail in details for violation in detail.get("violations", [])]
-              safe["retry_delays"] = [d["retryDelay"] for d in details if "retryDelay" in d]
-              print("PROBE", json.dumps(safe))
-          except Exception as error:
-              print("PROBE", json.dumps({"error": type(error).__name__}))
+          import json, os, urllib.request, urllib.parse
+          token, seen, ids = None, set(), []
+          for page in range(10):
+              query = {"pageSize": 1000}
+              if token: query["pageToken"] = token
+              req = urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/models?" + urllib.parse.urlencode(query),
+                                           headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+              with urllib.request.urlopen(req, timeout=30) as reply:
+                  data = json.load(reply)
+              ids += [model["name"].removeprefix("models/") for model in data.get("models", [])
+                      if "generateContent" in model.get("supportedGenerationMethods", []) and model["name"].startswith("models/gemini")]
+              token = data.get("nextPageToken")
+              if not token or token in seen: break
+              seen.add(token)
+          print("MODEL_CATALOG_BEGIN")
+          print(json.dumps(sorted(set(ids))))
+          print("MODEL_CATALOG_END")
           PY

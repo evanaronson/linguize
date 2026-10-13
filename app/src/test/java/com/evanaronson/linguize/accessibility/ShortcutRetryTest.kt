@@ -43,7 +43,9 @@ class ShortcutRetryTest {
         shadowOf(service.getSystemService(KeyguardManager::class.java)).setKeyguardLocked(false)
         focus.current = node()
         repeat(130) { shadowOf(focus.current).addChild(node()) }
-        focus.setRootInActiveWindow(focus.current)
+        focus.activeRoot = focus.current
+        assertEquals(focus.current, service.rootInActiveWindow)
+        assertTrue(FocusedField.sameWindow(service.rootInActiveWindow!!, focus.current))
     }
 
     @After fun tearDown() = service.onDestroy()
@@ -54,7 +56,8 @@ class ShortcutRetryTest {
     @Test fun firstContainerLookupCanReachTheNewEditorWithinTheOriginalTap() {
         tap()
         assertEquals(1, focus.queries)
-        assertTrue(ShortcutProbe.preferences(service).getString("latest", "")!!.contains("retry-pending"))
+        val trace = ShortcutProbe.preferences(service).getString("latest", "")!!
+        assertTrue(trace, trace.contains("retry-pending"))
         focus.current = node(editable = true).apply { isPassword = true }
         advance()
         assertEquals(2, focus.queries)
@@ -81,7 +84,7 @@ class ShortcutRetryTest {
 
     @Test fun switchingWindowsCancelsTheRetryBeforeQueryingFocus() {
         tap()
-        focus.setRootInActiveWindow(node(app = "other.app", window = 8))
+        focus.activeRoot = node(app = "other.app", window = 8)
         advance()
         assertEquals(1, focus.queries)
     }
@@ -129,7 +132,9 @@ class ShortcutRetryTest {
     @Implements(AccessibilityService::class)
     class FocusShadow : ShadowAccessibilityService() {
         lateinit var current: AccessibilityNodeInfo
+        var activeRoot: AccessibilityNodeInfo? = null
         var queries = 0
+        @Implementation protected override fun getRootInActiveWindow(): AccessibilityNodeInfo? = activeRoot
         @Implementation protected fun findFocus(type: Int): AccessibilityNodeInfo {
             assertEquals(AccessibilityNodeInfo.FOCUS_INPUT, type)
             queries++

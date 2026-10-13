@@ -21,7 +21,8 @@ class CardActions(
     companion object {
         /**
          * The same behaviour wherever the card is shown: Copy copies the version on
-         * screen and closes without replacement. Accept all, Done and dismissal
+         * screen and closes without replacement. Accept and Accept all keep the card
+         * open; Done and dismissal
          * ([onClose]) hand back accepted changes.
          */
         fun of(
@@ -41,7 +42,7 @@ class CardActions(
             review = if (canReplace) {
                 ReviewActions(
                     onAccept = check::accept,
-                    onAcceptAll = { if (check.acceptAll(it)) onClose() },
+                    onAcceptAll = { check.acceptAll(it) },
                     onUndo = check::undo,
                     onDone = onClose,
                 )

@@ -100,7 +100,7 @@ private fun Loading(text: String) {
         text,
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 3,
+        maxLines = 8,
         overflow = TextOverflow.Ellipsis,
     )
     Spacer(Modifier.height(14.dp))

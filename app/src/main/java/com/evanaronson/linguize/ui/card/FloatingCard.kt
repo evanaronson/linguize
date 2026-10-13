@@ -69,7 +69,7 @@ fun FloatingCard(
                 .fillMaxSize()
                 .safeDrawingPadding()
                 .padding(16.dp),
-            contentAlignment = Alignment.BottomCenter,
+            contentAlignment = Alignment.Center,
         ) {
             // Long text scrolls inside the card; keep some of the app visible to tap away.
             val cardMaxHeight = maxHeight * 0.8f

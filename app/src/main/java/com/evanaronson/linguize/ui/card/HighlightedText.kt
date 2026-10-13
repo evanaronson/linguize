@@ -8,10 +8,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -36,12 +42,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
 import kotlinx.coroutines.delay
 
@@ -57,7 +66,14 @@ data class Highlight(val id: Int, val range: IntRange, val from: String, val why
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onReplace: ((Int) -> Unit)?) {
+fun HighlightedText(
+    text: String,
+    changes: List<Highlight>,
+    accent: Color,
+    onReplace: ((Int) -> Unit)?,
+    onCopy: () -> Unit,
+    copyDescription: String,
+) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
     val selected = changes.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
@@ -72,6 +88,8 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
             for (change in changes) {
                 addStyle(SpanStyle(fontWeight = FontWeight.SemiBold), change.range.first, change.range.last + 1)
             }
+            append(" ")
+            appendInlineContent("copy", "\uFFFC")
         }
     }
 
@@ -102,8 +120,25 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
             annotated,
             style = MaterialTheme.typography.bodyLarge,
             onTextLayout = { layout = it },
+            inlineContent = mapOf("copy" to InlineTextContent(
+                Placeholder(width = 2.em, height = 1.5.em, placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter),
+            ) {
+                IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        painterResource(R.drawable.ic_copy),
+                        contentDescription = copyDescription,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }),
             modifier = Modifier
-                .semantics { customActions = actions }
+                .semantics {
+                    customActions = actions + CustomAccessibilityAction(copyDescription) {
+                        onCopy()
+                        true
+                    }
+                }
                 .drawBehind {
                     val result = layout ?: return@drawBehind
                     // Highlights grow a little past their text, except where two changes touch,

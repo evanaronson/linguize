@@ -133,7 +133,7 @@ class CheckViewModelTest {
 
 
     @Test
-    fun acceptAllHandsBackTextWithoutTouchingTheClipboard() {
+    fun acceptAllKeepsTheFinalTextUntilDoneWithoutTouchingTheClipboard() {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         clipboard.setPrimaryClip(ClipData.newPlainText("existing", "leave this alone"))
@@ -151,6 +151,11 @@ class CheckViewModelTest {
             onCopyClose = { copies++ },
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
+        assertNull(putBack)
+        assertTrue(reviewed().isResolved)
+        assertEquals("Com estàs?", reviewed().revision.preview(EditKind.Fix).text)
+        assertTrue(closed().isEmpty())
+        actions.review!!.onDone()
         assertEquals("Com estàs?", putBack)
         assertEquals(0, copies)
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
@@ -158,7 +163,12 @@ class CheckViewModelTest {
     }
 
     @Test
-    fun copyDoesNotReplaceTextEvenAfterAnIndividualAccept() {
+    fun copyAfterIndividualAcceptanceDoesNotReplaceText() = assertCompletedReviewCanBeCopied(acceptAll = false)
+
+    @Test
+    fun copyAfterAcceptAllDoesNotReplaceText() = assertCompletedReviewCanBeCopied(acceptAll = true)
+
+    private fun assertCompletedReviewCanBeCopied(acceptAll: Boolean) {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         check.check(QUESTION, null, Origin.Button)
@@ -174,11 +184,21 @@ class CheckViewModelTest {
                 check.dismiss(applied = false)
             },
         )
-        actions.review!!.onAccept(fix.id)
-        actions.onCopy("the version I chose to copy", EditKind.Fix)
+        if (acceptAll) actions.review!!.onAcceptAll(EditKind.Fix) else actions.review!!.onAccept(fix.id)
+        assertTrue(reviewed().isResolved)
+        val preview = reviewed().revision.preview(EditKind.Fix).text
+        assertEquals("Com estàs?", preview)
+        assertEquals(0, replacements)
+        assertTrue(closed().isEmpty())
+        // The same Undo remains available after either route to a completed review.
+        actions.review!!.onUndo()
+        assertFalse(reviewed().isResolved)
+        assertNull(check.workingText)
+        if (acceptAll) actions.review!!.onAcceptAll(EditKind.Fix) else actions.review!!.onAccept(fix.id)
+        actions.onCopy(reviewed().revision.preview(EditKind.Fix).text, EditKind.Fix)
         assertEquals(0, replacements)
         assertEquals(1, copies)
-        assertEquals("the version I chose to copy", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertEquals(preview, clipboard.primaryClip!!.getItemAt(0).text.toString())
         val session = closed().single()
         assertNull(session.finalText)
         assertEquals(Outcome.Copied, session.outcome)
@@ -214,6 +234,8 @@ class CheckViewModelTest {
             onCopyClose = { throw AssertionError("Accept must not call Copy") },
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
+        assertTrue(closed().isEmpty())
+        actions.review!!.onDone()
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
         assertEquals(Outcome.None, closed().single().outcome)
     }

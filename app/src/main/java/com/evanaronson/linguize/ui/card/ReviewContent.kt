@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -110,44 +106,39 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
 private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, EditKind) -> Unit, review: ReviewActions?) {
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
-    when {
-        revision.edits(kind).isEmpty() -> StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
-        remaining.isEmpty() -> StatusLine(Mark.Good, if (fix) stringResource(R.string.fixes_accepted) else stringResource(R.string.rewordings_accepted))
-        else -> {
-            val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            val label = pluralStringResource(
-                if (fix) R.plurals.fix_count else R.plurals.rewording_count,
-                remaining.size, remaining.size,
-            )
-            val preview = revision.preview(kind)
-            val highlights = remaining.mapNotNull { edit ->
-                preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
-            }
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = accent,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            Spacer(Modifier.height(6.dp))
-            HighlightedText(preview.text, highlights, accent, review?.onAccept)
-            Spacer(Modifier.height(10.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (review != null) {
-                    FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text(stringResource(R.string.accept_all)) }
-                }
-                IconButton(onClick = { onCopy(preview.text, kind) }) {
-                    Icon(
-                        painterResource(R.drawable.ic_copy),
-                        contentDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+    if (revision.edits(kind).isEmpty()) {
+        StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
+        return
+    }
+
+    val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val count = remaining.size.takeIf { it > 0 } ?: revision.edits(kind).size
+    val label = pluralStringResource(
+        if (fix) R.plurals.fix_count else R.plurals.rewording_count,
+        count, count,
+    )
+    val preview = revision.preview(kind)
+    val highlights = remaining.mapNotNull { edit ->
+        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
+    }
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = accent,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
+    Spacer(Modifier.height(6.dp))
+    HighlightedText(
+        preview.text, highlights, accent, review?.onAccept,
+        onCopy = { onCopy(preview.text, kind) },
+        copyDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
+    )
+    if (remaining.isEmpty()) {
+        Spacer(Modifier.height(10.dp))
+        StatusLine(Mark.Good, if (fix) stringResource(R.string.fixes_accepted) else stringResource(R.string.rewordings_accepted))
+    } else if (review != null) {
+        Spacer(Modifier.height(10.dp))
+        FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text(stringResource(R.string.accept_all)) }
     }
 }
 

@@ -1,19 +1,24 @@
 name: Live corruption evaluation
-
 on:
   push:
     branches: [feature/fuzz-100]
     paths: [eval/fuzz/request.json]
   workflow_dispatch:
-
+    inputs:
+      reuse_run:
+        description: Optional previous evidence run ID; retain successful replies and retry failures
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
-
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -23,14 +28,32 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
+      - name: Choose resume source
+        id: request
+        env:
+          REUSE_INPUT: ${{ inputs.reuse_run }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          reuse = os.environ.get("REUSE_INPUT", "")
+          if os.environ["EVENT_NAME"] != "workflow_dispatch":
+              reuse = json.loads(pathlib.Path("eval/fuzz/request.json").read_text()).get("reuse_run", "")
+          if reuse and not str(reuse).isdigit():
+              raise ValueError("Resume run ID must be numeric")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("reuse_run=" + str(reuse) + "\n")
+          PY
       - name: Reuse previous answers
+        if: steps.request.outputs.reuse_run != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: fuzz-100-evidence
-          run-id: 38399239455
+          run-id: ${{ steps.request.outputs.reuse_run }}
           github-token: ${{ github.token }}
           path: previous
       - name: Preserve successful checks
+        if: steps.request.outputs.reuse_run != ''
         run: |
           python3 - <<'PY'
           import pathlib, shutil
@@ -43,19 +66,23 @@ jobs:
         run: |
           python3 -m unittest discover -s eval -p 'test_*.py'
           python3 eval/fuzz.py
-      - name: Check every passage in named and automatic language modes
+      - name: Check each language and Auto Detect
         id: provider
+        timeout-minutes: 40
         continue-on-error: true
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python3 eval/fuzz.py --live --workers 2 --interval 5 --retry-errors
-      - name: Replay every answer through the production checker and Accept engine
+        run: python3 eval/fuzz.py --live --workers 4 --interval 5 --retry-errors
+      - name: Replay through the production checker and Accept engine
         if: always()
         env:
           LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
           LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
         run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
-      - name: Upload all evidence
+      - name: Build complete review sheet
+        if: always()
+        run: python3 eval/fuzz_report.py
+      - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -69,3 +96,31 @@ jobs:
       - name: Fail incomplete provider runs
         if: steps.provider.outcome == 'failure'
         run: exit 1
+  review:
+    if: always()
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        part: [0, 1, 2, 3]
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: fuzz-100-evidence
+          path: evidence
+      - name: Read synthetic results for review
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, os
+          root = pathlib.Path("evidence")
+          rows = [json.loads(l) for l in next(root.rglob("replies.jsonl")).read_text().split("\n") if l]
+          engine = {r["request_id"]: r for r in (json.loads(l) for l in next(root.rglob("engine.jsonl")).read_text().split("\n") if l)}
+          print("REVIEW_BEGIN")
+          for i, row in enumerate(sorted(rows, key=lambda r: r["case"]["request_id"])):
+              if i % 4 == int(os.environ["PART"]):
+                  print(json.dumps({**row, "engine": engine[row["case"]["request_id"]]}, ensure_ascii=False))
+          print("REVIEW_END")
+          PY

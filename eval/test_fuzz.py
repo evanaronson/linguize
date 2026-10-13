@@ -41,6 +41,51 @@ class FuzzCorpusTest(unittest.TestCase):
             self.assertEqual({original["source_language"], "auto"}, {r["language"] for r in runs})
             self.assertTrue(all(r["text"] == original["text"] for r in runs))
 
+    def test_unicode_line_separator_stays_inside_a_jsonl_record(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "cases.jsonl"
+            records = fuzz.generate()
+            path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in records))
+            rows = [json.loads(line) for line in path.read_text().split("\n") if line]
+            self.assertEqual(records, rows)
+            self.assertTrue(any("\u2028" in r["text"] for r in rows))
+
+    def test_resuming_retries_only_the_failed_request_and_keeps_exactly_two_hundred_records(self):
+        import contextlib
+        import io
+        import json
+        import os
+        import tempfile
+        from unittest.mock import patch
+        runner = fuzz.load_runner()
+        calls = []
+
+        def answer(*args):
+            calls.append(args[-1])
+            if len(calls) <= 3:
+                raise TimeoutError("fixture timeout")
+            return {"status": "ok"}, 0.01
+
+        with tempfile.TemporaryDirectory() as folder:
+            corpus = Path(folder) / "corpus.jsonl"
+            replies = Path(folder) / "replies.jsonl"
+            argv = ["--live", "--workers", "1", "--interval", "0", "--output", str(corpus),
+                    "--replies", str(replies)]
+            with patch.object(fuzz, "load_runner", return_value=runner), \
+                    patch.dict(runner.PROVIDERS, {"gemini": (answer, "fixture-model", "FUZZ_FIXTURE_KEY")}), \
+                    patch.dict(os.environ, {"FUZZ_FIXTURE_KEY": "fixture"}), \
+                    patch.object(fuzz.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(1, fuzz.main(argv))
+                before = len(calls)
+                self.assertEqual(0, fuzz.main(argv + ["--retry-errors"]))
+                self.assertEqual(1, len(calls) - before)
+            saved = [json.loads(line) for line in replies.read_text().split("\n") if line]
+            self.assertEqual(200, len(saved))
+            self.assertEqual(200, len({r["case"]["request_id"] for r in saved}))
+            self.assertTrue(all("verdict" in r for r in saved))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -18,3 +18,7 @@ Each damaged text is checked once in its named language and once in Auto Detect:
 The live workflow runs only on explicit workflow dispatch or a change to `request.json` on `feature/fuzz-100`; it does not make billed calls on ordinary pushes or pull requests. Results are uploaded as `fuzz-100-evidence`.
 
 Every provider and rendered result must also be reviewed for linguistic quality and independent phrasing. The original clean text is context, not a mandatory exact output: random word substitutions can change the meaning without making the new text incorrect. A valid alternative correction is not automatically a failure. Synthetic inputs contain no user history or API keys.
+
+The corpus deliberately includes U+2028 line separators. Read JSONL records using LF delimiters (`split("\n")`) or file iteration; Python `splitlines()` would incorrectly split these characters inside a JSON string.
+
+Transient 429/5xx failures are retried with bounded backoff and globally paced request starts. `--retry-errors` retries failed saved requests while retaining successful replies; the resume file remains one latest record per request. A provider failure is not counted as a checked passage.

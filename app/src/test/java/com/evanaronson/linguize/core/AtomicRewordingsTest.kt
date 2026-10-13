@@ -11,6 +11,19 @@ class AtomicRewordingsTest {
             corrected = corrected, moreNatural = true, natural = natural, naturalChanges = reported))
             as CheckResult.Reviewed).revision
 
+    @Test fun screenshotVerbIsPairedWithItsInflectionRatherThanTheFollowingPreposition() {
+        val original = "Bon Elena. Voldria saber que pensés de aquest vol"
+        val corrected = "Bon Elena. Voldria saber què pensis d'aquest vol"
+        val r = revision(original, corrected, "Hola, Elena. Voldria saber què penses d'aquest vol")
+        val verbFix = r.edits(EditKind.Fix).single { it.replacement == "pensis" }
+        assertEquals("pensés", verbFix.from)
+        assertEquals("Bon Elena. Voldria saber que pensis de aquest vol", r.accept(verbFix.id).workingText)
+        val verbRewording = r.edits(EditKind.Natural).single { it.replacement == "penses" }
+        assertEquals("pensés", verbRewording.from)
+        assertEquals("Bon Elena. Voldria saber que penses de aquest vol", r.accept(verbRewording.id).workingText)
+        assertEquals(corrected, r.acceptAll(EditKind.Fix).workingText)
+    }
+
     @Test fun screenshotGreetingPreferenceAndFormattingDoNotBecomeRewordings() {
         val original = "Hola que tal estic ber"
         val corrected = "Hola que tal, estic bé"

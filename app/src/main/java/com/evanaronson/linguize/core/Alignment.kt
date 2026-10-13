@@ -209,8 +209,30 @@ internal object Alignment {
         x.normal == y.normal -> 0
         x.type != y.type -> null
         x.type == Type.Space -> 1
-        x.type == Type.Word && x.folded == y.folded -> 1
+        x.type == Type.Word && (x.folded == y.folded || closeSpelling(x.folded, y.folded)) -> 1
         else -> 2
+    }
+
+    /** Prefer a nearby inflection/spelling over an unrelated short word in a deletion tie. */
+    private fun closeSpelling(x: String, y: String): Boolean {
+        if (minOf(x.length, y.length) < 4 || kotlin.math.abs(x.length - y.length) > 1) return false
+        var i = 0
+        var j = 0
+        var differences = 0
+        while (i < x.length && j < y.length) {
+            if (x[i] == y[j]) {
+                i++
+                j++
+            } else {
+                if (++differences > 1) return false
+                when {
+                    x.length > y.length -> i++
+                    y.length > x.length -> j++
+                    else -> { i++; j++ }
+                }
+            }
+        }
+        return differences + (x.length - i) + (y.length - j) <= 1
     }
 
     /** Whether [x] and [y] are the same text, written with the same or different but equivalent characters ("é" or "e" + "◌́"). */

@@ -19,6 +19,31 @@ internal object FocusedField {
             node.packageName?.toString() == source.packageName?.toString() &&
             node.windowId == source.windowId
 
+    /** The global query can briefly miss focus, or return an editor's container. */
+    fun resolve(
+        root: AccessibilityNodeInfo?,
+        source: AccessibilityNodeInfo?,
+        windowFocus: () -> AccessibilityNodeInfo? = { root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) },
+    ): Result {
+        val anchor = source ?: root ?: return Result(null, "Source root unavailable")
+        if (isPrivate(anchor)) return Result(null, "Field looks private")
+        // Preserve the direct lookup, including apps that do not expose a usable root.
+        if (source != null && supportsEditing(source)) return Result(source, "Focused editor found")
+        if (root == null) return Result(null, "Source root unavailable")
+        if (!sameWindow(root, anchor)) return Result(null, "Source window changed")
+
+        val local = windowFocus()
+        if (local != null) {
+            if (!sameWindow(local, root)) return Result(null, "Source window changed")
+            if (isPrivate(local)) return Result(null, "Field looks private")
+            if (local.isFocused && local.isVisibleToUser && local.isEnabled && supportsEditing(local)) {
+                return Result(local, "Focused editor found")
+            }
+            return find(root, local)
+        }
+        return find(root, anchor)
+    }
+
     fun find(root: AccessibilityNodeInfo?, source: AccessibilityNodeInfo): Result {
         if (isPrivate(source)) return Result(null, "Field looks private")
         if (root == null) return Result(null, "Source root unavailable")

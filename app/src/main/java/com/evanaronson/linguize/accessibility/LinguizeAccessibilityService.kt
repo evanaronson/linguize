@@ -2,8 +2,12 @@ package com.evanaronson.linguize.accessibility
 
 import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
+import android.app.KeyguardManager
 import android.os.Bundle
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -37,6 +41,13 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class LinguizeAccessibilityService : AccessibilityService() {
     /** The card on screen, or waiting hidden during an external detour; null when there's none. */
     private var card: Card? = null
+    private val retryHandler = Handler(Looper.getMainLooper())
+    private var pendingRetry: Runnable? = null
+
+    private fun cancelRetry() {
+        pendingRetry?.let(retryHandler::removeCallbacks)
+        pendingRetry = null
+    }
 
     /**
      * An open card: its [window], the [field] it will write back to, and [discard], which
@@ -57,8 +68,13 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun tapped() {
+        cancelRetry()
+        openSafely()
+    }
+
+    private fun openSafely(retrySource: AccessibilityNodeInfo? = null) {
         try {
-            open()
+            open(retrySource)
         } catch (_: RuntimeException) {
             try {
                 card?.discard()
@@ -74,18 +90,30 @@ class LinguizeAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        cancelRetry()
         // Closed as nothing applied, and no longer waiting for the app.
         card?.discard()
         card = null
         super.onDestroy()
     }
 
-    private fun open() {
+    private fun open(retrySource: AccessibilityNodeInfo? = null) {
         // Chat navigation can replace virtual editors without invalidating Android's
         // cached input focus. Refreshing the old node cannot discover its replacement.
         // Start this explicit tap with a fresh focus/tree query, not the previous chat.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) clearCache()
+        if (retrySource != null) {
+            val active = rootInActiveWindow
+            if (getSystemService(KeyguardManager::class.java).isKeyguardLocked ||
+                !getSystemService(PowerManager::class.java).isInteractive ||
+                active == null || !FocusedField.sameWindow(active, retrySource)) {
+                return
+            }
+        }
         val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (retrySource != null && focused != null && !FocusedField.sameWindow(focused, retrySource)) {
+            return
+        }
         card?.let { current ->
             // Tapping the button while the card waits behind the app brings it back, unless
             // it was left there: it waited too long, or the tap is for another app's field.
@@ -100,6 +128,17 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val root = if (direct) null else rootInActiveWindow
         val source = focused ?: root
         val result = FocusedField.resolve(root, focused)
+        // ChatGPT can expose a conversation container on the first lookup, then its
+        // editor on the next. Repeat the query once, rather than enlarging the scan or
+        // reading a candidate from an incomplete tree. Never retry private/ambiguous fields.
+        if (result.field == null && result.reason == "Lookup limit reached" &&
+            retrySource == null && source != null) {
+            pendingRetry = Runnable {
+                pendingRetry = null
+                openSafely(source)
+            }.also { retryHandler.postDelayed(it, 100) }
+            return
+        }
         if (result.reason == "Field looks private") {
             Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
             return

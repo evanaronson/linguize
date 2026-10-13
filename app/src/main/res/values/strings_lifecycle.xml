@@ -8,5 +8,5 @@
     <string name="shortcut_replace_failed">Couldn\'t put the text back. Reopen the check and use Copy.</string>
     <string name="shortcut_field_changed">The field changed or is gone. Reopen the check and use Copy.</string>
     <string name="shortcut_start_failed">Couldn\'t start the shortcut. Turn Linguize off and on in Accessibility.</string>
-    <string name="shortcut_no_editor">No text to check. Tap the field you wrote in, then try again. You can also paste into Try it in Linguize.</string>
+    <string name="shortcut_no_editor">Couldn\'t find the focused text field. Tap the field you wrote in, then try again. You can also paste into Try it in Linguize.</string>
 </resources>

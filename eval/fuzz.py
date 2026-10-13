@@ -15,7 +15,7 @@ import time
 import unicodedata
 import urllib.error
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 SEEDS = Path(__file__).with_name("fuzz") / "seeds.json"
 WORDS = re.compile(r"[^\W\d_]+(?:['’·-][^\W\d_]+)*", re.UNICODE)
 OPERATIONS = ("add_letter", "remove_letter", "swap_letters", "add_space",

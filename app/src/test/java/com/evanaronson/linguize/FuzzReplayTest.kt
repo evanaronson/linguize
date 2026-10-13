@@ -47,14 +47,14 @@ class FuzzReplayTest {
                         val client = FakeClient { ModelAnswer(verdict, raw) }
                         val checker = fakeChecker(FakePreferences(), client, prompt = prompt)
                         val selected = Language.all.firstOrNull { it.name == language }
-                        val checked = checker.check(original, selected)
+                        val checked = runBlocking { checker.check(original, selected) }
                         val expectedMessage = "Language: " +
                             (selected?.let { it.name + " (" + it.variety + ")" } ?: "auto") +
                             "\nPunctuation: moderate\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)" +
                             "\nText: <text>" + original + "</text>"
                         if (prompt.userMessage(client.checks.single().third) != expectedMessage)
                             flags += "request_contract_drift"
-                        if (checker.reuse(original, selected, raw, checked.context).result != checked.result)
+                        if (runBlocking { checker.reuse(original, selected, raw, checked.context) }.result != checked.result)
                             flags += "reuse_differs_from_fresh_check"
                         when (val result = checked.result) {
                             CheckResult.Unclear -> put("result", "unclear")

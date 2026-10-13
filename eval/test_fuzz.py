@@ -10,6 +10,12 @@ spec.loader.exec_module(fuzz)
 
 
 class FuzzCorpusTest(unittest.TestCase):
+    def test_runner_resolves_the_shipped_assets_before_any_live_call(self):
+        runner = fuzz.load_runner()
+        self.assertEqual(fuzz.ROOT, runner.ROOT)
+        self.assertTrue((runner.ASSETS / "check_prompt.md").is_file())
+        self.assertTrue((runner.ASSETS / "check_schema.json").is_file())
+
     def test_exactly_one_hundred_distinct_two_or_three_sentence_passages(self):
         records = fuzz.generate()
         self.assertEqual(100, len(records))

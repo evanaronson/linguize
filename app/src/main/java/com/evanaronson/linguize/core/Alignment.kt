@@ -209,8 +209,17 @@ internal object Alignment {
         x.normal == y.normal -> 0
         x.type != y.type -> null
         x.type == Type.Space -> 1
-        x.type == Type.Word && (x.folded == y.folded || closeSpelling(x.folded, y.folded)) -> 1
+        x.type == Type.Word && (x.folded == y.folded || closeSpelling(x.folded, y.folded) || elisionPair(x.folded, y.folded)) -> 1
         else -> 2
+    }
+
+    /** An elided article/preposition attaches to the following word, not to the verb. */
+    private fun elisionPair(x: String, y: String): Boolean {
+        fun stem(word: String): String {
+            val at = word.indexOfFirst { it == '\'' || it == '’' }
+            return if (at == 1 && word.first() in "dlsnmt" && word.length >= 6) word.substring(2) else word
+        }
+        return stem(x) == stem(y)
     }
 
     /** Prefer a nearby inflection/spelling over an unrelated short word in a deletion tie. */

@@ -70,10 +70,12 @@ class AlignmentTest {
                     d[i - 1][j - 1] + if (x[i - 1] == y[j - 1]) 0 else 1)
             return d[x.length][y.length] <= 1
         }
+        fun stem(word: String): String =
+            if (word.length >= 6 && word[0] in "dlsnmt" && word[1] in "'’") word.drop(2) else word
         fun pair(x: Alignment.Token, y: Alignment.Token): Int? = when {
             x.normal == y.normal -> 0
             x.type != y.type -> null
-            x.type == Alignment.Type.Space || x.type == Alignment.Type.Word && (x.folded == y.folded || close(x.folded, y.folded)) -> 1
+            x.type == Alignment.Type.Space || x.type == Alignment.Type.Word && (x.folded == y.folded || close(x.folded, y.folded) || stem(x.folded) == stem(y.folded)) -> 1
             else -> 2
         }
         val costs = Array(a.size + 1) { IntArray(b.size + 1) }

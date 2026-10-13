@@ -3,7 +3,7 @@ name: Build APK
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/popup-upgrade-preview]
     # Docs, design sources and the eval script don't change the app.
     paths-ignore:
       - README.md
@@ -225,6 +225,20 @@ jobs:
             --notes "$notes" \
             --prerelease --latest=false
 
+
+      - name: Remove the temporary preview branch after publishing
+        if: github.ref == 'refs/heads/feature/popup-upgrade-preview'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          branch_sha=$(gh api "repos/$GH_REPO/git/ref/heads/$BRANCH" --jq '.object.sha')
+          if [ "$branch_sha" = "$SHA" ]; then
+            gh api --method DELETE "repos/$GH_REPO/git/refs/heads/$BRANCH"
+          fi
+
       # A release gives a direct download link that works from the phone's browser. The same
       # APK goes up under a fixed name, so releases/latest/download/linguize.apk is always the newest.
       - name: Publish release
@@ -245,6 +259,53 @@ jobs:
             --title "$VERSION" \
             --notes "$notes" \
             --latest
+
+
+  install-check:
+    needs: sign-and-publish
+    if: github.ref == 'refs/heads/feature/popup-upgrade-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Download installed, old preview, and replacement APKs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.run_number }}
+        run: |
+          version=$(printf 'v%06d' "$RUN")
+          mkdir installed old candidate
+          gh release download v000137 --pattern linguize-v000137.apk --dir installed
+          gh release download v000133 --pattern linguize-v000133-preview.apk --dir old
+          gh release download "$version" --pattern '*-preview.apk' --dir candidate
+
+      - name: Boot Android 15
+        run: |
+          sudo chmod 666 /dev/kvm
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "system-images;android-35;google_apis;x86_64"
+          echo no | avdmanager create avd --name installation-test --package "system-images;android-35;google_apis;x86_64"
+          "$ANDROID_HOME/emulator/emulator" -avd installation-test -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > emulator.log 2>&1 &
+          timeout 240s adb wait-for-device
+          for attempt in {1..120}; do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then break; fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+          adb shell getprop ro.build.version.release
+
+      - name: Reproduce the downgrade and verify the corrected upgrade
+        run: |
+          adb install installed/linguize-v000137.apk
+          if adb install -r old/linguize-v000133-preview.apk > downgrade.log 2>&1; then
+            echo "::error::Expected Android to reject a downgrade from 137 to 133"
+            exit 1
+          fi
+          grep -F INSTALL_FAILED_VERSION_DOWNGRADE downgrade.log
+          adb install -r candidate/*-preview.apk
+          adb shell dumpsys package com.evanaronson.linguize | grep versionCode=
 
   # Run by hand (workflow_dispatch with pin_build_inputs) after changing the Gradle version or any
   # dependency. It writes the official checksum of the Gradle distribution into

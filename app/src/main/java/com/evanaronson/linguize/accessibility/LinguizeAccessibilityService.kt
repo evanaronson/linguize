@@ -3,6 +3,7 @@ package com.evanaronson.linguize.accessibility
 import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
 import android.os.Bundle
+import android.os.Build
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -80,6 +81,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun open() {
+        // Chat navigation can replace virtual editors without invalidating Android's
+        // cached input focus. Refreshing the old node cannot discover its replacement.
+        // Start this explicit tap with a fresh focus/tree query, not the previous chat.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) clearCache()
         val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         card?.let { current ->
             // Tapping the button while the card waits behind the app brings it back, unless

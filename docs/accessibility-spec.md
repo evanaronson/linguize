@@ -17,6 +17,7 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 
 - Read writing only after an explicit shortcut tap. Keep the existing selection, card and manual Try it interaction.
 - Keep the direct input-focus lookup. Recognize an editable node or one exposing Set text.
+- On Android 13+, clear the accessibility node cache at the start of each explicit tap. Chat navigation can replace virtual editors while cached input focus still identifies the previous editor; refreshing that node cannot discover the replacement. Older Android versions retain the existing lookup path.
 - If the service-wide focus query is missing or returns a container, query input focus within the active source window before scanning. This handles a missing global focus result without requiring a second tap when the window already exposes its focused editor.
 - For fallback, require the source app and window to match the active root. Search the returned item's subtree first, then the same-window root only if the complete subtree has no candidate.
 - Accept only one visible, enabled, input-focused editor. Bound each scan to 128 nodes and 150 ms. A private, ambiguous or incomplete scan stops the attempt. A lone unfocused editor is insufficient.

@@ -171,6 +171,13 @@ def main(argv=None):
     if not key:
         parser.error(f"Missing repository secret {key_variable}; no live requests made")
     model = args.model or default_model
+    # Long provider queueing must not turn every late answer into a synthetic timeout.
+    def diagnostic_post(request):
+        started = time.monotonic()
+        with runner.urllib.request.urlopen(request, timeout=90) as response:
+            payload = json.load(response)
+        return payload, time.monotonic() - started
+    runner.post = diagnostic_post
     system = (runner.ASSETS / "check_prompt.md").read_text()
     schema_text = (runner.ASSETS / "check_schema.json").read_text()
     schema = json.loads(schema_text)

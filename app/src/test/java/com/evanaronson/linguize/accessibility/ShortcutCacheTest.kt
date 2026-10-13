@@ -9,6 +9,7 @@ import com.evanaronson.linguize.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -52,7 +53,7 @@ class ShortcutCacheTest {
                 assertEquals(before + 1, focus.queries)
                 assertNull(focus.cachedFocus())
                 val feedback = if (private) R.string.shortcut_private_field else R.string.shortcut_no_text
-                assertEquals(service.getString(feedback), ShadowToast.getTextOfLatestToast())
+                assertTrue(ShadowToast.getTextOfLatestToast().toString().contains(service.getString(feedback)))
             }
         } finally {
             client.getMethod("removeConnection", Int::class.javaPrimitiveType).invoke(null, connection)

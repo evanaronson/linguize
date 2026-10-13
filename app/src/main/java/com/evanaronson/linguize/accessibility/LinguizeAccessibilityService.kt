@@ -37,6 +37,8 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class LinguizeAccessibilityService : AccessibilityService() {
     /** The card on screen, or waiting hidden during an external detour; null when there's none. */
     private var card: Card? = null
+    private var probeTap = 0
+    private val probeTrail = mutableListOf<String>()
 
     /**
      * An open card: its [window], the [field] it will write back to, and [discard], which
@@ -57,15 +59,22 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun tapped() {
+        probeTap++
+        probeTrail.clear()
+        probeTrail += "received"
+        Toast.makeText(this, getString(R.string.shortcut_probe, probeTap, "received"), Toast.LENGTH_LONG).show()
         try {
             open()
-        } catch (_: RuntimeException) {
+        } catch (failure: RuntimeException) {
+            probeTrail += "exception-${failure.javaClass.simpleName}"
             try {
                 card?.discard()
             } catch (_: RuntimeException) {
                 // Cleanup must not prevent feedback about the failed check.
             }
             Toast.makeText(this, R.string.shortcut_open_failed, Toast.LENGTH_LONG).show()
+        } finally {
+            Toast.makeText(this, getString(R.string.shortcut_probe, probeTap, probeTrail.joinToString(" / ")), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -85,12 +94,15 @@ class LinguizeAccessibilityService : AccessibilityService() {
         // cached input focus. Refreshing the old node cannot discover its replacement.
         // Start this explicit tap with a fresh focus/tree query, not the previous chat.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) clearCache()
+        probeTrail += "focus-query"
         val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        probeTrail += if (focused == null) "focus-null" else if (FocusedField.supportsEditing(focused)) "focus-editor" else "focus-container"
         card?.let { current ->
             // Tapping the button while the card waits behind the app brings it back, unless
             // it was left there: it waited too long, or the tap is for another app's field.
             if (!current.window.hidden || !current.leftBehind(focused)) {
                 current.window.hidden = false
+                probeTrail += "existing-${current.window.lifecycle.currentState}"
                 return
             }
             current.discard()
@@ -100,11 +112,14 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val root = if (direct) null else rootInActiveWindow
         val source = focused ?: root
         val result = FocusedField.resolve(root, focused)
+        probeTrail += result.reason
         if (result.reason == "Field looks private") {
+            probeTrail += getString(R.string.shortcut_private_field)
             Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
             return
         }
         var resolved = result.field
+        probeTrail += "refresh"
         // Refresh direct results too: a cached node may still hold the pre-focus text.
         if (resolved != null && (!resolved.refresh() || !resolved.isVisibleToUser || !resolved.isEnabled ||
             !FocusedField.supportsEditing(resolved) || (!direct &&
@@ -113,21 +128,26 @@ class LinguizeAccessibilityService : AccessibilityService() {
             resolved = null
         }
         if (resolved == null) {
+            probeTrail += getString(R.string.shortcut_no_editor)
             Toast.makeText(this, R.string.shortcut_no_editor, Toast.LENGTH_LONG).show()
             return
         }
+        probeTrail += "field-ready"
         val field = resolved
         if (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName)) {
+            probeTrail += getString(R.string.shortcut_private_field)
             Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
             return
         }
         val selection = field.takeUnless { it.isShowingHintText }?.text?.toString()
             ?.let { Selection.of(it, field.textSelectionStart, field.textSelectionEnd) }
         if (selection == null || selection.text.isEmpty()) {
+            probeTrail += getString(R.string.shortcut_no_text)
             Toast.makeText(this, R.string.shortcut_no_text, Toast.LENGTH_LONG).show()
             return
         }
 
+        probeTrail += "text-ready"
         // Back closes the card as a tap outside it does; [close] is set just below.
         var onBack: () -> Unit = {}
         val window = OverlayWindow(this, onBack = { onBack() })
@@ -195,8 +215,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
             window.remove { check.dismiss(applied = false) }
             throw failure
         }
+        probeTrail += "window-${window.lifecycle.currentState}"
         card = Card(window, field, discard = { end { false } })
         check.check(selection.text, language, Origin.Button, field.packageName?.toString())
+        probeTrail += "check-${check.state?.javaClass?.simpleName}"
     }
 
     /**

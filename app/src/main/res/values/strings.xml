@@ -213,4 +213,5 @@
     <string name="message_truncated_reply">The AI\'s reply was cut off. Try again.</string>
     <string name="message_incomplete_reply">The AI did not finish its reply. Try again.</string>
     <string name="message_declined">The AI declined to check this text.</string>
+    <string name="shortcut_probe">Linguize tap %1$d: %2$s</string>
 </resources>

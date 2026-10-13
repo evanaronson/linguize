@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.ui.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,22 +11,22 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -37,71 +39,75 @@ import com.evanaronson.linguize.ui.text.displayName
 
 /**
  * "Auto Detect ▾": picks the language to check as, from auto-detect (null) and every language
- * in [Language.all]. The list opens inline below the button rather than in a popup window,
- * so it also works in the accessibility overlay, where popup windows can't attach.
- * Opening it scrolls the list into view.
+ * in [Language.all]. The host draws the menu over content in the same window, without
+ * changing the trigger's layout or requiring a separate popup-window token.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier: Modifier = Modifier) {
-    var open by remember { mutableStateOf(false) }
-    val list = remember { BringIntoViewRequester() }
-    LaunchedEffect(open) {
-        if (open) {
-            // Wait for the list to be laid out, then scroll the screen so all of it shows.
-            withFrameNanos {}
-            list.bringIntoView()
-        }
+    val menu = LocalMenuState.current
+    val owner = remember { Any() }
+    var anchor by remember { mutableStateOf(Rect.Zero) }
+    val open = menu.owner === owner
+    DisposableEffect(menu, owner) {
+        onDispose { if (menu.owner === owner) menu.dismiss() }
     }
     val name = label(selected)
     val description = stringResource(R.string.language_accessibility, name,
         selected?.displayName() ?: stringResource(R.string.detect_language))
-    Column(modifier) {
-        FilledTonalButton(
-            onClick = { open = !open },
-            modifier = Modifier.heightIn(min = 48.dp).semantics {
-                contentDescription = description
-            },
-        ) {
-            Text(name)
-            Spacer(Modifier.width(8.dp))
-            Text(if (open) "▴" else "▾", Modifier.clearAndSetSemantics {})
-        }
-        if (open) {
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                shadowElevation = 6.dp,
-                modifier = Modifier.padding(top = 4.dp).widthIn(min = 220.dp).bringIntoViewRequester(list),
-            ) {
-                Column(Modifier.padding(vertical = 4.dp)) {
-                    (listOf(null) + Language.all).forEach { entry ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .selectable(selected = entry == selected, role = Role.RadioButton) {
-                                    open = false
-                                    onSelect(entry)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(label(entry), style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    entry?.displayName() ?: stringResource(R.string.detect_language),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                if (entry == selected) "✓" else " ",
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clearAndSetSemantics {},
-                            )
-                        }
+    FilledTonalButton(
+        onClick = {
+            if (open) menu.dismiss() else menu.show(owner, anchor) {
+                LanguageMenu(selected) { entry ->
+                    menu.dismiss()
+                    onSelect(entry)
+                }
+            }
+        },
+        modifier = modifier.heightIn(min = 48.dp)
+            .onGloballyPositioned {
+                anchor = it.boundsInRoot()
+                menu.move(owner, anchor)
+            }
+            .semantics { contentDescription = description },
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Text(name)
+        Spacer(Modifier.width(8.dp))
+        Text(if (open) "▴" else "▾", Modifier.clearAndSetSemantics {})
+    }
+}
+
+@Composable
+private fun LanguageMenu(selected: Language?, onSelect: (Language?) -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 6.dp,
+        modifier = Modifier.widthIn(min = 220.dp, max = 320.dp),
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
+            (listOf(null) + Language.all).forEach { entry ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .selectable(selected = entry == selected, role = Role.RadioButton) { onSelect(entry) }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(label(entry), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            entry?.displayName() ?: stringResource(R.string.detect_language),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        if (entry == selected) "✓" else " ",
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clearAndSetSemantics {},
+                    )
                 }
             }
         }
@@ -122,3 +128,4 @@ private fun label(language: Language?): String {
     }
     return named?.let { stringResource(it) } ?: language?.displayName().orEmpty()
 }
+

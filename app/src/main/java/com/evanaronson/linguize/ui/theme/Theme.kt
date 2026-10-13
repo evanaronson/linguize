@@ -4,6 +4,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.remember
+import com.evanaronson.linguize.ui.components.MenuHost
+import com.evanaronson.linguize.ui.components.MenuState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
@@ -12,8 +15,10 @@ import androidx.compose.ui.graphics.Color
  * selection, rewordings). Fixes keep the error red. Follows dark mode.
  */
 @Composable
-fun AppTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light, content = content)
+fun AppTheme(menuState: MenuState = remember { MenuState() }, content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light) {
+        MenuHost(menuState, content)
+    }
 }
 
 // The same values as res/values/colors.xml, which the launcher icon and wordmark use.
@@ -89,3 +94,4 @@ private val Dark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF272725),
     surfaceContainerHighest = Color(0xFF32322F),
 )
+

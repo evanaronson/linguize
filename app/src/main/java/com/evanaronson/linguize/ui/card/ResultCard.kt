@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,7 @@ fun ResultCard(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
         color = container,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         tonalElevation = 6.dp,
         shadowElevation = 8.dp,
     ) {
@@ -133,3 +135,4 @@ private fun Failure(reason: Reason, userMessage: CheckFailure.Message?, provider
         else -> FilledTonalButton(onClick = actions.onRetry) { Text(stringResource(R.string.retry)) }
     }
 }
+

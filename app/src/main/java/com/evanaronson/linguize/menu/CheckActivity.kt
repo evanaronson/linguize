@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.menu
 
 import android.content.Intent
+import android.view.WindowManager.LayoutParams
 import android.os.Bundle
 import android.os.BadParcelableException
 import androidx.activity.ComponentActivity
@@ -39,6 +40,7 @@ class CheckActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         // Exported aliases are callable by any app. Reject malformed launches before
         // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.
@@ -152,3 +154,4 @@ class CheckActivity : ComponentActivity() {
         const val CLOSE_WAIT_MS = 500L
     }
 }
+

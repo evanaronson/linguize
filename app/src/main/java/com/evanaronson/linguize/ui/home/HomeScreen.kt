@@ -52,6 +52,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            ShortcutReport()
             TryIt(check, onOpenSettings)
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             AccessibilitySetup()

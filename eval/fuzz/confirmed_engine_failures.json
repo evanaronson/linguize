@@ -512,5 +512,179 @@
       "flags": []
     },
     "review": "Accept all may look correct while individual fix actions remove or duplicate parts of adjacent words."
+  },
+  {
+    "request_id": "sp-012:auto",
+    "original": "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso.",
+    "verdict": {
+      "status": "ok",
+      "language": "Spanish",
+      "meaning": "The flight arrives at 21:30. Julia will wait for us at the exit. I'll let her know if there is any delay.",
+      "assumptions": [
+        {
+          "about": "Meaning of abuelo retraso",
+          "assumed": "Typo for a delay (algún retraso)",
+          "words": "hay abuelo retraso",
+          "alternatives": [
+            "Grandfather delay"
+          ]
+        }
+      ],
+      "has_errors": true,
+      "corrected": "El vuelo llega a las 2130. Julia nos esperará a la salida. La avisaré si hay algún retraso.",
+      "fixes": [
+        {
+          "from": "uelo",
+          "to": "vuelo",
+          "why": "Missing letter"
+        },
+        {
+          "from": "llegga",
+          "to": "llega",
+          "why": "Spelling"
+        },
+        {
+          "from": "salwida",
+          "to": "salida",
+          "why": "Spelling"
+        },
+        {
+          "from": "pero",
+          "to": "si",
+          "why": "Wrong conjunction for condition"
+        },
+        {
+          "from": "abuelo",
+          "to": "algún",
+          "why": "Typo / wrong word"
+        }
+      ],
+      "more_natural": true,
+      "natural": "El vuelo llega a las 21:30. Julia nos esperará en la salida. Le avisaré si hay algún retraso.",
+      "natural_changes": [
+        {
+          "from": "a la salida",
+          "to": "en la salida",
+          "why": "More natural preposition"
+        },
+        {
+          "from": "La avisaré",
+          "to": "Le avisaré",
+          "why": "Le is correct for people"
+        }
+      ]
+    },
+    "observed": {
+      "request_id": "sp-012:auto",
+      "result": "reviewed",
+      "looks_good": false,
+      "fix_preview": "El vuelo llega a las 2130. Julia nos esperará a la salida. La avisaré si hay algún retraso.",
+      "natural_preview": "El uelo llegga a las 2130. Julia nos esperará en la salwida. Le avisaré pero hay abuelo retraso.",
+      "accepted_all": "El vuelo llega a las 2130. Julia nos esperará en la salida. Le avisaré si hay algún retraso.",
+      "meaning": "The flight arrives at 21:30. Julia will wait for us at the exit. I'll let her know if there is any delay.",
+      "edits": [
+        {
+          "id": 0,
+          "kind": "fix",
+          "start": 3,
+          "end": 7,
+          "from": "uelo",
+          "to": "vuelo",
+          "why": "Missing letter",
+          "includes": [],
+          "accepted_text": "El vuelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 1,
+          "kind": "fix",
+          "start": 8,
+          "end": 14,
+          "from": "llegga",
+          "to": "llega",
+          "why": "Spelling",
+          "includes": [],
+          "accepted_text": "El uelo llega a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 2,
+          "kind": "fix",
+          "start": 51,
+          "end": 58,
+          "from": "salwida",
+          "to": "salida",
+          "why": "Spelling",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 3,
+          "kind": "fix",
+          "start": 71,
+          "end": 75,
+          "from": "pero",
+          "to": "si",
+          "why": "Wrong conjunction for condition",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré si hay abuelo retraso."
+        },
+        {
+          "id": 4,
+          "kind": "fix",
+          "start": 80,
+          "end": 86,
+          "from": "abuelo",
+          "to": "algún",
+          "why": "Typo / wrong word",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay algún retraso."
+        },
+        {
+          "id": 5,
+          "kind": "natural",
+          "start": 21,
+          "end": 21,
+          "from": "",
+          "to": "21",
+          "why": null,
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 212130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 6,
+          "kind": "natural",
+          "start": 21,
+          "end": 25,
+          "from": "2130",
+          "to": "30",
+          "why": null,
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 30. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 7,
+          "kind": "natural",
+          "start": 46,
+          "end": 47,
+          "from": "a",
+          "to": "en",
+          "why": "More natural preposition",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará en la salwida. La avisaré pero hay abuelo retraso."
+        },
+        {
+          "id": 8,
+          "kind": "natural",
+          "start": 60,
+          "end": 62,
+          "from": "La",
+          "to": "Le",
+          "why": "Le is correct for people",
+          "includes": [],
+          "accepted_text": "El uelo llegga a las 2130. Julia nos esperará a la salwida. Le avisaré pero hay abuelo retraso."
+        }
+      ],
+      "flags": []
+    },
+    "review": "Time formatting must not create natural edits that individually produce 212130 or 30."
   }
 ]

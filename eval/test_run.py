@@ -111,6 +111,22 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
         self.assertEqual(2, calls)
         self.assertIn("1/2 as expected", output)
 
+    def test_literal_unicode_line_separator_does_not_split_a_jsonl_case(self):
+        text = "Bon\u2028dia. Com estàs?"
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "cases.jsonl"
+            path.write_text(json.dumps({"text": text, "status": "ok"}, ensure_ascii=False) + "\n")
+            messages = []
+            def answer(*args):
+                messages.append(args[-1])
+                return {"status": "ok"}, 0.01
+            with patch.dict(run.PROVIDERS, {"fake": (answer, "any-model", "EVAL_FIXTURE_KEY")}), \
+                    patch.dict(os.environ, {"EVAL_FIXTURE_KEY": "fixture"}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, run.main(["--provider", "fake", "--cases", str(path)]))
+            self.assertEqual(1, len(messages))
+            self.assertIn("<text>" + text + "</text>", messages[0])
+
     def test_language_varieties_match_the_apps_options(self):
         source = (run.ROOT / "app/src/main/java/com/evanaronson/linguize/core/CheckOptions.kt").read_text()
         languages = re.findall(r'Language\("[a-z]+", "([^"]+)", "([^"]+)"\)', source)

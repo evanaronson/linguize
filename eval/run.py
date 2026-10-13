@@ -222,7 +222,7 @@ def main(argv=None):
     schema_text = (ASSETS / "check_schema.json").read_text()
     schema = json.loads(schema_text)
     cases_text = args.cases.read_text()
-    cases = [json.loads(line) for line in cases_text.splitlines() if line.strip()]
+    cases = [json.loads(line) for line in cases_text.split("\n") if line.strip()]
     if not cases:
         parser.error("The evaluation dataset has no cases")
     prompt_hash = hashlib.sha256((system + "\0" + schema_text).encode()).hexdigest()[:12]

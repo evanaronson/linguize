@@ -1,10 +1,14 @@
-name: Live corruption evaluation
+name: Corruption audit
 on:
   push:
     branches: [feature/fuzz-100]
     paths: [eval/fuzz/request.json]
   workflow_dispatch:
     inputs:
+      live:
+        description: Make billed provider requests; false replays saved evidence offline
+        type: boolean
+        default: false
       provider:
         description: Provider adapter
         type: choice
@@ -44,18 +48,21 @@ jobs:
       - name: Choose resume source
         id: request
         env:
+          LIVE_INPUT: ${{ inputs.live }}
           REUSE_INPUT: ${{ inputs.reuse_run }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           python3 - <<'PY'
           import json, os, pathlib
-          reuse = os.environ.get("REUSE_INPUT", "")
-          if os.environ["EVENT_NAME"] != "workflow_dispatch":
-              reuse = json.loads(pathlib.Path("eval/fuzz/request.json").read_text()).get("reuse_run", "")
+          config = json.loads(pathlib.Path("eval/fuzz/request.json").read_text())
+          dispatched = os.environ["EVENT_NAME"] == "workflow_dispatch"
+          reuse = os.environ.get("REUSE_INPUT", "") if dispatched else config.get("reuse_run", "")
+          live = os.environ.get("LIVE_INPUT") == "true" if dispatched else config.get("live", True)
           if reuse and not str(reuse).isdigit():
               raise ValueError("Resume run ID must be numeric")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write("reuse_run=" + str(reuse) + "\n")
+              output.write("live=" + str(bool(live)).lower() + "\n")
           PY
       - name: Reuse previous answers
         if: steps.request.outputs.reuse_run != ''
@@ -75,11 +82,17 @@ jobs:
           target.parent.mkdir(parents=True, exist_ok=True)
           shutil.copyfile(source, target)
           PY
+      - name: Load committed offline evidence
+        if: steps.request.outputs.live != 'true' && steps.request.outputs.reuse_run == ''
+        run: |
+          mkdir -p eval/fuzz/results
+          cp eval/fuzz/baseline/replies.jsonl eval/fuzz/results/replies.jsonl
       - name: Generate and verify corpus
         run: |
           python3 -m unittest discover -s eval -p 'test_*.py'
           python3 eval/fuzz.py
       - name: Check each language and Auto Detect
+        if: steps.request.outputs.live == 'true'
         id: provider
         timeout-minutes: 40
         continue-on-error: true
@@ -128,9 +141,15 @@ jobs:
             app/build/test-results/
           if-no-files-found: error
           retention-days: 30
-      - name: Fail incomplete provider runs
-        if: steps.provider.outcome == 'failure'
-        run: exit 1
+      - name: Fail incomplete evidence capture
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          rows = [json.loads(line) for line in pathlib.Path("eval/fuzz/results/replies.jsonl").read_text().split("\n") if line]
+          assert len(rows) == 200 and len({r["case"]["request_id"] for r in rows}) == 200
+          assert all("verdict" in row and "error" not in row for row in rows), "Some provider requests failed"
+          PY
   review:
     if: always()
     needs: check

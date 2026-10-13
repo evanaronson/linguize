@@ -237,7 +237,9 @@ def main(argv=None):
                 attempts += 1
                 paced_start()
                 try:
+                    started = time.monotonic()
                     verdict, elapsed = check(target_model, credentials[provider], system, schema, runner.user_message(case))
+                    elapsed = time.monotonic() - started
                     entry.update(provider=provider, model=target_model, verdict=verdict,
                                  latency_seconds=elapsed, attempts=attempts, failures=failures)
                     return entry

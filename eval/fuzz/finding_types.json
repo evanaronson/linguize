@@ -1,0 +1,13 @@
+{
+  "E1": "Atomic edit grouping/mapping: an individually accepted edit duplicates, drops or borrows content from another repair.",
+  "E2": "Missing-space correction silently dropped by link guard; Accept all fails to reconstruct corrected text.",
+  "L1": "Model correction still misspelled or missing mandatory accent.",
+  "L2": "Random line break inside a sentence remains uncorrected.",
+  "L3": "Grammar correction is missing or offered only as a natural rewording.",
+  "L4": "Potential meaning drift or contradiction; distinguish explicit fact changes from ambiguous mutation recovery.",
+  "L5": "Reported reason/change list does not describe the actual change.",
+  "L6": "Unnecessary stylistic/formatting preference presented as an improvement.",
+  "E4": "One fix bundles separate spelling errors in different words.",
+  "E6": "Punctuation-only formatting becomes dependent natural digit insertions/deletions; accepting either changes the number.",
+  "E7": "User-reported semantic bundling: obligation correction and independent verb substitution share one natural rewording."
+}

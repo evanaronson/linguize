@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
+import java.text.Normalizer
 
 /** Replays saved live answers through the production Checker and edit/Accept engine. */
 class FuzzReplayTest {
@@ -47,14 +48,14 @@ class FuzzReplayTest {
                         val client = FakeClient { ModelAnswer(verdict, raw) }
                         val checker = fakeChecker(FakePreferences(), client, prompt = prompt)
                         val selected = Language.all.firstOrNull { it.name == language }
-                        val checked = runBlocking { checker.check(original, selected) }
+                        val checked = checker.check(original, selected)
                         val expectedMessage = "Language: " +
                             (selected?.let { it.name + " (" + it.variety + ")" } ?: "auto") +
                             "\nPunctuation: moderate\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)" +
                             "\nText: <text>" + original + "</text>"
                         if (prompt.userMessage(client.checks.single().third) != expectedMessage)
                             flags += "request_contract_drift"
-                        if (runBlocking { checker.reuse(original, selected, raw, checked.context) }.result != checked.result)
+                        if (checker.reuse(original, selected, raw, checked.context).result != checked.result)
                             flags += "reuse_differs_from_fresh_check"
                         when (val result = checked.result) {
                             CheckResult.Unclear -> put("result", "unclear")
@@ -71,6 +72,15 @@ class FuzzReplayTest {
                                 for (kind in EditKind.entries) {
                                     val edits = revision.edits(kind)
                                     for (edit in edits) {
+                                        if (kind == EditKind.Natural &&
+                                            edit.from.filter(Char::isDigit) != edit.replacement.filter(Char::isDigit))
+                                            flags += "natural_changes_digits:" + edit.id
+                                        if (kind == EditKind.Fix && bundledOrthography(edit.from, edit.replacement))
+                                            flags += "bundled_word_fixes:" + edit.id
+                                        if (edit.from.isEmpty() && edits.any { other ->
+                                                other.id != edit.id && other.start == edit.start && other.from.isNotEmpty() &&
+                                                    skeleton(edit.replacement + other.replacement) == skeleton(other.from)
+                                            }) flags += "dependent_word_split:" + edit.id
                                         if (edit.start < 0 || edit.end > original.length ||
                                             original.substring(edit.start, edit.end) != edit.from)
                                             flags += "invalid_edit_span:" + edit.id
@@ -135,4 +145,18 @@ class FuzzReplayTest {
         }
         assertEquals("Every named-language and Auto Detect request must be replayed", 200, processed)
     }
+
+    /** Formatting an existing word/number must not become two dependent Accept actions. */
+    private fun skeleton(text: String): String = Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)
+        .filter(Char::isLetterOrDigit)
+
+    /** Independent orthographic repairs to different words cannot share one fix. */
+    private fun bundledOrthography(from: String, to: String): Boolean {
+        val before = from.trim().split(Regex("\\s+"))
+        val after = to.trim().split(Regex("\\s+"))
+        return before.size == after.size && before.zip(after).count { (a, b) ->
+            a != b && skeleton(a).isNotEmpty() && skeleton(a) == skeleton(b)
+        } > 1
+    }
 }
+

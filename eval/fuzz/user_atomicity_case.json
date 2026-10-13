@@ -1,0 +1,31 @@
+{
+  "id": "user-obligation-and-verb",
+  "original": "Quan parlo català tinc que usar l'aplicació.",
+  "verdict": {
+    "status": "ok",
+    "language": "Catalan",
+    "meaning": "When I speak Catalan I have to use the app.",
+    "has_errors": false,
+    "corrected": "Quan parlo català tinc que usar l'aplicació.",
+    "more_natural": true,
+    "natural": "Quan parlo català he de fer servir l'aplicació.",
+    "natural_changes": [
+      {
+        "from": "tinc que usar",
+        "to": "he de fer servir",
+        "why": "More natural obligation and verb"
+      }
+    ]
+  },
+  "expected": "Do not offer one natural edit combining the obligation construction and the independent verb choice. Correct the obligation without unnecessarily changing the valid verb usar.",
+  "expected_corrected": "Quan parlo català he d'usar l'aplicació.",
+  "provenance": "Reduced synthetic reproduction of the 2026-10-13 user screenshot; outside the generated 100-passage corpus.",
+  "expected_natural_edit_count": 0,
+  "expected_fixes": [
+    {
+      "from": "tinc que usar",
+      "to": "he d'usar",
+      "why": "Correct obligation while preserving the valid verb usar"
+    }
+  ]
+}

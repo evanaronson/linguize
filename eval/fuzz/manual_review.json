@@ -1,0 +1,1454 @@
+[
+  {
+    "request_id": "ca-001:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-001:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-002:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-002:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-003:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-003:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-004:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-004:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-005:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "E2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-005:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "E2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-006:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-006:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-007:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-007:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-008:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-008:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-009:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-009:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-010:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-010:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-011:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-011:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-012:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-012:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-013:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-013:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-014:auto",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-014:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-015:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-015:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-016:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-016:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-017:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-017:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-018:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-018:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-019:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-019:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-020:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-020:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-021:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-021:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-022:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-022:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-023:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-023:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-024:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "E4",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-024:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-025:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-025:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-026:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-026:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-027:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-027:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L3",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-028:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-028:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-029:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-029:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-030:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-030:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-031:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-031:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-032:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-032:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-033:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-033:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-034:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-034:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-035:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-035:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-036:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-036:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-037:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-037:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-038:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-038:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-039:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-039:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-040:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-040:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-041:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-041:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-042:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-042:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-043:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-043:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-044:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-044:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-045:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-045:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-046:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-046:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-047:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-047:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-048:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-048:Catalan",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-049:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-049:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-050:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "ca-050:Catalan",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-001:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-001:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-002:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-002:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-003:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-003:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-004:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-004:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-005:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-005:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L2"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-006:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-006:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-007:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-007:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-008:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-008:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-009:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-009:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L1",
+      "L3",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-010:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-010:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-011:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-011:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-012:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E6",
+      "L3",
+      "L5",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-012:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-013:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-013:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-014:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-014:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-015:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4",
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-015:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-016:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-016:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-017:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-017:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-018:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-018:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-019:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-019:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-020:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-020:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-021:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-021:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L3"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-022:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-022:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-023:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-023:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-024:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-024:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-025:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-025:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-026:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-026:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-027:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-027:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-028:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-028:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-029:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-029:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-030:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-030:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-031:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-031:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-032:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-032:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-033:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-033:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-034:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-034:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-035:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-035:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-036:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L5"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-036:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-037:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-037:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-038:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1",
+      "L4"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-038:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-039:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-039:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-040:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-040:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-041:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-041:Spanish",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-042:auto",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-042:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-043:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-043:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-044:auto",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-044:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-045:auto",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-045:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-046:auto",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-046:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-047:auto",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-047:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-048:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "L3",
+      "L6"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-048:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-049:auto",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-049:Spanish",
+    "review_status": "reviewed",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-050:auto",
+    "review_status": "reviewed",
+    "findings": [
+      "E1"
+    ],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  },
+  {
+    "request_id": "sp-050:Spanish",
+    "review_status": "provider_failure",
+    "findings": [],
+    "basis": "Model answer, production previews, and every individual Accept action examined. Empty findings mean no issue identified, not a proof of correctness."
+  }
+]

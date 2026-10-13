@@ -24,7 +24,7 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 
 ## Existing contracts
 
-Individual Accept changes the card preview; Done or dismissal puts accepted changes back. Accept all closes when the review is resolved. Explicit Copy copies the chosen version and closes without replacing. Accept never copies, including when replacement fails.
+Individual Accept and Accept all change the card preview and keep the card open. Once all suggestions are resolved, the final text stays visible and can be copied. Done or dismissal puts accepted changes back. Explicit Copy copies the chosen version and closes without replacing. Accept never copies, including when replacement fails.
 
 Replacement targets the original field after the overlay detaches. Refresh it and require its full text to match the original before Set text. Preserve surrounding text and cursor placement.
 

@@ -39,19 +39,20 @@ class ShortcutCacheTest {
         val focus = Shadow.extract<FocusServiceShadow>(service)
         focus.cache = cache
         try {
-            repeat(2) {
+            for (private in listOf(true, false)) {
                 val oldEditor = editor(private = false)
                 cacheType.getMethod("add", AccessibilityNodeInfo::class.java).invoke(cache, oldEditor)
                 focus.oldNodeId = oldEditor.javaClass.getMethod("getSourceNodeId").invoke(oldEditor) as Long
                 assertNotNull(focus.cachedFocus())
                 // Switching chats replaces the editor but leaves old focus cached.
-                // A private new editor must be rejected on THIS tap, before reading it.
-                focus.currentEditor = editor(private = true)
+                // Handle the new private or empty editor on THIS tap.
+                focus.currentEditor = editor(private = private)
                 val before = focus.queries
                 ReflectionHelpers.callInstanceMethod<Unit>(service, "tapped")
                 assertEquals(before + 1, focus.queries)
                 assertNull(focus.cachedFocus())
-                assertEquals(service.getString(R.string.shortcut_private_field), ShadowToast.getTextOfLatestToast())
+                val feedback = if (private) R.string.shortcut_private_field else R.string.shortcut_no_text
+                assertEquals(service.getString(feedback), ShadowToast.getTextOfLatestToast())
             }
         } finally {
             client.getMethod("removeConnection", Int::class.javaPrimitiveType).invoke(null, connection)

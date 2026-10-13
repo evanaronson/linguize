@@ -38,8 +38,9 @@ internal fun ShortcutReport() {
     val build = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode }
     val connected = prefs.getLong("connected", 0)
     val received = prefs.getLong("received", 0)
+    val never = stringResource(R.string.shortcut_probe_never)
     val time: (Long) -> String = { value ->
-        if (value == 0L) context.getString(R.string.shortcut_probe_never)
+        if (value == 0L) never
         else DateFormat.getTimeInstance().format(Date(value))
     }
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.medium) {

@@ -9,6 +9,7 @@ Start with the [project README](../README.md) for installation, local builds, an
 | [Accessibility shortcut reliability](accessibility-spec.md) | Current lookup and replacement contracts, plus the handset evidence behind them |
 | [Copy style](copy-style.md) | English wording for screens, toasts, platform labels, and screen readers |
 | [Localization](localization.md) | Android resource conventions and locale-aware display |
+| [Checker repair plan](checker-repair-plan.md) | Proposed removal-focused fixes for edit construction, atomicity, and input handling |
 | [Evaluating checks](../eval/README.md) | Curated cases, running the model eval, and interpreting its results |
 
 The [October 2026 History design](archive/history-design-2026-10.md) is an archive.

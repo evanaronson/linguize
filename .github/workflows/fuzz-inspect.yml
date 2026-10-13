@@ -1,0 +1,32 @@
+name: Inspect corruption evidence
+on:
+  push:
+    branches: [feature/fuzz-100]
+    paths: [eval/fuzz/inspect.json]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: fuzz-100-evidence
+          run-id: 38399239455
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Read saved evidence
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, collections
+          root = pathlib.Path("evidence")
+          for name in ("run.json", "replies.jsonl", "engine.jsonl"):
+              path = next(root.rglob(name))
+              print("EVIDENCE_BEGIN " + name)
+              print(path.read_text())
+              print("EVIDENCE_END " + name)
+          rows = [json.loads(line) for line in next(root.rglob("replies.jsonl")).read_text().split("\n") if line]
+          print("ERROR_COUNTS", collections.Counter((row.get("error"), row.get("http_status")) for row in rows if "error" in row))
+          PY

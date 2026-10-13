@@ -40,6 +40,61 @@ class FocusedFieldTest {
         children.forEach { shadowOf(parent).addChild(it) }
     }
 
+    @Test fun missingGlobalFocusCanUseTheActiveWindowsFocusedEditor() {
+        val root = node()
+        val editor = node(focused = true, editable = true)
+        assertEquals(editor, FocusedField.resolve(root, null) { editor }.field)
+    }
+
+    @Test fun missingFocusQueriesCanUseAUniqueFocusedEditorInTheRoot() {
+        val root = node()
+        val editor = node(focused = true, editable = true)
+        children(root, editor)
+        assertEquals(editor, FocusedField.resolve(root, null) { null }.field)
+    }
+
+    @Test fun windowFocusAvoidsScanningALargeConversationWhenGlobalFocusIsAContainer() {
+        val root = node()
+        val source = node()
+        val editor = node(focused = true, editable = true)
+        children(root, source, editor)
+        repeat(150) { children(source, node()) }
+        assertEquals(editor, FocusedField.resolve(root, source) { editor }.field)
+    }
+
+    @Test fun directFocusedEditorDoesNotNeedAnActiveRootOrAnotherFocusQuery() {
+        val editor = node(focused = true, editable = true)
+        assertEquals(editor, FocusedField.resolve(null, editor) { error("Direct focus is sufficient") }.field)
+    }
+
+    @Test fun missingGlobalFocusNeverChoosesAnUnfocusedEditor() {
+        val root = node()
+        children(root, node(editable = true))
+        assertNull(FocusedField.resolve(root, null) { null }.field)
+    }
+
+    @Test fun privateSourceCannotBeBypassedByTheWindowFocusQuery() {
+        val root = node()
+        val source = node().apply { isPassword = true }
+        assertNull(FocusedField.resolve(root, source) { error("Private source stops lookup") }.field)
+    }
+
+    @Test fun windowFocusCannotCrossIntoAnotherAppOrWindow() {
+        val root = node()
+        assertNull(FocusedField.resolve(root, null) {
+            node(focused = true, editable = true, app = "other.app")
+        }.field)
+        assertNull(FocusedField.resolve(root, null) {
+            node(focused = true, editable = true, window = 8)
+        }.field)
+    }
+
+    @Test fun windowFocusCannotBypassPrivateFields() {
+        val root = node()
+        val editor = node(focused = true, editable = true).apply { hintText = "Password" }
+        assertNull(FocusedField.resolve(root, null) { editor }.field)
+    }
+
     @Test fun resolvesFocusedChildOfNonEditableSource() {
         val root = node()
         val source = node()

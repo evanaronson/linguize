@@ -91,20 +91,21 @@ class LinguizeAccessibilityService : AccessibilityService() {
             current.discard()
         }
 
-        // Preserve the working direct lookup; only fall back within its source window.
-        var resolved = focused?.takeIf { FocusedField.supportsEditing(it) }
-        if (resolved == null && focused != null) {
-            val result = FocusedField.find(rootInActiveWindow, focused)
-            if (result.reason == "Field looks private") {
-                Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
-                return
-            }
-            resolved = result.field
-            if (resolved != null && (!resolved.refresh() || !resolved.isFocused || !resolved.isVisibleToUser || !resolved.isEnabled ||
-                !FocusedField.supportsEditing(resolved) || !FocusedField.sameWindow(resolved, focused) ||
-                rootInActiveWindow?.let { FocusedField.sameWindow(it, focused) } != true)) {
-                resolved = null
-            }
+        val direct = focused?.let(FocusedField::supportsEditing) == true
+        val root = if (direct) null else rootInActiveWindow
+        val source = focused ?: root
+        val result = FocusedField.resolve(root, focused)
+        if (result.reason == "Field looks private") {
+            Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
+            return
+        }
+        var resolved = result.field
+        // Refresh direct results too: a cached node may still hold the pre-focus text.
+        if (resolved != null && (!resolved.refresh() || !resolved.isVisibleToUser || !resolved.isEnabled ||
+            !FocusedField.supportsEditing(resolved) || (!direct &&
+                (!resolved.isFocused || source == null || !FocusedField.sameWindow(resolved, source) ||
+                    rootInActiveWindow?.let { FocusedField.sameWindow(it, source) } != true)))) {
+            resolved = null
         }
         if (resolved == null) {
             Toast.makeText(this, R.string.shortcut_no_editor, Toast.LENGTH_LONG).show()

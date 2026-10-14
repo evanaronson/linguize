@@ -5,9 +5,9 @@ import java.text.Normalizer
 
 /** Constructs complete repairs, then validates and maps explicitly reported rewordings. */
 internal object Edits {
-    data class FixResult(val edits: List<Edit>, val rejected: Boolean)
+    data class Result(val edits: List<Edit>, val rejected: Boolean)
 
-    fun fixes(original: String, corrected: String, reported: List<VerdictChange>): FixResult {
+    fun fixes(original: String, corrected: String, reported: List<VerdictChange>): Result {
         val runs = correctionRuns(original, corrected)
         val units = repairs(original, corrected)
         val sentences = Sentences.ranges(original)
@@ -93,7 +93,7 @@ internal object Edits {
         }
         val fixes = toEdits(offered, reported, EditKind.Fix, 0)
         val placed = place(fixes).associateBy { it.fix.id }
-        return FixResult(fixes.map { it.copy(order = 2 * placed.getValue(it.id).baseStart + 1) },
+        return Result(fixes.map { it.copy(order = 2 * placed.getValue(it.id).baseStart + 1) },
             withheld.isNotEmpty() || offered.size != spans.size)
     }
 
@@ -159,21 +159,20 @@ internal object Edits {
         return !subsequence(before, after) && !subsequence(after, before)
     }
 
-    data class NaturalResult(val edits: List<Edit>, val rejected: Boolean)
-
     fun naturalResult(
         original: String,
         fixes: List<Edit>,
         natural: String,
         reported: List<VerdictChange>,
         firstId: Int = 0,
-    ): NaturalResult {
+    ): Result {
         val base = render(original, fixes).text
-        if (!wording(base, natural)) return NaturalResult(emptyList(), false)
-        if (Links.hasNewLink(base, natural)) return NaturalResult(emptyList(), true)
+        if (!wording(base, natural)) return Result(emptyList(), !Alignment.same(base, natural))
+        if (Links.hasNewLink(base, natural)) return Result(emptyList(), true)
         val sentences = Sentences.ranges(base)
-        if (Sentences.ranges(natural).size != sentences.size) return NaturalResult(emptyList(), true)
-        val candidates = located(base, natural, reported) ?: return NaturalResult(emptyList(), true)
+        val originalSentences = Sentences.ranges(original)
+        if (Sentences.ranges(natural).size != sentences.size) return Result(emptyList(), true)
+        val candidates = located(base, natural, reported) ?: return Result(emptyList(), true)
         val placed = place(fixes)
         fun touchesDeletedWord(start: Int, end: Int) = placed.any { p ->
             wordCount(p.fix.replacement) == 0 && wordCount(p.fix.from) > 0 &&
@@ -182,7 +181,10 @@ internal object Edits {
         var rejected = false
         val accepted = mutableListOf<Span>()
         for (candidate in candidates) {
-            if (!wording(candidate.from, candidate.replacement)) continue
+            if (!wording(candidate.from, candidate.replacement)) {
+                rejected = true
+                continue
+            }
             if (Sentences.crosses(sentences, candidate.start, candidate.end) ||
                 digits(candidate.from) != digits(candidate.replacement)) {
                 rejected = true
@@ -217,7 +219,7 @@ internal object Edits {
                 continue
             }
             val mapped = toOriginal(change, base, original, placed)
-            if (Sentences.crosses(Sentences.ranges(original), mapped.start, mapped.end)) {
+            if (Sentences.crosses(originalSentences, mapped.start, mapped.end)) {
                 rejected = true
                 continue
             }
@@ -228,7 +230,7 @@ internal object Edits {
         // Withhold both; merging them would change what either Accept action means.
         val conflicts = edits.filter { edit -> edits.any { it.id != edit.id &&
             (edit.overlaps(it) || (edit.includes intersect it.includes).isNotEmpty()) } }.map { it.id }.toSet()
-        return NaturalResult(edits.filterNot { it.id in conflicts }, rejected || conflicts.isNotEmpty())
+        return Result(edits.filterNot { it.id in conflicts }, rejected || conflicts.isNotEmpty())
     }
 
     private data class Span(
@@ -287,17 +289,18 @@ internal object Edits {
     }
 
     /**
-     * A conservative structural scope, not a semantic proof. Keep unchanged words
-     * as anchors and admit one changed region. Opaque many-to-many rewrites and
+     * A conservative structural scope, not a semantic proof. Keep NFC-equal words
+     * as anchors and compare the complete text between them, including separators.
+     * Admit one changed region. Opaque many-to-many rewrites and
      * changes on both sides of an anchor need evidence the report cannot provide.
      */
     private fun supportedConstruction(from: String, to: String): Boolean {
-        val a = Alignment.units(from).filter { it.type == Type.Word }.map { it.folded }
-        val b = Alignment.units(to).filter { it.type == Type.Word }.map { it.folded }
-        val uniqueA = a.withIndex().groupBy { it.value }.filterValues { it.size == 1 }
-        val uniqueB = b.withIndex().groupBy { it.value }.filterValues { it.size == 1 }
+        val a = Alignment.units(from).filter { it.type == Type.Word }
+        val b = Alignment.units(to).filter { it.type == Type.Word }
+        val uniqueA = a.withIndex().groupBy { it.value.normal }.filterValues { it.size == 1 }
+        val uniqueB = b.withIndex().groupBy { it.value.normal }.filterValues { it.size == 1 }
         val anchors = a.withIndex().mapNotNull { (index, word) ->
-            if (word in uniqueA) uniqueB[word]?.single()?.index?.let { index to it } else null
+            if (word.normal in uniqueA) uniqueB[word.normal]?.single()?.index?.let { index to it } else null
         }
         if (anchors.zipWithNext().any { (left, right) -> left.second >= right.second }) return false
         var source = -1
@@ -306,7 +309,9 @@ internal object Edits {
         for ((nextSource, nextTarget) in anchors + (a.size to b.size)) {
             val removed = nextSource - source - 1
             val added = nextTarget - target - 1
-            if (removed > 0 || added > 0) {
+            val before = from.substring(a.getOrNull(source)?.end ?: 0, a.getOrNull(nextSource)?.start ?: from.length)
+            val after = to.substring(b.getOrNull(target)?.end ?: 0, b.getOrNull(nextTarget)?.start ?: to.length)
+            if (!Alignment.same(before, after)) {
                 if (++regions > 1 || minOf(removed, added) > 1) return false
             }
             source = nextSource

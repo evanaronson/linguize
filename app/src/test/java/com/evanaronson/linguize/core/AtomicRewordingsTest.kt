@@ -99,10 +99,69 @@ class AtomicRewordingsTest {
         }
     }
 
-    @Test fun aPeriodOrCaseChangeAloneIsNotARewording() {
-        for (target in listOf("Estic bé", "estic bé.", "Estic bé.")) {
-            assertTrue(revision("estic bé", natural = target).edits(EditKind.Natural).isEmpty())
+    @Test fun unrelatedAccentCaseOrWhitespaceCannotHideInARewording() {
+        for (original in listOf(
+            "El cafe es bueno.", "el café es bueno.",
+            "El café  es bueno.", "El café\nes bueno.", "El café\u00a0es bueno.",
+        )) {
+            val natural = "El café es excelente."
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+            assertTrue(result.revision.edits.isEmpty())
+            assertEquals(setOf(EditKind.Natural), result.withheld)
+            assertFalse(result.looksGood)
         }
+    }
+
+    @Test fun anAlreadyCorrectedAccentStaysIndependentOfARewording() {
+        val original = "El cafe es bueno."
+        val corrected = "El café es bueno."
+        val natural = "El café es excelente."
+        val r = revision(original, corrected, natural)
+        val edit = r.edits(EditKind.Natural).single()
+        assertEquals("bueno", edit.from)
+        assertTrue(edit.includes.isEmpty())
+        assertEquals("El cafe es excelente.", r.accept(edit.id).workingText)
+        assertEquals(natural, r.accept(edit.id).acceptAll(EditKind.Fix).workingText)
+    }
+
+    @Test fun discardedNonlexicalProposalsCannotReportACleanResult() {
+        for ((original, natural) in listOf(
+            "El cafe es bueno." to "El café es bueno.",
+            "El café\nestá bueno." to "El café está bueno.",
+            "estic bé" to "Estic bé",
+            "estic bé" to "estic bé.",
+            "estic bé" to "Estic bé.",
+        )) {
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+            assertTrue(result.revision.edits.isEmpty())
+            assertEquals(setOf(EditKind.Natural), result.withheld)
+            assertFalse(result.looksGood)
+            assertFalse(result.isResolved)
+        }
+    }
+
+    @Test fun aDiscardedAccentProposalKeepsTheJudgmentIncompleteAfterAnotherRewording() {
+        val result = interpret("El cafe es bueno.", Verdict(status = Verdict.Status.Ok, moreNatural = true,
+            natural = "El café es excelente.", naturalChanges = listOf(
+                VerdictChange("cafe", "café"), VerdictChange("bueno", "excelente")))) as CheckResult.Reviewed
+        val edit = result.revision.edits.single()
+        assertEquals("bueno", edit.from)
+        val accepted = result.copy(revision = result.revision.accept(edit.id))
+        assertEquals("El cafe es excelente.", accepted.revision.workingText)
+        assertEquals(setOf(EditKind.Natural), accepted.withheld)
+        assertFalse(accepted.isResolved)
+    }
+
+    @Test fun canonicallyEquivalentTargetsRemainNoOps() {
+        val original = "El cafe\u0301 es bueno."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+            natural = "El café es bueno.")) as CheckResult.Reviewed
+        assertTrue(result.revision.edits.isEmpty())
+        assertTrue(result.withheld.isEmpty())
+        assertTrue(result.looksGood)
+        assertEquals(original, result.revision.workingText)
     }
 
     @Test fun independentChangesWithinOneSentenceHaveSeparateAcceptActions() {
@@ -149,5 +208,16 @@ class AtomicRewordingsTest {
         val r = revision(original, natural = natural)
         assertEquals(1, r.edits(EditKind.Natural).size)
         assertEquals(natural, r.acceptAll(EditKind.Natural).workingText)
+    }
+
+    @Test fun anInsertedPhraseKeepsItsBoundarySpacesInTheSameRegion() {
+        val original = "Voy hoy."
+        val natural = "Voy a ducharme hoy."
+        val r = revision(original, natural = natural)
+        val edit = r.edits(EditKind.Natural).single()
+        assertEquals("", edit.from)
+        assertEquals("a ducharme ", edit.replacement)
+        assertEquals(natural, r.accept(edit.id).workingText)
+        assertEquals(original, r.accept(edit.id).undo().workingText)
     }
 }

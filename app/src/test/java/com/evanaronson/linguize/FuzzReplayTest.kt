@@ -27,12 +27,14 @@ class FuzzReplayTest {
         output.parentFile.mkdirs()
         val prompt = Prompt.load { File("src/main/assets", it).readText() }
         var processed = 0
+        val evidence = mutableListOf<JsonObject>()
         val safetyFailures = mutableListOf<String>()
         output.bufferedWriter().use { writer ->
             replies.forEachLine { line ->
                 if (line.isBlank()) return@forEachLine
                 processed++
                 val entry = Json.parseToJsonElement(line).jsonObject
+                evidence += entry
                 val case = entry.getValue("case").jsonObject
                 val original = case.getValue("text").jsonPrimitive.content
                 val language = case.getValue("language").jsonPrimitive.content
@@ -168,7 +170,72 @@ class FuzzReplayTest {
             }
         }
         assertEquals("Every named-language and Auto Detect request must be replayed", 200, processed)
+        requireCompleteReplies(evidence)
         assertTrue("Replay violated deterministic safety gates: $safetyFailures", safetyFailures.isEmpty())
+    }
+
+    /** Capture failed requests above, but never count them as a completed audit. */
+    private fun requireCompleteReplies(entries: List<JsonObject>) {
+        val expected = Language.all.flatMap { language ->
+            (1..50).flatMap { index ->
+                listOf(language.name, "auto").map { mode ->
+                    "${language.name.take(2).lowercase()}-${index.toString().padStart(3, '0')}:$mode"
+                }
+            }
+        }.toSet()
+        val cases = entries.map { it.getValue("case").jsonObject }
+        val ids = cases.map { it.getValue("request_id").jsonPrimitive.content }
+        require(ids.size == expected.size && ids.toSet() == expected) { "Replay requires all 200 unique corpus requests" }
+        require(entries.all { "error" !in it && it["verdict"] is JsonObject }) { "Provider failures cannot complete an audit" }
+        val passages = cases.groupBy { it.getValue("id").jsonPrimitive.content }
+        require(passages.size == 100 && passages.values.all { pair ->
+            pair.size == 2 && pair.map { it.getValue("text") }.distinct().size == 1 &&
+                pair.map { it.getValue("original") }.distinct().size == 1 && pair.all { case ->
+                    val id = case.getValue("id").jsonPrimitive.content
+                    val language = case.getValue("language").jsonPrimitive.content
+                    val source = case.getValue("source_language").jsonPrimitive.content
+                    case.getValue("request_id").jsonPrimitive.content == "$id:$language" &&
+                        language in listOf(source, "auto") &&
+                        id.startsWith(source.take(2).lowercase() + "-") &&
+                        case.getValue("original_sentences").jsonArray.size in 2..3 &&
+                        case.getValue("text") != case.getValue("original")
+                }
+        } && passages.values.map { it.first().getValue("original") }.distinct().size == 100 &&
+            passages.values.map { it.first().getValue("text") }.distinct().size == 100) {
+            "Replay requires 100 distinct corrupted passages with matching named-language and Auto Detect pairs"
+        }
+    }
+
+    @Test fun incompleteEvidenceCannotPassTheReplayGate() {
+        val entries = Language.all.flatMap { language ->
+            (1..50).flatMap { index ->
+                listOf(language.name, "auto").map { mode ->
+                    val id = "${language.name.take(2).lowercase()}-${index.toString().padStart(3, '0')}"
+                    buildJsonObject {
+                        put("case", buildJsonObject {
+                            put("id", id)
+                            put("request_id", "$id:$mode")
+                            put("source_language", language.name)
+                            put("language", mode)
+                            put("original", "$id first. Second.")
+                            put("original_sentences", buildJsonArray { add("$id first."); add("Second.") })
+                            put("text", "$id firs. Second.")
+                        })
+                        put("verdict", buildJsonObject { put("status", "ok") })
+                    }
+                }
+            }
+        }
+        requireCompleteReplies(entries)
+        val failed = entries.map { JsonObject(it - "verdict" + ("error" to JsonPrimitive("timeout"))) }
+        val duplicate = entries.dropLast(1) + entries.first()
+        val wrongId = entries.toMutableList().apply {
+            val case = first().getValue("case").jsonObject
+            this[0] = JsonObject(first() + ("case" to JsonObject(case + ("request_id" to JsonPrimitive("unexpected:auto")))))
+        }
+        for (invalid in listOf(failed, duplicate, wrongId, entries.dropLast(1))) {
+            assertTrue("Incomplete evidence must fail", runCatching { requireCompleteReplies(invalid) }.isFailure)
+        }
     }
 
     // These are executable contracts. Reconstruction/orthography heuristics remain

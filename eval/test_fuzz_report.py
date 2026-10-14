@@ -1,7 +1,80 @@
 """Reviews cannot silently follow different models, answers or engine behavior."""
 import copy
 import unittest
-from fuzz_report import evidence_digest, matching_review
+from fuzz import generate, requests
+from fuzz_report import complete_evidence, evidence_digest, matching_review
+
+
+class CompleteEvidenceTest(unittest.TestCase):
+    def setUp(self):
+        self.corpus = generate()
+        self.replies = [{"case": case, "verdict": {"status": "ok"}} for case in requests(self.corpus)]
+        self.engines = [{"request_id": row["case"]["request_id"], "result": "reviewed"} for row in self.replies]
+
+    def audit(self):
+        return complete_evidence(self.replies, self.engines, self.corpus)
+
+    def test_complete_named_and_auto_pairs_pass_in_any_order(self):
+        self.engines.reverse()
+        self.assertEqual(200, len(self.audit()))
+
+    def test_provider_errors_cannot_count_as_completed_checks(self):
+        self.replies[0].pop("verdict")
+        self.replies[0]["error"] = "timeout"
+        with self.assertRaisesRegex(ValueError, "returned verdict"):
+            self.audit()
+
+    def test_failed_replays_cannot_count_as_completed_checks(self):
+        for result in ("provider_error", "checker_error", None):
+            with self.subTest(result=result):
+                self.engines[0]["result"] = result
+                with self.assertRaisesRegex(ValueError, "successful replay"):
+                    self.audit()
+
+    def test_duplicate_reply_or_replay_cannot_hide_a_missing_request(self):
+        for field in ("replies", "engines"):
+            with self.subTest(field=field):
+                self.setUp()
+                rows = getattr(self, field)
+                rows[-1] = copy.deepcopy(rows[0])
+                with self.assertRaisesRegex(ValueError, "Duplicate"):
+                    self.audit()
+
+    def test_missing_and_unexpected_identities_fail(self):
+        for field in ("replies", "engines"):
+            for replacement in (False, True):
+                with self.subTest(field=field, replacement=replacement):
+                    self.setUp()
+                    rows = getattr(self, field)
+                    if replacement:
+                        identity = rows[-1]["case"] if field == "replies" else rows[-1]
+                        identity["request_id"] = "unexpected:auto"
+                    else:
+                        rows.pop()
+                    with self.assertRaisesRegex(ValueError, "every corpus request"):
+                        self.audit()
+
+    def test_correct_ids_cannot_disguise_repeated_inputs_or_wrong_modes(self):
+        for field in ("text", "language"):
+            with self.subTest(field=field):
+                self.setUp()
+                self.replies[0]["case"][field] = "different"
+                with self.assertRaisesRegex(ValueError, "differs from corpus"):
+                    self.audit()
+
+    def test_incomplete_or_duplicated_corpus_fails(self):
+        self.corpus.pop()
+        with self.assertRaisesRegex(ValueError, "100 distinct"):
+            self.audit()
+        self.setUp()
+        self.corpus[-1] = copy.deepcopy(self.corpus[0])
+        with self.assertRaisesRegex(ValueError, "100 distinct"):
+            self.audit()
+
+    def test_unique_ids_do_not_make_repeated_passages_complete(self):
+        self.corpus[-1]["text"] = self.corpus[0]["text"]
+        with self.assertRaisesRegex(ValueError, "100 distinct"):
+            self.audit()
 
 
 class ReviewProvenanceTest(unittest.TestCase):

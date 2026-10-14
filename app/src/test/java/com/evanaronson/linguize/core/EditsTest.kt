@@ -523,6 +523,7 @@ class EditsTest {
     fun aRewordingCannotGuessOwnershipOfAnAdjacentDeletedWord() {
         for ((original, corrected, natural, from, to) in listOf(
             listOf("Algunas algunas cosas", "Algunas cosas", "Unas cosas", "Algunas", "Unas"),
+            listOf("Algunas algunas  cosas", "Algunas cosas", "Unas cosas", "Algunas", "Unas"),
             listOf("algunas Algunas cosas", "Algunas cosas", "Unas cosas", "Algunas", "Unas"),
             listOf("algunas algunas cosas", "algunas cosas", "unas cosas", "algunas", "unas"),
         )) {

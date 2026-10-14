@@ -171,7 +171,7 @@ internal object Edits {
         val candidates = located(base, natural, reported) ?: return NaturalResult(emptyList(), true)
         val placed = place(fixes)
         fun touchesDeletedWord(start: Int, end: Int) = placed.any { p ->
-            p.baseStart == p.baseEnd && wordCount(p.fix.from) > 0 &&
+            wordCount(p.fix.replacement) == 0 && wordCount(p.fix.from) > 0 &&
                 Alignment.units(base.substring(minOf(p.baseStart, end), maxOf(p.baseStart, start))).all { it.type == Type.Space }
         }
         var rejected = false

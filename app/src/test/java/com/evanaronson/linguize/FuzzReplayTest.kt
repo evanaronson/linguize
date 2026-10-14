@@ -11,6 +11,7 @@ import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
@@ -26,6 +27,7 @@ class FuzzReplayTest {
         output.parentFile.mkdirs()
         val prompt = Prompt.load { File("src/main/assets", it).readText() }
         var processed = 0
+        val safetyFailures = mutableListOf<String>()
         output.bufferedWriter().use { writer ->
             replies.forEachLine { line ->
                 if (line.isBlank()) return@forEachLine
@@ -75,7 +77,10 @@ class FuzzReplayTest {
                             is CheckResult.Reviewed -> {
                                 put("result", "reviewed")
                                 put("looks_good", result.looksGood)
+                                put("withheld", buildJsonArray { result.withheld.forEach { add(it.token) } })
                                 val revision = result.revision
+                                val fixed = revision.acceptAll(EditKind.Fix)
+                                val finished = fixed.acceptAll(EditKind.Natural).workingText
                                 val boundaries = Sentences.ranges(original)
                                 for (kind in EditKind.entries) {
                                     val edits = revision.edits(kind)
@@ -105,6 +110,11 @@ class FuzzReplayTest {
                                             flags += "single_accept_not_idempotent:" + edit.id
                                         if (Links.hasNewLink(original, single.workingText))
                                             flags += "single_accept_adds_link:" + edit.id
+                                        if (single.acceptAll(EditKind.Fix).acceptAll(EditKind.Natural).workingText != finished)
+                                            flags += "single_accept_remaining_changes_text:" + edit.id
+                                        val afterFixes = if (kind == EditKind.Natural) fixed.accept(edit.id) else null
+                                        if (afterFixes != null && afterFixes.undo().workingText != fixed.workingText)
+                                            flags += "natural_after_fixes_undo:" + edit.id
                                         actions += buildJsonObject {
                                             put("id", edit.id); put("kind", kind.token)
                                             put("start", edit.start); put("end", edit.end)
@@ -112,6 +122,10 @@ class FuzzReplayTest {
                                             put("why", edit.why?.let(::JsonPrimitive) ?: JsonNull)
                                             put("includes", buildJsonArray { edit.includes.forEach { add(it) } })
                                             put("accepted_text", single.workingText)
+                                            afterFixes?.let { put("accepted_after_fixes_text", it.workingText) }
+                                            put("remaining_fix_ids", buildJsonArray {
+                                                single.remaining(EditKind.Fix).forEach { add(it.id) }
+                                            })
                                         }
                                     }
                                     for (left in edits.indices) for (right in left + 1 until edits.size)
@@ -147,12 +161,26 @@ class FuzzReplayTest {
                         flags += "checker_error"
                     }
                     put("flags", buildJsonArray { flags.distinct().forEach { add(it) } })
+                    for (flag in flags.distinct()) if (flag.substringBefore(':') in safetyFlags)
+                        safetyFailures += case.getValue("request_id").jsonPrimitive.content + ":" + flag
                 }
                 writer.appendLine(report.toString())
             }
         }
         assertEquals("Every named-language and Auto Detect request must be replayed", 200, processed)
+        assertTrue("Replay violated deterministic safety gates: $safetyFailures", safetyFailures.isEmpty())
     }
+
+    // These are executable contracts. Reconstruction/orthography heuristics remain
+    // review diagnostics: they cannot establish linguistic or semantic correctness.
+    private val safetyFlags = setOf(
+        "checker_error", "invalid_edit_span", "single_accept_reconstruction", "single_undo",
+        "single_accept_not_idempotent", "same_kind_overlap", "preview_accept_all_mismatch",
+        "accept_all_undo", "accept_order_changes_text", "natural_crosses_sentence",
+        "natural_changes_digits", "single_accept_adds_link", "accept_all_adds_link",
+        "single_accept_remaining_changes_text", "natural_after_fixes_undo",
+        "model_context_drift", "request_contract_drift", "reuse_differs_from_fresh_check",
+    )
 
     /** Formatting an existing word/number must not become two dependent Accept actions. */
     private fun skeleton(text: String): String = Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)
@@ -167,4 +195,3 @@ class FuzzReplayTest {
         } > 1
     }
 }
-

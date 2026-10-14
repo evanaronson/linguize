@@ -1,7 +1,14 @@
 name: Corruption audit
 on:
+  pull_request:
+    paths:
+      - app/src/main/java/com/evanaronson/linguize/core/**
+      - app/src/main/assets/**
+      - app/src/test/**
+      - eval/**
+      - .github/workflows/fuzz.yml
   push:
-    branches: [feature/fuzz-100]
+    branches: [feature/checker-repair]
     paths: [eval/fuzz/request.json]
   workflow_dispatch:
     inputs:
@@ -58,6 +65,8 @@ jobs:
           dispatched = os.environ["EVENT_NAME"] == "workflow_dispatch"
           reuse = os.environ.get("REUSE_INPUT", "") if dispatched else config.get("reuse_run", "")
           live = os.environ.get("LIVE_INPUT") == "true" if dispatched else config.get("live", True)
+          if os.environ["EVENT_NAME"] == "pull_request":
+              reuse, live = "", False
           if reuse and not str(reuse).isdigit():
               raise ValueError("Resume run ID must be numeric")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
@@ -111,8 +120,8 @@ jobs:
               config = {"provider": os.environ.get("PROVIDER_INPUT") or "gemini",
                         "model": os.environ.get("MODEL_INPUT", ""),
                         "fallbacks": os.environ.get("FALLBACKS_INPUT", "").splitlines()}
-          argv = [sys.executable, "eval/fuzz.py", "--live", "--workers", "4", "--interval", "12",
-                  "--tries", "1", "--timeout", "90", "--retry-errors",
+          argv = [sys.executable, "eval/fuzz.py", "--live", "--workers", "4", "--interval", "3",
+                  "--tries", "3", "--timeout", "30", "--retry-errors",
                   "--provider", config.get("provider", "gemini")]
           if config.get("model"):
               argv += ["--model", config["model"]]

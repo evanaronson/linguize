@@ -16,12 +16,14 @@ sealed interface CheckResult {
         val assumptions: List<Assumption> = emptyList(),
         /** What the model understood the writer to mean, in the writer's native language. */
         val meaning: String = "",
+        /** Judgments with proposed changes that could not be offered safely. */
+        val withheld: Set<EditKind> = emptySet(),
     ) : CheckResult {
-        /** Nothing to suggest for any judgment that was made. */
-        val looksGood get() = kinds.all { revision.edits(it).isEmpty() }
+        /** No changes were needed, rather than proposed changes being discarded. */
+        val looksGood get() = withheld.isEmpty() && kinds.all { revision.edits(it).isEmpty() }
 
-        /** Every suggestion has been accepted or overtaken. */
-        val isResolved get() = kinds.all { revision.remaining(it).isEmpty() }
+        /** Every judgment is complete and every suggestion has been accepted or overtaken. */
+        val isResolved get() = withheld.isEmpty() && kinds.all { revision.remaining(it).isEmpty() }
     }
 }
 
@@ -51,20 +53,36 @@ fun interpret(
         return CheckResult.WrongLanguage(expectedLanguage, foundLanguage)
     }
 
-    val fixes = verdict.corrected.trim()
+    val withheld = mutableSetOf<EditKind>()
+    val fixResult = verdict.corrected.trim()
         .takeIf { EditKind.Fix in judgments.kinds && verdict.hasErrors && it.isNotEmpty() }
         ?.let { Edits.fixes(original, it, verdict.fixes) }
-        .orEmpty()
+    val proposedFixes = fixResult?.edits.orEmpty()
+    // Rewordings must be checked against the corrections the writer can actually
+    // accept. A discarded fix cannot silently become part of their source text.
+    val fixes = Links.withoutNew(original, proposedFixes)
+    if (fixes.size != proposedFixes.size) withheld += EditKind.Fix
+    if (EditKind.Fix in judgments.kinds && verdict.hasErrors &&
+        (verdict.corrected.isBlank() || fixResult?.rejected == true)) {
+        withheld += EditKind.Fix
+    }
     val naturals = verdict.natural.trim()
         .takeIf { EditKind.Natural in judgments.kinds && verdict.moreNatural && it.isNotEmpty() }
-        ?.let { Edits.naturals(original, fixes, it, verdict.naturalChanges, firstId = fixes.size) }
-        .orEmpty()
+        ?.let { Edits.naturalResult(original, fixes, it, verdict.naturalChanges, firstId = proposedFixes.size) }
+    if (EditKind.Natural in judgments.kinds && verdict.moreNatural &&
+        (verdict.natural.isBlank() || naturals?.rejected == true)) {
+        withheld += EditKind.Natural
+    }
+    val proposed = fixes + naturals?.edits.orEmpty()
+    val safe = Links.withoutNew(original, proposed)
+    withheld += (proposed - safe.toSet()).map { it.kind }
 
     return CheckResult.Reviewed(
-        Revision(original, Links.withoutNew(original, fixes + naturals)),
+        Revision(original, safe),
         kinds = EditKind.entries.filter { it in judgments.kinds },
         assumptions = verdict.assumptions.filter { it.about.isNotBlank() && it.assumed.isNotBlank() },
         meaning = verdict.meaning.trim().takeUnless { isUntranslated(it, original) }.orEmpty(),
+        withheld = withheld,
     )
 }
 

@@ -1,4 +1,4 @@
-{"text": "Bon dia! Com estas amb la pluja?", "status": "ok", "fix": true}
+{"text":"Bon dia! Com estas amb la pluja?","status":"ok","fix":true,"natural":true,"expected_corrected":"Bon dia! Com estàs amb la pluja?","expected_natural":"Bon dia! Com portes la pluja?","expected_natural_changes":[{"from":"estàs amb","to":"portes"}]}
 {"text": "Ens veiem demà a les set?", "status": "ok", "fix": false, "natural": false}
 {"text": "Avui fa molt de calor, oi?", "status": "ok", "fix": false, "natural": false}
 {"text": "Tinc ganes de veure't aquest cap de setmana", "status": "ok", "fix": false, "natural": false}
@@ -16,7 +16,7 @@
 {"text": "Estoy embarazada de no saber la respuesta", "status": "ok"}
 {"text": "La problema es que no tengo tiempo", "status": "ok", "fix": true}
 {"text": "Te echo de menos, a ver si nos vemos pronto", "status": "ok", "fix": false, "natural": false}
-{"text": "Voy a tomar una ducha y te llamo", "status": "ok", "fix": false}
+{"text":"Voy a tomar una ducha y te llamo","status":"ok","fix":false,"natural":false}
 {"text": "Muchas gracias por todo, eres un sol", "status": "ok", "fix": false, "natural": false}
 {"text": "verd la mesa per quan el si porta de", "status": "unclear", "answer_language": ""}
 {"text": "I'll be there in ten minutes", "language": "Spanish", "status": "wrong_language", "answer_language": "English"}
@@ -28,16 +28,41 @@
 {"text": "Ens veiem demà a les set", "status": "ok", "fix": false}
 {"text": "Hola qué tal bb estás bien", "punctuation": "casual", "status": "ok", "fix": false}
 {"text": "Ens veiem demà a les set", "punctuation": "strict", "status": "ok", "fix": true}
-{"text": "Hola bebé estoy aquí en casa en el sofá y neo está tranquilo en el suelo y tengo algunas cosas que voy a hacer en el ordenador y después me encuentro con Charles y vamos a tomar algunas algunas cervezas en un picnic y vamos a comer algunos snacks de de una bodega o algo y tomar cervezas artesanales que me ha traído de Montreal.", "status": "ok", "fix": true, "natural": true, "max_fixes": 7, "assumption": true}
+{"text":"Hola bebé estoy aquí en casa en el sofá y neo está tranquilo en el suelo y tengo algunas cosas que voy a hacer en el ordenador y después me encuentro con Charles y vamos a tomar algunas algunas cervezas en un picnic y vamos a comer algunos snacks de de una bodega o algo y tomar cervezas artesanales que me ha traído de Montreal.","status":"ok","fix":true,"max_fixes":7,"assumption":true}
 {"text": "Hola bebé estoy aquí en casa en el sofá y neo está tranquilo en el suelo y tengo algunas cosas que voy a hacer en el ordenador y después me encuentro con Charles y vamos a tomar algunas algunas cervezas en un picnic y vamos a comer algunos snacks de de una bodega o algo y tomar cervezas artesanales que me ha traído de Montreal.", "punctuation": "strict", "status": "ok", "fix": true, "min_sentences": 3, "assumption": true}
 {"text": "Charles y yo vamos a tomar las cervezas que me ha traído de Montreal", "status": "ok", "assumption": true}
 {"text": "Charles y yo vamos a tomar las cervezas que me ha traído de Montreal", "settled": [["Who brought the beers", "You"]], "status": "ok", "fix": true, "assumption": false}
 {"text": "Ens veiem demà a les set?", "status": "ok", "assumption": false}
 {"text": "Me gusta mucho tu nuevo piso", "status": "ok", "assumption": false}
-{"text":"Ens veiem\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1}
-{"text":"Ens veiem\r\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1}
-{"text":"Nos vemos ma\nñana.","status":"ok","fix":true,"natural":false,"max_fixes":1}
-{"text":"Voy a tomar una ducha. Voy a hacer una llamada.","status":"ok","fix":false,"natural":true}
+{"text":"Ens veiem\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1,"id":"repair-lf-between-words","expected_corrected":"Ens veiem demà a les set?"}
+{"text":"Ens veiem\r\ndemà a les set?","status":"ok","fix":true,"natural":false,"max_fixes":1,"id":"repair-crlf-between-words","expected_corrected":"Ens veiem demà a les set?"}
+{"text":"Nos vemos ma\nñana.","status":"ok","fix":true,"natural":false,"max_fixes":1,"id":"repair-lf-inside-word","expected_corrected":"Nos vemos mañana."}
+{"text":"Voy a tomar una ducha. Voy a hacer una llamada.","status":"ok","fix":false,"natural":false}
 {"text":"Hola, què tal? Estic bé.","language":"Catalan","status":"ok","fix":false,"natural":false}
 {"text":"Què tal?","language":"Catalan","status":"ok","fix":false,"natural":false}
 {"text":"Què tal el cap de setmana?","language":"Catalan","status":"ok","fix":false,"natural":false}
+{"id":"repair-named-catalan-english","text":"See you tomorrow at the station.","language":"Catalan","status":"wrong_language","answer_language":"English","fix":false,"natural":false}
+{"id":"repair-auto-english","text":"See you tomorrow at the station.","status":"ok","answer_language":"English","fix":false,"natural":false}
+{"id":"repair-named-catalan-spanish","text":"Nos vemos mañana. Te llamaré al salir.","language":"Catalan","status":"wrong_language","answer_language":"Spanish","fix":false,"natural":false}
+{"id":"repair-named-spanish-catalan","text":"Ens veiem demà. Et trucaré quan surti.","language":"Spanish","status":"wrong_language","answer_language":"Catalan","fix":false,"natural":false}
+{"id":"repair-crlf-inside-word","text":"Nos vemos ma\r\nñana.","language":"Spanish","status":"ok","fix":true,"natural":false,"max_fixes":1,"expected_corrected":"Nos vemos mañana."}
+{"id":"repair-lf-casual","text":"Ens veiem\ndemà.","language":"Catalan","punctuation":"casual","status":"ok","fix":true,"natural":false,"max_fixes":1,"expected_corrected":"Ens veiem demà."}
+{"id":"repair-lf-fix-only","text":"Nos vemos ma\nñana.","language":"Spanish","checks":"fix","status":"ok","fix":true,"natural":false,"max_fixes":1,"expected_corrected":"Nos vemos mañana."}
+{"id":"repair-lf-naturalize-only","text":"Ens veiem\ndemà.","language":"Catalan","checks":"naturalize","status":"ok","fix":false,"natural":false,"expected_corrected":"","expected_natural":""}
+{"id":"repair-preserve-lf-paragraphs","text":"Nos vemos mañana.\n\nLlevare el pan.","language":"Spanish","status":"ok","fix":true,"natural":false,"expected_corrected":"Nos vemos mañana.\n\nLlevaré el pan.","expected_fixes":[{"from":"Llevare","to":"Llevaré"}]}
+{"id":"repair-preserve-crlf-paragraphs","text":"Ens veiem demà.\r\n\r\nPortare el pa.","language":"Catalan","status":"ok","fix":true,"natural":false,"expected_corrected":"Ens veiem demà.\r\n\r\nPortaré el pa.","expected_fixes":[{"from":"Portare","to":"Portaré"}]}
+{"id":"repair-preserve-list","text":"Para la cena necesito:\n- pan\n- tomates\n- queso","language":"Spanish","status":"ok","fix":false,"natural":false}
+{"id":"repair-preserve-verse","text":"El sol cau,\nla nit arriba\ni el vent calla.","language":"Catalan","punctuation":"casual","status":"ok","fix":false,"natural":false}
+{"id":"repair-preserve-url","text":"Consulta https://example.com/horarios. Nos vemos mañana.","language":"Spanish","status":"ok","fix":false,"natural":false}
+{"id":"repair-obligation-only","text":"Quan parlo català tinc que usar l'aplicació.","language":"Catalan","status":"ok","fix":true,"natural":false,"expected_corrected":"Quan parlo català he d'usar l'aplicació.","expected_fixes":[{"from":"tinc que usar","to":"he d'usar"}]}
+{"id":"repair-user-obligation-and-verb","text":"Quan parlo català tinc que usar aquesta aplivació que he crbeat jo mateix","status":"ok","answer_language":"Catalan","fix":true,"natural":false,"expected_corrected":"Quan parlo català he d'usar aquesta aplicació que he creat jo mateix","expected_fixes":[{"from":"tinc que usar","to":"he d'usar"},{"from":"aplivació","to":"aplicació"},{"from":"crbeat","to":"creat"}]}
+{"id":"repair-valid-usar","text":"Quan parlo català he d'usar l'aplicació. Em va molt bé.","language":"Catalan","status":"ok","fix":false,"natural":false}
+{"id":"repair-grammar-not-naturalness","text":"Tinc que usar l'aplicació.","language":"Catalan","checks":"naturalize","status":"ok","fix":false,"natural":false,"expected_corrected":"","expected_natural":""}
+{"id":"repair-independent-word-fixes","text":"Pren la pasti:lla despres de dinar.","language":"Catalan","status":"ok","fix":true,"natural":false,"expected_corrected":"Pren la pastilla després de dinar.","expected_fixes":[{"from":"pasti:lla","to":"pastilla"},{"from":"despres","to":"després"}]}
+{"id":"repair-complete-spacing-unit","text":"Arribaré una micaabans. Tinc ganes de veure-us.","language":"Catalan","status":"ok","fix":true,"natural":false,"expected_corrected":"Arribaré una mica abans. Tinc ganes de veure-us.","expected_fixes":[{"from":"micaabans","to":"mica abans"}]}
+{"id":"repair-spanish-missing-accent","text":"Calientala antes de servir. La sopa está en la olla.","language":"Spanish","status":"ok","fix":true,"natural":false,"expected_corrected":"Caliéntala antes de servir. La sopa está en la olla.","expected_fixes":[{"from":"Calientala","to":"Caliéntala"}]}
+{"id":"repair-catalan-wrong-accent","text":"L'avísaré quan arribi. Ja tinc el seu número.","language":"Catalan","status":"ok","fix":true,"natural":false,"expected_corrected":"L'avisaré quan arribi. Ja tinc el seu número."}
+{"id":"repair-preserve-first-person","text":"Provare el nou programa demà. Després t'explicaré com funciona.","language":"Catalan","status":"ok","fix":true,"natural":false,"expected_corrected":"Provaré el nou programa demà. Després t'explicaré com funciona.","expected_fixes":[{"from":"Provare","to":"Provaré"}]}
+{"id":"repair-preserve-tomorrow","text":"Voy a dejar de ver la serie mañana. Hoy quiero terminar este episodio.","language":"Spanish","status":"ok","fix":false,"natural":false}
+{"id":"repair-time-digits","text":"El vuelo llega a las 2130. Julia nos esperará fuera.","language":"Spanish","punctuation":"strict","status":"ok","fix":true,"natural":false,"expected_corrected":"El vuelo llega a las 21:30. Julia nos esperará fuera.","expected_fixes":[{"from":"2130","to":"21:30"}]}
+{"id":"repair-naturalize-leaves-unrelated-error","text":"Com estàs amb la pluja? Tornare demà.","language":"Catalan","checks":"naturalize","status":"ok","fix":false,"natural":true,"expected_corrected":"","expected_natural":"Com portes la pluja? Tornare demà.","expected_natural_changes":[{"from":"estàs amb","to":"portes"}]}

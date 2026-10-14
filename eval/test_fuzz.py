@@ -98,7 +98,7 @@ class FuzzCorpusTest(unittest.TestCase):
 
         def unavailable(model, *args):
             calls.append(model)
-            raise TimeoutError("a provider failed")
+            raise fuzz.urllib.error.HTTPError("https://fixture.invalid", 429, "rate limited", {}, None)
 
         def answer(model, *args):
             calls.append(model)
@@ -107,7 +107,7 @@ class FuzzCorpusTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             replies = Path(folder) / "replies.jsonl"
             argv = ["--live", "--model", "primary-fixture", "--fallback", "openai:secondary-fixture",
-                    "--tries", "1", "--workers", "1", "--interval", "0",
+                    "--tries", "3", "--workers", "1", "--interval", "0",
                     "--output", str(Path(folder) / "corpus.jsonl"), "--replies", str(replies)]
             providers = {"gemini": (unavailable, "primary-fixture", "FUZZ_A_KEY"),
                          "openai": (answer, "secondary-fixture", "FUZZ_B_KEY")}

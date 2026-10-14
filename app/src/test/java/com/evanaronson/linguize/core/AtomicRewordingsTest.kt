@@ -1,26 +1,43 @@
 package com.evanaronson.linguize.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AtomicRewordingsTest {
     private fun revision(original: String, corrected: String = original, natural: String,
-        reported: List<VerdictChange> = listOf(VerdictChange(corrected, natural, "More natural"))) =
+        reported: List<VerdictChange> = listOf(VerdictChange(corrected, natural, "More natural")),
+        fixes: List<VerdictChange> = emptyList()) =
         (interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = corrected != original,
-            corrected = corrected, moreNatural = true, natural = natural, naturalChanges = reported))
+            corrected = corrected, fixes = fixes, moreNatural = true, natural = natural, naturalChanges = reported))
             as CheckResult.Reviewed).revision
 
-    @Test fun screenshotVerbIsPairedWithItsInflectionRatherThanTheFollowingPreposition() {
+    @Test fun theScreenshotsOpaqueCorrectionIsWithheldWithoutInventingVerbFragments() {
         val original = "Bon Elena. Voldria saber que pensés de aquest vol"
         val corrected = "Bon Elena. Voldria saber què pensis d'aquest vol"
-        val r = revision(original, corrected, "Hola, Elena. Voldria saber què penses d'aquest vol")
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, moreNatural = true, natural = "Hola, Elena. Voldria saber què penses d'aquest vol",
+            naturalChanges = listOf(VerdictChange("Bon", "Hola,"), VerdictChange("pensis", "penses")))) as CheckResult.Reviewed
+        assertEquals(setOf(EditKind.Fix, EditKind.Natural), result.withheld)
+        assertEquals(listOf("que" to "què"), result.revision.edits.map { it.from to it.replacement })
+        assertEquals("Bon Elena. Voldria saber què pensés de aquest vol", result.revision.acceptAll(EditKind.Fix).workingText)
+        assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
+        assertFalse(result.looksGood)
+    }
+
+    @Test fun aCorroboratedVerbInflectionDoesNotConsumeTheFollowingPreposition() {
+        val original = "Bon Elena. Voldria saber que pensés d'aquest vol"
+        val corrected = "Bon Elena. Voldria saber què pensis d'aquest vol"
+        val r = revision(original, corrected, "Hola, Elena. Voldria saber què penses d'aquest vol",
+            listOf(VerdictChange("Bon", "Hola,"), VerdictChange("pensis", "penses")),
+            fixes = listOf(VerdictChange("que", "què"), VerdictChange("pensés", "pensis")))
         val verbFix = r.edits(EditKind.Fix).single { it.replacement == "pensis" }
         assertEquals("pensés", verbFix.from)
-        assertEquals("Bon Elena. Voldria saber que pensis de aquest vol", r.accept(verbFix.id).workingText)
+        assertEquals("Bon Elena. Voldria saber que pensis d'aquest vol", r.accept(verbFix.id).workingText)
         val verbRewording = r.edits(EditKind.Natural).single { it.replacement == "penses" }
         assertEquals("pensés", verbRewording.from)
-        assertEquals("Bon Elena. Voldria saber que penses de aquest vol", r.accept(verbRewording.id).workingText)
+        assertEquals("Bon Elena. Voldria saber que penses d'aquest vol", r.accept(verbRewording.id).workingText)
         assertEquals(corrected, r.acceptAll(EditKind.Fix).workingText)
     }
 
@@ -42,14 +59,44 @@ class AtomicRewordingsTest {
         }
     }
 
-    @Test fun aReportedBundleCannotIncludePunctuationOrTheNextWordsCapitalisation() {
+    @Test fun aReportedBundleCannotIncludeANewSentenceBoundary() {
         val original = "vull prendre una dutxa, després et truco"
         val natural = "em vull dutxar. Després et truco."
-        val r = revision(original, natural = natural)
-        val edits = r.edits(EditKind.Natural)
-        assertTrue(edits.isNotEmpty())
-        assertTrue(edits.none { it.from.contains(",") || it.replacement.contains(".") || it.from.contains("després") })
-        assertEquals("em vull dutxar, després et truco", r.acceptAll(EditKind.Natural).workingText)
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+            natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+        assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+        assertTrue(EditKind.Natural in result.withheld)
+        assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
+    }
+
+    @Test fun anUnreportedRewriteDoesNotGetInventedFallbackEdits() {
+        val result = interpret("Vaig a la bodega", Verdict(status = Verdict.Status.Ok, moreNatural = true,
+            natural = "Vaig a la botiga")) as CheckResult.Reviewed
+        assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+        assertTrue(EditKind.Natural in result.withheld)
+    }
+
+    @Test fun coincidentLettersCannotMakeIndependentWordSubstitutionsOneDecision() {
+        for ((original, natural) in listOf("small cat" to "little feline", "fast car" to "quick automobile")) {
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural, "Different expression"))))
+                as CheckResult.Reviewed
+            assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+            assertTrue(EditKind.Natural in result.withheld)
+        }
+    }
+
+    @Test fun separateInsertionsCannotRideAlongWithAnotherWordChoice() {
+        for ((original, natural) in listOf(
+            "Voy a viajar" to "No voy a volar",
+            "Voy al parque" to "No voy al parque mañana",
+        )) {
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+            assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+            assertTrue(EditKind.Natural in result.withheld)
+            assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
+        }
     }
 
     @Test fun aPeriodOrCaseChangeAloneIsNotARewording() {
@@ -61,7 +108,8 @@ class AtomicRewordingsTest {
     @Test fun independentChangesWithinOneSentenceHaveSeparateAcceptActions() {
         val original = "tinc algunes coses en una bodega"
         val natural = "tinc unes coses en una botiga"
-        val r = revision(original, natural = natural)
+        val r = revision(original, natural = natural,
+            reported = listOf(VerdictChange("algunes", "unes"), VerdictChange("bodega", "botiga")))
         val changes = r.edits(EditKind.Natural)
         assertEquals(2, changes.size)
         assertEquals("tinc unes coses en una bodega", r.accept(changes.first().id).workingText)
@@ -69,20 +117,35 @@ class AtomicRewordingsTest {
         assertEquals(original, r.acceptAll(EditKind.Natural).undo().workingText)
     }
 
-    @Test fun existingSentenceBoundariesSurviveAReportedWholeTextRewrite() {
+    @Test fun explicitChangesKeepExistingSentenceBoundaries() {
         for (separator in listOf(". ", "? ", "! ", "\n\n")) {
             val original = "vull prendre una dutxa" + separator + "tinc algunes coses"
-            val natural = "em vull dutxar" + separator + "tinc unes coses"
-            val r = revision(original, natural = natural)
+            val natural = "vull dutxar-me" + separator + "tinc unes coses"
+            val r = revision(original, natural = natural, reported = listOf(
+                VerdictChange("prendre una dutxa", "dutxar-me"), VerdictChange("algunes", "unes")))
             val boundary = original.indexOf(separator)
             assertTrue(r.edits(EditKind.Natural).all { it.end <= boundary || it.start >= boundary + separator.length })
             assertEquals(natural, r.acceptAll(EditKind.Natural).workingText)
         }
     }
 
-    @Test fun aPhraseCanChangeSeveralWordsAndIncludeItsNecessaryInitialLowercase() {
+    @Test fun changesOnBothSidesOfAnUnchangedWordAreWithheld() {
+        for ((original, natural) in listOf(
+            "Voy a tomar una ducha" to "Me voy a duchar",
+            "Él ayer ha dejado las llaves" to "Ayer dejó las llaves",
+        )) {
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+            assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+            assertTrue(EditKind.Natural in result.withheld)
+            assertFalse(result.looksGood)
+            assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
+        }
+    }
+
+    @Test fun aPhraseCanChangeSeveralWordsAsOneContiguousConstruction() {
         val original = "Voy a tomar una ducha"
-        val natural = "Me voy a duchar"
+        val natural = "Voy a ducharme"
         val r = revision(original, natural = natural)
         assertEquals(1, r.edits(EditKind.Natural).size)
         assertEquals(natural, r.acceptAll(EditKind.Natural).workingText)

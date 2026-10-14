@@ -311,6 +311,36 @@ class CheckViewModelTest {
     }
 
     @Test
+    fun reusedUnusableSuggestionsRemainIncomplete() {
+        store.kept = keptSession(emptyList(), """{"status":"ok","language":"Catalan","more_natural":true}""")
+        client.answer = { awaitCancellation() }
+        check.check(QUESTION, null, Origin.Menu)
+
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+        assertFalse(reviewed().looksGood)
+        assertFalse(reviewed().isResolved)
+        assertTrue(reviewed().revision.edits.isEmpty())
+    }
+
+    @Test
+    fun acceptingAndUndoingSafeFixesKeepsTheIncompleteJudgment() {
+        client.answer = {
+            ModelAnswer(QUESTION_VERDICT.copy(moreNatural = true, natural = ""),
+                """{"status":"ok","has_errors":true,"corrected":"Com estàs?","more_natural":true}""")
+        }
+        check.check(QUESTION, null, Origin.Button)
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+
+        assertFalse(check.acceptAll(EditKind.Fix))
+        assertEquals("Com estàs?", check.workingText)
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+        check.undo()
+        assertNull(check.workingText)
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+        assertFalse(reviewed().looksGood)
+    }
+
+    @Test
     fun dismissingWithTheTextHandedBackRecordsItAsApplied() {
         check.check(QUESTION, Language.Catalan, Origin.Menu)
         reviewed()
@@ -595,12 +625,12 @@ class CheckViewModelTest {
     }
 
     /** A session on [QUESTION] closed earlier, whose one attempt the model answered with [QUESTION_JSON]. */
-    private fun keptSession(settled: List<Settled>): SessionDetail {
+    private fun keptSession(settled: List<Settled>, raw: String = QUESTION_JSON): SessionDetail {
         // Made with the settings the check runs with: a kept answer is only shown for those.
         val settings = runBlocking { checker.context().stored }
         val context = SessionContext(Opening(Origin.Menu, null, null, settings), appVersion = "1.0", deviceId = "device")
         val recording = SessionRecording(QUESTION, context, 500, newId = { "earlier" })
-        recording.attempt(600, settled, QUESTION_JSON, null, null, null, null)
+        recording.attempt(600, settled, raw, null, null, null, null)
         return recording.close(700, null)
     }
 

@@ -40,7 +40,8 @@ internal fun SessionSummary.statusLine(resources: Resources): String = when {
     outcome == Outcome.Abandoned -> resources.getString(R.string.end_not_saved)
     status == Verdict.Status.Unclear -> resources.getString(R.string.meaning_unclear)
     status == Verdict.Status.WrongLanguage -> resources.getString(R.string.wrong_language_status)
-    fixes + rewordings == 0 -> resources.getString(if (status == Verdict.Status.Ok) R.string.looks_good else R.string.no_result)
+    // Summary rows have counts, not the reasons proposed changes were withheld.
+    fixes + rewordings == 0 -> resources.getString(if (status == Verdict.Status.Ok) R.string.no_changes else R.string.no_result)
     else -> listOfNotNull(
         fixes.takeIf { it > 0 }?.let { resources.getQuantityString(R.plurals.fix_count, it, it) },
         rewordings.takeIf { it > 0 }?.let { resources.getQuantityString(R.plurals.rewording_count, it, it) },

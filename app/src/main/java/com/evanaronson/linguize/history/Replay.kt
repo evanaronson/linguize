@@ -45,7 +45,12 @@ fun replay(detail: SessionDetail, parse: (String) -> Verdict): Replayed? {
     } catch (_: Exception) {
         return null
     }
-    val shown = if (result is CheckResult.Reviewed && rows.isNotEmpty()) result.copy(revision = recorded(result.revision, rows)) else result
+    val shown = if (result is CheckResult.Reviewed) {
+        // An empty recorded set is evidence too: a later engine must not invent
+        // suggestions on a past card or call the discarded proposals a clean check.
+        val unrecorded = if (rows.isEmpty()) result.revision.edits.map { it.kind } else emptyList()
+        result.copy(revision = recorded(result.revision, rows), withheld = result.withheld + unrecorded)
+    } else result
     return Replayed(shown, attempt.settled)
 }
 

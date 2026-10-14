@@ -1,9 +1,13 @@
 {
   "seed": 20261013,
   "provider": "gemini",
+  "model": "gemini-3.5-flash-lite",
+  "fallbacks": [
+    "gemini:gemini-3.1-flash-lite"
+  ],
   "requests": 200,
-  "baseline": "c953fd0445e87cc54f9e6ea1bf79d924c925924f",
-  "attempt": 10,
-  "reuse_run": 38422276933,
+  "baseline": "af308a631e783ce46544ba5735fa436dfc572a7c",
+  "attempt": 7,
+  "reuse_run": "38585148127",
   "live": false
 }

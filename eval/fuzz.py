@@ -247,7 +247,9 @@ def main(argv=None):
                     retryable = isinstance(error, (TimeoutError, urllib.error.URLError))
                     status = error.code if isinstance(error, urllib.error.HTTPError) else None
                     if status is not None:
-                        retryable = status in (429, 500, 502, 503, 504)
+                        # A rate-limited target cannot benefit from immediate retries;
+                        # move to the configured fallback and keep the failure evidence.
+                        retryable = status in (500, 502, 503, 504)
                     failure = {"provider": provider, "model": target_model, "error": type(error).__name__}
                     if status is not None:
                         failure["http_status"] = status

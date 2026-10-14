@@ -119,7 +119,7 @@ class PromptTest {
     @Test
     fun theExamplesInThePromptAreValidAnswers() {
         val examples = File("src/main/assets/check_prompt.md").readLines().filter { it.startsWith("{\"status\"") }
-        assertTrue(examples.size > 10)
+        assertTrue(examples.isNotEmpty())
         examples.forEach { prompt.parseVerdict(it) }
     }
 

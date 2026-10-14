@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
 
@@ -9,19 +10,121 @@ class AlignmentTest {
         Alignment.align(original, target).joinToString(" ") { "${it.a?.text ?: "_"}/${it.b?.text ?: "_"}" }
 
     @Test
-    fun theWalkBackFromTheEndChoosesWhichOfTwoEqualTokensPairs() {
-        // Equal costs either way: the walk back from the end pairs the last "a".
+    fun repeatedCharactersUseTheDocumentedLastMatchTieBreak() {
         assertEquals("a/_  /_ a/a", ops("a a", "a"))
-        // Shared tokens at the start don't change that choice.
-        assertEquals("_/, ,/, bbAb/b", ops(",bbAb", ",,b"))
-        assertEquals(" /  A/_ ,/_ A/A ,/_", ops(" A,A,", " A"))
-        assertEquals(",/_ ,/, aa/b", ops(",,aa", ",b"))
     }
 
     @Test
-    fun aVerbInflectionPairsBeforeDeletingTheFollowingPreposition() {
-        assertEquals("pensés/pensis  /_ de/_", ops("pensés de", "pensis"))
-        assertEquals("pensis/penses", ops("pensis", "penses"))
+    fun spacesInsideWordsDoNotChangeTheAlignmentOfTheirLetters() {
+        val result = Alignment.align("micaabans", "mica abans")
+        assertEquals(listOf(null to " "), result.filterNot { it.isMatch }.map { it.a?.text to it.b?.text })
+        assertEquals("micaabans", result.mapNotNull { it.a?.text }.joinToString(""))
+        assertEquals("mica abans", result.mapNotNull { it.b?.text }.joinToString(""))
+    }
+
+    @Test
+    fun aUniqueUnchangedWordCannotBeBorrowedForAnAdjacentReplacement() {
+        val original = "però de; compte"
+        val target = "compte corrent"
+        val result = Alignment.align(original, target)
+        assertEquals("compte", result.filter { it.isMatch }.mapNotNull { it.a?.text }.joinToString(""))
+        assertEquals("però de; ", result.filter { it.b == null }.mapNotNull { it.a?.text }.joinToString(""))
+        assertEquals(" corrent", result.filter { it.a == null }.mapNotNull { it.b?.text }.joinToString(""))
+        assertEquals(original, result.mapNotNull { it.a?.text }.joinToString(""))
+        assertEquals(target, result.mapNotNull { it.b?.text }.joinToString(""))
+    }
+
+    @Test
+    fun canonicallyEquivalentWordsAreExactAnchors() {
+        val result = Alignment.align("però de; cafe\u0301", "café calent")
+        assertEquals("cafe\u0301", result.filter { it.isMatch }.mapNotNull { it.a?.text }.joinToString(""))
+        assertEquals("café", result.filter { it.isMatch }.mapNotNull { it.b?.text }.joinToString(""))
+    }
+
+    @Test
+    fun crossedUniqueWordsUseTheCharacterPathInsteadOfGuessingAReordering() {
+        assertEquals(fullTable("ab cd", "cd ab"), Alignment.align("ab cd", "cd ab"))
+    }
+
+    @Test
+    fun aReorderedRunKeepsItsOuterAnchorsAndMarksEveryCrossedWord() {
+        val original = "left a b c right"
+        val target = "left c b a right"
+        val anchors = Alignment.wordAnchors(Alignment.units(original), Alignment.units(target))
+        assertEquals(listOf("left", "right"), anchors.ordered.map { it.first.text })
+        assertEquals(listOf("a", "b", "c"), anchors.crossed.map { it.first.text })
+        val result = Alignment.align(original, target)
+        for ((source, destination) in anchors.ordered) {
+            val kept = result.filter { it.a != null && it.a.start in source.start until source.end }
+            assertTrue(kept.all { it.isMatch })
+            assertEquals(source.text, kept.mapNotNull { it.a?.text }.joinToString(""))
+            assertEquals(destination.text, kept.mapNotNull { it.b?.text }.joinToString(""))
+        }
+    }
+
+    @Test
+    fun exactWordAnchorsKeepInsertedAndDeletedWordsSeparate() {
+        val original = "niños"
+        val target = "los niños"
+        val insertion = Alignment.align(original, target)
+        assertEquals("niños", insertion.filter { it.isMatch }.mapNotNull { it.a?.text }.joinToString(""))
+        assertEquals("los ", insertion.filter { it.a == null }.mapNotNull { it.b?.text }.joinToString(""))
+        val deletion = Alignment.align(target, original)
+        assertEquals("niños", deletion.filter { it.isMatch }.mapNotNull { it.b?.text }.joinToString(""))
+        assertEquals("los ", deletion.filter { it.b == null }.mapNotNull { it.a?.text }.joinToString(""))
+    }
+
+    @Test
+    fun punctuationReplacingAWordSeparatorStaysOneCompleteOperation() {
+        for ((original, target) in listOf("el:llibre" to "el llibre", "el llibre" to "el:llibre")) {
+            val changes = Alignment.align(original, target).filterNot { it.isMatch }
+            assertEquals(listOf(original.substring(2, 3) to target.substring(2, 3)),
+                changes.map { it.a?.text to it.b?.text })
+        }
+    }
+
+    @Test
+    fun deletingAWholeWordKeepsItsSpaceSeparateFromNewPunctuation() {
+        val changes = Alignment.align("en el sofá y neo está tranquilo", "en el sofá. Neo está tranquilo")
+            .filterNot { it.isMatch }.map { it.a?.text to it.b?.text }
+        assertEquals(listOf(null to ".", " " to null, "y" to null, "n" to "N"), changes)
+        assertEquals(listOf("y" to null, " " to null, null to ","),
+            Alignment.align("y hola", ",hola").filterNot { it.isMatch }.map { it.a?.text to it.b?.text })
+    }
+
+    @Test
+    fun insertingAWholeWordKeepsItsSpaceSeparateFromRemovedPunctuation() {
+        val changes = Alignment.align("en el sofá. Neo está tranquilo", "en el sofá y neo está tranquilo")
+            .filterNot { it.isMatch }.map { it.a?.text to it.b?.text }
+        assertEquals(listOf("." to null, null to " ", null to "y", "N" to "n"), changes)
+        assertEquals(listOf(null to "y", null to " ", "," to null),
+            Alignment.align(",hola", "y hola").filterNot { it.isMatch }.map { it.a?.text to it.b?.text })
+    }
+
+    @Test
+    fun aSeparatorBesideAMisspelledWordStillPairsDirectly() {
+        val changes = Alignment.align("el:llibbre", "el llibre").filterNot { it.isMatch }
+        assertEquals(listOf(":" to " ", "b" to null), changes.map { it.a?.text to it.b?.text })
+    }
+
+    @Test
+    fun damagedNumericSeparatorsBelongToTheCompleteNumber() {
+        for (number in listOf("2,:5", "2.5", "21:30", "1.234,50", "𝟚,:𝟝")) {
+            assertEquals(listOf(number), Alignment.units(number).map { it.text })
+            assertEquals(Alignment.Type.Word, Alignment.units(number).single().type)
+        }
+        assertEquals(listOf("2", "!", "5"), Alignment.units("2!5").map { it.text })
+        assertEquals(listOf("2", ":", " ", "5"), Alignment.units("2: 5").map { it.text })
+        assertEquals(listOf("2.5", "."), Alignment.units("2.5.").map { it.text })
+    }
+
+    @Test
+    fun lexicalUnitsKeepGraphemesAndAllInputLineSeparatorsComplete() {
+        val text = "cafe\u0301\r\n👨‍👩‍👧\u0085𝟚,:𝟝"
+        assertEquals(listOf("cafe\u0301", "\r\n", "👨‍👩‍👧", "\u0085", "𝟚,:𝟝"),
+            Alignment.units(text).map { it.text })
+        assertEquals(listOf(Alignment.Type.Word, Alignment.Type.Space, Alignment.Type.Punct,
+            Alignment.Type.Space, Alignment.Type.Word), Alignment.units(text).map { it.type })
     }
 
     @Test(timeout = 10_000)
@@ -34,17 +137,24 @@ class AlignmentTest {
         val target = "P" + original.drop(1) + "."
         val ops = Alignment.align(original, target)
         assertEquals(target, ops.mapNotNull { it.b?.text }.joinToString(""))
-        assertEquals(listOf("paraula0" to "Paraula0", null to "."), ops.filterNot { it.isMatch }.map { it.a?.text to it.b?.text })
+        assertEquals(listOf("p" to "P", null to "."), ops.filterNot { it.isMatch }.map { it.a?.text to it.b?.text })
     }
 
     @Test
-    fun compactAlignmentKeepsTheExactCheapestPathAndTieBreaking() {
+    fun unanchoredRunsKeepTheExactCheapestPathAndTieBreaking() {
         val random = Random(73)
-        val pieces = listOf("a", "A", "á", "b", " ", "  ", ",", ".", "!", "😀", "cafe\u0301")
-        repeat(500) {
+        // Neither alphabet can combine a missing whole word with a punctuation/space
+        // pair, so separator ownership does not normalize the raw character path.
+        val alphabets = listOf(
+            listOf("a", "A", "á", "b", " ", "  ", "cafe\u0301"),
+            listOf(" ", "  ", ",", ".", "!", "😀"),
+        )
+        for (pieces in alphabets) repeat(250) {
             fun text() = List(random.nextInt(25)) { pieces.random(random) }.joinToString("")
-            val original = text()
-            val target = text()
+            // Duplicating each passage makes every whole word non-unique, so no
+            // lexical anchor constrains the full-table reference's character path.
+            val original = text().let { "$it $it" }
+            val target = text().let { "$it $it" }
             assertEquals("$original -> $target", fullTable(original, target), Alignment.align(original, target))
         }
     }
@@ -60,22 +170,11 @@ class AlignmentTest {
         val a = Alignment.align(original, "").mapNotNull { it.a }
         val b = Alignment.align("", target).mapNotNull { it.b }
         fun gap(token: Alignment.Token) = if (token.type == Alignment.Type.Space) 1 else 2
-        fun close(x: String, y: String): Boolean {
-            if (minOf(x.length, y.length) < 4) return false
-            val d = Array(x.length + 1) { IntArray(y.length + 1) }
-            for (i in 0..x.length) d[i][0] = i
-            for (j in 0..y.length) d[0][j] = j
-            for (i in 1..x.length) for (j in 1..y.length)
-                d[i][j] = minOf(d[i - 1][j] + 1, d[i][j - 1] + 1,
-                    d[i - 1][j - 1] + if (x[i - 1] == y[j - 1]) 0 else 1)
-            return d[x.length][y.length] <= 1
-        }
-        fun stem(word: String): String =
-            if (word.length >= 6 && word[0] in "dlsnmt" && word[1] in "'’") word.drop(2) else word
         fun pair(x: Alignment.Token, y: Alignment.Token): Int? = when {
             x.normal == y.normal -> 0
+            x.type != Alignment.Type.Word && y.type != Alignment.Type.Word && x.type != y.type -> 2
             x.type != y.type -> null
-            x.type == Alignment.Type.Space || x.type == Alignment.Type.Word && (x.folded == y.folded || close(x.folded, y.folded) || stem(x.folded) == stem(y.folded)) -> 1
+            x.type == Alignment.Type.Space || x.type == Alignment.Type.Word && x.folded == y.folded -> 1
             else -> 2
         }
         val costs = Array(a.size + 1) { IntArray(b.size + 1) }

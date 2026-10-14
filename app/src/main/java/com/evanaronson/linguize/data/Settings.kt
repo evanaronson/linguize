@@ -32,11 +32,12 @@ class Settings(private val context: Context) : CheckPreferences {
         get() = read(JUDGMENTS, Judgments.tokens, Judgments.Both)
         set(value) = write(JUDGMENTS, value.token)
 
-    /** Whether checks are kept in history. Turning it off keeps what's already there. */
+    /** Placement shared by loading and result popups. */
     var popupPosition: PopupPosition
         get() = read(POPUP_POSITION, PopupPosition.tokens, PopupPosition.Bottom)
         set(value) = write(POPUP_POSITION, value.token)
 
+    /** Whether checks are kept in history. Turning it off keeps what's already there. */
     var historyEnabled: Boolean
         get() = prefs.getBoolean(HISTORY, true)
         set(value) = synchronized(historyLock) {

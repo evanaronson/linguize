@@ -540,8 +540,8 @@ class EditsTest {
     fun deletionDependencyIsCheckedAgainAfterWideningToACorrection() {
         val original = "fooBar other Other"
         val fixes = listOf(
-            Edit(0, EditKind.Fix, 0, 6, "fooBar", "foo Bar"),
-            Edit(1, EditKind.Fix, 6, 12, " other", ""),
+            Edit(0, EditKind.Fix, 0, 6, "fooBar", "foo Bar", null),
+            Edit(1, EditKind.Fix, 6, 12, " other", "", null),
         )
         val result = Edits.naturalResult(original, fixes, "baz Bar Other", listOf(VerdictChange("foo", "baz")))
         assertTrue(result.edits.isEmpty())

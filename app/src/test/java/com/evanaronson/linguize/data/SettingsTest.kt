@@ -22,6 +22,23 @@ class SettingsTest {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
     @Test
+    fun popupPositionDefaultsToBottomForMissingOrUnknownValues() {
+        assertEquals(PopupPosition.Bottom, Settings(context).popupPosition)
+        prefs.edit().putString("popupPosition", "unknown").commit()
+        assertEquals(PopupPosition.Bottom, Settings(context).popupPosition)
+    }
+
+    @Test
+    fun everyPopupPositionPersistsAcrossSettingsInstances() {
+        val settings = Settings(context)
+        PopupPosition.entries.forEach { position ->
+            settings.popupPosition = position
+            assertEquals(position.token, prefs.getString("popupPosition", null))
+            assertEquals(position, Settings(context).popupPosition)
+        }
+    }
+
+    @Test
     fun choicesSavedByConstantNameStillRead() {
         prefs.edit().putString("provider", "OpenAI").putString("punctuation", "Strict").putString("judgments", "FixOnly").commit()
         val settings = Settings(context)

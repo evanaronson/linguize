@@ -171,10 +171,12 @@ class LinguizeAccessibilityService : AccessibilityService() {
         var onBack: () -> Unit = {}
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
+        var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
         var language by mutableStateOf<Language?>(null)
         // The app opens in a separate task. Hide this overlay until it returns, keeping
         // the same view model, Meaning page, source field and accepted changes.
         val backFromApp: () -> Unit = {
+            popupPosition = App.of(this).settings.popupPosition
             window.hidden = false
             check.recheckIfStale()
         }
@@ -219,6 +221,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
                         FloatingCard(state, actions,
                             onDismiss = close,
                             onOpenApp = openApp,
+                            position = popupPosition,
                         ) {
                             // Another language checks again on the same card: one history session for it.
                             LanguagePicker(language, onSelect = {

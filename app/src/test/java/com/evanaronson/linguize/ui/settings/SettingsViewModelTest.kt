@@ -2,6 +2,7 @@ package com.evanaronson.linguize.ui.settings
 
 import android.os.Looper
 import androidx.lifecycle.ViewModelStore
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.llm.Provider
@@ -16,6 +17,25 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = App::class)
 class SettingsViewModelTest {
+    @Test
+    fun popupPositionSavesAndRefreshesFromAnotherHost() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val settings = SettingsViewModel(app)
+        val store = ViewModelStore().apply { put("settings", settings) }
+        try {
+            waitFor { settings.state != null }
+            assertEquals(PopupPosition.Bottom, settings.state!!.popupPosition)
+            settings.setPopupPosition(PopupPosition.Top)
+            assertEquals(PopupPosition.Top, settings.state!!.popupPosition)
+            assertEquals(PopupPosition.Top, app.settings.popupPosition)
+            app.settings.popupPosition = PopupPosition.Middle
+            settings.refresh()
+            waitFor { settings.state?.popupPosition == PopupPosition.Middle }
+        } finally {
+            store.clear()
+        }
+    }
+
     @Test
     fun completingAKeyWriteReconcilesChangesMadeByAnotherSettingsHost() {
         val app = RuntimeEnvironment.getApplication() as App

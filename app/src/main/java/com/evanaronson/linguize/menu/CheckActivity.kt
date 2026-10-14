@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
@@ -36,10 +37,12 @@ class CheckActivity : ComponentActivity() {
     private var readOnly = true
     private var limited = false
     private var returningFromApp = false
+    private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        popupPosition = App.of(this).settings.popupPosition
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         // Exported aliases are callable by any app. Reject malformed launches before
@@ -83,6 +86,7 @@ class CheckActivity : ComponentActivity() {
                     FloatingCard(it, actions,
                         onDismiss = ::finish,
                         onOpenApp = ::openApp,
+                        position = popupPosition,
                     ) {
                         LanguagePicker(language, onSelect = { selected ->
                             language = selected
@@ -102,6 +106,7 @@ class CheckActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        popupPosition = App.of(this).settings.popupPosition
         if (returningFromApp) {
             returningFromApp = false
             check.recheckIfStale()

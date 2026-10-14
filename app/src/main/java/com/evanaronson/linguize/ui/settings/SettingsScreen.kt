@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.data.MenuEntry
@@ -40,6 +41,7 @@ fun SettingsScreen(settings: SettingsViewModel) {
         val state = settings.state ?: return@Column
         LaunchedEffect(Unit) { settings.showModels() }
         CheckingSection(state, settings)
+        PopupSection(state, settings)
         ModelSection(state, settings)
         HistorySection(state, settings)
     }
@@ -95,3 +97,22 @@ private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
 
 @Composable
 private fun menuLabels(): Map<MenuEntry, String> = MenuEntry.entries.associateWith { stringResource(it.label) }
+
+@Composable
+private fun PopupSection(state: SettingsState, settings: SettingsViewModel) {
+    SectionTitle(stringResource(R.string.popup))
+    val labels = PopupPosition.entries.associateWith { position ->
+        stringResource(when (position) {
+            PopupPosition.Bottom -> R.string.popup_position_bottom
+            PopupPosition.Middle -> R.string.popup_position_middle
+            PopupPosition.Top -> R.string.popup_position_top
+        })
+    }
+    Dropdown(
+        label = stringResource(R.string.popup_position),
+        selected = state.popupPosition,
+        options = PopupPosition.entries,
+        optionLabel = labels::getValue,
+        onSelect = settings::setPopupPosition,
+    )
+}

@@ -444,6 +444,31 @@ class EditsTest {
     }
 
     @Test
+    fun aTypoCannotHideCaseThatDependsOnRemovingASentenceBoundary() {
+        val original = "La jaqueta que vaig comprar és massa petit;a. :Deqmà la tornaré a labotiga. Encara tinc el tiquet."
+        val corrected = "La jaqueta que vaig comprar és massa petita; demà la tornaré a la botiga. Encara tinc el tiquet."
+        val reports = listOf(VerdictChange("petit", "petita", "Jaqueta is feminine"),
+            VerdictChange(";a. :Deqmà", "; demà", "Spacing and typo repair"),
+            VerdictChange("labotiga", "la botiga", "Missing space"))
+        for (changes in listOf(emptyList(), reports)) {
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+                corrected = corrected, fixes = changes)) as CheckResult.Reviewed
+            val r = result.revision
+            assertEquals(listOf("petit;a" to "petita", ":" to "", "labotiga" to "la botiga"), r.changes(EditKind.Fix))
+            for (edit in r.edits(EditKind.Fix)) {
+                val accepted = r.accept(edit.id)
+                assertTrue(accepted.workingText.contains("Deqmà"))
+                assertTrue(accepted.workingText.contains(". "))
+                assertEquals(original, accepted.undo().workingText)
+            }
+            assertEquals("La jaqueta que vaig comprar és massa petita. Deqmà la tornaré a la botiga. Encara tinc el tiquet.",
+                r.acceptAll(EditKind.Fix).workingText)
+            assertTrue(EditKind.Fix in result.withheld)
+            assertFalse(result.isResolved)
+        }
+    }
+
+    @Test
     fun malformedBoundaryReportsDoNotOfferALowercaseWordAfterTheOldPeriod() {
         // Keep the saved broken-word witness and a supported one-word typo. The
         // first requires an unproved join; the second remains independently usable.

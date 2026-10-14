@@ -22,11 +22,14 @@ internal object Edits {
                 wording(right.from, right.replacement) && original.substring(left.end, right.start).all(Char::isWhitespace) &&
                 !Sentences.crosses(sentences, left.start, right.end)) index to index + 1 else null
         }
-        val boundaryPairs = (0 until units.lastIndex).mapNotNull { index ->
-            val left = units[index]
-            val right = units[index + 1]
-            if (original.substring(left.end, right.start).all(Char::isWhitespace) && boundaryCase(left, right))
-                index to index + 1 else null
+        val boundaryPairs = units.indices.flatMap { rightIndex ->
+            val right = units[rightIndex]
+            if (wordCount(right.from) != 1 || wordCount(right.replacement) != 1) emptyList()
+            else (rightIndex - 1 downTo 0).takeWhile { leftIndex ->
+                Alignment.units(original.substring(units[leftIndex].end, right.start)).none { it.type == Type.Word }
+            }.mapNotNull { leftIndex ->
+                if (boundaryCase(units[leftIndex], right)) leftIndex to rightIndex else null
+            }
         }
         val constructions = declared.mapNotNull { span ->
             val covered = units.indices.filter { units[it].start >= span.start && units[it].end <= span.end }
@@ -37,7 +40,9 @@ internal object Edits {
             val grammar = pair in grammarPairs && covered.count { it in joins } == 1 &&
                 covered.filterNot { it in joins }.all { wordCount(units[it].from) == 1 && wordCount(units[it].replacement) == 1 } &&
                 punctuation(span.from) == punctuation(span.replacement)
-            if (!grammar && pair !in boundaryPairs) return@mapNotNull null
+            val boundary = pair in boundaryPairs &&
+                Alignment.same(units[pair.second].from.lowercase(), units[pair.second].replacement.lowercase())
+            if (!grammar && !boundary) return@mapNotNull null
             val local = covered.map { units[it].copy(start = units[it].start - span.start, end = units[it].end - span.start) }
             if (!Alignment.same(render(span.from, toEdits(local, emptyList(), EditKind.Fix, 0)).text, span.replacement))
                 return@mapNotNull null
@@ -128,7 +133,7 @@ internal object Edits {
         val a = Normalizer.normalize(word.from, Normalizer.Form.NFC)
         val b = Normalizer.normalize(word.replacement, Normalizer.Form.NFC)
         if (Alignment.units(a).singleOrNull()?.type != Type.Word || Alignment.units(b).singleOrNull()?.type != Type.Word ||
-            a == b || !a.equals(b, ignoreCase = true)) return false
+            a == b) return false
         val source = a.codePointAt(0)
         val target = b.codePointAt(0)
         return if (before.isNotEmpty()) Character.isUpperCase(source) && Character.isLowerCase(target)

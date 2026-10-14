@@ -15,6 +15,7 @@ import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.data.KeyStatus
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.data.MenuEntry
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
@@ -37,6 +38,7 @@ import java.time.LocalDate
 data class SettingsState(
     /** The entries shown in the text-selection menu; never empty. */
     val menu: Set<MenuEntry> = setOf(MenuEntry.Auto),
+    val popupPosition: PopupPosition = PopupPosition.Bottom,
     val punctuation: Punctuation = Punctuation.Moderate,
     val judgments: Judgments = Judgments.Both,
     val provider: Provider = Provider.Gemini,
@@ -141,6 +143,7 @@ class SettingsViewModel(private val app: App) : ViewModel() {
                     keys = Provider.entries.associateWith { app.keys.status(it) },
                     model = settings.model(provider),
                     historyEnabled = settings.historyEnabled,
+                    popupPosition = settings.popupPosition,
                 )
             }
             val previous = state
@@ -184,6 +187,11 @@ class SettingsViewModel(private val app: App) : ViewModel() {
                 app.menu.setEnabled(entry, entry in menu)
             }
         }
+    }
+
+    fun setPopupPosition(position: PopupPosition) = change { state ->
+        app.settings.popupPosition = position
+        state.copy(popupPosition = position)
     }
 
     fun setPunctuation(punctuation: Punctuation) = change { state ->

@@ -33,6 +33,10 @@ class Settings(private val context: Context) : CheckPreferences {
         set(value) = write(JUDGMENTS, value.token)
 
     /** Whether checks are kept in history. Turning it off keeps what's already there. */
+    var popupPosition: PopupPosition
+        get() = read(POPUP_POSITION, PopupPosition.tokens, PopupPosition.Bottom)
+        set(value) = write(POPUP_POSITION, value.token)
+
     var historyEnabled: Boolean
         get() = prefs.getBoolean(HISTORY, true)
         set(value) = synchronized(historyLock) {
@@ -79,6 +83,7 @@ class Settings(private val context: Context) : CheckPreferences {
         fun modelKey(token: String) = "model.$token"
 
         const val PROVIDER = "provider"
+        const val POPUP_POSITION = "popupPosition"
         const val PUNCTUATION = "punctuation"
         const val JUDGMENTS = "judgments"
         const val HISTORY = "history"

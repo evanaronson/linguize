@@ -9,7 +9,7 @@ Each Accept action must describe one independently meaningful repair. Accept all
 
 Correctness repairs errors while preserving valid wording. Rewording offers a clearly useful change of expression within one existing sentence and paragraph. In the user's example, `tinc que usar → he d'usar` repairs obligation while preserving `usar`; changing the verb to `fer servir` adds an independent preference. Valid `què tal` stays valid.
 
-The owner confirmed independent decisions, one-sentence rewordings, preservation of valid wording, usable line-break repairs, and honest language results. Dependent punctuation/capitalization grouping and runtime retry policy remain open product choices.
+The owner confirmed independent decisions, one-sentence rewordings, preservation of valid wording, usable line-break repairs, and honest language results. The owner also confirmed one retry before partial results and grouping necessary dependent changes (such as boundary capitalization or a spelling correction inside a reworded phrase). Independent preferences still require separate decisions. The semantic trust boundary for arbitrary multiword reports remains an explicit product question.
 
 Core validates exact placement, lexical boundaries, sentence scope, link policy and edit conflicts. Word counts and report shape are admission heuristics, not proof of one linguistic decision. The digit-sequence guard applies to rewordings, not correctness repairs. The prompt instructs the model about meaning; reviewed cases measure compliance. Neither provides a guarantee for arbitrary input.
 
@@ -42,7 +42,7 @@ This replaces `group`/`spans` cleanup, `bridgeWords` and its phrase vocabulary, 
 
 A run that mixes a word insertion or deletion with changed punctuation cannot expose the resulting fragments as separate Accept actions.
 
-Current grouping policies allow certain reported grammatical constructions to own adjacent correction units, and punctuation/case repairs to own a sentence boundary. These policies have regression fixtures but lack separate owner confirmation. Missing or malformed reports withhold those coupled fragments. Display context never expands the actual replacement: deletion and whitespace actions get visible controls in the existing card.
+The owner permits necessary dependent changes to stay together, including punctuation and its required capitalization. The existing grammar-pair classifier is only one implementation of that requirement; its token-shape exceptions are not owner requirements. Missing or malformed reports withhold those coupled fragments. Display context never expands the actual replacement: deletion and whitespace actions get visible controls in the existing card.
 
 ## Deliberate limits
 
@@ -62,4 +62,4 @@ Hard regressions cover the seven confirmed audit fixtures, the user's bundled re
 
 Renew the 200-result manual review whenever offered actions change. Complete the live corpus and focused default/alternative-model controls; record remaining language failures without treating successful evidence capture as a quality pass. Unit tests, lint and the APK build must pass before merge. Handset writeback remains a device check; replay cannot establish Android accessibility behavior.
 
-No runtime provider fallback, new edit framework, extra judging service or history schema is introduced. Temporary evaluation triggers are removed before merge.
+One bounded retry uses the same provider, model, settings and original input with a shared-prompt repair instruction. It runs only after a structurally incomplete result; failures preserve the usable first answer, cancellation propagates, and stored-answer reuse never retries. The second answer replaces the first only if its withheld judgments are a proper subset; edit counts do not rank language quality. No automatic provider fallback, new edit framework, extra judging service or history schema is introduced. Temporary evaluation triggers are removed before merge.

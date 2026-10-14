@@ -247,9 +247,9 @@ class RepairRegressionTest {
                 assertEquals("The numeric fact survives every offered action", "2130",
                     result.revision.accept(edit.id).workingText.filter(Char::isDigit))
             }
-            assertEquals(punctuation, client.checks.single().third.punctuation)
-            assertEquals(judgments, client.checks.single().third.judgments)
-            assertEquals(language, client.checks.single().third.language)
+            assertEquals(punctuation, client.checks.first().third.punctuation)
+            assertEquals(judgments, client.checks.first().third.judgments)
+            assertEquals(language, client.checks.first().third.language)
         }
     }
 

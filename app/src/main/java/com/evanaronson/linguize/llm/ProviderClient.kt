@@ -18,6 +18,8 @@ data class CheckRequest(
     val settled: List<Settled> = emptyList(),
     /** The writer's own language, for everything they read: the meaning, assumptions and reasons. */
     val native: String = "English",
+    /** One retry after the engine withheld structurally unsupported proposals. */
+    val repair: Boolean = false,
 )
 
 /** The model's answer: [raw], the text exactly as it came back, and the [verdict] read from it. */

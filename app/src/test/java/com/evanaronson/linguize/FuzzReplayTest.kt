@@ -65,7 +65,9 @@ class FuzzReplayTest {
                             (selected?.let { it.name + " (" + it.variety + ")" } ?: "auto") +
                             "\nPunctuation: moderate\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)" +
                             "\nText: <text>" + original + "</text>"
-                        if (prompt.userMessage(client.checks.single().third) != expectedMessage)
+                        val requests = client.checks.map { it.third }
+                        if (prompt.userMessage(requests.first()) != expectedMessage || requests.size !in 1..2 ||
+                            requests.drop(1).any { it != requests.first().copy(repair = true) })
                             flags += "request_contract_drift"
                         if (runBlocking { checker.reuse(original, selected, raw, checked.context) }.result != checked.result)
                             flags += "reuse_differs_from_fresh_check"

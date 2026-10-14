@@ -41,6 +41,7 @@ class Prompt(val system: String, schemaJson: String) {
         appendLine("Checks: ${request.judgments.token}")
         appendLine("Native: ${request.native} (write meaning, assumptions and reasons in ${request.native})")
         request.settled.forEach { appendLine("Settled: ${settledJson(it)}") }
+        if (request.repair) appendLine("Repair: true")
         append("Text: $TEXT_OPEN${request.text}$TEXT_CLOSE")
     }
 

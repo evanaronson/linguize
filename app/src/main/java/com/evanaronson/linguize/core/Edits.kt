@@ -51,7 +51,7 @@ internal object Edits {
         val unconfirmedBoundaries = boundaryPairs.filter { pair -> constructions.none { pair.first in it.second && pair.second in it.second } }
         val withheld = unconfirmedBoundaries.flatMap { listOf(it.first, it.second) }.toSet()
         val covered = constructions.flatMap { it.second }.toSet()
-        val constructed = constructions.map { it.first }.toSet()
+        val constructed = constructions.filter { (_, parts) -> parts.none { it in withheld } }.map { it.first }.toSet()
         val spans = (units.filterIndexed { index, _ -> index !in covered && index !in withheld } +
             constructed).sortedBy { it.start }
         val sourceWords = Alignment.units(original).filter { it.type == Type.Word }.groupBy { it.normal }

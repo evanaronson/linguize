@@ -469,6 +469,18 @@ class EditsTest {
     }
 
     @Test
+    fun aGrammarConstructionCannotReintroduceAWithheldBoundaryDependentWord() {
+        val original = "Espera. Tinc que usar això."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = "Espera, he d'usar això.",
+            fixes = listOf(VerdictChange(".", ","), VerdictChange("Tinc que usar", "he d'usar")))) as CheckResult.Reviewed
+        assertTrue(result.revision.edits.isEmpty())
+        assertTrue(EditKind.Fix in result.withheld)
+        assertEquals(original, result.revision.acceptAll(EditKind.Fix).workingText)
+        assertFalse(result.isResolved)
+    }
+
+    @Test
     fun malformedBoundaryReportsDoNotOfferALowercaseWordAfterTheOldPeriod() {
         // Keep the saved broken-word witness and a supported one-word typo. The
         // first requires an unproved join; the second remains independently usable.

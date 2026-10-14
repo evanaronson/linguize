@@ -1,7 +1,7 @@
 # Checker repair
 
 Implementation: [PR #19](https://github.com/evanaronson/linguize/pull/19), based on `2489aa2`.
-Validation is in progress. The [original audit](../eval/fuzz/REPORT.md) reviewed 100 corrupted passages in their named language and Auto Detect: 200 requests, with repeated engine findings in 77 requests.
+The [repair evaluation](../eval/fuzz/REPAIR.md) records the completed corpus review and remaining limits. The [original audit](../eval/fuzz/REPORT.md) reviewed 100 corrupted passages in their named language and Auto Detect: 200 requests, with repeated engine findings in 77 requests.
 
 ## Contract
 
@@ -20,6 +20,8 @@ The implementation has one path for each kind of edit:
 3. Publish the safe actions and retain a small per-judgment incomplete state when proposals were withheld. An empty list caused by rejection must not say “Looks good.”
 
 This replaces `group`/`spans` cleanup, `bridgeWords` and its phrase vocabulary, `mergeWithinFixes`, fallback rewording diffs, fuzzy reason matching, duplicate-deletion ownership guesses, and greeting-specific filtering. Superseded alignment spelling/elision/tidying rules are removed. The prompt consolidates correctness, naturalness and change-list rules instead of appending another exception for every screenshot.
+
+A run that mixes a word insertion or deletion with changed punctuation cannot expose the resulting fragments as separate Accept actions.
 
 Necessary exceptions have explicit evidence: a verified reported grammatical construction can own dependent correction units; a reported punctuation/case repair can own its sentence boundary. Missing or malformed reports withhold those coupled fragments. Display context never expands the actual replacement: deletion and whitespace actions get visible controls in the existing card.
 

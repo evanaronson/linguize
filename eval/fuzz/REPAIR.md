@@ -1,6 +1,6 @@
 # Checker repair validation
 
-Implementation: [PR #19](https://github.com/evanaronson/linguize/pull/19). The [repair contract](../../docs/checker-repair-plan.md) explains the intended behavior and removals. Final engine validation is still in progress.
+Implementation: [PR #19](https://github.com/evanaronson/linguize/pull/19). The [repair contract](../../docs/checker-repair-plan.md) explains the intended behavior and removals. The final engine is `6fe7ce8c3acb6f4ccd9088fd99c71956014872ac`; subsequent delivery changes only adjust tests, documentation and workflow cleanup.
 
 ## Evidence
 
@@ -21,6 +21,19 @@ Successful request latency was 2.00 seconds at the median and 22.16 seconds at t
 Corpus SHA-256: `b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de075`.
 
 Prompt SHA-256: `e0c5da1106d9554b704ff08c8afb2ed228af8ed135b1d4486fb9644bab8079c4`.
+
+## Final replay review
+
+Both 200-result replays passed their structural checks: [frozen replies](https://github.com/evanaronson/linguize/actions/runs/38634595315) and [fresh replies](https://github.com/evanaronson/linguize/actions/runs/38634588356). Independent Catalan and Spanish reviewers covered every result and individual Accept output. Unchanged reviews were inherited only after exact reply/engine hash checks; changed actions were inspected again. The per-request [frozen review](repair-frozen-review.csv) and [fresh review](repair-live-review.csv) preserve those hashes and findings. Hashes use UTF-8 JSON with sorted keys, compact separators and unescaped Unicode.
+
+| Replay | Reviewed requests | Offered actions | Results with withheld proposals |
+| --- | ---: | ---: | ---: |
+| Frozen | 200 | 582 | 61 |
+| Fresh | 200 | 589 | 54 |
+
+No confirmed engine-created corruption or bundled independent Accept action remains in these replays. This is evidence for the reviewed corpus, not a semantic guarantee. Coverage is deliberately incomplete: some ordinary spelling fixes still sit inside ambiguous runs and are withheld. The review records those losses, including Spanish `r:ten → tren` and `felvicidades → felicidades`, separately from bad model judgments. The existing `sp-008` comma proposal leaves another pre-existing sentence error; it remains a policy candidate rather than confirmed new corruption.
+
+The last review caught `Deqmà → demà` offered independently of a period-to-semicolon change. The engine now withholds that dependent pair while preserving independent repairs. Regression tests also cover a deleted word that leaves whitespace and a grammatical construction that must not reintroduce a withheld word.
 
 ## What the review found
 

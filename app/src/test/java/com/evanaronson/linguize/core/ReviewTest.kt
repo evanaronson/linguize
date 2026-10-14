@@ -13,23 +13,44 @@ class ReviewTest {
 
     @Test
     fun independentRepairsStaySeparateFromAnExplicitSentenceBoundaryFix() {
-        val original = "hola q tal bb estas bien te encanta esta musica no"
+        val original = "hola q tal bb estás bien te encanta esta musica no"
         val corrected = "hola, q tal, bb? Estás bien? Te encanta esta música, no?"
         val revision = reviewed(original, Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected,
             fixes = listOf(
-                VerdictChange("", ","), VerdictChange("", ","), VerdictChange("", "?"),
-                VerdictChange("estas", "Estás"), VerdictChange(" te", "? Te"),
+                VerdictChange("", ","), VerdictChange("", ","), VerdictChange(" estás", "? Estás"),
+                VerdictChange(" te", "? Te"),
                 VerdictChange("musica", "música"), VerdictChange("", ","), VerdictChange("", "?"),
             ))).revision
 
         assertEquals(
-            listOf(",", ",", "?", "Estás", "? Te", "música", ",", "?"),
+            listOf(",", ",", "? Estás", "? Te", "música", ",", "?"),
             revision.replacements(EditKind.Fix),
         )
         assertEquals(corrected, revision.preview(EditKind.Fix).text)
         val boundary = revision.edits(EditKind.Fix).single { it.replacement == "? Te" }
-        assertEquals("hola q tal bb estas bien? Te encanta esta musica no", revision.accept(boundary.id).workingText)
+        assertEquals("hola q tal bb estás bien? Te encanta esta musica no", revision.accept(boundary.id).workingText)
         assertEquals(original, revision.accept(boundary.id).undo().workingText)
+    }
+
+    @Test
+    fun anAccentRepairCannotHideUnreportedSentenceInitialCase() {
+        val original = "hola q tal bb estas bien te encanta esta musica no"
+        val result = reviewed(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = "hola, q tal, bb? Estás bien? Te encanta esta música, no?",
+            fixes = listOf(
+                VerdictChange("", ","), VerdictChange("", ","), VerdictChange("", "?"),
+                VerdictChange("estas", "Estás"), VerdictChange(" te", "? Te"),
+                VerdictChange("musica", "música"), VerdictChange("", ","), VerdictChange("", "?"),
+            )))
+        assertEquals(listOf(",", ",", "? Te", "música", ",", "?"), result.revision.replacements(EditKind.Fix))
+        for (edit in result.revision.edits(EditKind.Fix)) {
+            assertTrue(result.revision.accept(edit.id).workingText.contains("bb estas"))
+        }
+        val accepted = result.copy(revision = result.revision.acceptAll(EditKind.Fix))
+        assertEquals("hola, q tal, bb estas bien? Te encanta esta música, no?", accepted.revision.workingText)
+        assertEquals(original, accepted.revision.undo().workingText)
+        assertTrue(EditKind.Fix in result.withheld)
+        assertFalse(accepted.isResolved)
     }
 
     @Test

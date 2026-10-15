@@ -3,7 +3,7 @@ name: Build APK
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/understand-preview-clipboard]
     # Docs, design sources and the eval script don't change the app.
     paths-ignore:
       - README.md
@@ -347,3 +347,21 @@ jobs:
             --title "$version (build inputs: $BRANCH)" \
             --notes "Gradle distribution checksum and dependency verification metadata, to review and commit." \
             --prerelease --latest=false
+
+  cleanup-preview:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/feature/understand-preview-clipboard'
+    needs: [build, sign-and-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete completed temporary preview branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/feature/understand-preview-clipboard" --jq '.object.sha')
+          if [ "$current" = "$EXPECTED_SHA" ]; then
+            gh api --method DELETE "repos/$GH_REPO/git/refs/heads/feature/understand-preview-clipboard"
+          fi

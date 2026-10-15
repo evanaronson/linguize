@@ -127,6 +127,38 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    fun versionFiveBackfillsLanguageIntoRowsAttemptsListsAndExport() = runBlocking<Unit> {
+        val old = open("auto", 10).copy(schema = 4, requestedLanguage = null, targetLanguage = null)
+            .answered(11, """{"status":"ok","language":"Catalan"}""").closed(12)
+        val file = context.getDatabasePath(NAME)
+        file.parentFile!!.mkdirs()
+        val languageColumns = setOf("targetLanguage", "detectedLanguage")
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            HistorySchema.CREATE.map {
+                it.replace(",\n    \"targetLanguage\" TEXT,\n    \"detectedLanguage\" TEXT", "")
+            }.forEach(db::execSQL)
+            val values = old.values().filterKeys { it !in languageColumns }
+            val columns = values.keys.joinToString { "\"$it\"" }
+            db.execSQL("INSERT INTO sessions ($columns) VALUES (${values.keys.joinToString { "?" }})",
+                values.values.toTypedArray())
+            db.version = 5
+        }
+        val restored = store.detail("auto")!!.session
+        assertEquals("ca", restored.targetLanguage)
+        assertEquals("ca", restored.detectedLanguage)
+        assertNull(restored.requestedLanguage)
+        assertEquals("ca", restored.attempts.single().targetLanguage)
+        assertEquals(old.attempts.single().raw, restored.attempts.single().raw)
+        assertEquals(SessionRecord.SCHEMA, restored.schema)
+        assertEquals("ca", store.recent(10).first().single().targetLanguage)
+        assertEquals("ca", store.page(null, 10)!!.rows.single().detectedLanguage)
+        val bytes = ByteArrayOutputStream()
+        assertTrue(store.export(bytes))
+        val exported = historyJson.decodeFromString(SessionDetail.serializer(), bytes.toString().trim())
+        assertEquals(restored, exported.session)
+    }
+
+    @Test
     fun versionFourGainsThePagingIndexWithoutChangingSavedRecords() = runBlocking<Unit> {
         val kept = open("kept", 10).answered(11).closed(12)
         val file = context.getDatabasePath(NAME)
@@ -138,12 +170,12 @@ class SqliteHistoryStoreTest {
         }
         assertEquals(listOf("kept"), store.page(null, 25)!!.rows.map { it.id })
         assertEquals(kept, store.detail("kept")!!.session)
-        assertEquals(listOf(HistorySchema.PAGE_INDEX), HistorySchema.upgrade(4, HistorySchema.SESSION_COLUMNS.toSet()))
+        assertTrue(HistorySchema.upgrade(4, HistorySchema.SESSION_COLUMNS.toSet())!!.contains(HistorySchema.PAGE_INDEX))
         SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
             db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'sessions_page'", null).use {
                 assertTrue(it.moveToFirst())
             }
-            assertEquals(5, db.version)
+            assertEquals(6, db.version)
         }
     }
 

@@ -126,6 +126,8 @@ class SessionRecording(
             remember(revision)
         }
         val settings = settings
+        val detected = detectedLanguage(raw, failure)
+        val target = languageCode(language) ?: detected
         val attempt = Attempt(
             at, settled, raw, failure, failureDetail, reusedFrom,
             requestedLanguage = language,
@@ -136,10 +138,14 @@ class SessionRecording(
             model = settings.model,
             promptHash = settings.promptHash,
             failureMessage = failureMessage,
+            targetLanguage = target,
+            detectedLanguage = detected,
         )
         val succeeded = failure == null
         session = session.copy(
             // The session's language and settings are the latest attempt's.
+            targetLanguage = target,
+            detectedLanguage = detected,
             requestedLanguage = language,
             nativeLanguage = settings.nativeLanguage,
             punctuation = settings.punctuation,

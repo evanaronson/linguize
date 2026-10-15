@@ -60,6 +60,14 @@ class HistoryLabelsTest {
     }
 
     @Test
+    fun historyLanguageLabelsDistinguishDetectedExplicitAndUnknown() {
+        assertEquals("Catalan (auto-detected)", targetLanguageLabel(resources, "ca", null))
+        assertEquals("Spanish", targetLanguageLabel(resources, "es", "es"))
+        assertEquals("Language unknown", targetLanguageLabel(resources, null, null))
+        assertEquals("English", detectedLanguageLabel(resources, "en"))
+    }
+
+    @Test
     fun zeroStoredChangesDoNotClaimTheCheckWasComplete() {
         val row = SessionSummary("empty", now, null, null, "Bon dia", null, 0, 0, 0, Verdict.Status.Ok)
         assertEquals("No changes offered", row.statusLine(resources))

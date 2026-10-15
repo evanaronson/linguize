@@ -145,6 +145,14 @@ data class SessionRecord(
      * suggest), unclear, or wrong_language. Null when no attempt succeeded.
      */
     val status: Verdict.Status? = null,
+    /**
+     * ISO 639-1 code of the latest attempt's target: the explicit request, otherwise
+     * its detection. Null when Auto Detect has no reliable detection, never "auto".
+     * Suggestions join their own attempt's target, since one card can change language.
+     */
+    val targetLanguage: String? = requestedLanguage,
+    /** Latest attempt's detected ISO code; distinct from a conflicting explicit target. */
+    val detectedLanguage: String? = null,
 ) {
     /** The settings this session's latest attempt ran with. */
     val settings: SessionSettings
@@ -180,8 +188,9 @@ data class SessionRecord(
          * 3: `requestedLanguage` is a language code, an attempt's `failure` a token.
          * 4: one session per card; an attempt keeps the language and settings it ran with,
          *    and the session's are the latest attempt's.
+         * 5: target and detected language ISO codes, including Auto Detect.
          */
-        const val SCHEMA = 4
+        const val SCHEMA = 5
     }
 }
 
@@ -219,6 +228,10 @@ data class Attempt(
     val promptHash: String? = null,
     /** App-owned error message token; localized when displayed, unlike provider diagnostics. */
     val failureMessage: String? = null,
+    /** Explicit requested language, otherwise the detected language; null when unknown. */
+    val targetLanguage: String? = requestedLanguage,
+    /** Detected ISO 639-1 code from this successful answer; null for failures or unclear text. */
+    val detectedLanguage: String? = null,
 ) {
     /** Whether a verdict came back and was read: the card showed it. */
     val succeeded: Boolean get() = failure == null && raw != null
@@ -294,6 +307,15 @@ data class SessionSummary(
     val taken: Int,
     /** [SessionRecord.status]: what the last successful attempt found; null when none succeeded. */
     val status: Verdict.Status? = null,
+    val requestedLanguage: String? = null,
+    /**
+     * ISO 639-1 code of the latest attempt's target: the explicit request, otherwise
+     * its detection. Null when Auto Detect has no reliable detection, never "auto".
+     * Suggestions join their own attempt's target, since one card can change language.
+     */
+    val targetLanguage: String? = requestedLanguage,
+    /** Latest attempt's detected ISO code; distinct from a conflicting explicit target. */
+    val detectedLanguage: String? = null,
 ) {
     companion object {
         /** How much of a session's text a Recent row carries. */

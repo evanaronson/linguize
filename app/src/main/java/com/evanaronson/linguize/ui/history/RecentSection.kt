@@ -134,7 +134,7 @@ internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCl
             .padding(vertical = 12.dp),
     ) {
         Text(
-            listOfNotNull(relativeDate(resources, summary.startedAt, now, time), row.appLabel).joinToString(stringResource(R.string.status_separator)),
+            listOfNotNull(relativeDate(resources, summary.startedAt, now, time), row.appLabel, targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage)).joinToString(stringResource(R.string.status_separator)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

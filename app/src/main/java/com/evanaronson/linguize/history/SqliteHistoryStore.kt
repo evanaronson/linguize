@@ -253,16 +253,22 @@ class SqliteHistoryStore(
                 return
             }
             statements.forEach(db::execSQL)
-            // Version 5 only adds the paging index; existing records need no rewrite.
-            if (oldVersion >= 4) return
             val rewritten = buildList {
                 db.eachRow(HistorySchema.ALL_ATTEMPTS) { row ->
                     val stored = row.string("attempts")
-                    val upgraded = upgradeAttempts(stored, HistorySchema.ATTEMPT_CONTEXT.associateWith(row::stringOrNull))
-                    if (upgraded != stored) add(listOf(upgraded, row.string("id")))
+                    val contextual = if (oldVersion < 4) {
+                        upgradeAttempts(stored, HistorySchema.ATTEMPT_CONTEXT.associateWith(row::stringOrNull))
+                    } else stored
+                    val upgraded = upgradeLanguageAttempts(contextual)
+                    val latest = decodeAttempts(upgraded).lastOrNull()
+                    val detected = latest?.detectedLanguage
+                    val target = latest?.targetLanguage ?: languageCode(row.stringOrNull("requestedLanguage"))
+                    add(listOf(upgraded, target, detected, row.string("id")))
                 }
             }
-            rewritten.forEach { db.execute(HistorySchema.SET_ATTEMPTS, it) }
+            rewritten.forEach {
+                db.execute("""UPDATE sessions SET "attempts" = ?, "targetLanguage" = ?, "detectedLanguage" = ? WHERE "id" = ?""", it)
+            }
         }
     }
 }

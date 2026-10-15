@@ -97,6 +97,11 @@ private fun SessionDetails(session: SessionRecord, appLabel: String?) {
     Column {
         Text(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true), style = MaterialTheme.typography.titleLarge)
         appLabel?.let { Faint(it) }
+        Faint(stringResource(R.string.history_target_language,
+            targetLanguageLabel(resources, session.targetLanguage, session.requestedLanguage)))
+        session.detectedLanguage?.takeIf { it != session.targetLanguage }?.let {
+            Faint(stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it)))
+        }
     }
 }
 

@@ -225,4 +225,8 @@
     <string name="popup_position_bottom">Bottom</string>
     <string name="popup_position_middle">Middle</string>
     <string name="popup_position_top">Top</string>
+    <string name="language_unknown">Language unknown</string>
+    <string name="language_auto_detected">%1$s (auto-detected)</string>
+    <string name="history_target_language">Target language: %1$s</string>
+    <string name="history_detected_language">Detected language: %1$s</string>
 </resources>

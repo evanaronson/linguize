@@ -147,3 +147,27 @@ independent mistakes. The data contains no full measure of the writer's writing
 or correctness, so it cannot by itself establish learning progress or an error
 rate. See [Architecture](architecture.md#evidence-first-derived-learning-later)
 for the prerequisites for deriving learning from these observations.
+
+## Language keys
+
+Row schema 5 (database version 6) adds explicit ISO 639-1 language codes to sessions
+and attempts. `requestedLanguage` remains the user's choice (`null` means Auto Detect).
+`detectedLanguage` records a readable successful answer's detected language; it is
+`null` for failures, unclear text, or an unrecognized language. Raw answers remain
+unchanged evidence. `targetLanguage` is the explicit request when present, otherwise
+the detection. For example, requesting Spanish on Catalan text records target `es`
+and detected `ca`; Auto Detect on Catalan records target/detected `ca`.
+
+The session's target and detection describe its latest completed attempt, including
+a failed retry; they never silently retain a previous attempt's detection. An open
+explicit-language session knows its target before any answer; an Auto Detect session
+does not. Requested language and settings remain the reuse key: a detection is an
+answer, not a new input.
+
+For future partitions, group sessions by `targetLanguage`, with a separate unknown
+bucket for null. Join each suggestion to its own attempt using `sessionId` and
+`attempt` before grouping suggestion evidence: one card can change languages.
+Existing database versions 1–5 are upgraded in place and backfilled from saved
+successful raw answers and explicit requests. No network requests or text guesses
+are made. Unreadable evidence stays intact and unresolved language stays null.
+The fields are included in JSONL exports, Recent/History rows and check details.

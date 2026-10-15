@@ -62,7 +62,11 @@ No background monitoring, new permissions, retrieval flags, screenshots, OCR, si
 ## Smart shortcut and Understand
 
 On a deliberate shortcut tap while unlocked, prefer a nonempty eligible editor.
-Private fields retain the existing blocked feedback and never trigger clipboard fallback. Read no hint text. If there is no usable writing, open
+Private fields retain the existing blocked feedback and never trigger clipboard fallback.
+Hint-only fields do not start checks or history sessions: reject the platform hint
+flag, or text matching the field's hint when no text-selection metadata exists.
+A real cursor allows genuinely typed text to match its hint. No generic-word
+blacklist is used. If there is no usable writing, open
 Understand and capture plain clipboard text only after the actual overlay window
 gains focus. No clipboard listener, background polling, URI coercion, or chat-bubble
 scraping is used. A bounded focus failure shows unavailable guidance; missing or
@@ -76,10 +80,13 @@ history writes, deletes its provisional session, and never applies accepted text
 A request already sent to the provider cannot be retracted.
 
 Understand uses a separate prompt, structured result, controller and UI content.
-It has no history or write-back dependency. The source snapshot remains visible;
-retries use that snapshot. It shares the existing popup frame, positioning, scrim,
-loading/errors, and Meaning text treatment. It has no Accept, Apply, correction
-highlights, persistent history, or extra interpretation sections.
+It has no history or write-back dependency. Translation appears first, followed by
+the original copied text. Optional notes are separate structured quote/explanation
+pairs, rendered below the source; every quote must occur in the original text.
+No notes heading appears when none are needed. Retries use the captured source.
+It shares the existing popup frame, positioning, scrim, loading/errors and Meaning
+text treatment. It has no Accept, Apply, correction highlights or persistent history.
+The popup header contains no noninteractive Understand label.
 
 The debug-only ClipboardProbeService and scripts/verify_clipboard_overlay.sh
 verify the real platform boundary: another app seeds the clipboard, Settings owns

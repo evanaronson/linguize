@@ -125,6 +125,39 @@ class EditsTest {
     }
 
     @Test
+    fun aReportCannotBundleLexicalRepairsAcrossARetainedSentenceStop() {
+        val original = "És petit;a. :Deqmà vindrà a labotiga."
+        val corrected = "És petita. Demà vindrà a la botiga."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, fixes = listOf(
+                VerdictChange("petit;a. :Deqmà", "petita. Demà"),
+                VerdictChange("labotiga", "la botiga")))) as CheckResult.Reviewed
+        val r = result.revision
+        assertEquals(listOf("petit;a" to "petita", "labotiga" to "la botiga"), r.changes(EditKind.Fix))
+        assertEquals("És petita. :Deqmà vindrà a labotiga.", r.accept(r.edits.first().id).workingText)
+        assertEquals("És petit;a. :Deqmà vindrà a la botiga.", r.accept(r.edits.last().id).workingText)
+        assertTrue(EditKind.Fix in result.withheld)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+    }
+
+    @Test
+    fun separateReportsOnEitherSideOfASentenceStopRemainIndependent() {
+        val original = "És petit;a. :Deqmà vindrà a labotiga."
+        val corrected = "És petita. Demà vindrà a la botiga."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, fixes = listOf(
+                VerdictChange("petit;a", "petita"), VerdictChange(":Deqmà", "Demà"),
+                VerdictChange("labotiga", "la botiga")))) as CheckResult.Reviewed
+        val r = result.revision
+        assertEquals(listOf("petit;a" to "petita", ":Deqmà" to "Demà", "labotiga" to "la botiga"),
+            r.changes(EditKind.Fix))
+        assertEquals("És petit;a. Demà vindrà a labotiga.", r.accept(r.edits[1].id).workingText)
+        assertTrue(result.withheld.isEmpty())
+        assertAcceptingAllGives(corrected, r)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+    }
+
+    @Test
     fun anEmojiIsOneCharacter() {
         assertEquals(listOf("😀" to "😂"), revision("hola 😀", corrected = "hola 😂", fixChanges = listOf(VerdictChange("😀", "😂"))).changes(EditKind.Fix))
     }

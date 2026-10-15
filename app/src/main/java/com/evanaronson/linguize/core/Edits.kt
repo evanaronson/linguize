@@ -15,6 +15,17 @@ internal object Edits {
         }
         val declared = located(original, corrected, reported)?.takeIf { it.all(::ownsComponents) }
             ?.map { span -> trimUnchangedContext(span).takeIf(::ownsComponents) ?: span }
+            ?.takeIf { spans ->
+                val sourceSentences = Sentences.ranges(original)
+                val targetSentences = Sentences.ranges(corrected)
+                // Structural scope policy across retained sentence stops, not a
+                // classifier of grammatical dependence within a sentence.
+                spans.none { span -> wording(span.from, span.replacement) &&
+                    sentenceStops(span.from) == sentenceStops(span.replacement) &&
+                    Sentences.crosses(sourceSentences, span.start, span.end) &&
+                    Sentences.crosses(targetSentences, span.targetStart, span.targetEnd)
+                }
+            }
         val spans = if (declared != null) {
             declared.flatMap { span ->
                 // The model supplies linguistic decisions. Only mechanically equivalent

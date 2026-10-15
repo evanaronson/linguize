@@ -22,7 +22,8 @@ import com.evanaronson.linguize.core.Verdict
  * tokens and `raw`; 3 stores the requested language as a code and an attempt's failure
  * as a token; 4 records no checks from the app's own "Try it" card, and an attempt keeps
  * the language and settings it ran with (a card is one session, whatever changes).
- * Version 5 adds the paging index, leaving row schemas at 4. [upgrade] gives each step.
+ * Version 5 adds the paging index. Version 6 adds target/detected language columns
+ * and backfills attempts from saved answers (row schema 5). [upgrade] gives each step.
  */
 internal object HistorySchema {
     const val NAME = "history.db"
@@ -31,7 +32,7 @@ internal object HistorySchema {
      * The database's version, for SQLiteOpenHelper. Separate from [SessionRecord.SCHEMA],
      * which is the shape of a row as it would travel to a server.
      */
-    const val VERSION = 5
+    const val VERSION = 6
 
     const val SESSIONS = "sessions"
     const val SUGGESTIONS = "suggestions"
@@ -43,7 +44,7 @@ internal object HistorySchema {
     val SESSION_COLUMNS = listOf(
         "id", "deviceId", "schema", "createdAt", "updatedAt", "deletedAt", "startedAt", "closedAt",
         "origin", "hostApp", "requestedLanguage", "nativeLanguage", "text", "textHash", "finalText", "outcome",
-        "punctuation", "judgments", "provider", "model", "promptHash", "appVersion", "attempts", "meaning", "status",
+        "punctuation", "judgments", "provider", "model", "promptHash", "appVersion", "attempts", "meaning", "status", "targetLanguage", "detectedLanguage",
     )
 
     /** In [SuggestionRecord]'s field order; a test holds the two together. */
@@ -79,7 +80,9 @@ internal object HistorySchema {
             "appVersion" TEXT NOT NULL,
             "attempts" TEXT NOT NULL,
             "meaning" TEXT,
-            "status" TEXT
+            "status" TEXT,
+            "targetLanguage" TEXT,
+            "detectedLanguage" TEXT
         )
         """,
         """
@@ -149,12 +152,12 @@ internal object HistorySchema {
      * read: a row shows one line of it.
      */
     fun recent(limit: Int, before: Boolean = false) = """
-        SELECT s."id", s."startedAt", s."origin", s."hostApp", s."text", s."outcome", s."status",
+        SELECT s."id", s."startedAt", s."origin", s."hostApp", s."text", s."outcome", s."status", s."requestedLanguage", s."targetLanguage", s."detectedLanguage",
             COALESCE(SUM(g."kind" = '$FIX'), 0) AS "fixes",
             COALESCE(SUM(g."kind" = '$NATURAL'), 0) AS "rewordings",
             COALESCE(SUM(g."decision" = '$ACCEPTED'), 0) AS "taken"
         FROM (
-            SELECT "id", "startedAt", "origin", "hostApp", substr("text", 1, ${SessionSummary.TEXT_PREFIX}) AS "text", "outcome", "status"
+            SELECT "id", "startedAt", "origin", "hostApp", substr("text", 1, ${SessionSummary.TEXT_PREFIX}) AS "text", "outcome", "status", "requestedLanguage", "targetLanguage", "detectedLanguage"
             FROM $SESSIONS
             WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL
                 ${if (before) """AND ("startedAt", "id") < (?, ?)""" else ""}
@@ -240,9 +243,11 @@ internal object HistorySchema {
      */
     fun upgrade(from: Int, sessionColumns: Set<String>): List<String>? {
         if (from !in 1 until VERSION) return null
-        if (from == 4) return listOf(PAGE_INDEX)
         return buildList {
             add(PAGE_INDEX)
+            for (column in listOf("targetLanguage", "detectedLanguage")) {
+                if (column !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "$column" TEXT""")
+            }
             if (from == 1) {
                 if ("status" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "status" TEXT""")
                 if ("nativeLanguage" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "nativeLanguage" TEXT""")
@@ -255,8 +260,10 @@ internal object HistorySchema {
                 add(renaming(SUGGESTIONS, "kind", EditKind.tokens.renames()))
                 add(renaming(SUGGESTIONS, "decision", Decision.tokens.renames()))
             }
-            add(renaming(SESSIONS, "requestedLanguage", Language.all.associate { it.name to it.code }))
-            addAll(DELETE_UNRECORDED)
+            if (from < 4) {
+                add(renaming(SESSIONS, "requestedLanguage", Language.all.associate { it.name to it.code }))
+                addAll(DELETE_UNRECORDED)
+            }
             // Rows now have this build's shape.
             add("""UPDATE $SESSIONS SET "schema" = ${SessionRecord.SCHEMA}""")
             add("""UPDATE $SUGGESTIONS SET "schema" = ${SessionRecord.SCHEMA}""")
@@ -338,6 +345,8 @@ internal fun SessionRecord.values(): Map<String, Any?> = linkedMapOf(
     "attempts" to encodeAttempts(attempts),
     "meaning" to meaning,
     "status" to status?.let(Verdict.Status::token),
+    "targetLanguage" to targetLanguage,
+    "detectedLanguage" to detectedLanguage,
 )
 
 /** The values to bind for [HistorySchema.SUGGESTION_COLUMNS], by column. */
@@ -391,6 +400,8 @@ internal fun sessionRecord(row: Row) = SessionRecord(
     attempts = decodeAttempts(row.string("attempts")),
     meaning = row.stringOrNull("meaning"),
     status = Verdict.Status.tokens.decode(row.stringOrNull("status")),
+    targetLanguage = row.stringOrNull("targetLanguage"),
+    detectedLanguage = row.stringOrNull("detectedLanguage"),
 )
 
 /**
@@ -422,6 +433,7 @@ internal fun suggestionRecord(row: Row): SuggestionRecord? {
 
 /** A row of [HistorySchema.recent]. */
 internal fun sessionSummary(row: Row) = SessionSummary(
+    requestedLanguage = row.stringOrNull("requestedLanguage"),
     id = row.string("id"),
     startedAt = row.long("startedAt"),
     origin = Origin.tokens.decode(row.string("origin")),
@@ -432,6 +444,8 @@ internal fun sessionSummary(row: Row) = SessionSummary(
     rewordings = row.long("rewordings").toInt(),
     taken = row.long("taken").toInt(),
     status = Verdict.Status.tokens.decode(row.stringOrNull("status")),
+    targetLanguage = row.stringOrNull("targetLanguage"),
+    detectedLanguage = row.stringOrNull("detectedLanguage"),
 )
 
 /** Whether a session's answer can be shown again: its last attempt came back with one. */

@@ -29,6 +29,8 @@ class HistorySchemaTest {
         origin = Origin.Button,
         hostApp = "org.telegram.messenger",
         requestedLanguage = "ca",
+        targetLanguage = "ca",
+        detectedLanguage = "es",
         nativeLanguage = "English",
         text = "Com estas?\nBé.",
         textHash = "abc123",
@@ -299,7 +301,7 @@ class HistorySchemaTest {
 
     @Test
     fun everyVersionUpgradesByDeletingTheTestersSessions() {
-        assertEquals(5, HistorySchema.VERSION)
+        assertEquals(6, HistorySchema.VERSION)
         for (from in 1..3) {
             val statements = HistorySchema.upgrade(from, HistorySchema.SESSION_COLUMNS.toSet())!!
             val deletes = statements.filter { it.startsWith("DELETE") }

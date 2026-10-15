@@ -113,3 +113,22 @@ private fun storedJson(stored: String): JsonElement = try {
  */
 internal fun exportLine(session: JsonObject, suggestions: List<JsonObject>): String =
     JsonObject(mapOf("session" to session, "suggestions" to JsonArray(suggestions))).toString()
+
+/** Backfill only language metadata; keep raw answers and unknown evidence fields unchanged. */
+internal fun upgradeLanguageAttempts(stored: String): String {
+    val attempts = try {
+        historyJson.parseToJsonElement(stored) as? JsonArray ?: return stored
+    } catch (_: SerializationException) {
+        return stored
+    }
+    fun JsonObject.text(key: String) = (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content
+    return JsonArray(attempts.map { element ->
+        val attempt = element as? JsonObject ?: return@map element
+        val detected = detectedLanguage(attempt.text("raw"), attempt.text("failure"))
+        val target = languageCode(attempt.text("requestedLanguage")) ?: detected
+        JsonObject(attempt + mapOf(
+            "targetLanguage" to (target?.let(::JsonPrimitive) ?: JsonNull),
+            "detectedLanguage" to (detected?.let(::JsonPrimitive) ?: JsonNull),
+        ))
+    }).toString()
+}

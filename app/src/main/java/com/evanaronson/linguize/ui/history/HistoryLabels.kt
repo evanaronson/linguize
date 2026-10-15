@@ -52,3 +52,13 @@ internal fun SessionSummary.statusLine(resources: Resources): String = when {
         },
     ).joinToString(resources.getString(R.string.status_separator))
 }
+
+/** Stored codes are localized only at display time; unknown stays explicit. */
+internal fun targetLanguageLabel(resources: Resources, target: String?, requested: String?): String {
+    val name = target?.let { java.util.Locale.forLanguageTag(it).getDisplayLanguage(resources.uiLocale) }
+        ?.takeIf { it.isNotBlank() } ?: return resources.getString(R.string.language_unknown)
+    return if (requested == null) resources.getString(R.string.language_auto_detected, name) else name
+}
+
+internal fun detectedLanguageLabel(resources: Resources, code: String): String =
+    java.util.Locale.forLanguageTag(code).getDisplayLanguage(resources.uiLocale)

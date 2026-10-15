@@ -76,6 +76,40 @@ class SessionRecordingTest {
     private fun SessionDetail.only(kind: EditKind) = suggestions.single { it.kind == kind }
 
     @Test
+    fun autoDetectionAndExplicitTargetsStayDistinctAcrossAttempts() {
+        val auto = context.copy(opening = context.opening.copy(requestedLanguage = null))
+        val recording = SessionRecording(rain, auto, now = 100)
+        assertNull(recording.session.targetLanguage)
+        fun answer(raw: String, failure: String? = null, reused: String? = null) =
+            recording.attempt(101, emptyList(), raw, failure, null, null, null, reusedFrom = reused)
+
+        val detected = answer("""{"status":"ok","language":"Catalan (Central)"}""", reused = "earlier")
+        assertEquals("ca", detected.targetLanguage)
+        assertEquals("ca", detected.detectedLanguage)
+        assertEquals("ca", detected.attempts.single().targetLanguage)
+        assertEquals("earlier", detected.attempts.single().reusedFrom)
+
+        recording.changeLanguage("es", auto.opening.settings, 102)
+        val wrong = answer("""{"status":"wrong_language","language":"Catalan"}""")
+        assertEquals("es", wrong.targetLanguage)
+        assertEquals("ca", wrong.detectedLanguage)
+        assertEquals(listOf("ca", "es"), wrong.attempts.map { it.targetLanguage })
+
+        val failed = answer("""{"status":"ok","language":"Spanish"}""", "bad_response")
+        assertEquals("es", failed.targetLanguage)
+        assertNull(failed.detectedLanguage)
+        assertNull(failed.attempts.last().detectedLanguage)
+
+        recording.changeLanguage(null, auto.opening.settings, 103)
+        val unclear = answer("""{"status":"unclear","language":"Spanish"}""")
+        assertNull(unclear.targetLanguage)
+        assertNull(unclear.detectedLanguage)
+        val offline = answer("", "offline")
+        assertNull(offline.targetLanguage)
+        assertNull(offline.detectedLanguage)
+    }
+
+    @Test
     fun theSessionStartsOpenWithItsContext() {
         val session = recording(rain).session
         assertEquals("id0", session.id)

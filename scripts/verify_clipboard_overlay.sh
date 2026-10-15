@@ -50,5 +50,5 @@ cat "$probe_dir/result.txt"
 grep -q 'matches=true' "$probe_dir/result.txt"
 # The source is not readable until our actual overlay has focus.
 grep -q 'before=NoText' "$probe_dir/result.txt"
-adb shell settings put secure enabled_accessibility_services ''
+adb shell settings delete secure enabled_accessibility_services
 adb shell settings put secure accessibility_enabled 0

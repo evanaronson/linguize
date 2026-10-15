@@ -63,7 +63,7 @@ jobs:
           import os
           dispatched = os.environ["EVENT_NAME"] == "workflow_dispatch"
           reuse = os.environ.get("REUSE_INPUT", "") if dispatched else ""
-          live = dispatched and os.environ.get("LIVE_INPUT") == "true"
+          live = os.environ["EVENT_NAME"] == "push" or (dispatched and os.environ.get("LIVE_INPUT") == "true")
           if reuse and not str(reuse).isdigit():
               raise ValueError("Resume run ID must be numeric")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:

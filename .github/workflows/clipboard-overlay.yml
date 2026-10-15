@@ -51,4 +51,4 @@ jobs:
         if: failure()
         run: |
           cat /tmp/emulator.log || true
-          adb logcat -d -s AndroidRuntime ClipboardService || true
+          timeout 10 adb logcat -d -s AndroidRuntime ClipboardService || true

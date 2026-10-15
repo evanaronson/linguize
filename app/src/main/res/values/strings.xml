@@ -23,7 +23,7 @@
     <string name="open_settings">Open settings</string>
     <string name="retry">Retry</string>
     <string name="undo">Undo</string>
-    <string name="done">Done</string>
+    <string name="apply">Apply</string>
     <string name="accept">Accept</string>
     <string name="accept_all">Accept all</string>
     <string name="delete">Delete</string>

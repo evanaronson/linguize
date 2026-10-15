@@ -21,8 +21,8 @@ class CardActions(
     companion object {
         /**
          * The same behaviour wherever the card is shown: Copy copies the version on
-         * screen and closes without replacement. Accept and Accept all keep the card
-         * open; Done and dismissal
+         * screen and keeps the card open. Accept and Accept all keep the card
+         * open too; Apply and dismissal
          * ([onClose]) hand back accepted changes.
          */
         fun of(
@@ -31,20 +31,17 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
-            /** Closes after Copy without putting accepted changes back into the source. */
-            onCopyClose: () -> Unit,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
                 check.copied(kind)
-                onCopyClose()
             },
             review = if (canReplace) {
                 ReviewActions(
                     onAccept = check::accept,
                     onAcceptAll = { check.acceptAll(it) },
                     onUndo = check::undo,
-                    onDone = onClose,
+                    onApply = onClose,
                 )
             } else {
                 null
@@ -74,5 +71,5 @@ class ReviewActions(
     val onAcceptAll: (EditKind) -> Unit,
     val onUndo: () -> Unit,
     /** Closes the card, handing back the accepted changes. */
-    val onDone: () -> Unit,
+    val onApply: () -> Unit,
 )

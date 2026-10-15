@@ -116,6 +116,9 @@ class FocusedFieldTest {
             isShowingHintText = false
         }
         assertNull(FocusedField.selection(editor))
+        // Native empty editors can expose a 0,0 cursor alongside their hint.
+        editor.setTextSelection(0, 0)
+        assertNull(FocusedField.selection(editor))
         editor.text = "  Message  "
         assertNull(FocusedField.selection(editor))
         editor.text = "Escribe un mensaje"
@@ -125,6 +128,10 @@ class FocusedFieldTest {
         editor.text = "Message"
         editor.hintText = "Message"
         editor.setTextSelection(7, 7)
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+        // Actual writing at the start still exposes selection actions on Android TextView.
+        editor.setTextSelection(0, 0)
+        editor.addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
         assertEquals("Message", FocusedField.selection(editor)!!.text)
         editor.hintText = "Write a message"
         assertEquals("Message", FocusedField.selection(editor)!!.text)

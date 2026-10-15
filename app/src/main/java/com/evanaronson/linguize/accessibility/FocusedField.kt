@@ -22,8 +22,9 @@ internal object FocusedField {
         // Some apps expose their hint as text without setting isShowingHintText.
         // Match the field's own metadata, never a global list of generic words.
         val hint = node.hintText?.toString()?.trim()
-        if (!hint.isNullOrEmpty() && text.trim() == hint &&
-            node.textSelectionStart < 0 && node.textSelectionEnd < 0) return null
+        val hasWriting = node.textSelectionStart > 0 || node.textSelectionEnd > 0 ||
+            node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_SELECTION }
+        if (!hint.isNullOrEmpty() && text.trim() == hint && !hasWriting) return null
         return text
             .let { com.evanaronson.linguize.core.Selection.of(it, node.textSelectionStart, node.textSelectionEnd) }
             ?.takeIf { it.text.isNotEmpty() }

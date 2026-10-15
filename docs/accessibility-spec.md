@@ -64,8 +64,10 @@ No background monitoring, new permissions, retrieval flags, screenshots, OCR, si
 On a deliberate shortcut tap while unlocked, prefer a nonempty eligible editor.
 Private fields retain the existing blocked feedback and never trigger clipboard fallback.
 Hint-only fields do not start checks or history sessions: reject the platform hint
-flag, or text matching the field's hint when no text-selection metadata exists.
-A real cursor allows genuinely typed text to match its hint. No generic-word
+flag, or text matching the field's hint without evidence of real writing (a
+positive cursor/selection offset or a set-selection action). This also covers an
+empty editor exposing a 0,0 cursor, while native TextView selection actions keep
+genuinely typed text usable even when it matches the hint. No generic-word
 blacklist is used. If there is no usable writing, open
 Understand and capture plain clipboard text only after the actual overlay window
 gains focus. No clipboard listener, background polling, URI coercion, or chat-bubble

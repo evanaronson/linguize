@@ -176,6 +176,7 @@ class HistorySchemaTest {
 
         val summary = sessionSummary(MapRow(mapOf<String, Any?>(
             "id" to "s1", "startedAt" to 1L, "origin" to "widget", "hostApp" to null, "text" to "t",
+            "requestedLanguage" to null, "targetLanguage" to null, "detectedLanguage" to null,
             "outcome" to "snoozed", "status" to "unclear", "fixes" to 1L, "rewordings" to 0L, "taken" to 0L,
         )))
         assertNull(summary.origin)

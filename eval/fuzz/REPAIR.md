@@ -1,6 +1,6 @@
 # Checker repair validation
 
-Implementation: [PR #19](https://github.com/evanaronson/linguize/pull/19). The [repair contract](../../docs/checker-repair-plan.md) explains the intended behavior and removals. The final engine is `6fe7ce8c3acb6f4ccd9088fd99c71956014872ac`; subsequent delivery changes only adjust tests, documentation and workflow cleanup.
+Implementation: [PR #19](https://github.com/evanaronson/linguize/pull/19). The [repair contract](../../docs/checker-repair-plan.md) explains the intended behavior and removals. The current validation is in progress. The previous review below covers engine `6fe7ce8c3acb6f4ccd9088fd99c71956014872ac`; it is historical evidence, not validation of the current simplified engine.
 
 ## Evidence
 
@@ -22,7 +22,7 @@ Corpus SHA-256: `b0b464aa36cbd4458bd1caf8ca84a88cc9ac4c4e6ab95ef65ebbac786d6de07
 
 Prompt SHA-256: `e0c5da1106d9554b704ff08c8afb2ed228af8ed135b1d4486fb9644bab8079c4`.
 
-## Final replay review
+## Previous replay review
 
 Both 200-result replays passed their structural checks: [frozen replies](https://github.com/evanaronson/linguize/actions/runs/38634595315) and [fresh replies](https://github.com/evanaronson/linguize/actions/runs/38634588356). Independent Catalan and Spanish reviewers covered every result and individual Accept output. Unchanged reviews were inherited only after exact reply/engine hash checks; changed actions were inspected again. The per-request [frozen review](repair-frozen-review.csv) and [fresh review](repair-live-review.csv) preserve those hashes and findings. Hashes use UTF-8 JSON with sorted keys, compact separators and unescaped Unicode.
 
@@ -31,7 +31,7 @@ Both 200-result replays passed their structural checks: [frozen replies](https:/
 | Frozen | 200 | 582 | 61 |
 | Fresh | 200 | 589 | 54 |
 
-No confirmed engine-created corruption or bundled independent Accept action remains in these replays. This is evidence for the reviewed corpus, not a semantic guarantee. Coverage is deliberately incomplete: some ordinary spelling fixes still sit inside ambiguous runs and are withheld. The review records those losses, including Spanish `r:ten → tren` and `felvicidades → felicidades`, separately from bad model judgments. The existing `sp-008` comma proposal leaves another pre-existing sentence error; it remains a policy candidate rather than confirmed new corruption.
+That review reported no confirmed engine-created corruption or bundled independent Accept action in those particular replays. This is evidence for the reviewed corpus, not a semantic guarantee. Coverage is deliberately incomplete: some ordinary spelling fixes still sit inside ambiguous runs and are withheld. The review records those losses, including Spanish `r:ten → tren` and `felvicidades → felicidades`, separately from bad model judgments. The existing `sp-008` comma proposal leaves another pre-existing sentence error; it remains a policy candidate rather than confirmed new corruption.
 
 The last review caught `Deqmà → demà` offered independently of a period-to-semicolon change. The engine now withholds that dependent pair while preserving independent repairs. Regression tests also cover a deleted word that leaves whitespace and a grammatical construction that must not reintroduce a withheld word.
 
@@ -50,3 +50,13 @@ The focused runs returned 35 answers covering all 33 controls across default and
 Provider failures are distinguished from returned judgments. Failed calls were retried; bad completed judgments were retained. No word blacklist or extra judging service is added to conceal them.
 
 The test contract is shared across providers and models. Runtime provider selection and fallback behavior are unchanged. Android accessibility writeback still requires a handset check; these replays exercise text construction and acceptance, not another app's editable field.
+
+## Simplification review in progress
+
+The later first-principles review removed the correction-run grammar classifier and the rewording word-count gate. Explicit reports now supply linguistic scope; code validates exact placement and complete mechanical ownership. Multiword grammar remains allowed. An incomplete result gets one same-model repair attempt, followed by safe partial results if the retry does not improve completeness.
+
+Frozen replay [38659955449](https://github.com/evanaronson/linguize/actions/runs/38659955449) of engine `ca5251065e73377fb06feca56c94ff65555b6db5` offered 463 actions across 200 requests, with 74 incomplete results. Every result was reviewed. Review found two unsafe independent Accept outputs: split punctuation in `sortir!.` and a split broken word in `petit;a`. Commit `2841fa0` adds complete source/target component ownership and contiguous punctuation grouping, with regression tests. Its CI and revised corpus review are pending.
+
+The frozen review also found model judgments that alter person or time, unnecessary word preferences, and bundled independent typos. Structural acceptance does not resolve these semantic failures. Strict report reconstruction also withholds useful spelling corrections when another report is malformed; the retry is intended to recover such coverage without reconstructing linguistic intent in code.
+
+Fresh collection [38660138912](https://github.com/evanaronson/linguize/actions/runs/38660138912) is running with the current shared prompt and recorded one-attempt repair responses. It must be replayed through the final engine and manually reviewed before the current change is considered validated. The older CSV reviews above do not cover this new run.

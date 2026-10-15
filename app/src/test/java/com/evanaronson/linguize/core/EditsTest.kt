@@ -73,6 +73,32 @@ class EditsTest {
     }
 
     @Test
+    fun punctuationOwnershipDoesNotRequireAnAdjacentUnchangedEmoji() {
+        val original = "Go!.😀 I wil ask."
+        val corrected = "Go!😀 I will ask."
+        val r = revision(original, corrected, fixChanges = listOf(
+            VerdictChange("!.", "!"), VerdictChange("wil", "will")))
+        assertEquals(listOf("!." to "!", "wil" to "will"), r.changes(EditKind.Fix))
+        assertEquals("Go!😀 I wil ask.", r.accept(r.edits.first().id).workingText)
+        assertEquals("Go!.😀 I will ask.", r.accept(r.edits.last().id).workingText)
+        assertAcceptingAllGives(corrected, r)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+    }
+
+    @Test
+    fun sentenceStopOwnershipDoesNotRequireAnAdjacentUnchangedQuote() {
+        val original = "He said \"Go!.\" I wil ask."
+        val corrected = "He said \"Go!\" I will ask."
+        val r = revision(original, corrected, fixChanges = listOf(
+            VerdictChange("!.", "!"), VerdictChange("wil", "will")))
+        assertEquals(listOf("!." to "!", "wil" to "will"), r.changes(EditKind.Fix))
+        assertEquals("He said \"Go!\" I wil ask.", r.accept(r.edits.first().id).workingText)
+        assertEquals("He said \"Go!.\" I will ask.", r.accept(r.edits.last().id).workingText)
+        assertAcceptingAllGives(corrected, r)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+    }
+
+    @Test
     fun aCompletePunctuationClusterAndAnIndependentTypoKeepSeparateActions() {
         val original = "Go!. I wil ask."
         val corrected = "Go! I will ask."

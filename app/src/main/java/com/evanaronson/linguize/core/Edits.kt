@@ -347,10 +347,11 @@ internal object Edits {
             val units = Alignment.units(text)
             for ((index, unit) in units.withIndex()) {
                 join(at[unit.start], at[unit.end - 1])
-                // Adjacent punctuation is one cluster on either side of the repair.
+                // Adjacent sentence stops are one repair; quotes and symbols stay separate.
                 // Splitting "!." -> "!" could otherwise offer "." -> "!" alone.
                 val previous = units.getOrNull(index - 1)
-                if (unit.type == Type.Punct && previous?.type == Type.Punct)
+                if (unit.type == Type.Punct && previous?.type == Type.Punct &&
+                    sentenceStops(unit.text).isNotEmpty() && sentenceStops(previous.text).isNotEmpty())
                     join(at[previous.start], at[unit.end - 1])
             }
         }

@@ -81,7 +81,6 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             state = state,
             actions = CardActions.of(
                 check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
-                onCopyClose = { check.dismiss(applied = false) },
             ),
             modifier = Modifier.fillMaxWidth(),
             scrollable = false,

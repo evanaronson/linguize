@@ -212,7 +212,6 @@ class LinguizeAccessibilityService : AccessibilityService() {
 
         val actions = CardActions.of(
             check, context = this, onClose = close, onOpenSettings = null,
-            onCopyClose = { end { false } },
         )
         try {
             window.show {

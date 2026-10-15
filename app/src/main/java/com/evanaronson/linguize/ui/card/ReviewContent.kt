@@ -97,7 +97,7 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = review.onUndo) { Text(stringResource(R.string.undo)) }
-            FilledTonalButton(onClick = review.onDone) { Text(stringResource(R.string.done)) }
+            FilledTonalButton(onClick = review.onApply) { Text(stringResource(R.string.apply)) }
         }
     }
 }

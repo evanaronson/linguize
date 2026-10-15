@@ -133,14 +133,13 @@ class CheckViewModelTest {
 
 
     @Test
-    fun acceptAllKeepsTheFinalTextUntilDoneWithoutTouchingTheClipboard() {
+    fun acceptAllKeepsTheFinalTextUntilApplyWithoutTouchingTheClipboard() {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         clipboard.setPrimaryClip(ClipData.newPlainText("existing", "leave this alone"))
         check.check(QUESTION, null, Origin.Button)
         reviewed()
         var putBack: String? = null
-        var copies = 0
         val actions = CardActions.of(
             check, context,
             onClose = {
@@ -148,25 +147,23 @@ class CheckViewModelTest {
                 check.dismiss(applied = true)
             },
             onOpenSettings = null,
-            onCopyClose = { copies++ },
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
         assertNull(putBack)
         assertTrue(reviewed().isResolved)
         assertEquals("Com estàs?", reviewed().revision.preview(EditKind.Fix).text)
         assertTrue(closed().isEmpty())
-        actions.review!!.onDone()
+        actions.review!!.onApply()
         assertEquals("Com estàs?", putBack)
-        assertEquals(0, copies)
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
         assertEquals(Outcome.Applied, closed().single().outcome)
     }
 
     @Test
-    fun copyAfterIndividualAcceptanceDoesNotReplaceText() = assertCompletedReviewCanBeCopied(acceptAll = false)
+    fun copyAfterIndividualAcceptanceKeepsTheCardOpenUntilApply() = assertCompletedReviewCanBeCopied(acceptAll = false)
 
     @Test
-    fun copyAfterAcceptAllDoesNotReplaceText() = assertCompletedReviewCanBeCopied(acceptAll = true)
+    fun copyAfterAcceptAllKeepsTheCardOpenUntilApply() = assertCompletedReviewCanBeCopied(acceptAll = true)
 
     private fun assertCompletedReviewCanBeCopied(acceptAll: Boolean) {
         val context = ApplicationProvider.getApplicationContext<Application>()
@@ -174,15 +171,13 @@ class CheckViewModelTest {
         check.check(QUESTION, null, Origin.Button)
         val fix = reviewed().revision.edits.single { it.kind == EditKind.Fix }
         var replacements = 0
-        var copies = 0
         val actions = CardActions.of(
             check, context,
-            onClose = { replacements++ },
-            onOpenSettings = null,
-            onCopyClose = {
-                copies++
-                check.dismiss(applied = false)
+            onClose = {
+                replacements++
+                check.dismiss(applied = true)
             },
+            onOpenSettings = null,
         )
         if (acceptAll) actions.review!!.onAcceptAll(EditKind.Fix) else actions.review!!.onAccept(fix.id)
         assertTrue(reviewed().isResolved)
@@ -197,11 +192,19 @@ class CheckViewModelTest {
         if (acceptAll) actions.review!!.onAcceptAll(EditKind.Fix) else actions.review!!.onAccept(fix.id)
         actions.onCopy(reviewed().revision.preview(EditKind.Fix).text, EditKind.Fix)
         assertEquals(0, replacements)
-        assertEquals(1, copies)
         assertEquals(preview, clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertTrue(reviewed().isResolved)
+        assertEquals(preview, check.workingText)
+        assertTrue(closed().isEmpty())
+        // Copy must leave review actions alive, including Undo and a later Apply.
+        actions.review!!.onUndo()
+        assertFalse(reviewed().isResolved)
+        actions.review!!.onAcceptAll(EditKind.Fix)
+        actions.review!!.onApply()
+        assertEquals(1, replacements)
         val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.Copied, session.outcome)
+        assertEquals(preview, session.finalText)
+        assertEquals(Outcome.Applied, session.outcome)
     }
 
     @Test
@@ -231,11 +234,10 @@ class CheckViewModelTest {
             check, context,
             onClose = { check.dismiss(applied = false) },
             onOpenSettings = null,
-            onCopyClose = { throw AssertionError("Accept must not call Copy") },
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
         assertTrue(closed().isEmpty())
-        actions.review!!.onDone()
+        actions.review!!.onApply()
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
         assertEquals(Outcome.None, closed().single().outcome)
     }

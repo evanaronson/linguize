@@ -32,7 +32,7 @@ import org.robolectric.util.ReflectionHelpers
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class, shadows = [ShortcutRetryTest.FocusShadow::class, ShortcutRetryTest.WindowFocusShadow::class])
+@Config(sdk = [35], application = com.evanaronson.linguize.App::class, shadows = [ShortcutRetryTest.FocusShadow::class, ShortcutRetryTest.WindowFocusShadow::class])
 @LooperMode(LooperMode.Mode.PAUSED)
 class ShortcutRetryTest {
     private lateinit var service: LinguizeAccessibilityService
@@ -103,11 +103,13 @@ class ShortcutRetryTest {
         assertEquals(1, focus.queries)
     }
 
-    @Test fun anActuallyEmptyEditorDoesNotScheduleARetry() {
+    @Test fun anActuallyEmptyEditorOpensClipboardModeWithoutSchedulingARetry() {
         focus.current = node(editable = true)
         tap()
         advance()
         assertEquals(1, focus.queries)
+        org.junit.Assert.assertNotNull(ReflectionHelpers.getField<Any>(service, "card"))
+        assertNull(ShadowToast.getTextOfLatestToast())
     }
 
     @Test fun aPrivateContainerDoesNotScheduleARetry() {

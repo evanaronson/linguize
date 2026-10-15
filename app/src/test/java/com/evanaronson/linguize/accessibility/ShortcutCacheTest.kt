@@ -25,7 +25,7 @@ import org.robolectric.util.ReflectionHelpers
 
 /** Uses Android's actual focus cache; only the remote editor query is simulated. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class, shadows = [ShortcutCacheTest.FocusServiceShadow::class])
+@Config(sdk = [35], application = com.evanaronson.linguize.App::class, shadows = [ShortcutCacheTest.FocusServiceShadow::class])
 class ShortcutCacheTest {
     @Test fun switchingChatsDoesNotSpendTheFirstTapOnThePreviousEditor() {
         val service = Robolectric.buildService(LinguizeAccessibilityService::class.java).create().get()
@@ -48,11 +48,17 @@ class ShortcutCacheTest {
                 // Handle the new private or empty editor on THIS tap.
                 focus.currentEditor = editor(private = private)
                 val before = focus.queries
+                ShadowToast.reset()
                 ReflectionHelpers.callInstanceMethod<Unit>(service, "tapped")
                 assertEquals(before + 1, focus.queries)
                 assertNull(focus.cachedFocus())
-                val feedback = if (private) R.string.shortcut_private_field else R.string.shortcut_no_text
-                assertEquals(service.getString(feedback), ShadowToast.getTextOfLatestToast())
+                if (private) {
+                    assertEquals(service.getString(R.string.shortcut_private_field), ShadowToast.getTextOfLatestToast())
+                } else {
+                    // An empty new editor now opens clipboard-based Understand, on this same tap.
+                    assertNotNull(ReflectionHelpers.getField<Any>(service, "card"))
+                    assertNull(ShadowToast.getTextOfLatestToast())
+                }
             }
         } finally {
             client.getMethod("removeConnection", Int::class.javaPrimitiveType).invoke(null, connection)

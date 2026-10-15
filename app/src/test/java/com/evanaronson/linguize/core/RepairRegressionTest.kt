@@ -38,43 +38,46 @@ class RepairRegressionTest {
             val id = fixture.getValue("request_id").jsonPrimitive.content
             val original = fixture.getValue("original").jsonPrimitive.content
             val verdict = prompt.parseVerdict(fixture.getValue("verdict").toString())
-            // Mechanical joins still work with absent/misaligned reports (including
-            // the saved CRLF case). Adjacent lexical substitutions require evidence.
-            for (answer in listOf(verdict, verdict.copy(fixes = emptyList()))) {
-                val complete = expectedFixes.getValue(id)
-                val expected = if (id == "sp-012:auto" && answer.fixes.isEmpty()) ExpectedFixes(
-                    "El uelo llegga a las 2130. Julia nos esperará a la salida. La avisaré si hay algún retraso.",
-                    complete.single.drop(2), // uelo/llegga are separate only in the exact reports.
-                    withheld = true,
-                ) else complete
-                val result = reviewed(original, answer)
-                val revision = result.revision
-                if (id == "ca-005:auto") {
-                    // Construction must produce four independent repairs. Publication
-                    // still protects a bare address: sofà.Si would be a new domain until
-                    // the independent boundary-space repair has been accepted.
-                    val derived = Edits.fixes(original, answer.corrected, answer.fixes)
-                    assertIndependentFixes(id, Revision(original, derived.edits), expected)
-                    assertIndependentFixes("$id safe subset", revision, ExpectedFixes(
-                        "El gos s'ha adormit alsofà. Si truques al timbre, es despertarà.",
-                        expected.single.filterNot { "al sofà.Si" in it },
-                    ))
-                    assertTrue(EditKind.Fix in result.withheld)
-                    assertFalse(result.looksGood)
-                } else {
-                    assertIndependentFixes(id, revision, expected)
-                    assertEquals("$id: withheld correctness must remain visible", expected.withheld,
-                        EditKind.Fix in result.withheld)
-                    if (expected.withheld) {
-                        assertFalse(result.looksGood)
-                        assertFalse(result.isResolved)
-                    }
-                }
-                for (edit in revision.edits(EditKind.Natural)) {
-                    val accepted = revision.accept(edit.id).workingText
-                    assertEquals("$id: rewording changed numeric facts", original.filter(Char::isDigit),
-                        accepted.filter(Char::isDigit))
-                }
+            // Keep the original reports, including malformed ones. These exact action
+            // oracles concern placement and completeness, not the model's language judgment.
+            val expected = expectedFixes.getValue(id)
+            val result = reviewed(original, verdict)
+            val revision = result.revision
+            if (id == "ca-005:auto") {
+                // Construction must produce four independent repairs. Publication
+                // still protects a bare address: sofà.Si would be a new domain until
+                // the independent boundary-space repair has been accepted.
+                val derived = Edits.fixes(original, verdict.corrected, verdict.fixes)
+                assertIndependentFixes(id, Revision(original, derived.edits), expected)
+                assertIndependentFixes("$id safe subset", revision, ExpectedFixes(
+                    "El gos s'ha adormit alsofà. Si truques al timbre, es despertarà.",
+                    expected.single.filterNot { "al sofà.Si" in it },
+                ))
+                assertTrue(EditKind.Fix in result.withheld)
+                assertFalse(result.looksGood)
+            } else {
+                assertIndependentFixes(id, revision, expected)
+                assertFalse("$id: all expected corrections are available", EditKind.Fix in result.withheld)
+            }
+            for (edit in revision.edits(EditKind.Natural)) {
+                val accepted = revision.accept(edit.id).workingText
+                assertEquals("$id: rewording changed numeric facts", original.filter(Char::isDigit),
+                    accepted.filter(Char::isDigit))
+            }
+            // Removing reports deliberately loses lexical coverage. It must never create
+            // partial actions, nor claim completion when the proposed target is unreached.
+            val unreported = reviewed(original, verdict.copy(fixes = emptyList()))
+            val actions = unreported.revision.edits(EditKind.Fix)
+            for (edit in actions) {
+                assertTrue("$id: unreported repair must be a reviewed complete action",
+                    unreported.revision.accept(edit.id).workingText in expected.single)
+                assertEquals(original, unreported.revision.accept(edit.id).undo().workingText)
+            }
+            val accepted = unreported.copy(revision = unreported.revision.acceptAll(EditKind.Fix))
+            if (!Alignment.same(accepted.revision.workingText, verdict.corrected.trim())) {
+                assertTrue("$id: unreproduced target must stay incomplete", EditKind.Fix in accepted.withheld)
+                assertFalse(accepted.looksGood)
+                assertFalse(accepted.isResolved)
             }
         }
     }
@@ -116,19 +119,25 @@ class RepairRegressionTest {
         assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
     }
 
-    @Test fun theUsersBundledObligationAndVerbChangeIsWithheldWithoutInventingAFix() {
-        val fixture = Json.parseToJsonElement(fixtureFile("user_atomicity_case.json").readText()).jsonObject
-        val original = fixture.getValue("original").jsonPrimitive.content
-        val saved = prompt.parseVerdict(fixture.getValue("verdict").toString())
-        for (reason in listOf(saved.naturalChanges.single().why, "", "More natural", "Expressa millor la idea")) {
-            val verdict = saved.copy(naturalChanges = saved.naturalChanges.map { it.copy(why = reason) })
-            val result = reviewed(original, verdict)
-            assertTrue("A reason's wording cannot make this bundle atomic", result.revision.edits.isEmpty())
-            assertFalse("Rejected suggestions must not mean looks natural", result.looksGood)
-            assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
-        }
+    @Test fun exactTypoReportsRestoreLexicalRepairsWithoutGuessingMissingDecisions() {
+        val original = "El uelo llegga hoy."
+        val corrected = "El vuelo llega hoy."
+        val verdict = Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected,
+            fixes = listOf(VerdictChange("uelo", "vuelo"), VerdictChange("llegga", "llega")))
+        val result = reviewed(original, verdict)
+        assertIndependentFixes("reported adjacent typos", result.revision, ExpectedFixes(corrected,
+            listOf("El vuelo llegga hoy.", "El uelo llega hoy.")))
+        assertTrue(result.withheld.isEmpty())
+
+        val missing = reviewed(original, verdict.copy(fixes = emptyList()))
+        assertTrue(missing.revision.edits.isEmpty())
+        assertTrue(EditKind.Fix in missing.withheld)
+        assertFalse(missing.looksGood)
+        assertFalse(missing.isResolved)
     }
 
+    // The saved obligation-plus-verb model failure is evaluated by
+    // repair-user-obligation-and-verb. Exact report placement cannot prove its semantics.
     @Test fun theUsersObligationCanBeCorrectedWithoutReplacingTheValidVerb() {
         val fixture = Json.parseToJsonElement(fixtureFile("user_atomicity_case.json").readText()).jsonObject
         val original = fixture.getValue("original").jsonPrimitive.content
@@ -139,7 +148,7 @@ class RepairRegressionTest {
                 change.getValue("to").jsonPrimitive.content, change.getValue("why").jsonPrimitive.content)
         }
         // This is the hand-authored good answer, separate from the saved model failure.
-        // Rejecting the bad answer alone must not disable a legitimate grammatical repair.
+        // The grammar decision belongs to this report; it may span several words.
         val result = reviewed(original, Verdict(status = Verdict.Status.Ok,
             hasErrors = true, corrected = corrected, fixes = reported))
         assertIndependentFixes("obligation without verb preference", result.revision,
@@ -253,7 +262,7 @@ class RepairRegressionTest {
         }
     }
 
-    private data class ExpectedFixes(val all: String, val single: List<String>, val withheld: Boolean = false)
+    private data class ExpectedFixes(val all: String, val single: List<String>)
 
     private val expectedFixes = mapOf(
         "ca-005:auto" to ExpectedFixes(
@@ -310,17 +319,17 @@ class RepairRegressionTest {
                 "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay algún retraso.",
             ),
         ),
-        // aL -> ja que la combines an inferred connector with an article repair.
-        // Keep the four independent word repairs; do not offer that opaque expansion.
+        // The raw report explicitly owns aL -> ja que la. This verifies exact placement,
+        // not whether the model was justified in inferring that connector.
         "ca-024:auto" to ExpectedFixes(
-            "He de prendre aquesta pastilla després de sopar aL metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
+            "He de prendre aquesta pastilla després de sopar ja que la metgessa m'ha dit que no en prengui dues. Ho tinc apuntat al calendari.",
             listOf(
                 "He de prendre aquesta pastilla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
                 "He de prendre aquesta pasti:lla després de sopar aL metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
                 "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha dit que no en prengui dues. Ho ti nc apuntat al calendari.",
                 "He de prendre aquesta pasti:lla despres de sopar aL metgessa m'ha veure que no en prengui dues. Ho tinc apuntat al calendari.",
+                "He de prendre aquesta pasti:lla despres de sopar ja que la metgessa m'ha veure que no en prengui dues. Ho ti nc apuntat al calendari.",
             ),
-            withheld = true,
         ),
     )
 }

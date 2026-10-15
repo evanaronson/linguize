@@ -42,7 +42,8 @@ class LinksTest {
     @Test
     fun editsCannotTurnAnExistingAddressIntoADifferentSubstringAddress() {
         val original = "Consulta notevil.com"
-        val edits = Edits.fixes(original, "Consulta evil.com", emptyList()).edits
+        val edits = Edits.fixes(original, "Consulta evil.com",
+            listOf(VerdictChange("notevil.com", "evil.com"))).edits
         assertTrue(edits.isNotEmpty())
         assertEquals(emptyList<Edit>(), Links.withoutNew(original, edits))
     }

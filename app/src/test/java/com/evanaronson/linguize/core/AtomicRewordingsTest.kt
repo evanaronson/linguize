@@ -44,7 +44,8 @@ class AtomicRewordingsTest {
     @Test fun aGreetingRewriteCannotAddSentenceBoundaries() {
         val original = "Hola que tal estic ber"
         val corrected = "Hola que tal, estic bé"
-        val r = revision(original, corrected, "Hola, com vas? Estic bé.")
+        val r = revision(original, corrected, "Hola, com vas? Estic bé.",
+            fixes = listOf(VerdictChange("", ","), VerdictChange("ber", "bé")))
         assertTrue(r.edits(EditKind.Natural).isEmpty())
         assertEquals(corrected, r.acceptAll(EditKind.Fix).workingText)
         assertEquals(original, r.acceptAll(EditKind.Natural).workingText)

@@ -8,7 +8,13 @@ internal object Edits {
     data class Result(val edits: List<Edit>, val rejected: Boolean)
 
     fun fixes(original: String, corrected: String, reported: List<VerdictChange>): Result {
-        val declared = located(original, corrected, reported)?.map(::trimUnchangedContext)
+        val components = repairs(original, corrected)
+        fun ownsComponents(span: Span) = components.none { part ->
+            cuts(span.start, span.end, part.start, part.end) ||
+                cuts(span.targetStart, span.targetEnd, part.targetStart, part.targetEnd)
+        }
+        val declared = located(original, corrected, reported)?.takeIf { it.all(::ownsComponents) }
+            ?.map { span -> trimUnchangedContext(span).takeIf(::ownsComponents) ?: span }
         val spans = if (declared != null) {
             declared.flatMap { span ->
                 // The model supplies linguistic decisions. Only mechanically equivalent
@@ -21,12 +27,12 @@ internal object Edits {
                 }
             }
         } else if (!wording(original, corrected)) {
-            mechanicalRepairs(original, corrected)
+            groupBoundaryCase(original, components)
         } else {
             // An inconsistent answer cannot authorize inferred grammar or word choice.
             // Keep complete accent/word-spacing repairs whose case and letters agree;
             // isolated punctuation/case fragments may depend on the rejected rewrite.
-            repairs(original, corrected).filter {
+            components.filter {
                 wordCount(it.from) > 0 && wordCount(it.replacement) > 0 &&
                     letters(it.from, ignoreCase = false) == letters(it.replacement, ignoreCase = false)
             }
@@ -36,6 +42,10 @@ internal object Edits {
         val ordered = fixes.map { it.copy(order = 2 * placed.getValue(it.id).baseStart + 1) }
         return Result(ordered, !Alignment.same(render(original, ordered).text, corrected))
     }
+
+    /** A reported decision may contain components, but cannot divide their ownership. */
+    private fun cuts(start: Int, end: Int, componentStart: Int, componentEnd: Int) =
+        componentStart < start && start < componentEnd || componentStart < end && end < componentEnd
 
     /** Split mechanical repairs, keeping a sentence stop with its required initial case. */
     private fun mechanicalRepairs(original: String, corrected: String) =
@@ -334,8 +344,14 @@ internal object Edits {
                 val token = if (original) op.a else op.b
                 if (token != null) for (position in token.start until token.end) at[position] = index
             }
-            for (unit in Alignment.units(text)) {
-                if (unit.type != Type.Punct) join(at[unit.start], at[unit.end - 1])
+            val units = Alignment.units(text)
+            for ((index, unit) in units.withIndex()) {
+                join(at[unit.start], at[unit.end - 1])
+                // Adjacent punctuation is one cluster on either side of the repair.
+                // Splitting "!." -> "!" could otherwise offer "." -> "!" alone.
+                val previous = units.getOrNull(index - 1)
+                if (unit.type == Type.Punct && previous?.type == Type.Punct)
+                    join(at[previous.start], at[unit.end - 1])
             }
         }
         project(base, true)
@@ -349,21 +365,29 @@ internal object Edits {
                 (left.a == null && right.a == null || left.b == null && right.b == null)) join(index - 1, index)
         }
         val before = IntArray(ops.size)
+        val targetBefore = IntArray(ops.size)
         var position = 0
+        var targetPosition = 0
         for ((index, op) in ops.withIndex()) {
             before[index] = position
+            targetBefore[index] = targetPosition
             op.a?.let { position = it.end }
+            op.b?.let { targetPosition = it.end }
         }
         return ops.indices.groupBy(::root).values.mapNotNull { group ->
             if (group.all { ops[it].isMatch }) return@mapNotNull null
             val removed = group.mapNotNull { ops[it].a }
             val start = removed.firstOrNull()?.start ?: before[group.first()]
             val end = removed.lastOrNull()?.end ?: start
+            val added = group.mapNotNull { ops[it].b }
+            val targetStart = added.firstOrNull()?.start ?: targetBefore[group.first()]
+            val targetEnd = added.lastOrNull()?.end ?: targetStart
             val replacement = group.mapNotNull { index ->
                 val op = ops[index]
                 if (op.isMatch) op.a?.text else op.b?.text
             }.joinToString("")
-            Span(start, end, base.substring(start, end), replacement)
+            Span(start, end, base.substring(start, end), replacement,
+                targetStart = targetStart, targetEnd = targetEnd)
         }
     }
 

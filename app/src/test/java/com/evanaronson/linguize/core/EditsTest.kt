@@ -57,7 +57,45 @@ class EditsTest {
     @Test
     fun hyphensAndMiddleDotsBelongToTheWord() {
         assertEquals(listOf("dirho" to "dir-ho"), revision("vull dirho ara", corrected = "vull dir-ho ara").changes(EditKind.Fix))
-        assertEquals(listOf("colegi" to "col·legi"), revision("al colegi", corrected = "al col·legi").changes(EditKind.Fix))
+        assertEquals(listOf("colegi" to "col·legi"), revision("al colegi", corrected = "al col·legi",
+            fixChanges = listOf(VerdictChange("colegi", "col·legi"))).changes(EditKind.Fix))
+    }
+
+    @Test
+    fun adjacentPunctuationReportsCannotExposeADoubledStop() {
+        val original = "Hem de sortir!. Tanca la porta."
+        val corrected = "Hem de sortir! Tanca la porta."
+        val r = revision(original, corrected, fixChanges = listOf(
+            VerdictChange("!", ""), VerdictChange(". Tanca", "! Tanca")))
+        assertEquals(listOf("!." to "!"), r.changes(EditKind.Fix))
+        assertEquals(corrected, r.accept(r.edits.single().id).workingText)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+    }
+
+    @Test
+    fun aCompletePunctuationClusterAndAnIndependentTypoKeepSeparateActions() {
+        val original = "Go!. I wil ask."
+        val corrected = "Go! I will ask."
+        val r = revision(original, corrected, fixChanges = listOf(
+            VerdictChange("!.", "!"), VerdictChange("wil", "will")))
+        assertEquals(listOf("!." to "!", "wil" to "will"), r.changes(EditKind.Fix))
+        assertEquals("Go! I wil ask.", r.accept(r.edits.first().id).workingText)
+        assertEquals("Go!. I will ask.", r.accept(r.edits.last().id).workingText)
+        assertAcceptingAllGives(corrected, r)
+    }
+
+    @Test
+    fun aFullReportListCannotDivideABrokenWordBetweenDecisions() {
+        val original = "És petit;a. :Deqmà vindrà."
+        val corrected = "És petita; demà vindrà."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, fixes = listOf(VerdictChange("petit", "petita"),
+                VerdictChange(";a. :Deqmà", "; demà")))) as CheckResult.Reviewed
+        val r = result.revision
+        assertEquals(listOf("petit;a" to "petita"), r.changes(EditKind.Fix))
+        assertEquals("És petita. :Deqmà vindrà.", r.accept(r.edits.single().id).workingText)
+        assertTrue(EditKind.Fix in result.withheld)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
     }
 
     @Test

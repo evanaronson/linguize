@@ -66,3 +66,5 @@
 {"id":"repair-preserve-tomorrow","text":"Voy a dejar de ver la serie mañana. Hoy quiero terminar este episodio.","language":"Spanish","status":"ok","fix":false,"natural":false}
 {"id":"repair-time-digits","text":"El vuelo llega a las 2130. Julia nos esperará fuera.","language":"Spanish","punctuation":"strict","status":"ok","fix":true,"natural":false,"expected_corrected":"El vuelo llega a las 21:30. Julia nos esperará fuera.","expected_fixes":[{"from":"2130","to":"21:30"}]}
 {"id":"repair-naturalize-leaves-unrelated-error","text":"Com estàs amb la pluja? Tornare demà.","language":"Catalan","checks":"naturalize","status":"ok","fix":false,"natural":true,"expected_corrected":"","expected_natural":"Com portes la pluja? Tornare demà.","expected_natural_changes":[{"from":"estàs amb","to":"portes"}]}
+{"id":"repair-valid-english-word-choices","text":"I saw a small cat beside a fast car. It was waiting for its owner.","status":"ok","fix":false,"natural":false}
+{"id":"repair-preserve-travel-intent","text":"Voy a viajar mañana. Tengo muchas ganas de ver a mi familia.","language":"Spanish","status":"ok","fix":false,"natural":false}

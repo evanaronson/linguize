@@ -18,6 +18,20 @@ class CompleteEvidenceTest(unittest.TestCase):
         self.engines.reverse()
         self.assertEqual(200, len(self.audit()))
 
+    def test_final_live_gate_requires_recorded_retry_but_accepts_recorded_failure(self):
+        for row in self.engines:
+            row["retry_evidence"] = "not_needed"
+        self.engines[0]["retry_evidence"] = "simulated"
+        with self.assertRaisesRegex(ValueError, "actual repair evidence"):
+            complete_evidence(self.replies, self.engines, self.corpus, require_repairs=True)
+        self.replies[0].update(provider="gemini", model="actual")
+        self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1, "error": "TimeoutError"}
+        self.engines[0]["retry_evidence"] = "recorded"
+        self.assertEqual(200, len(complete_evidence(self.replies, self.engines, self.corpus, require_repairs=True)))
+        self.replies[0]["repair"]["model"] = "different"
+        with self.assertRaisesRegex(ValueError, "same-provider/model"):
+            self.audit()
+
     def test_provider_errors_cannot_count_as_completed_checks(self):
         self.replies[0].pop("verdict")
         self.replies[0]["error"] = "timeout"
@@ -88,6 +102,14 @@ class ReviewProvenanceTest(unittest.TestCase):
 
     def test_exact_saved_answer_and_engine_keep_the_review(self):
         self.assertEqual("reviewed", matching_review(self.reply, self.engine, self.note)["review_status"])
+
+    def test_a_repair_payload_needs_its_own_matching_review_hash(self):
+        self.reply["repair"] = {"verdict": {"corrected": "Bona nit."}}
+        self.assertEqual("not_reviewed_for_this_answer", matching_review(self.reply, self.engine, self.note)["review_status"])
+        self.note["repair_sha256"] = evidence_digest(self.reply["repair"])
+        self.assertEqual("reviewed", matching_review(self.reply, self.engine, self.note)["review_status"])
+        self.reply["repair"] = {"error": "TimeoutError"}
+        self.assertEqual("not_reviewed_for_this_answer", matching_review(self.reply, self.engine, self.note)["review_status"])
 
     def test_a_different_provider_model_prompt_or_corpus_needs_a_fresh_review(self):
         for field in ("provider", "model", "prompt_sha256", "corpus_sha256"):

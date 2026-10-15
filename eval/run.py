@@ -60,7 +60,8 @@ def user_message(case):
             f"Punctuation: {case.get('punctuation', 'moderate')}\n"
             f"Checks: {case.get('checks', 'both')}\n"
             f"Native: {native} (write meaning, assumptions and reasons in {native})\n"
-            + settled + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
+            + settled + ("Repair: true\n" if case.get("repair") else "")
+            + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
 
 
 def json_object(value, label):

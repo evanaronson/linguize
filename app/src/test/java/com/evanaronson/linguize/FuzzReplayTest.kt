@@ -6,6 +6,7 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Links
 import com.evanaronson.linguize.core.Sentences
 import com.evanaronson.linguize.llm.ModelAnswer
+import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.runBlocking
@@ -49,8 +50,16 @@ class FuzzReplayTest {
                     }
                     val raw = entry.getValue("verdict").toString()
                     try {
-                        val verdict = prompt.parseVerdict(raw)
-                        val client = FakeClient { ModelAnswer(verdict, raw) }
+                        val firstVerdict = prompt.parseVerdict(raw)
+                        val repair = entry["repair"]?.jsonObject
+                        val client = FakeClient { request ->
+                            if (!request.repair || repair == null) ModelAnswer(firstVerdict, raw)
+                            else {
+                                if ("error" in repair) throw CheckFailure(CheckFailure.Reason.BadResponse)
+                                val repairedRaw = repair.getValue("verdict").toString()
+                                ModelAnswer(prompt.parseVerdict(repairedRaw), repairedRaw)
+                            }
+                        }
                         val preferences = FakePreferences().apply {
                             provider = Provider.entries.first { it.token == entry.getValue("provider").jsonPrimitive.content }
                             models[provider] = entry.getValue("model").jsonPrimitive.content
@@ -58,6 +67,11 @@ class FuzzReplayTest {
                         val checker = fakeChecker(preferences, client, prompt = prompt)
                         val selected = Language.all.firstOrNull { it.name == language }
                         val checked = runBlocking { checker.check(original, selected) }
+                        val verdict = prompt.parseVerdict(checked.raw)
+                        put("selected_verdict", Json.parseToJsonElement(checked.raw))
+                        put("retry_evidence", if (client.checks.size == 1) "not_needed" else if (repair == null) "simulated" else "recorded")
+                        if (repair != null && (repair["provider"] != entry["provider"] || repair["model"] != entry["model"]))
+                            flags += "model_context_drift"
                         if (checked.context.provider != preferences.provider ||
                             checked.context.model != entry.getValue("model").jsonPrimitive.content)
                             flags += "model_context_drift"
@@ -69,7 +83,7 @@ class FuzzReplayTest {
                         if (prompt.userMessage(requests.first()) != expectedMessage || requests.size !in 1..2 ||
                             requests.drop(1).any { it != requests.first().copy(repair = true) })
                             flags += "request_contract_drift"
-                        if (runBlocking { checker.reuse(original, selected, raw, checked.context) }.result != checked.result)
+                        if (runBlocking { checker.reuse(original, selected, checked.raw, checked.context) }.result != checked.result)
                             flags += "reuse_differs_from_fresh_check"
                         when (val result = checked.result) {
                             CheckResult.Unclear -> put("result", "unclear")

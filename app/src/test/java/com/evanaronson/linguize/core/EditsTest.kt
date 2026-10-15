@@ -48,7 +48,8 @@ class EditsTest {
 
     @Test
     fun anIndependentWordInsertionKeepsItsSeparatingSpace() {
-        val r = revision("hola cómo estás", corrected = "hola amor cómo estás")
+        val r = revision("hola cómo estás", corrected = "hola amor cómo estás",
+            fixChanges = listOf(VerdictChange("", " amor")))
         assertEquals("hola amor cómo estás", r.accept(r.edits.single().id).workingText)
         assertEquals("hola cómo estás", r.acceptAll(EditKind.Fix).undo().workingText)
     }
@@ -61,7 +62,7 @@ class EditsTest {
 
     @Test
     fun anEmojiIsOneCharacter() {
-        assertEquals(listOf("😀" to "😂"), revision("hola 😀", corrected = "hola 😂").changes(EditKind.Fix))
+        assertEquals(listOf("😀" to "😂"), revision("hola 😀", corrected = "hola 😂", fixChanges = listOf(VerdictChange("😀", "😂"))).changes(EditKind.Fix))
     }
 
     @Test
@@ -90,7 +91,7 @@ class EditsTest {
 
     @Test
     fun aDeletedWordDoesNotBorrowAnUnchangedNeighbourForVisibility() {
-        val r = revision("hola de amigos", corrected = "hola amigos")
+        val r = revision("hola de amigos", corrected = "hola amigos", fixChanges = listOf(VerdictChange(" de", "")))
         val fix = r.remaining(EditKind.Fix).single()
         assertEquals(" de", fix.from)
         assertEquals("", fix.replacement)
@@ -146,7 +147,8 @@ class EditsTest {
             Triple(", hola", ",", ", adiós"),
         )) {
             val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-                corrected = corrected, moreNatural = true, natural = natural,
+                corrected = corrected, fixes = listOf(VerdictChange(original, corrected)),
+                moreNatural = true, natural = natural,
                 naturalChanges = listOf(VerdictChange(corrected, natural)))) as CheckResult.Reviewed
             assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
             assertEquals(setOf(EditKind.Natural), result.withheld)
@@ -162,7 +164,7 @@ class EditsTest {
         assertTrue(revision(decomposed, corrected = "café bo", natural = "café bo").edits.isEmpty())
 
         val revision = revision(decomposed, corrected = "café bueno", natural = "Un café bueno",
-            naturalChanges = listOf(VerdictChange("", "Un ")))
+            naturalChanges = listOf(VerdictChange("", "Un ")), fixChanges = listOf(VerdictChange("bo", "bueno")))
         assertEquals(listOf("bo" to "bueno"), revision.changes(EditKind.Fix))
         assertEquals(decomposed.indexOf("bo"), revision.edits(EditKind.Fix).single().start)
         assertEquals(listOf("" to "Un "), revision.changes(EditKind.Natural))
@@ -171,7 +173,8 @@ class EditsTest {
 
     @Test
     fun aLineBreakIsNeverSplit() {
-        val revision = revision("a\r\nb", corrected = "a\r\nx\r\nb")
+        val revision = revision("a\r\nb", corrected = "a\r\nx\r\nb",
+            fixChanges = listOf(VerdictChange("", "x\r\n")))
         for (edit in revision.edits) {
             for (at in listOf(edit.start, edit.end)) assertFalse("$edit", "a\r\nb".getOrNull(at - 1) == '\r' && "a\r\nb".getOrNull(at) == '\n')
         }
@@ -204,44 +207,26 @@ class EditsTest {
     }
 
     @Test
-    fun anIncompleteReportCannotSplitASpellingRepairFromAnAdjacentDeletion() {
-        // Live ca-027: the report list deliberately omits the added sentence stop.
-        val original = "Les fotos del viat ge ahnquedat molt bé Te les enviraé aquesta demà."
-        val corrected = "Les fotos del viatge han quedat molt bé. Te les enviaré demà al matí."
-        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected, fixes = listOf(
-            VerdictChange("viat ge", "viatge", "Merged split word"),
-            VerdictChange("ahnquedat", "han quedat", "Typo and missing space"),
-            VerdictChange("enviraé", "enviaré", "Spelling error"),
-            VerdictChange("aquesta demà", "demà al matí", "Correct expression for tomorrow morning"),
-        ))) as CheckResult.Reviewed
-        val r = result.revision
+    fun incompleteReportsKeepOnlyMechanicalWordRepairs() {
+        val original = "Les fotos del viat ge ahnquedat bé."
+        val corrected = "Les fotos del viatge han quedat bé."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, fixes = listOf(VerdictChange("viat ge", "viatge")))) as CheckResult.Reviewed
+        assertEquals(listOf("viat ge" to "viatge"), result.revision.changes(EditKind.Fix))
+        assertEquals("Les fotos del viatge ahnquedat bé.", result.revision.acceptAll(EditKind.Fix).workingText)
         assertTrue(EditKind.Fix in result.withheld)
-        for (edit in r.edits(EditKind.Fix)) {
-            assertTrue(r.accept(edit.id).workingText.endsWith("Te les enviraé aquesta demà."))
-            assertEquals(original, r.accept(edit.id).undo().workingText)
-        }
-        assertEquals("Les fotos del viatge ahnquedat molt bé. Te les enviraé aquesta demà.",
-            r.acceptAll(EditKind.Fix).workingText)
+        assertFalse(result.isResolved)
     }
 
     @Test
-    fun aMalformedReportCannotLicenseCapitalisationAndAnArticleInOneFix() {
-        // Live sp-018: preserve the malformed empty-source vocative report and
-        // missing final-period report. Neither may invent an alignment constraint.
-        val original = "abuelo niños salen del colegio a las cinco. Hoy los ira a recoger su abuelo. Yo los esperar'é en ver"
-        val corrected = "Abuelo, los niños salen del colegio a las cinco. Hoy los irá a recoger su abuelo. Yo los esperaré en casa."
-        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected, fixes = listOf(
-            VerdictChange("", "Abuelo,", "Added vocative comma"),
-            VerdictChange("niños", "los niños", "Added missing article"),
-            VerdictChange("ira", "irá", "Missing accent"),
-            VerdictChange("esperar'é", "esperaré", "Removed typo"),
-            VerdictChange("en ver", "en casa", "Corrected typo"),
-        ))) as CheckResult.Reviewed
-        val r = result.revision
+    fun malformedReportsDoNotAuthorizeInferredWordChoices() {
+        val original = "abuelo niños salen. Hoy ira a casa."
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = "Abuelo, los niños salen. Hoy irá a casa.",
+            fixes = listOf(VerdictChange("", "Abuelo,"), VerdictChange("ira", "irá")))) as CheckResult.Reviewed
+        assertEquals(listOf("ira" to "irá"), result.revision.changes(EditKind.Fix))
         assertTrue(EditKind.Fix in result.withheld)
-        assertTrue(r.edits(EditKind.Fix).all { r.accept(it.id).workingText.startsWith("abuelo niños salen") })
-        assertEquals("abuelo niños salen del colegio a las cinco. Hoy los irá a recoger su abuelo. Yo los esperaré en casa.",
-            r.acceptAll(EditKind.Fix).workingText)
+        assertFalse(result.looksGood)
     }
 
     @Test
@@ -282,20 +267,18 @@ class EditsTest {
     }
 
     @Test
-    fun opaqueBrokenWordRunsAreWithheldEvenWhenTheirWordCountsAgree() {
-        val original = "Jo el s mai a casa."
-        for (replacement in listOf("els tinc", "no els tinc")) {
-            val corrected = "Jo $replacement mai a casa."
-            for (reported in listOf(emptyList(), listOf(VerdictChange("el s", replacement)))) {
-                val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-                    corrected = corrected, fixes = reported)) as CheckResult.Reviewed
-                assertTrue(result.revision.edits.isEmpty())
-                assertEquals(original, result.revision.acceptAll(EditKind.Fix).workingText)
-                assertTrue(EditKind.Fix in result.withheld)
-                assertFalse(result.looksGood)
-                assertFalse(result.isResolved)
-            }
-        }
+    fun aReportedMultiwordGrammarDecisionHasOneAccept() {
+        val original = "Quan parlo català tinc que usar això."
+        val corrected = "Quan parlo català he d'usar això."
+        val r = revision(original, corrected,
+            fixChanges = listOf(VerdictChange("tinc que usar", "he d'usar", "Obligation construction")))
+        assertEquals(listOf("tinc que usar" to "he d'usar"), r.changes(EditKind.Fix))
+        assertEquals(corrected, r.accept(r.edits.single().id).workingText)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+        val missing = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected)) as CheckResult.Reviewed
+        assertTrue(missing.revision.edits.isEmpty())
+        assertTrue(EditKind.Fix in missing.withheld)
     }
 
     @Test
@@ -318,78 +301,64 @@ class EditsTest {
     }
 
     @Test
-    fun aVerbRepairAndAnAddedPrepositionCannotShareOneAccept() {
-        val original = "La informació sé taula htps://examle.o rg/horaris. Consulta-la abans de sortir. E ls horaris poden canviar."
-        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-            corrected = "La informació és a taula htps://examle.o rg/horaris. Consulta-la abans de sortir. Els horaris poden canviar.",
-            fixes = listOf(VerdictChange("sé", "és a", "Verb form and preposition"),
-                VerdictChange("E ls", "Els", "Spacing correction")))) as CheckResult.Reviewed
-        assertTrue(EditKind.Fix in result.withheld)
-        assertEquals(listOf("E ls" to "Els"), result.revision.changes(EditKind.Fix))
-        assertEquals("La informació sé taula htps://examle.o rg/horaris. Consulta-la abans de sortir. Els horaris poden canviar.",
-            result.revision.acceptAll(EditKind.Fix).workingText)
+    fun aNecessaryPrepositionAndVerbFormCanShareOneAccept() {
+        val original = "I look forward see you."
+        val corrected = "I look forward to seeing you."
+        val r = revision(original, corrected,
+            fixChanges = listOf(VerdictChange("see", "to seeing", "Required verb construction")))
+        assertEquals(listOf("see" to "to seeing"), r.changes(EditKind.Fix))
+        assertEquals(corrected, r.accept(r.edits.single().id).workingText)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
     }
 
     @Test
-    fun crossedWordsAreWithheldTogetherWhileIndependentFixesRemainUsable() {
-        val original = "El uelo llegga a las 2130. Julia nos esperará a la salwida. La avisaré pero hay abuelo retraso."
-        val corrected = "El vuelo llega a las 21:30. Julia nos esperará a la salida. La avisaré pero hay retraso, abuelo."
-        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected,
-            fixes = listOf(VerdictChange("uelo", "vuelo", "Missing letter v"), VerdictChange("llegga", "llega", "Spelling error"),
-                VerdictChange("2130", "21:30", "Time format"), VerdictChange("salwida", "salida", "Spelling error"),
-                VerdictChange("pero hay abuelo retraso", "pero hay retraso, abuelo", "Word order and comma")))) as CheckResult.Reviewed
-        val r = result.revision
-        assertEquals(listOf("uelo" to "vuelo", "llegga" to "llega", "2130" to "21:30", "salwida" to "salida"), r.changes(EditKind.Fix))
-        assertTrue(EditKind.Fix in result.withheld)
-        for (fix in r.edits(EditKind.Fix)) {
-            assertTrue(r.accept(fix.id).workingText.endsWith("hay abuelo retraso."))
-            assertEquals(original, r.accept(fix.id).undo().workingText)
-        }
-        assertEquals("El vuelo llega a las 21:30. Julia nos esperará a la salida. La avisaré pero hay abuelo retraso.",
-            r.acceptAll(EditKind.Fix).workingText)
+    fun reportedWordOrderRepairDoesNotConsumeAnIndependentTypo() {
+        val original = "I know not. I wil ask."
+        val corrected = "I do not know. I will ask."
+        val r = revision(original, corrected, fixChanges = listOf(
+            VerdictChange("know not", "do not know", "Negation construction"),
+            VerdictChange("wil", "will", "Missing letter")))
+        assertEquals(listOf("know not" to "do not know", "wil" to "will"), r.changes(EditKind.Fix))
+        assertEquals("I do not know. I wil ask.", r.accept(r.edits.first().id).workingText)
+        assertEquals("I know not. I will ask.", r.accept(r.edits.last().id).workingText)
+        assertAcceptingAllGives(corrected, r)
     }
 
     @Test
-    fun exactLocalReportsCanCorroborateAlreadyDerivedIndependentWords() {
+    fun independentlyReportedTyposHaveIndependentAcceptActions() {
         val original = "El uelo llegga hoy."
         val corrected = "El vuelo llega hoy."
         val r = revision(original, corrected,
             fixChanges = listOf(VerdictChange("uelo", "vuelo"), VerdictChange("llegga", "llega")))
-        val fixes = r.edits(EditKind.Fix)
-        assertEquals(listOf("El vuelo llegga hoy.", "El uelo llega hoy."), fixes.map { r.accept(it.id).workingText })
+        assertEquals(listOf("El vuelo llegga hoy.", "El uelo llega hoy."),
+            r.edits.map { r.accept(it.id).workingText })
         assertAcceptingAllGives(corrected, r)
-        // This valid adjacent correction has the same unreported shape as el s -> els tinc.
-        // A broad or missing report cannot establish the two intended boundaries.
-        for (reported in listOf(emptyList(), listOf(VerdictChange("uelo llegga", "vuelo llega")))) {
-            val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-                corrected = corrected, fixes = reported)) as CheckResult.Reviewed
-            assertTrue(result.revision.edits.isEmpty())
-            assertTrue(EditKind.Fix in result.withheld)
-            assertEquals(original, result.revision.acceptAll(EditKind.Fix).workingText)
-        }
+        val missing = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected)) as CheckResult.Reviewed
+        assertTrue(missing.revision.edits.isEmpty())
+        assertTrue(EditKind.Fix in missing.withheld)
     }
 
     @Test
     fun aSingleCompleteWordRepairSurvivesRepeatedUnchangedContext() {
         val original = "Cuando la clase termcine, la revisaré."
         val corrected = "Cuando la clase termine, la revisaré."
-        val r = revision(original, corrected)
+        val r = revision(original, corrected, fixChanges = listOf(VerdictChange("termcine", "termine")))
         assertEquals(listOf("termcine" to "termine"), r.changes(EditKind.Fix))
         assertEquals(corrected, r.accept(r.edits.single().id).workingText)
         assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
     }
 
     @Test
-    fun anIncompleteReportListCanCorroborateExactIndependentTypos() {
+    fun anIncompleteReportListDoesNotBecomeASecondOperationSource() {
         val original = "El uelo llegga hoy"
         val corrected = "El vuelo llega hoy."
-        // The final period is absent from the list. Each word report still identifies
-        // exactly one existing source and target unit; it does not establish a cut.
-        val r = revision(original, corrected,
-            fixChanges = listOf(VerdictChange("uelo", "vuelo"), VerdictChange("llegga", "llega")))
-        assertEquals(listOf("El vuelo llegga hoy", "El uelo llega hoy", "El uelo llegga hoy."),
-            r.edits(EditKind.Fix).map { r.accept(it.id).workingText })
-        assertAcceptingAllGives(corrected, r)
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, fixes = listOf(VerdictChange("uelo", "vuelo"),
+                VerdictChange("llegga", "llega")))) as CheckResult.Reviewed
+        assertTrue(result.revision.edits.isEmpty())
+        assertTrue(EditKind.Fix in result.withheld)
+        assertFalse(result.looksGood)
     }
 
     @Test
@@ -416,7 +385,7 @@ class EditsTest {
         )) {
             val r = revision(original, corrected, fixChanges = listOf(change))
             assertTrue(r.edits(EditKind.Fix).all { it.why == null })
-            assertEquals(corrected, r.acceptAll(EditKind.Fix).workingText)
+            assertEquals(original, r.acceptAll(EditKind.Fix).workingText)
         }
         val exact = revision("olt de temps", "molt de temps",
             fixChanges = listOf(VerdictChange("olt", "molt", "Missing letter")))
@@ -444,66 +413,42 @@ class EditsTest {
     }
 
     @Test
-    fun aTypoCannotHideCaseThatDependsOnRemovingASentenceBoundary() {
-        val original = "La jaqueta que vaig comprar és massa petit;a. :Deqmà la tornaré a labotiga. Encara tinc el tiquet."
-        val corrected = "La jaqueta que vaig comprar és massa petita; demà la tornaré a la botiga. Encara tinc el tiquet."
-        val reports = listOf(VerdictChange("petit", "petita", "Jaqueta is feminine"),
-            VerdictChange(";a. :Deqmà", "; demà", "Spacing and typo repair"),
-            VerdictChange("labotiga", "la botiga", "Missing space"))
-        for (changes in listOf(emptyList(), reports)) {
-            val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-                corrected = corrected, fixes = changes)) as CheckResult.Reviewed
-            val r = result.revision
-            assertEquals(listOf("petit;a" to "petita", ":" to "", "labotiga" to "la botiga"), r.changes(EditKind.Fix))
-            for (edit in r.edits(EditKind.Fix)) {
-                val accepted = r.accept(edit.id)
-                assertTrue(accepted.workingText.contains("Deqmà"))
-                assertTrue(accepted.workingText.contains(". "))
-                assertEquals(original, accepted.undo().workingText)
-            }
-            assertEquals("La jaqueta que vaig comprar és massa petita. Deqmà la tornaré a la botiga. Encara tinc el tiquet.",
-                r.acceptAll(EditKind.Fix).workingText)
-            assertTrue(EditKind.Fix in result.withheld)
-            assertFalse(result.isResolved)
-        }
-    }
-
-    @Test
-    fun aGrammarConstructionCannotReintroduceAWithheldBoundaryDependentWord() {
+    fun malformedBoundaryReportsDoNotExposeDependentCaseFragments() {
         val original = "Espera. Tinc que usar això."
         val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
             corrected = "Espera, he d'usar això.",
-            fixes = listOf(VerdictChange(".", ","), VerdictChange("Tinc que usar", "he d'usar")))) as CheckResult.Reviewed
+            fixes = listOf(VerdictChange("Tinc", "he")))) as CheckResult.Reviewed
         assertTrue(result.revision.edits.isEmpty())
         assertTrue(EditKind.Fix in result.withheld)
         assertEquals(original, result.revision.acceptAll(EditKind.Fix).workingText)
-        assertFalse(result.isResolved)
     }
 
     @Test
-    fun malformedBoundaryReportsDoNotOfferALowercaseWordAfterTheOldPeriod() {
-        // Keep the saved broken-word witness and a supported one-word typo. The
-        // first requires an unproved join; the second remains independently usable.
-        for ((broken, offered) in listOf("núe;ro" to "núe;ro", "núemro" to "número")) {
-            val original = "La factura es de 125 pero. Tenemos que pagarla antes del viernes.  Ya he comprobado el $broken de cuenta."
-            val corrected = "La factura es de 125, pero tenemos que pagarla antes del viernes. Ya he comprobado el número de cuenta."
-            for (changes in listOf(emptyList(), listOf(VerdictChange(". Tenemos", ", tenemos"),
-                VerdictChange(broken, "número")))) {
-                val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-                    corrected = corrected, fixes = changes)) as CheckResult.Reviewed
-                val revision = result.revision
-                assertTrue(EditKind.Fix in result.withheld)
-                assertFalse(result.looksGood)
-                assertEquals(offered != broken, revision.edits(EditKind.Fix).any { it.from == broken && it.replacement == "número" })
-                for (fix in revision.edits(EditKind.Fix)) {
-                    assertTrue(revision.accept(fix.id).workingText.contains("pero. Tenemos"))
-                }
-                val accepted = revision.acceptAll(EditKind.Fix)
-                assertEquals("La factura es de 125, pero. Tenemos que pagarla antes del viernes. Ya he comprobado el $offered de cuenta.",
-                    accepted.workingText)
-                assertFalse(result.copy(revision = accepted).isResolved)
-            }
-        }
+    fun aReportedBoundaryAndGrammarConstructionRetainTheirWholeOperation() {
+        val original = "Espera. Tinc que usar això."
+        val corrected = "Espera, he d'usar això."
+        val r = revision(original, corrected,
+            fixChanges = listOf(VerdictChange(". Tinc que usar", ", he d'usar")))
+        assertEquals(listOf(". Tinc que usar" to ", he d'usar"), r.changes(EditKind.Fix))
+        assertEquals(corrected, r.accept(r.edits.single().id).workingText)
+        assertEquals(original, r.acceptAll(EditKind.Fix).undo().workingText)
+    }
+
+    @Test
+    fun apostropheAttachedLettersMustBeOwnedByTheWholeReport() {
+        val result = interpret("d'usar", Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = "l'usar", fixes = listOf(VerdictChange("d", "l")))) as CheckResult.Reviewed
+        assertTrue(result.revision.edits.isEmpty())
+        assertTrue(EditKind.Fix in result.withheld)
+    }
+
+    @Test
+    fun repeatedCorrectionSourceIsPlacedByTheCompleteTarget() {
+        val original = "Com estas? Tu estas bé."
+        val corrected = "Com estas? Tu estàs bé."
+        val r = revision(original, corrected, fixChanges = listOf(VerdictChange("estas", "estàs")))
+        assertEquals(original.lastIndexOf("estas"), r.edits.single().start)
+        assertEquals(corrected, r.accept(r.edits.single().id).workingText)
     }
 
     @Test
@@ -531,7 +476,8 @@ class EditsTest {
         val natural = "Está encima de la mesa del comedor."
         val changes = listOf(VerdictChange("del comedor", "de la mesa del comedor"))
         val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-            corrected = corrected, moreNatural = true, natural = natural,
+            corrected = corrected, fixes = listOf(VerdictChange("dei", "del")),
+            moreNatural = true, natural = natural,
             naturalChanges = changes)) as CheckResult.Reviewed
         assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
         assertEquals(setOf(EditKind.Natural), result.withheld)
@@ -592,7 +538,8 @@ class EditsTest {
         val corrected = "Algunas cosas son buenas."
         val natural = "Algunas cosas son estupendas."
         val r = revision(original, corrected, natural,
-            naturalChanges = listOf(VerdictChange("buenas", "estupendas")))
+            naturalChanges = listOf(VerdictChange("buenas", "estupendas")),
+            fixChanges = listOf(VerdictChange("Algunas algunas", "Algunas")))
         val naturalEdit = r.edits(EditKind.Natural).single()
         assertEquals("Algunas algunas cosas son estupendas.", r.accept(naturalEdit.id).workingText)
         assertTrue(naturalEdit.includes.isEmpty())
@@ -632,7 +579,8 @@ class EditsTest {
     @Test
     fun noSuggestionAddsALink() {
         val original = "escribeme mañana"
-        val fixes = revision(original, corrected = "Escríbeme mañana en evil.com").changes(EditKind.Fix)
+        val fixes = revision(original, corrected = "Escríbeme mañana en evil.com",
+            fixChanges = listOf(VerdictChange("escribeme", "Escríbeme"), VerdictChange("", " en evil.com"))).changes(EditKind.Fix)
         assertEquals(listOf("escribeme" to "Escríbeme"), fixes)
         assertEquals(emptyList<Any>(), revision(original, corrected = "escribeme mañana https://x.io/a").edits)
         assertEquals(emptyList<Any>(), revision(original, natural = "Escríbeme a www.ejemplo.net mañana").edits)

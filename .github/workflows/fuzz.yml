@@ -127,9 +127,28 @@ jobs:
           LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
           LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
         run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
+      - name: Retry incomplete live answers once
+        if: steps.request.outputs.live == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python3 eval/fuzz.py --live --repair-from eval/fuzz/results/engine.jsonl --interval 3 --timeout 30
+      - name: Replay recorded retry answers
+        if: steps.request.outputs.live == 'true'
+        env:
+          LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
+          LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
+        run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
       - name: Build complete review sheet
         if: always()
-        run: python3 eval/fuzz_report.py
+        env:
+          LIVE: ${{ steps.request.outputs.live }}
+        run: |
+          if [ "$LIVE" = true ]; then
+            python3 eval/fuzz_report.py --require-repairs
+          else
+            python3 eval/fuzz_report.py
+          fi
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

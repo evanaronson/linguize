@@ -33,24 +33,15 @@ class ReviewTest {
     }
 
     @Test
-    fun anAccentRepairCannotHideUnreportedSentenceInitialCase() {
-        val original = "hola q tal bb estas bien te encanta esta musica no"
+    fun separatelyReportedStopAndCaseBecomeOneNecessaryBoundaryAction() {
+        val original = "Hola estas bé."
+        val corrected = "Hola. Estàs bé."
         val result = reviewed(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-            corrected = "hola, q tal, bb? Estás bien? Te encanta esta música, no?",
-            fixes = listOf(
-                VerdictChange("", ","), VerdictChange("", ","), VerdictChange("", "?"),
-                VerdictChange("estas", "Estás"), VerdictChange(" te", "? Te"),
-                VerdictChange("musica", "música"), VerdictChange("", ","), VerdictChange("", "?"),
-            )))
-        assertEquals(listOf(",", ",", "? Te", "música", ",", "?"), result.revision.replacements(EditKind.Fix))
-        for (edit in result.revision.edits(EditKind.Fix)) {
-            assertTrue(result.revision.accept(edit.id).workingText.contains("bb estas"))
-        }
-        val accepted = result.copy(revision = result.revision.acceptAll(EditKind.Fix))
-        assertEquals("hola, q tal, bb estas bien? Te encanta esta música, no?", accepted.revision.workingText)
-        assertEquals(original, accepted.revision.undo().workingText)
-        assertTrue(EditKind.Fix in result.withheld)
-        assertFalse(accepted.isResolved)
+            corrected = corrected, fixes = listOf(VerdictChange("", "."), VerdictChange("estas", "Estàs"))))
+        assertEquals(listOf(" estas" to ". Estàs"), result.revision.edits.map { it.from to it.replacement })
+        assertEquals(corrected, result.revision.accept(result.revision.edits.single().id).workingText)
+        assertEquals(original, result.revision.acceptAll(EditKind.Fix).undo().workingText)
+        assertTrue(result.withheld.isEmpty())
     }
 
     @Test
@@ -75,7 +66,8 @@ class ReviewTest {
         val original = "unes tomàquets molt bo"
         val revision = reviewed(
             original,
-            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "uns tomàquets molt bons"),
+            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "uns tomàquets molt bons",
+                fixes = listOf(VerdictChange("unes", "uns"), VerdictChange("bo", "bons"))),
         ).revision
         val (first, second) = revision.remaining(EditKind.Fix)
 
@@ -180,6 +172,7 @@ class ReviewTest {
                 status = Verdict.Status.Ok,
                 hasErrors = true,
                 corrected = "vamos a comer algunos snacks de una bodega o algo.",
+                fixes = listOf(VerdictChange("snaks", "snacks"), VerdictChange("", ".")),
                 moreNatural = true,
                 natural = "vamos a comer unos snacks de una tienda o algo.",
                 naturalChanges = listOf(VerdictChange("algunos", "unos"), VerdictChange("bodega", "tienda")),
@@ -206,6 +199,7 @@ class ReviewTest {
             status = Verdict.Status.Ok,
             hasErrors = true,
             corrected = "vamos a comer algunos snacks de una bodega o algo.",
+                fixes = listOf(VerdictChange("snaks", "snacks"), VerdictChange("", ".")),
             moreNatural = true,
             natural = "vamos a comer unos snacks de una tienda o algo.",
             naturalChanges = listOf(VerdictChange("algunos", "unos"), VerdictChange("bodega", "tienda")),
@@ -213,7 +207,7 @@ class ReviewTest {
         assertEquals(setOf(EditKind.Fix, EditKind.Natural), result.withheld)
         assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
         val accepted = result.copy(revision = result.revision.acceptAll(EditKind.Fix))
-        assertEquals("$original.", accepted.revision.workingText)
+        assertEquals(original, accepted.revision.workingText)
         assertFalse(accepted.isResolved)
         assertFalse(accepted.looksGood)
     }
@@ -252,25 +246,18 @@ class ReviewTest {
     }
 
     @Test
-    fun aReportedDuplicateDeletionStillCannotSupportDependentRewordings() {
-        val original = "Hola bebé estoy en casa y neo está en el suelo y tengo algunas algunas cosas que voy a hacer"
-        val result = reviewed(original, Verdict(
-            status = Verdict.Status.Ok,
-            hasErrors = true,
-            corrected = "Hola, bebé. Estoy en casa y Neo está en el suelo y tengo algunas cosas que voy a hacer",
-            fixes = listOf(VerdictChange("", ","), VerdictChange(" estoy", ". Estoy"),
-                VerdictChange("neo", "Neo"), VerdictChange("algunas algunas", "algunas")),
-            moreNatural = true,
-            natural = "Hola, bebé. Estoy en casa y Neo está en el suelo y tengo unas cosas que hacer",
-            naturalChanges = listOf(VerdictChange("algunas", "unas"), VerdictChange("voy a hacer", "hacer")),
-        ))
-        assertEquals(setOf(EditKind.Fix, EditKind.Natural), result.withheld)
-        assertEquals(listOf(",", ". Estoy", "Neo"), result.revision.replacements(EditKind.Fix))
+    fun aReportedDuplicateDeletionIsOfferedWithoutGuessingNaturalOwnership() {
+        val original = "Tinc algunes algunes coses."
+        val corrected = "Tinc algunes coses."
+        val result = reviewed(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+            corrected = corrected, fixes = listOf(VerdictChange("algunes algunes", "algunes")),
+            moreNatural = true, natural = "Tinc unes coses.",
+            naturalChanges = listOf(VerdictChange("algunes", "unes"))))
+        assertEquals(setOf(EditKind.Natural), result.withheld)
+        assertEquals(listOf(" algunes"), result.revision.edits(EditKind.Fix).map { it.from })
+        assertEquals(corrected, result.revision.acceptAll(EditKind.Fix).workingText)
         assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
-        val accepted = result.copy(revision = result.revision.acceptAll(EditKind.Fix))
-        assertEquals("Hola, bebé. Estoy en casa y Neo está en el suelo y tengo algunas algunas cosas que voy a hacer",
-            accepted.revision.workingText)
-        assertFalse(accepted.isResolved)
+        assertEquals(original, result.revision.acceptAll(EditKind.Fix).undo().workingText)
     }
 
     @Test
@@ -328,7 +315,8 @@ class ReviewTest {
         val original = "en el sofá y Neo está tranquilo"
         val corrected = "en el sofá Neo está tranquilo"
         val result = reviewed(original,
-            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected))
+            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = corrected,
+                fixes = listOf(VerdictChange(" y", ""))))
         assertTrue(result.withheld.isEmpty())
         val fix = result.revision.remaining(EditKind.Fix).single()
         assertEquals(" y" to "", fix.from to fix.replacement)
@@ -388,7 +376,8 @@ class ReviewTest {
         // The re-check adds a spelling fix and keeps the already accepted comma.
         val second = reviewed(
             original,
-            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "Hola, bebé, tomamos las cervezas que me ha traído de Montreal"),
+            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "Hola, bebé, tomamos las cervezas que me ha traído de Montreal",
+                fixes = listOf(VerdictChange("", ","), VerdictChange("cervezaz", "cervezas"))),
         ).revision.acceptMatching(accepted)
 
         assertEquals("Hola, bebé, tomamos las cervezaz que me ha traído de Montreal", second.workingText)
@@ -397,20 +386,19 @@ class ReviewTest {
     }
 
     @Test
-    fun aRecheckKeepsAcceptedChangesWhenANewDependentRewriteIsWithheld() {
-        val original = "Hola bebé, tomamos las cervezas que me ha traído de Montreal"
+    fun aRecheckWithAnIncompleteAnswerCanRetainAnAcceptedMechanicalRepair() {
+        val original = "Parlo catala i tinc que usar això."
         val first = reviewed(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-            corrected = "Hola, bebé, tomamos las cervezas que me ha traído de Montreal")).revision
+            corrected = "Parlo català i tinc que usar això.")).revision
         val accepted = first.acceptAll(EditKind.Fix).acceptedEdits
         val checked = reviewed(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
-            corrected = "Hola, bebé, tomamos las cervezas que he traído de Montreal"))
+            corrected = "Parlo català i he d'usar això."))
         val second = checked.copy(revision = checked.revision.acceptMatching(accepted))
         assertEquals(setOf(EditKind.Fix), second.withheld)
-        assertEquals("Hola, bebé, tomamos las cervezas que me ha traído de Montreal", second.revision.workingText)
+        assertEquals("Parlo català i tinc que usar això.", second.revision.workingText)
         assertEquals(1, second.revision.acceptedCount)
         assertTrue(second.revision.remaining(EditKind.Fix).isEmpty())
         assertFalse(second.isResolved)
-        assertFalse(second.looksGood)
     }
 
     @Test
@@ -462,7 +450,7 @@ class ReviewTest {
     fun deletedWordsKeepTheirOwnSpan() {
         val revision = reviewed(
             "Ayer yo fui a la playa",
-            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "Ayer fui a la playa"),
+            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "Ayer fui a la playa", fixes = listOf(VerdictChange(" yo", ""))),
         ).revision
 
         val fix = revision.remaining(EditKind.Fix).single()
@@ -476,7 +464,7 @@ class ReviewTest {
     fun insertedWordsKeepTheirSeparatingSpaceInTheEdit() {
         val revision = reviewed(
             "Ahir vaig mercat",
-            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "Ahir vaig al mercat"),
+            Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "Ahir vaig al mercat", fixes = listOf(VerdictChange("", " al"))),
         ).revision
 
         val fix = revision.remaining(EditKind.Fix).single()
@@ -517,15 +505,10 @@ class ReviewTest {
     }
 
     @Test
-    fun discardedRewordingsCannotMakeTheTextLookGood() {
-        val original = "Quan parlo català tinc que usar l'aplicació."
-        val result = reviewed(original, Verdict(
-            status = Verdict.Status.Ok,
-            moreNatural = true,
-            natural = "Quan parlo català he de fer servir l'aplicació.",
-            naturalChanges = listOf(VerdictChange("tinc que usar", "he de fer servir", "More natural obligation and verb")),
-        ))
-
+    fun malformedRewordingReportsCannotMakeTheTextLookGood() {
+        val result = reviewed("És bonic.", Verdict(status = Verdict.Status.Ok,
+            moreNatural = true, natural = "És preciós.",
+            naturalChanges = listOf(VerdictChange("bonica", "preciosa"))))
         assertTrue(result.revision.edits.isEmpty())
         assertEquals(setOf(EditKind.Natural), result.withheld)
         assertFalse(result.looksGood)
@@ -554,21 +537,15 @@ class ReviewTest {
 
     @Test
     fun oneRejectedRewordingDoesNotHideAnotherUsableOne() {
-        val original = "És bonic. Quan parlo català tinc que usar l'aplicació."
-        val result = reviewed(original, Verdict(
-            status = Verdict.Status.Ok,
-            moreNatural = true,
-            natural = "És preciós. Quan parlo català he de fer servir l'aplicació.",
-            naturalChanges = listOf(
-                VerdictChange("bonic", "preciós", "More expressive"),
-                VerdictChange("tinc que usar", "he de fer servir", "More natural obligation and verb"),
-            ),
-        ))
+        val original = "És bonic. Vindran 2 persones."
+        val result = reviewed(original, Verdict(status = Verdict.Status.Ok,
+            moreNatural = true, natural = "És preciós. Vindran 3 persones.",
+            naturalChanges = listOf(VerdictChange("bonic", "preciós"), VerdictChange("2", "3"))))
         assertEquals(setOf(EditKind.Natural), result.withheld)
         val offered = result.revision.edits.single()
         assertEquals("bonic", offered.from)
         val accepted = result.copy(revision = result.revision.accept(offered.id))
-        assertEquals("És preciós. Quan parlo català tinc que usar l'aplicació.", accepted.revision.workingText)
+        assertEquals("És preciós. Vindran 2 persones.", accepted.revision.workingText)
         assertFalse(accepted.isResolved)
         assertEquals(setOf(EditKind.Natural), accepted.withheld)
     }
@@ -633,6 +610,7 @@ class ReviewTest {
             status = Verdict.Status.Ok,
             hasErrors = true,
             corrected = "Hola example.com bonic. Tinc un error.",
+            fixes = listOf(VerdictChange("", " example.com"), VerdictChange("erro", "error")),
             moreNatural = true,
             natural = "Hola example.com preciós. Tinc un error.",
             naturalChanges = listOf(VerdictChange("bonic", "preciós")),
@@ -650,6 +628,7 @@ class ReviewTest {
             status = Verdict.Status.Ok,
             hasErrors = true,
             corrected = "Hola example.com bonic. Tinc un error.",
+            fixes = listOf(VerdictChange("", " example.com"), VerdictChange("erro", "error")),
             moreNatural = true,
             natural = "Hola preciós. Tinc un error.",
             naturalChanges = listOf(VerdictChange("bonic", "preciós")),

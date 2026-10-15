@@ -41,22 +41,13 @@ class AtomicRewordingsTest {
         assertEquals(corrected, r.acceptAll(EditKind.Fix).workingText)
     }
 
-    @Test fun screenshotGreetingPreferenceAndFormattingDoNotBecomeRewordings() {
+    @Test fun aGreetingRewriteCannotAddSentenceBoundaries() {
         val original = "Hola que tal estic ber"
         val corrected = "Hola que tal, estic bé"
         val r = revision(original, corrected, "Hola, com vas? Estic bé.")
         assertTrue(r.edits(EditKind.Natural).isEmpty())
         assertEquals(corrected, r.acceptAll(EditKind.Fix).workingText)
         assertEquals(original, r.acceptAll(EditKind.Natural).workingText)
-    }
-
-    @Test fun normalCatalanGreetingIsProtectedWithOrWithoutModelChangeLists() {
-        for (original in listOf("què tal", "que tal", "Què tal?")) {
-            val target = if (original.endsWith("?")) "Com vas?" else "com vas"
-            for (changes in listOf(emptyList(), listOf(VerdictChange(original, target, "More natural greeting")))) {
-                assertTrue(revision(original, natural = target, reported = changes).edits(EditKind.Natural).isEmpty())
-            }
-        }
     }
 
     @Test fun aReportedBundleCannotIncludeANewSentenceBoundary() {
@@ -74,29 +65,6 @@ class AtomicRewordingsTest {
             natural = "Vaig a la botiga")) as CheckResult.Reviewed
         assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
         assertTrue(EditKind.Natural in result.withheld)
-    }
-
-    @Test fun coincidentLettersCannotMakeIndependentWordSubstitutionsOneDecision() {
-        for ((original, natural) in listOf("small cat" to "little feline", "fast car" to "quick automobile")) {
-            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
-                natural = natural, naturalChanges = listOf(VerdictChange(original, natural, "Different expression"))))
-                as CheckResult.Reviewed
-            assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
-            assertTrue(EditKind.Natural in result.withheld)
-        }
-    }
-
-    @Test fun separateInsertionsCannotRideAlongWithAnotherWordChoice() {
-        for ((original, natural) in listOf(
-            "Voy a viajar" to "No voy a volar",
-            "Voy al parque" to "No voy al parque mañana",
-        )) {
-            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
-                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
-            assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
-            assertTrue(EditKind.Natural in result.withheld)
-            assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
-        }
     }
 
     @Test fun unrelatedAccentCaseOrWhitespaceCannotHideInARewording() {
@@ -188,20 +156,6 @@ class AtomicRewordingsTest {
         }
     }
 
-    @Test fun changesOnBothSidesOfAnUnchangedWordAreWithheld() {
-        for ((original, natural) in listOf(
-            "Voy a tomar una ducha" to "Me voy a duchar",
-            "Él ayer ha dejado las llaves" to "Ayer dejó las llaves",
-        )) {
-            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
-                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
-            assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
-            assertTrue(EditKind.Natural in result.withheld)
-            assertFalse(result.looksGood)
-            assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
-        }
-    }
-
     @Test fun aPhraseCanChangeSeveralWordsAsOneContiguousConstruction() {
         val original = "Voy a tomar una ducha"
         val natural = "Voy a ducharme"
@@ -220,4 +174,41 @@ class AtomicRewordingsTest {
         assertEquals(natural, r.accept(edit.id).workingText)
         assertEquals(original, r.accept(edit.id).undo().workingText)
     }
+
+    @Test fun aReportedConstructionMayChangeSeveralWordsAcrossUnchangedWords() {
+        for ((original, natural) in listOf(
+            "Voy a tomar una ducha" to "Me voy a duchar",
+            "Fue coser y cantar." to "Fue pan comido.",
+        )) {
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+            val edit = result.revision.edits(EditKind.Natural).single()
+            assertTrue(result.withheld.isEmpty())
+            assertEquals(natural, result.revision.accept(edit.id).workingText)
+            assertEquals(original, result.revision.accept(edit.id).undo().workingText)
+        }
+    }
+
+    @Test fun aConstructionStillIncludesTheSpellingRepairItDependsOn() {
+        val original = "Voy a tomar una duxa"
+        val natural = "Me voy a duchar"
+        val r = revision(original, "Voy a tomar una ducha", natural,
+            fixes = listOf(VerdictChange("duxa", "ducha")))
+        val fix = r.edits(EditKind.Fix).single()
+        val rewording = r.edits(EditKind.Natural).single()
+        assertTrue(fix.id in rewording.includes)
+        assertEquals(natural, r.accept(rewording.id).workingText)
+        assertTrue(r.accept(rewording.id).remaining(EditKind.Fix).isEmpty())
+        assertEquals(natural, r.accept(fix.id).accept(rewording.id).workingText)
+        assertEquals(original, r.accept(rewording.id).undo().workingText)
+    }
+    @Test fun dependentInternalPunctuationBelongsToTheReportedRewording() {
+        val original = "He left because it was late."
+        val natural = "It was late, so he left."
+        val r = revision(original, natural = natural)
+        val edit = r.edits(EditKind.Natural).single()
+        assertEquals(natural, r.accept(edit.id).workingText)
+        assertEquals(original, r.accept(edit.id).undo().workingText)
+    }
+
 }

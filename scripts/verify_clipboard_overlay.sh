@@ -30,7 +30,8 @@ javac -source 8 -target 8 -classpath "$platform" -d "$probe_dir/classes" "$probe
 "$build_tools/d8" --lib "$platform" --output "$probe_dir/dex" "$probe_dir/classes/com/linguize/clipboardprobe/SeedActivity.class"
 "$build_tools/aapt" package -f -M "$probe_dir/AndroidManifest.xml" -I "$platform" -F "$probe_dir/seed.apk"
 zip -j "$probe_dir/seed.apk" "$probe_dir/dex/classes.dex"
-"$build_tools/apksigner" sign --ks "$HOME/.android/debug.keystore" --ks-pass pass:android --key-pass pass:android "$probe_dir/seed.apk"
+keytool -genkeypair -keystore "$probe_dir/seed.keystore" -storepass android -keypass android -alias seed -keyalg RSA -keysize 2048 -validity 1 -dname CN=ClipboardProbe
+"$build_tools/apksigner" sign --ks "$probe_dir/seed.keystore" --ks-pass pass:android --key-pass pass:android "$probe_dir/seed.apk"
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r "$probe_dir/seed.apk"
 adb shell input keyevent KEYCODE_WAKEUP

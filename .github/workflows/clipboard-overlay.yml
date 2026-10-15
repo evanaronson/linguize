@@ -16,6 +16,9 @@ jobs:
   focus:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      ANDROID_USER_HOME: ${{ runner.temp }}/linguize-android
+      ANDROID_AVD_HOME: ${{ runner.temp }}/linguize-android/avd
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -33,14 +36,17 @@ jobs:
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           sudo chmod 666 /dev/kvm
           sdkmanager 'platforms;android-35' 'system-images;android-35;default;x86_64' 'emulator'
-          echo no | avdmanager create avd -n clipboard -k 'system-images;android-35;default;x86_64' --force
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd -n clipboard -k 'system-images;android-35;default;x86_64' --path "$ANDROID_AVD_HOME/clipboard.avd" --force
+          test -f "$ANDROID_AVD_HOME/clipboard.ini"
       - name: Boot Android 15 emulator
         run: |
           trap 'cat /tmp/emulator.log || true' EXIT
           "$ANDROID_HOME/emulator/emulator" -avd clipboard -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > /tmp/emulator.log 2>&1 &
-          timeout 180 adb wait-for-device
+          emulator_pid=$!
           for attempt in $(seq 1 120); do
-            if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then exit 0; fi
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then exit 1; fi
+            if [ "$(timeout 2 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then exit 0; fi
             sleep 2
           done
           cat /tmp/emulator.log

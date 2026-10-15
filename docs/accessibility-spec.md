@@ -64,11 +64,15 @@ No background monitoring, new permissions, retrieval flags, screenshots, OCR, si
 On a deliberate shortcut tap while unlocked, prefer a nonempty eligible editor.
 Private fields retain the existing blocked feedback and never trigger clipboard fallback.
 Hint-only fields do not start checks or history sessions: reject the platform hint
-flag, or text matching the field's hint without evidence of real writing (a
-positive cursor/selection offset or a set-selection action). This also covers an
-empty editor exposing a 0,0 cursor, while native TextView selection actions keep
-genuinely typed text usable even when it matches the hint. No generic-word
-blacklist is used. If there is no usable writing, open
+flag, or text matching the field's hint without a positive cursor/selection offset.
+Selection actions alone describe capabilities and do not prove there is input.
+WhatsApp and WhatsApp Business have an additional composer-only fallback for the
+reported English placeholder "Message", including missing hint metadata and
+misleading cursor offsets. It applies to the entry resource id (or omitted ids),
+not search fields or other apps. Automatic routing conservatively treats a literal
+one-word "Message" in that composer as a placeholder too: accessibility cannot
+reliably distinguish those identical representations. Explicit text-selection
+checks remain available. Other drafts still take priority. If there is no usable writing, open
 Understand and capture plain clipboard text only after the actual overlay window
 gains focus. No clipboard listener, background polling, URI coercion, or chat-bubble
 scraping is used. A bounded focus failure shows unavailable guidance; missing or

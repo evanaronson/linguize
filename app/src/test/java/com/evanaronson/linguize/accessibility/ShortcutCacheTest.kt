@@ -47,11 +47,16 @@ class ShortcutCacheTest {
                 // Switching chats replaces the editor but leaves old focus cached.
                 // Handle the new private or empty editor on THIS tap.
                 focus.currentEditor = editor(private = private).apply {
-                    // WhatsApp-style hint exposed as text, with no hint flag.
+                    // Regression: a WhatsApp composer can expose its placeholder as writing,
+                    // without hint metadata, and even with selection actions/cursor offsets.
                     if (!private) {
+                        packageName = "com.whatsapp"
+                        viewIdResourceName = "com.whatsapp:id/entry"
                         text = "Message"
-                        hintText = "Message"
+                        hintText = null
                         isShowingHintText = false
+                        setTextSelection(7, 7)
+                        addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
                     }
                 }
                 val before = focus.queries

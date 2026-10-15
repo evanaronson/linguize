@@ -129,11 +129,45 @@ class FocusedFieldTest {
         editor.hintText = "Message"
         editor.setTextSelection(7, 7)
         assertEquals("Message", FocusedField.selection(editor)!!.text)
-        // Actual writing at the start still exposes selection actions on Android TextView.
+        // Selection actions can be exposed on an empty editor too; they prove no input.
         editor.setTextSelection(0, 0)
         editor.addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
-        assertEquals("Message", FocusedField.selection(editor)!!.text)
+        assertNull(FocusedField.selection(editor))
         editor.hintText = "Write a message"
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+    }
+
+    @Test fun whatsappComposerPlaceholderFallsThroughEvenWithoutAnyHintMetadata() {
+        for (app in listOf("com.whatsapp", "com.whatsapp.w4b")) {
+            for (id in listOf(null, "$app:id/entry")) {
+                val editor = node(focused = true, editable = true, app = app).apply {
+                    text = "Message"
+                    hintText = null
+                    isShowingHintText = false
+                    viewIdResourceName = id
+                    // Even misleading cursor/action metadata must not start a correction.
+                    setTextSelection(7, 7)
+                    addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
+                }
+                assertNull(FocusedField.selection(editor))
+                editor.text = "Message me when you arrive"
+                assertEquals("Message me when you arrive", FocusedField.selection(editor)!!.text)
+                editor.text = "Bon dia!"
+                assertEquals("Bon dia!", FocusedField.selection(editor)!!.text)
+                editor.text = "  "
+                assertNull(FocusedField.selection(editor))
+            }
+        }
+    }
+
+    @Test fun messageIsNotGloballyBlacklistedOrIgnoredInWhatsappSearch() {
+        val editor = node(focused = true, editable = true).apply {
+            text = "Message"
+            setTextSelection(7, 7)
+        }
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+        editor.packageName = "com.whatsapp"
+        editor.viewIdResourceName = "com.whatsapp:id/search_src_text"
         assertEquals("Message", FocusedField.selection(editor)!!.text)
     }
 

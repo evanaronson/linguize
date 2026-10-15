@@ -6,7 +6,7 @@
     <string name="menu_auto" translatable="false">Linguize</string>
     <string name="menu_catalan" translatable="false">Catalanize</string>
     <string name="menu_castilian" translatable="false">Castilianize</string>
-    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If History is on, checks are saved on this phone. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
+    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, checks are saved on this phone. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 
 
     <!-- Presentation text. Protocol values and model prompts are not translated. -->
@@ -229,4 +229,11 @@
     <string name="language_auto_detected">%1$s (auto-detected)</string>
     <string name="history_target_language">Target language: %1$s</string>
     <string name="history_detected_language">Detected language: %1$s</string>
+    <string name="understand">Understand</string>
+    <string name="understand_copied_text">Understand copied text</string>
+    <string name="copied_text">Copied text</string>
+    <string name="understanding">Understanding…</string>
+    <string name="reading_copied_text">Reading copied text…</string>
+    <string name="shortcut_no_input">No copied text is available. Select your writing or copy a message, then try again.</string>
+    <string name="clipboard_unavailable">Couldn\'t access copied text. Close this popup, copy the message, and try again.</string>
 </resources>

@@ -108,17 +108,7 @@ internal fun UnderstandingPage(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
-        SelectionContainer {
-            Text(
-                meaning,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .padding(12.dp),
-            )
-        }
+        MeaningText(meaning)
     }
     if (assumptions.isNotEmpty() || settled.isNotEmpty()) {
         if (meaning.isNotBlank()) Spacer(Modifier.height(20.dp))
@@ -195,4 +185,21 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
 @Composable
 private fun Label(text: String) {
     Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+
+/** Meaning presentation shared by the reading job and a check's secondary page. */
+@Composable
+internal fun MeaningText(meaning: String) {
+        SelectionContainer {
+            Text(
+                meaning,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .padding(12.dp),
+            )
+        }
 }

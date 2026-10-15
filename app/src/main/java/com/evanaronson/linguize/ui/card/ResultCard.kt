@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,39 @@ fun ResultCard(
     modifier: Modifier = Modifier,
     /** Scroll inside the card; false when the card already sits in a scrolling screen. */
     scrollable: Boolean = true,
+    leadingContent: @Composable ColumnScope.() -> Unit = {},
+) {
+    ResultSurface(modifier, scrollable) {
+        leadingContent()
+        when (state) {
+            is CardState.Loading -> Loading(state.text)
+            is CardState.Failed -> Failure(state.reason, state.userMessage, state.detail, actions.onRetry, actions.onOpenSettings)
+            is CardState.Done -> when (val result = state.result) {
+                is CheckResult.Reviewed -> ReviewContent(result, state.settled, actions)
+                CheckResult.Unclear ->
+                    Outcome(
+                        Mark.Unsure,
+                        stringResource(R.string.ai_could_not_understand),
+                        stringResource(R.string.check_full_sentence),
+                    )
+                is CheckResult.WrongLanguage ->
+                    Outcome(
+                        Mark.Unsure,
+                        stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
+                        result.found?.let { stringResource(R.string.wrong_language_detected, languageDisplayName(it)) }
+                            ?: stringResource(R.string.choose_auto_language),
+                    )
+            }
+        }
+    }
+}
+
+/** The same surface and scrolling for correction and reading jobs. */
+@Composable
+internal fun ResultSurface(
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val container = MaterialTheme.colorScheme.surfaceContainerHigh
     Surface(
@@ -58,26 +92,7 @@ fun ResultCard(
                     .then(if (scrollable) Modifier.verticalScroll(scroll) else Modifier)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
             ) {
-                when (state) {
-                    is CardState.Loading -> Loading(state.text)
-                    is CardState.Failed -> Failure(state.reason, state.userMessage, state.detail, actions)
-                    is CardState.Done -> when (val result = state.result) {
-                        is CheckResult.Reviewed -> ReviewContent(result, state.settled, actions)
-                        CheckResult.Unclear ->
-                            Outcome(
-                                Mark.Unsure,
-                                stringResource(R.string.ai_could_not_understand),
-                                stringResource(R.string.check_full_sentence),
-                            )
-                        is CheckResult.WrongLanguage ->
-                            Outcome(
-                                Mark.Unsure,
-                                stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
-                                result.found?.let { stringResource(R.string.wrong_language_detected, languageDisplayName(it)) }
-                                    ?: stringResource(R.string.choose_auto_language),
-                            )
-                    }
-                }
+                content()
 
             }
             // Fades out the bottom edge while there's more to scroll to.
@@ -95,7 +110,7 @@ fun ResultCard(
 }
 
 @Composable
-private fun Loading(text: String) {
+internal fun Loading(text: String, label: String = stringResource(R.string.checking)) {
     Text(
         text,
         style = MaterialTheme.typography.bodyLarge,
@@ -104,12 +119,11 @@ private fun Loading(text: String) {
         overflow = TextOverflow.Ellipsis,
     )
     Spacer(Modifier.height(14.dp))
-    val checking = stringResource(R.string.checking)
-    LinearProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = checking })
+    LinearProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = label })
 }
 
 @Composable
-private fun Failure(reason: Reason, userMessage: CheckFailure.Message?, providerMessage: String?, actions: CardActions) {
+internal fun Failure(reason: Reason, userMessage: CheckFailure.Message?, providerMessage: String?, onRetry: () -> Unit, onOpenSettings: (() -> Unit)?) {
     Outcome(Mark.Problem, stringResource(reason.titleResource), reason.hintResource?.let { stringResource(it) })
     userMessage?.let { message ->
         Spacer(Modifier.height(8.dp))
@@ -129,9 +143,9 @@ private fun Failure(reason: Reason, userMessage: CheckFailure.Message?, provider
     Spacer(Modifier.height(12.dp))
     when (reason) {
         Reason.NoKey, Reason.BadKey, Reason.BadModel ->
-            actions.onOpenSettings?.let { FilledTonalButton(onClick = it) { Text(stringResource(R.string.open_settings)) } }
+            onOpenSettings?.let { FilledTonalButton(onClick = it) { Text(stringResource(R.string.open_settings)) } }
         // Nothing to retry: a limited card never started a check.
         Reason.TooLong, Reason.TooMany -> Unit
-        else -> FilledTonalButton(onClick = actions.onRetry) { Text(stringResource(R.string.retry)) }
+        else -> FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
     }
 }

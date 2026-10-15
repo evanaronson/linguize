@@ -26,7 +26,22 @@ data class CheckRequest(
 data class ModelAnswer(val verdict: Verdict, val raw: String)
 
 /** One provider's API. Every client sends the same [Prompt] and returns the same [ModelAnswer]. */
+data class GenerationRequest(
+    val system: String,
+    val user: String,
+    val schema: kotlinx.serialization.json.JsonObject,
+    val name: String,
+    val maxTokens: Int,
+)
+
+internal fun Prompt.generation(request: CheckRequest) =
+    GenerationRequest(system, userMessage(request), schema, "check", Prompt.MAX_OUTPUT_TOKENS)
+
 interface ProviderClient {
+    /** Raw structured answer; shared transport, with no correction interpretation or history. */
+    suspend fun generate(key: String, model: String, request: GenerationRequest): String =
+        throw UnsupportedOperationException("This client does not support generation")
+
     /** Throws [CheckFailure]; one about an answer that couldn't be read carries it as [CheckFailure.raw]. */
     suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer
 

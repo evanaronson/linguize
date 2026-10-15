@@ -133,6 +133,38 @@ class CheckViewModelTest {
 
 
     @Test
+    fun switchingToUnderstandDiscardsTheProvisionalCheckWithoutApplying() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        check.discard()
+        runBlocking { history.flush() }
+        assertNull(check.state)
+        assertNull(check.workingText)
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+        // Closing the Understand popup or clearing the host cannot recreate that evidence.
+        check.dismiss(applied = false)
+        viewModels.clear()
+        runBlocking { history.flush() }
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+    }
+
+    @Test
+    fun switchingDuringLoadingCancelsAndDiscardsTheCheck() {
+        client.answer = { awaitCancellation() }
+        check.check(QUESTION, null, Origin.Button)
+        waitFor("a provisional record") { store.saves.get() > 0 }
+        check.discard()
+        runBlocking { history.flush() }
+        settle()
+        assertNull(check.state)
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+    }
+
+    @Test
     fun acceptAllKeepsTheFinalTextUntilApplyWithoutTouchingTheClipboard() {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val clipboard = context.getSystemService(ClipboardManager::class.java)
@@ -638,6 +670,7 @@ class CheckViewModelTest {
 
     /** Remembers the sessions it was asked to close, and counts saves and lookups; [kept] is what every reuse lookup finds. */
     private class RecordingStore : HistoryStore {
+        val deleted: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val closed: MutableList<SessionRecord> = Collections.synchronizedList(mutableListOf())
         val saves = AtomicInteger()
         val lookups = AtomicInteger()
@@ -662,7 +695,7 @@ class CheckViewModelTest {
         override suspend fun page(before: com.evanaronson.linguize.history.HistoryCursor?, limit: Int) =
             com.evanaronson.linguize.history.HistoryPage(emptyList(), null)
         override suspend fun detail(id: String): SessionDetail? = null
-        override suspend fun delete(id: String) = true
+        override suspend fun delete(id: String): Boolean { deleted += id; return true }
         override suspend fun clear() = Unit
         override suspend fun export(out: OutputStream) = true
     }

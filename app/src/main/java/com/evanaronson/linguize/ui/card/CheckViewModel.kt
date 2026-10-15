@@ -256,6 +256,17 @@ class CheckViewModel(
         if (waitMs > 0) history.awaitWrites(waitMs)
     }
 
+    /** Switching jobs discards the provisional Check rather than recording a decision. */
+    fun discard() {
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
+        job?.cancel()
+        carried = emptyList()
+        state = null
+        history.discard()
+    }
+
     /** Gone without [dismiss]: nothing was handed back. */
     override fun onCleared() = history.close(finalText = null)
 

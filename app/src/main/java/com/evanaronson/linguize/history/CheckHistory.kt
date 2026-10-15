@@ -295,6 +295,20 @@ class CheckHistory(
     }
 
     /** Closes the open session, if any, with what went back to the app ([finalText], null for nothing). */
+    fun discard() {
+        decided = true
+        val id = recording?.session?.id
+        recording = null
+        permission?.revoke()
+        permission = null
+        if (id == null) return
+        val previous = lastWrite
+        lastWrite = scope.launch {
+            previous?.join()
+            quietly("discard a provisional check") { store.delete(id) }
+        }
+    }
+
     fun close(finalText: String?) {
         decided = false
         val recording = recording ?: return
@@ -352,6 +366,8 @@ class CheckHistory(
 
     private inner class RecordingPermission(private val epoch: Long) {
         private val active = AtomicBoolean(true)
+
+        fun revoke() { active.set(false) }
 
         fun allowed(): Boolean {
             if (!active.get()) return false

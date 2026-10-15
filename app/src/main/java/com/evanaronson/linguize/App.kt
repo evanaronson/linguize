@@ -57,25 +57,22 @@ class App : Application() {
     /** The contract with the model, read from assets on first use (so not on the main thread). */
     val prompt by lazy { Prompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } } }
 
-    /** Reads its prompt on first use, so not on the main thread. */
-    val checker by lazy {
-        // One HTTP client for the life of the process, so repeat checks reuse the open connection.
-        // The answer arrives all at once, so reading may take as long as the whole call.
+    /** One connection pool and provider option negotiation for both jobs. */
+    private val clients by lazy {
         val http = OkHttpClient.Builder()
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(30, TimeUnit.SECONDS)
             .build()
-        Checker(
-            settings,
-            keys,
-            prompt,
-            mapOf(
-                Provider.Gemini to GeminiClient(http, prompt),
-                Provider.OpenAI to OpenAIClient(http, prompt),
-            ),
+        mapOf(
+            Provider.Gemini to GeminiClient(http, prompt),
+            Provider.OpenAI to OpenAIClient(http, prompt),
         )
     }
+
+    /** Created off the main thread by the view models. */
+    val checker by lazy { Checker(settings, keys, prompt, clients) }
+    val understander by lazy { Understander(settings, keys, clients) }
 
     override fun onCreate() {
         super.onCreate()

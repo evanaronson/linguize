@@ -14,6 +14,15 @@ internal object FocusedField {
     fun isPrivate(node: AccessibilityNodeInfo): Boolean =
         node.isPassword || PrivateField.matches(node.inputType, node.hintText, node.viewIdResourceName)
 
+    /** Privacy is checked before reading text. Empty/hint fields do not outrank copied text. */
+    fun selection(node: AccessibilityNodeInfo?): com.evanaronson.linguize.core.Selection? {
+        if (node == null || !node.isVisibleToUser || !node.isEnabled ||
+            !supportsEditing(node) || isPrivate(node) || node.isShowingHintText) return null
+        return node.text?.toString()
+            ?.let { com.evanaronson.linguize.core.Selection.of(it, node.textSelectionStart, node.textSelectionEnd) }
+            ?.takeIf { it.text.isNotEmpty() }
+    }
+
     fun sameWindow(node: AccessibilityNodeInfo, source: AccessibilityNodeInfo): Boolean =
         !source.packageName.isNullOrEmpty() &&
             node.packageName?.toString() == source.packageName?.toString() &&

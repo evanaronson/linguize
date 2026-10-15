@@ -95,6 +95,20 @@ class FocusedFieldTest {
         assertNull(FocusedField.resolve(root, null) { editor }.field)
     }
 
+    @Test fun onlyUsableNonPrivateWritingTakesPriority() {
+        assertNull(FocusedField.selection(null))
+        val editor = node(focused = true, editable = true)
+        editor.text = "   "
+        assertNull(FocusedField.selection(editor))
+        editor.text = "Com estas?"
+        assertEquals("Com estas?", FocusedField.selection(editor)!!.text)
+        editor.isShowingHintText = true
+        assertNull(FocusedField.selection(editor))
+        editor.isShowingHintText = false
+        editor.isPassword = true
+        assertNull(FocusedField.selection(editor))
+    }
+
     @Test fun resolvesFocusedChildOfNonEditableSource() {
         val root = node()
         val source = node()

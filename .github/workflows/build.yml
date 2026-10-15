@@ -3,7 +3,7 @@ name: Build APK
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/understand-preview-feedback]
     # Docs, design sources and the eval script don't change the app.
     paths-ignore:
       - README.md
@@ -347,3 +347,22 @@ jobs:
             --title "$version (build inputs: $BRANCH)" \
             --notes "Gradle distribution checksum and dependency verification metadata, to review and commit." \
             --prerelease --latest=false
+
+  cleanup-preview:
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/feature/understand-preview-feedback' }}
+    needs: [build, sign-and-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Remove temporary preview branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXPECTED_SHA: ${{ github.sha }}
+          PREVIEW_BRANCH: feature/understand-preview-feedback
+        run: |
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/$PREVIEW_BRANCH" --jq .object.sha)
+          if [ "$current" = "$EXPECTED_SHA" ]; then
+            gh api --method DELETE "repos/$GH_REPO/git/refs/heads/$PREVIEW_BRANCH"
+          fi

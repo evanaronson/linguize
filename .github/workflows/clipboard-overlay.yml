@@ -27,15 +27,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
       - name: Build debug probe host
         run: ./gradlew assembleDebug
-      - name: Prepare Android 15 emulator
+      - name: Install Android 15 image
         run: |
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           sudo chmod 666 /dev/kvm
           sdkmanager 'platforms;android-35' 'system-images;android-35;default;x86_64' 'emulator'
           echo no | avdmanager create avd -n clipboard -k 'system-images;android-35;default;x86_64' --force
+      - name: Boot Android 15 emulator
+        run: |
+          trap 'cat /tmp/emulator.log || true' EXIT
           "$ANDROID_HOME/emulator/emulator" -avd clipboard -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > /tmp/emulator.log 2>&1 &
-          adb wait-for-device
+          timeout 180 adb wait-for-device
           for attempt in $(seq 1 120); do
             if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then exit 0; fi
             sleep 2

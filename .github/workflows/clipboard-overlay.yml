@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      ANDROID_USER_HOME: ${{ runner.temp }}/linguize-android
-      ANDROID_AVD_HOME: ${{ runner.temp }}/linguize-android/avd
+      ANDROID_USER_HOME: /tmp/linguize-android
+      ANDROID_AVD_HOME: /tmp/linguize-android/avd
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

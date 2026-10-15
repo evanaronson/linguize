@@ -187,19 +187,18 @@ private fun Label(text: String) {
     Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-
 /** Meaning presentation shared by the reading job and a check's secondary page. */
 @Composable
 internal fun MeaningText(meaning: String) {
-        SelectionContainer {
-            Text(
-                meaning,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .padding(12.dp),
-            )
-        }
+    SelectionContainer {
+        Text(
+            meaning,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .padding(12.dp),
+        )
+    }
 }

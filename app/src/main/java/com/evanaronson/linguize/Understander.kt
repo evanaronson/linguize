@@ -33,7 +33,7 @@ class Understander(
             val raw = clients.getValue(provider).generate(
                 key, settings.model(provider) ?: provider.recommendedModel, request,
             )
-            prompt.read(raw)
+            prompt.read(raw, text)
         } catch (e: CheckFailure) {
             throw e
         } catch (e: CancellationException) {

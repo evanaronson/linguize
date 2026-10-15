@@ -109,6 +109,27 @@ class FocusedFieldTest {
         assertNull(FocusedField.selection(editor))
     }
 
+    @Test fun hintExposedAsTextWithoutTheHintFlagDoesNotBecomeWriting() {
+        val editor = node(focused = true, editable = true).apply {
+            text = "Message"
+            hintText = "Message"
+            isShowingHintText = false
+        }
+        assertNull(FocusedField.selection(editor))
+        editor.text = "  Message  "
+        assertNull(FocusedField.selection(editor))
+        editor.text = "Escribe un mensaje"
+        editor.hintText = "Escribe un mensaje"
+        assertNull(FocusedField.selection(editor))
+        // Valid text/cursor metadata means the user really typed the same word as the hint.
+        editor.text = "Message"
+        editor.hintText = "Message"
+        editor.setTextSelection(7, 7)
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+        editor.hintText = "Write a message"
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+    }
+
     @Test fun resolvesFocusedChildOfNonEditableSource() {
         val root = node()
         val source = node()

@@ -16,11 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.ui.ClipboardText
 import com.evanaronson.linguize.ui.readCopiedText
 import com.evanaronson.linguize.ui.card.FloatingPopup
@@ -247,9 +245,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
                         onOpenApp = openApp,
                         position = popupPosition,
                         header = {
-                            if (understanding) {
-                                Text(stringResource(R.string.understand), Modifier.padding(vertical = 14.dp))
-                            } else {
+                            if (!understanding) {
                                 LanguagePicker(language, onSelect = {
                                     language = it
                                     check.changeLanguage(it)

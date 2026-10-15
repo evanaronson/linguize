@@ -46,7 +46,14 @@ class ShortcutCacheTest {
                 assertNotNull(focus.cachedFocus())
                 // Switching chats replaces the editor but leaves old focus cached.
                 // Handle the new private or empty editor on THIS tap.
-                focus.currentEditor = editor(private = private)
+                focus.currentEditor = editor(private = private).apply {
+                    // WhatsApp-style hint exposed as text, with no hint flag.
+                    if (!private) {
+                        text = "Message"
+                        hintText = "Message"
+                        isShowingHintText = false
+                    }
+                }
                 val before = focus.queries
                 ShadowToast.reset()
                 ReflectionHelpers.callInstanceMethod<Unit>(service, "tapped")
@@ -55,8 +62,11 @@ class ShortcutCacheTest {
                 if (private) {
                     assertEquals(service.getString(R.string.shortcut_private_field), ShadowToast.getTextOfLatestToast())
                 } else {
-                    // An empty new editor now opens clipboard-based Understand, on this same tap.
-                    assertNotNull(ReflectionHelpers.getField<Any>(service, "card"))
+                    // A hint-only editor opens clipboard-based Understand on this same tap.
+                    val card = ReflectionHelpers.getField<Any>(service, "card")
+                    assertNotNull(card)
+                    // Understand has no write-back field; the hint never starts a check/history session.
+                    assertNull(ReflectionHelpers.getField<AccessibilityNodeInfo?>(card, "field"))
                     assertNull(ShadowToast.getTextOfLatestToast())
                 }
             }

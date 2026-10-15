@@ -28,7 +28,7 @@ class UnderstandViewModelTest {
             attempts++
             if (attempts == 1) throw CheckFailure(CheckFailure.Reason.Offline)
             if (attempts == 3) withContext(NonCancellable) { gate.await() }
-            Understood("Meaning")
+            Understood("Translation", emptyList())
         }
         val store = ViewModelStore().apply { put("understand", vm) }
         try {

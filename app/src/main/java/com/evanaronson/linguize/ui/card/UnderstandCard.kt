@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.understand.UnderstandState
 
-/** The existing surface and Meaning treatment, without correction controls or history. */
+/** Translation, original and optional source-anchored notes, without correction controls. */
 @Composable
 fun UnderstandCard(state: UnderstandState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     ResultSurface(modifier) {
@@ -32,13 +32,29 @@ fun UnderstandCard(state: UnderstandState, onRetry: () -> Unit, modifier: Modifi
                 Loading(state.text, stringResource(R.string.understanding))
             }
             is UnderstandState.Done -> {
+                Text(stringResource(R.string.translation), style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                MeaningText(state.result.translation)
+                Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.copied_text), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
-                SelectionContainer { Text(state.text, style = MaterialTheme.typography.bodyLarge) }
-                Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.meaning), style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                MeaningText(state.result.meaning)
+                SelectionContainer {
+                    Text(state.text, style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (state.result.notes.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    Text(stringResource(R.string.understanding_notes), style = MaterialTheme.typography.titleMedium)
+                    for (note in state.result.notes) {
+                        Spacer(Modifier.height(12.dp))
+                        SelectionContainer {
+                            Text(note.quote, style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        SelectionContainer { Text(note.explanation, style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.meaning_caution), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -18,8 +18,14 @@ internal object FocusedField {
     fun selection(node: AccessibilityNodeInfo?): com.evanaronson.linguize.core.Selection? {
         if (node == null || !node.isVisibleToUser || !node.isEnabled ||
             !supportsEditing(node) || isPrivate(node) || node.isShowingHintText) return null
-        return node.text?.toString()
-            ?.let { com.evanaronson.linguize.core.Selection.of(it, node.textSelectionStart, node.textSelectionEnd) }
+        val text = node.text?.toString() ?: return null
+        // Some apps expose their hint as text without setting isShowingHintText.
+        // Match the field's own metadata, never a global list of generic words.
+        val hint = node.hintText?.toString()?.trim()
+        if (!hint.isNullOrEmpty() && text.trim() == hint &&
+            node.textSelectionStart < 0 && node.textSelectionEnd < 0) return null
+        return text
+            .let { com.evanaronson.linguize.core.Selection.of(it, node.textSelectionStart, node.textSelectionEnd) }
             ?.takeIf { it.text.isNotEmpty() }
     }
 

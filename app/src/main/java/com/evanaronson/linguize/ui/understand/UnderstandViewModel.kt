@@ -41,6 +41,8 @@ class UnderstandViewModel(private val explain: suspend (String) -> Understood) :
     }
 
     fun captured(input: ClipboardText) {
+        cancel()
+        text = null
         when (input) {
             is ClipboardText.Text -> {
                 text = input.value

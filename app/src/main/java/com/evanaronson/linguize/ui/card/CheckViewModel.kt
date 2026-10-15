@@ -187,6 +187,7 @@ class CheckViewModel(
         val keep = carried
         job?.cancel()
         state = CardState.Loading(text)
+        val requestedGeneration = generation
         job = viewModelScope.launch {
             var answers = settled
             val shown = try {
@@ -206,6 +207,7 @@ class CheckViewModel(
                         Answer(ask(), null)
                     }
                 }
+                if (requestedGeneration != generation) return@launch
                 answer.reused?.let {
                     answers = it.settled
                     settled = it.settled
@@ -219,10 +221,11 @@ class CheckViewModel(
                 history.succeeded(answers, answer.value.raw, kept, reusedFrom = answer.reused?.sessionId)
                 CardState.Done(kept, answers)
             } catch (failure: CheckFailure) {
+                if (requestedGeneration != generation) return@launch
                 history.failed(answers, failure.reason.token, failure.detail, failure.raw, message = failure.userMessage?.token)
                 CardState.Failed(failure.reason, failure.detail, failure.userMessage)
             }
-            state = shown
+            if (requestedGeneration == generation) state = shown
         }
     }
 

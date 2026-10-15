@@ -152,7 +152,11 @@ class LinguizeAccessibilityService : AccessibilityService() {
             }.also { retryHandler.postDelayed(it, 100) }
             return
         }
-        var resolved = result.field.takeUnless { result.reason == "Field looks private" }
+        if (result.reason == "Field looks private") {
+            Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
+            return
+        }
+        var resolved = result.field
         // Refresh direct results too: a cached node may still hold the pre-focus text.
         if (resolved != null && (!resolved.refresh() || !resolved.isVisibleToUser || !resolved.isEnabled ||
             !FocusedField.supportsEditing(resolved) || (!direct &&
@@ -160,7 +164,11 @@ class LinguizeAccessibilityService : AccessibilityService() {
                     rootInActiveWindow?.let { FocusedField.sameWindow(it, source) } != true)))) {
             resolved = null
         }
-        val field = resolved?.takeUnless(FocusedField::isPrivate)
+        if (resolved != null && FocusedField.isPrivate(resolved)) {
+            Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
+            return
+        }
+        val field = resolved
         // Read writing only after privacy checks. Hint/empty text falls through to Understand.
         val selection = FocusedField.selection(field)
 

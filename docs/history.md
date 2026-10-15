@@ -171,3 +171,10 @@ Existing database versions 1–5 are upgraded in place and backfilled from saved
 successful raw answers and explicit requests. No network requests or text guesses
 are made. Unreadable evidence stays intact and unresolved language stays null.
 The fields are included in JSONL exports, Recent/History rows and check details.
+
+
+Understand is not a recorded origin or a different kind of correction session.
+It never calls CheckHistory. Switching an automatic Check to Understand discards
+the provisional Check: queued writes lose their recording permission, and deletion
+is ordered after writes already in flight. No accepted changes are applied by the
+switch. This differs from ordinary dismissal, which keeps a Check's history.

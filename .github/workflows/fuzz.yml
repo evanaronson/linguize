@@ -62,7 +62,7 @@ jobs:
           python3 - <<'PY'
           import os
           dispatched = os.environ["EVENT_NAME"] == "workflow_dispatch"
-          reuse = os.environ.get("REUSE_INPUT", "") if dispatched else ""
+          reuse = os.environ.get("REUSE_INPUT", "") if dispatched else ("38660138912" if os.environ["EVENT_NAME"] == "push" else "")
           live = os.environ["EVENT_NAME"] == "push" or (dispatched and os.environ.get("LIVE_INPUT") == "true")
           if reuse and not str(reuse).isdigit():
               raise ValueError("Resume run ID must be numeric")

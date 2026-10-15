@@ -237,12 +237,16 @@ class EditsTest {
 
     @Test
     fun aLineBreakIsNeverSplit() {
-        val revision = revision("a\r\nb", corrected = "a\r\nx\r\nb",
-            fixChanges = listOf(VerdictChange("", "x\r\n")))
-        for (edit in revision.edits) {
-            for (at in listOf(edit.start, edit.end)) assertFalse("$edit", "a\r\nb".getOrNull(at - 1) == '\r' && "a\r\nb".getOrNull(at) == '\n')
+        for (inserted in listOf("x\r\n", "\r\nx")) {
+            val revision = revision("a\r\nb", corrected = "a\r\nx\r\nb",
+                fixChanges = listOf(VerdictChange("", inserted)))
+            assertEquals(listOf("" to inserted), revision.changes(EditKind.Fix))
+            for (edit in revision.edits) {
+                for (at in listOf(edit.start, edit.end)) assertFalse("$edit", "a\r\nb".getOrNull(at - 1) == '\r' && "a\r\nb".getOrNull(at) == '\n')
+            }
+            assertEquals("a\r\nx\r\nb", revision.acceptAll(EditKind.Fix).workingText)
+            assertEquals("a\r\nb", revision.acceptAll(EditKind.Fix).undo().workingText)
         }
-        assertEquals("a\r\nx\r\nb", revision.acceptAll(EditKind.Fix).workingText)
     }
 
     @Test

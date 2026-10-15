@@ -403,15 +403,33 @@ class ReviewTest {
 
     @Test
     fun aRecheckKeepsEachAcceptedChangeOnce() {
-        val verdict = Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "espera...")
-        val first = reviewed("espera", verdict).revision
+        val original = "espera espera espera"
+        val verdict = Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "espera. espera. espera.")
+        val first = reviewed(original, verdict).revision
         assertEquals(listOf(".", ".", "."), first.replacements(EditKind.Fix))
         val accepted = first.accept(first.edits.first().id).acceptedEdits
 
-        val second = reviewed("espera", verdict).revision.acceptMatching(accepted)
+        val second = reviewed(original, verdict).revision.acceptMatching(accepted)
 
-        assertEquals("espera.", second.workingText)
+        assertEquals("espera. espera espera", second.workingText)
+        assertEquals(1, second.acceptedCount)
         assertEquals(2, second.remaining(EditKind.Fix).size)
+        assertEquals(original, second.undo().workingText)
+        assertEquals(verdict.corrected, second.acceptAll(EditKind.Fix).workingText)
+    }
+
+    @Test
+    fun aRecheckKeepsAnAcceptedEllipsisAsOneCompleteAction() {
+        val verdict = Verdict(status = Verdict.Status.Ok, hasErrors = true, corrected = "espera...")
+        val first = reviewed("espera", verdict).revision
+        val edit = first.edits(EditKind.Fix).single()
+        assertEquals("...", edit.replacement)
+        val accepted = first.accept(edit.id)
+        val second = reviewed("espera", verdict).revision.acceptMatching(accepted.acceptedEdits)
+        assertEquals("espera...", second.workingText)
+        assertEquals(1, second.acceptedCount)
+        assertTrue(second.remaining(EditKind.Fix).isEmpty())
+        assertEquals("espera", second.undo().workingText)
     }
 
     @Test

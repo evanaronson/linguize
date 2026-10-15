@@ -10,8 +10,8 @@ internal object Edits {
     fun fixes(original: String, corrected: String, reported: List<VerdictChange>): Result {
         val components = repairs(original, corrected)
         fun ownsComponents(span: Span) = components.none { part ->
-            cuts(span.start, span.end, part.start, part.end) ||
-                cuts(span.targetStart, span.targetEnd, part.targetStart, part.targetEnd)
+            cuts(original, span.start, span.end, part.start, part.end) ||
+                cuts(corrected, span.targetStart, span.targetEnd, part.targetStart, part.targetEnd)
         }
         val declared = located(original, corrected, reported)?.takeIf { it.all(::ownsComponents) }
             ?.map { span -> trimUnchangedContext(span).takeIf(::ownsComponents) ?: span }
@@ -43,9 +43,19 @@ internal object Edits {
         return Result(ordered, !Alignment.same(render(original, ordered).text, corrected))
     }
 
-    /** A reported decision may contain components, but cannot divide their ownership. */
-    private fun cuts(start: Int, end: Int, componentStart: Int, componentEnd: Int) =
-        componentStart < start && start < componentEnd || componentStart < end && end < componentEnd
+    /**
+     * A reported decision may contain components, but cannot divide their ownership.
+     * Outer separators belong to mechanical repair ranges, not lexical ownership:
+     * a complete inserted word can be reported with either adjacent separator.
+     * Internal separators still belong to a broken/joined word's component.
+     */
+    private fun cuts(text: String, start: Int, end: Int, componentStart: Int, componentEnd: Int): Boolean {
+        var left = componentStart
+        var right = componentEnd
+        while (left < right && text[left].isWhitespace()) left++
+        while (right > left && text[right - 1].isWhitespace()) right--
+        return left < start && start < right || left < end && end < right
+    }
 
     /** Split mechanical repairs, keeping a sentence stop with its required initial case. */
     private fun mechanicalRepairs(original: String, corrected: String) =

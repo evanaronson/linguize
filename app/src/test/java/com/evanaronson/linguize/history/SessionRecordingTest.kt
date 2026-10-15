@@ -5,6 +5,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
 import com.evanaronson.linguize.core.interpret
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -38,7 +39,8 @@ class SessionRecordingTest {
     /** A fix (despues → después) and a rewording elsewhere that doesn't touch it. */
     private val shower = "Voy a tomar una ducha y te llamo despues"
 
-    private fun revision(original: String, corrected: String = "", natural: String = ""): Revision =
+    private fun revision(original: String, corrected: String = "", natural: String = "",
+        changes: List<VerdictChange> = emptyList()): Revision =
         (
             interpret(
                 original,
@@ -48,14 +50,17 @@ class SessionRecordingTest {
                     corrected = corrected,
                     moreNatural = natural.isNotEmpty(),
                     natural = natural,
+                    naturalChanges = changes,
                 ),
             ) as CheckResult.Reviewed
             ).revision
 
-    private fun rainRevision() = revision(rain, corrected = "Com estàs amb la pluja?", natural = "Com portes la pluja?")
+    private fun rainRevision() = revision(rain, corrected = "Com estàs amb la pluja?", natural = "Com portes la pluja?",
+        changes = listOf(VerdictChange("estàs amb", "portes")))
 
     private fun showerRevision() =
-        revision(shower, corrected = "Voy a tomar una ducha y te llamo después", natural = "Me voy a duchar y te llamo después")
+        revision(shower, corrected = "Voy a tomar una ducha y te llamo después", natural = "Voy a ducharme y te llamo después",
+            changes = listOf(VerdictChange("tomar una ducha", "ducharme")))
 
     private var ids = 0
     private fun recording(text: String) = SessionRecording(text, context, now = 100, newId = { "id${ids++}" })

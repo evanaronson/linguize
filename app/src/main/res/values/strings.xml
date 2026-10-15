@@ -35,6 +35,9 @@
     <string name="looks_good">Looks good</string>
     <string name="nothing_to_fix">Nothing to fix</string>
     <string name="sounds_natural">Sounds natural</string>
+    <string name="fixes_withheld">Some fixes could not be offered</string>
+    <string name="rewordings_withheld">Some rewordings could not be offered</string>
+    <string name="no_changes">No changes offered</string>
     <string name="fixes_accepted">Fixes accepted</string>
     <string name="rewordings_accepted">Rewordings accepted</string>
     <string name="copy_with_fixes">Copy with fixes</string>
@@ -122,6 +125,10 @@
     <string name="change_why_add">Why add %1$s</string>
     <string name="change_why_replace">Why %1$s becomes %2$s</string>
     <string name="change_add">Add %1$s</string>
+    <string name="change_remove">Remove %1$s</string>
+    <string name="change_line_break">line break</string>
+    <string name="change_space">space</string>
+    <string name="change_spacing">spacing</string>
     <string name="change_replace">Replace %1$s with %2$s</string>
     <string name="change_becomes">%1$s becomes %2$s</string>
     <string name="change_replacement">%1$s → %2$s</string>

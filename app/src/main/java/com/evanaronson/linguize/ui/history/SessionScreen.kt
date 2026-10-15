@@ -71,7 +71,7 @@ private fun Shown(page: SessionPage.Shown, deletion: SessionDeletion, onDelete: 
 
     val card = page.card
     // The card shows the text itself only when it has suggestions to show in it.
-    val cardShowsText = (card?.result as? CheckResult.Reviewed)?.looksGood == false
+    val cardShowsText = (card?.result as? CheckResult.Reviewed)?.revision?.edits?.isNotEmpty() == true
     if (!cardShowsText) TextBlock(stringResource(R.string.your_text), session.text)
     if (card != null) {
         ReadOnlyCard(card)

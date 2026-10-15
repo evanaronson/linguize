@@ -83,7 +83,7 @@ internal fun render(original: String, edits: List<Edit>): Rendered {
         out.append(original, pos, edit.start)
         val start = out.length
         out.append(edit.replacement)
-        if (edit.replacement.isNotEmpty()) ranges[edit.id] = start until out.length
+        ranges[edit.id] = start until out.length
         pos = edit.end
     }
     out.append(original, pos, original.length)

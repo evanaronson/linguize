@@ -49,6 +49,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
@@ -56,6 +57,19 @@ import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
 data class Highlight(val id: Int, val range: IntRange, val from: String, val why: String?)
+
+/** Deletions and spacing cannot offer a visible text target; show their controls separately. */
+internal fun Highlight.needsPanel(text: String) = text.substring(range).isSpacing()
+
+private fun Char.isLineBreak() = this in "\r\n\u0085\u2028\u2029"
+private fun String.isSpacing() = all { it.isWhitespace() || it.isLineBreak() }
+
+/** Nearby words locate a spacing/deletion control without changing its actual replacement span. */
+internal fun Highlight.context(text: String): String {
+    val before = Regex("""\S+\s*$""").find(text.substring(0, range.first))?.value.orEmpty()
+    val after = Regex("""^\s*\S+""").find(text.substring(range.last + 1))?.value.orEmpty()
+    return before + text.substring(range) + after
+}
 
 /**
  * Suggested text with a separate rounded highlight behind each change, so
@@ -76,16 +90,17 @@ fun HighlightedText(
 ) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
-    val selected = changes.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
+    val (panels, visible) = remember(text, changes) { changes.partition { it.needsPanel(text) } }
+    val selected = visible.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
     // Drawing runs every frame. Index neighboring edges once instead of rescanning
     // every highlight for every other highlight as a longer check is scrolled.
-    val starts = remember(changes) { changes.mapTo(HashSet()) { it.range.first } }
-    val ends = remember(changes) { changes.mapTo(HashSet()) { it.range.last + 1 } }
+    val starts = remember(visible) { visible.mapTo(HashSet()) { it.range.first } }
+    val ends = remember(visible) { visible.mapTo(HashSet()) { it.range.last + 1 } }
 
     val annotated = remember(text, changes) {
         buildAnnotatedString {
             append(text)
-            for (change in changes) {
+            for (change in visible) {
                 addStyle(SpanStyle(fontWeight = FontWeight.SemiBold), change.range.first, change.range.last + 1)
             }
             append(" ")
@@ -94,7 +109,7 @@ fun HighlightedText(
     }
 
     // Resolve labels during composition so screen-reader actions also follow locale changes.
-    val actions = changes.flatMap { change ->
+    val actions = visible.flatMap { change ->
         val to = text.substring(change.range)
         val whyLabel = if (change.from.isEmpty()) stringResource(R.string.change_why_add, to)
             else stringResource(R.string.change_why_replace, change.from, to)
@@ -147,7 +162,7 @@ fun HighlightedText(
                     val gap = 1.dp.toPx()
                     val padY = 1.dp.toPx()
                     val radius = CornerRadius(5.dp.toPx())
-                    changes.forEachIndexed { index, change ->
+                    visible.forEachIndexed { index, change ->
                         val touchesBefore = change.range.first in ends
                         val touchesAfter = change.range.last + 1 in starts
                         val padLeft = if (touchesBefore) -gap else grow
@@ -163,16 +178,24 @@ fun HighlightedText(
                         }
                     }
                 }
-                .pointerInput(changes) {
+                .pointerInput(visible) {
                     detectTapGestures { position ->
                         val result = layout ?: return@detectTapGestures
-                        val hit = nearest(result, changes, position, maxDistance = TOUCH_RADIUS.toPx())
+                        val hit = nearest(result, visible, position, maxDistance = TOUCH_RADIUS.toPx())
                         selectedId = if (hit == null || hit.id == selectedId) null else hit.id
                     }
                 },
         )
 
-        val shown = selected?.let { changes.getOrNull(it) }
+        panels.forEach { change ->
+            Spacer(Modifier.height(8.dp))
+            Explanation(change, text.substring(change.range), accent,
+                onReplace = onReplace?.let { replace -> { replace(change.id) } },
+                context = change.context(text),
+            )
+        }
+
+        val shown = selected?.let { visible.getOrNull(it) }
         // Whenever a highlight is tapped, scroll (the card, or the screen around it) so its
         // explanation and Replace button are fully visible, once the panel has opened.
         val explanation = remember { BringIntoViewRequester() }
@@ -203,11 +226,16 @@ fun HighlightedText(
 }
 
 @Composable
-private fun Explanation(change: Highlight, replacement: String, accent: Color, onReplace: (() -> Unit)?) {
-    val description = if (change.from.isEmpty()) stringResource(R.string.change_add, replacement)
-        else stringResource(R.string.change_becomes, change.from, replacement)
-    val display = if (change.from.isEmpty()) description
-        else stringResource(R.string.change_replacement, change.from, replacement)
+private fun Explanation(change: Highlight, replacement: String, accent: Color, onReplace: (() -> Unit)?, context: String? = null) {
+    val from = change.from.visibleValue()
+    val to = replacement.visibleValue()
+    val description = when {
+        change.from.isEmpty() -> stringResource(R.string.change_add, to)
+        replacement.isEmpty() -> stringResource(R.string.change_remove, from)
+        else -> stringResource(R.string.change_becomes, from, to)
+    }
+    val display = if (change.from.isEmpty() || replacement.isEmpty()) description
+        else stringResource(R.string.change_replacement, from, to)
     // Read out as it opens, which matters when it was opened by a screen reader's "Why" action.
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -219,14 +247,14 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
                 Text(
                     buildAnnotatedString {
                         append(display)
-                        if (change.from.isNotEmpty()) {
-                            val fromStart = display.indexOf(change.from)
+                        if (from.isNotEmpty()) {
+                            val fromStart = display.indexOf(from)
                             if (fromStart >= 0) addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough),
-                                fromStart, fromStart + change.from.length)
+                                fromStart, fromStart + from.length)
                         }
-                        val replacementStart = display.lastIndexOf(replacement)
-                        if (replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
-                            replacementStart, replacementStart + replacement.length)
+                        val replacementStart = display.lastIndexOf(to)
+                        if (to.isNotEmpty() && replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
+                            replacementStart, replacementStart + to.length)
                     },
                     style = MaterialTheme.typography.labelLarge,
                     // In words: the arrow would be read out as "right arrow".
@@ -234,6 +262,11 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
                         contentDescription = description
                     },
                 )
+                if (!context.isNullOrBlank()) {
+                    Text(context, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
                 change.why?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -244,6 +277,15 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
             }
         }
     }
+}
+
+@Composable
+private fun String.visibleValue(): String = when {
+    isEmpty() -> ""
+    !isSpacing() -> trim()
+    any { it.isLineBreak() } -> stringResource(R.string.change_line_break)
+    length == 1 && this[0] == ' ' -> stringResource(R.string.change_space)
+    else -> stringResource(R.string.change_spacing)
 }
 
 private data class LineBox(val left: Float, val top: Float, val right: Float, val bottom: Float)

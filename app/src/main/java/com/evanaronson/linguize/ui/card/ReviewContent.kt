@@ -82,7 +82,7 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
     val review = actions.review
     result.kinds.forEachIndexed { index, kind ->
         if (index > 0) SectionDivider()
-        EditSection(kind, result.revision, actions.onCopy, review)
+        EditSection(kind, result.revision, kind in result.withheld, actions.onCopy, review)
     }
 
     if (review != null && result.revision.canUndo) {
@@ -103,9 +103,14 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
 }
 
 @Composable
-private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, EditKind) -> Unit, review: ReviewActions?) {
+private fun EditSection(kind: EditKind, revision: Revision, withheld: Boolean, onCopy: (String, EditKind) -> Unit, review: ReviewActions?) {
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
+    if (withheld) {
+        StatusLine(Mark.Unsure, stringResource(if (fix) R.string.fixes_withheld else R.string.rewordings_withheld))
+        if (revision.edits(kind).isEmpty()) return
+        Spacer(Modifier.height(10.dp))
+    }
     if (revision.edits(kind).isEmpty()) {
         StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
         return

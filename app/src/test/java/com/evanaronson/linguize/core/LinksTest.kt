@@ -7,6 +7,25 @@ import org.junit.Test
 
 class LinksTest {
     @Test
+    fun aSafeBoundaryRepairSurvivesBesideAnAmbiguousDomainChange() {
+        val original = "alsofà.Si"
+        val wordSpace = Edit(0, EditKind.Fix, 0, 6, "alsofà", "al sofà", null)
+        val boundarySpace = Edit(1, EditKind.Fix, 7, 7, "", " ", null)
+        assertEquals(listOf(boundarySpace), Links.withoutNew(original, listOf(wordSpace, boundarySpace)))
+        assertEquals("alsofà. Si", render(original, listOf(boundarySpace)).text)
+        // Once the boundary is real, the independent word-spacing correction is safe.
+        assertEquals(listOf(wordSpace), Links.withoutNew("alsofà. Si", listOf(wordSpace)))
+    }
+
+    @Test
+    fun separateSafeEditsCannotCombineIntoANewAddress() {
+        val original = "evil com"
+        val removeSpace = Edit(0, EditKind.Fix, 4, 5, " ", "", null)
+        val insertDot = Edit(1, EditKind.Fix, 4, 4, "", ".", null)
+        assertEquals(emptyList<Edit>(), Links.withoutNew(original, listOf(removeSpace, insertDot)))
+    }
+
+    @Test
     fun aSubstringOfAnExistingAddressIsStillANewAddress() {
         assertTrue(Links.hasNewLink("Consulta notevil.com", "Consulta evil.com"))
         assertTrue(Links.hasNewLink("Consulta https://safe.example/?next=evil.com", "Consulta evil.com"))
@@ -23,7 +42,8 @@ class LinksTest {
     @Test
     fun editsCannotTurnAnExistingAddressIntoADifferentSubstringAddress() {
         val original = "Consulta notevil.com"
-        val edits = Edits.fixes(original, "Consulta evil.com", emptyList())
+        val edits = Edits.fixes(original, "Consulta evil.com",
+            listOf(VerdictChange("notevil.com", "evil.com"))).edits
         assertTrue(edits.isNotEmpty())
         assertEquals(emptyList<Edit>(), Links.withoutNew(original, edits))
     }

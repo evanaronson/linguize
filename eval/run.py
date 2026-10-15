@@ -13,7 +13,10 @@ its `language` field; empty for unclear), "fix" (a correction is expected or not
 natural alternative is expected or not) and "max_fixes" (more fixes than this
 means style is being counted as errors) "min_sentences" (fewer means
 run-ons were left alone), "assumption" (whether any assumption should be listed)
-and "settled" ([about, answer] pairs sent as Settled lines). Omitted fields aren't checked. "natural": false cases are the important ones: they catch the
+and "settled" ([about, answer] pairs sent as Settled lines). Focused regressions may
+also set "expected_corrected" / "expected_natural" for exact result text and
+"expected_fixes" / "expected_natural_changes" for ordered {from, to} pairs
+(reason wording is not compared). Omitted fields aren't checked. "natural": false cases are the important ones: they catch the
 app nagging about language that is already fine.
 """
 import argparse
@@ -57,7 +60,8 @@ def user_message(case):
             f"Punctuation: {case.get('punctuation', 'moderate')}\n"
             f"Checks: {case.get('checks', 'both')}\n"
             f"Native: {native} (write meaning, assumptions and reasons in {native})\n"
-            + settled + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
+            + settled + ("Repair: true\n" if case.get("repair") else "")
+            + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
 
 
 def json_object(value, label):
@@ -191,6 +195,16 @@ def summarize_answer(case, verdict, elapsed):
         problems.append(f"assumptions {verdict.get('assumptions')} (expected {'some' if case['assumption'] else 'none'})")
     if "max_fixes" in case and len(verdict["fixes"]) > case["max_fixes"]:
         problems.append(f"{len(verdict['fixes'])} fixes > {case['max_fixes']} (style counted as errors?)")
+    for field in ("corrected", "natural"):
+        expected = "expected_" + field
+        if expected in case and verdict[field] != case[expected]:
+            problems.append(f"{field} {verdict[field]!r} != {case[expected]!r}")
+    for field in ("fixes", "natural_changes"):
+        expected = "expected_" + field
+        if expected in case:
+            changes = [{"from": change["from"], "to": change["to"]} for change in verdict[field]]
+            if changes != case[expected]:
+                problems.append(f"{field} {changes!r} != {case[expected]!r}")
     mark = "MISS " if problems else "ok   "
     lines = [f"{mark}{elapsed:4.1f}s  {case['text']}  [{verdict.get('language', '')}]"]
     for a in verdict.get("assumptions", []):

@@ -1,8 +1,12 @@
 name: Corruption audit
 on:
-  push:
-    branches: [feature/fuzz-100]
-    paths: [eval/fuzz/request.json]
+  pull_request:
+    paths:
+      - app/src/main/java/com/evanaronson/linguize/core/**
+      - app/src/main/assets/**
+      - app/src/test/**
+      - eval/**
+      - .github/workflows/fuzz.yml
   workflow_dispatch:
     inputs:
       live:
@@ -53,11 +57,10 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib
-          config = json.loads(pathlib.Path("eval/fuzz/request.json").read_text())
+          import os
           dispatched = os.environ["EVENT_NAME"] == "workflow_dispatch"
-          reuse = os.environ.get("REUSE_INPUT", "") if dispatched else config.get("reuse_run", "")
-          live = os.environ.get("LIVE_INPUT") == "true" if dispatched else config.get("live", True)
+          reuse = os.environ.get("REUSE_INPUT", "") if dispatched else ""
+          live = dispatched and os.environ.get("LIVE_INPUT") == "true"
           if reuse and not str(reuse).isdigit():
               raise ValueError("Resume run ID must be numeric")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
@@ -99,20 +102,17 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          EVENT_NAME: ${{ github.event_name }}
           PROVIDER_INPUT: ${{ inputs.provider }}
           MODEL_INPUT: ${{ inputs.model }}
           FALLBACKS_INPUT: ${{ inputs.fallbacks }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib, subprocess, sys
-          config = json.loads(pathlib.Path("eval/fuzz/request.json").read_text())
-          if os.environ["EVENT_NAME"] == "workflow_dispatch":
-              config = {"provider": os.environ.get("PROVIDER_INPUT") or "gemini",
-                        "model": os.environ.get("MODEL_INPUT", ""),
-                        "fallbacks": os.environ.get("FALLBACKS_INPUT", "").splitlines()}
-          argv = [sys.executable, "eval/fuzz.py", "--live", "--workers", "4", "--interval", "12",
-                  "--tries", "1", "--timeout", "90", "--retry-errors",
+          import os, subprocess, sys
+          config = {"provider": os.environ.get("PROVIDER_INPUT") or "gemini",
+                    "model": os.environ.get("MODEL_INPUT", ""),
+                    "fallbacks": os.environ.get("FALLBACKS_INPUT", "").splitlines()}
+          argv = [sys.executable, "eval/fuzz.py", "--live", "--workers", "4", "--interval", "3",
+                  "--tries", "3", "--timeout", "30", "--retry-errors",
                   "--provider", config.get("provider", "gemini")]
           if config.get("model"):
               argv += ["--model", config["model"]]
@@ -127,9 +127,28 @@ jobs:
           LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
           LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
         run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
+      - name: Retry incomplete live answers once
+        if: steps.request.outputs.live == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python3 eval/fuzz.py --live --repair-from eval/fuzz/results/engine.jsonl --interval 3 --timeout 30
+      - name: Replay recorded retry answers
+        if: steps.request.outputs.live == 'true'
+        env:
+          LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
+          LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
+        run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
       - name: Build complete review sheet
         if: always()
-        run: python3 eval/fuzz_report.py
+        env:
+          LIVE: ${{ steps.request.outputs.live }}
+        run: |
+          if [ "$LIVE" = true ]; then
+            python3 eval/fuzz_report.py --require-repairs
+          else
+            python3 eval/fuzz_report.py
+          fi
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

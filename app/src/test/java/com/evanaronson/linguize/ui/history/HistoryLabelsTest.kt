@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
+import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.history.SessionSummary
 import com.evanaronson.linguize.ui.components.uiLocale
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -55,5 +57,12 @@ class HistoryLabelsTest {
         }).resources
         val label = relativeDate(arabic, at(2026, 10, 1), now, time, zone)
         assertTrue(label, label.contains('١'))
+    }
+
+    @Test
+    fun zeroStoredChangesDoNotClaimTheCheckWasComplete() {
+        val row = SessionSummary("empty", now, null, null, "Bon dia", null, 0, 0, 0, Verdict.Status.Ok)
+        assertEquals("No changes offered", row.statusLine(resources))
+        assertEquals("Wrong language", row.copy(status = Verdict.Status.WrongLanguage).statusLine(resources))
     }
 }

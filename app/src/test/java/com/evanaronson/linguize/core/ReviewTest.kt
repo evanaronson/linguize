@@ -640,6 +640,21 @@ class ReviewTest {
     }
 
     @Test
+    fun independentCorrectionsSurviveBesideAnUnchangedLongUrl() {
+        val sentence = "Manana tendre mas informacion sobre la reunion. "
+        val url = "https://example.com/document?source=" + "a".repeat(220)
+        val original = sentence.repeat(55) + url
+        val corrected = sentence.replace("Manana", "Mañana").repeat(10) + sentence.repeat(45) + url
+        val result = reviewed(original, Verdict(status = Verdict.Status.Ok,
+            hasErrors = true, corrected = corrected,
+            fixes = List(10) { VerdictChange("Manana", "Mañana", "Missing accent") }))
+
+        assertTrue(result.withheld.isEmpty())
+        assertEquals(10, result.revision.edits.size)
+        assertEquals(corrected, result.revision.acceptAll(EditKind.Fix).workingText)
+    }
+
+    @Test
     fun aRewordingStillCannotCreateALinkWhenTheWriterLeavesAFixUnaccepted() {
         val original = "evil.a"
         val result = reviewed(original, Verdict(status = Verdict.Status.Ok,

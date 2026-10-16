@@ -54,6 +54,29 @@ cleanup() {
     exit "$status"
 }
 trap cleanup EXIT
+# Snapshot before installation: an already-enabled one-shot probe could bind during install.
+# Listing preserves the distinction between an absent key and an empty value.
+secure_settings=$(adb shell settings list secure)
+while IFS= read -r setting; do
+    case "$setting" in
+        enabled_accessibility_services=*)
+            services_present=true
+            services_value=${setting#*=}
+            ;;
+        accessibility_enabled=*)
+            enabled_present=true
+            enabled_value=${setting#*=}
+            ;;
+    esac
+done <<< "$secure_settings"
+probe_service=com.evanaronson.linguize/.accessibility.ClipboardProbeService
+probe_service_full=com.evanaronson.linguize/com.evanaronson.linguize.accessibility.ClipboardProbeService
+case ":$services_value:" in
+    *":$probe_service:"*|*":$probe_service_full:"*)
+        echo 'Disable ClipboardProbeService in Android accessibility settings before running this script; the probe needs a fresh connection.' >&2
+        exit 1
+        ;;
+esac
 # Recover from a helper left behind by an earlier run before using a new key.
 installed_helpers=$(adb shell pm list packages "$helper_package")
 if grep -Fxq "package:$helper_package" <<< "$installed_helpers"; then
@@ -94,26 +117,7 @@ adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard
 adb shell am start -W -n com.linguize.clipboardprobe/.SeedActivity
 sleep 2
-# Listing preserves the distinction between an absent key and an empty value.
-secure_settings=$(adb shell settings list secure)
-while IFS= read -r setting; do
-    case "$setting" in
-        enabled_accessibility_services=*)
-            services_present=true
-            services_value=${setting#*=}
-            ;;
-        accessibility_enabled=*)
-            enabled_present=true
-            enabled_value=${setting#*=}
-            ;;
-    esac
-done <<< "$secure_settings"
-probe_service=com.evanaronson.linguize/.accessibility.ClipboardProbeService
-probe_services=$services_value
-case ":$probe_services:" in
-    *":$probe_service:"*) ;;
-    *) probe_services=${probe_services:+$probe_services:}$probe_service ;;
-esac
+probe_services=${services_value:+$services_value:}$probe_service
 # Arm restoration before either write, including a write that changes state then fails.
 adb shell run-as com.evanaronson.linguize rm -f files/clipboard-probe.txt
 restore_accessibility=true

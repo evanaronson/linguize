@@ -43,6 +43,7 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val deletion = session.deletion
+    val page = session.page
     LaunchedEffect(deletion) {
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
@@ -53,7 +54,7 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        when (val page = session.page) {
+        when (page) {
             SessionPage.Loading -> Unit
             SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
             SessionPage.Failed -> Column(Modifier.padding(vertical = 12.dp)) {
@@ -62,10 +63,15 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
             }
             is SessionPage.Shown -> Shown(
                 page,
-                deletion = deletion,
-                onDelete = session::delete,
                 onMeaningNavigation = { scope.launch { scroll.scrollTo(0) } },
             )
+        }
+        if (deletion == SessionDeletion.Failed) {
+            Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
+        }
+        // A refresh may remove the row before a failed checkpoint has been retried.
+        if (page is SessionPage.Shown || deletion == SessionDeletion.Failed) {
+            DeleteButton(session::delete, deleting = deletion == SessionDeletion.Deleting)
         }
     }
 }
@@ -73,8 +79,6 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
 @Composable
 private fun Shown(
     page: SessionPage.Shown,
-    deletion: SessionDeletion,
-    onDelete: () -> Unit,
     onMeaningNavigation: () -> Unit,
 ) {
     val session = page.session
@@ -110,10 +114,6 @@ private fun Shown(
         SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
             reviewed = reviewed, settled = settled)
     }
-    if (deletion == SessionDeletion.Failed) {
-        Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
-    }
-    DeleteButton(onDelete, deleting = deletion == SessionDeletion.Deleting)
 }
 
 @Composable

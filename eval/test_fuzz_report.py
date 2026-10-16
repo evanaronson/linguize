@@ -61,6 +61,15 @@ class CompleteEvidenceTest(unittest.TestCase):
                     self.assertRaises(SystemExit):
                 main()
 
+    def test_explicit_unbound_archival_mode_preserves_missing_historical_hashes(self):
+        self.engines[0].pop("replay_input")
+        for field in ("prompt_sha256", "corpus_sha256"):
+            self.replies[0].pop(field)
+        self.assertEqual(200, len(complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)))
+        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+        with self.assertRaisesRegex(ValueError, "nonempty provider, model and prompt/corpus hashes"):
+            complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)
+
     def test_changed_replay_inputs_need_a_new_replay(self):
         changes = {"provider": "openai", "model": "different", "prompt_sha256": "new-prompt",
                    "corpus_sha256": "new-corpus", "verdict": {"status": "unclear"},
@@ -86,6 +95,48 @@ class CompleteEvidenceTest(unittest.TestCase):
         self.replies[0]["repair"]["error"] = "InterruptedBeforeResult"
         with self.assertRaisesRegex(ValueError, "differs from current reply"):
             self.audit()
+
+    def test_replay_binding_distinguishes_integer_boolean_and_float_scores(self):
+        for repaired in (False, True):
+            for field in ("confidence", "impact"):
+                for recorded, changed in ((1, True), (0, False), (1, 1.0)):
+                    with self.subTest(repaired=repaired, field=field, recorded=recorded, changed=changed):
+                        self.setUp()
+                        verdict = {"status": "ok", "fixes": [{"confidence": recorded, "impact": recorded}]}
+                        if repaired:
+                            self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1,
+                                                         "verdict": verdict}
+                        else:
+                            self.replies[0]["verdict"] = verdict
+                        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+                        self.assertEqual(200, len(self.audit()))
+                        verdict["fixes"][0][field] = changed
+                        with self.assertRaisesRegex(ValueError, "differs from current reply"):
+                            self.audit()
+
+    def test_bound_evidence_requires_nonempty_capture_identity(self):
+        for field in ("provider", "model", "prompt_sha256", "corpus_sha256"):
+            for value in ("missing", "", " \t", None, False, 1):
+                for require_repairs in (False, True):
+                    with self.subTest(field=field, value=value, require_repairs=require_repairs):
+                        self.setUp()
+                        for engine in self.engines:
+                            engine["retry_evidence"] = "not_needed"
+                        if value == "missing":
+                            self.replies[0].pop(field)
+                        else:
+                            self.replies[0][field] = value
+                        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+                        with self.assertRaisesRegex(ValueError, "nonempty provider, model and prompt/corpus hashes"):
+                            complete_evidence(self.replies, self.engines, self.corpus, require_repairs=require_repairs)
+
+    def test_replay_input_requires_every_mandatory_provenance_field(self):
+        for field in ("case", "provider", "model", "prompt_sha256", "corpus_sha256", "verdict"):
+            with self.subTest(field=field):
+                self.setUp()
+                self.engines[0]["replay_input"].pop(field)
+                with self.assertRaisesRegex(ValueError, "Replay input is unbound"):
+                    self.audit()
 
     def test_equivalent_json_order_and_collection_timing_do_not_require_replay(self):
         self.engines[0]["replay_input"] = dict(reversed(list(self.replies[0].items())))

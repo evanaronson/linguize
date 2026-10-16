@@ -92,6 +92,7 @@ fun RecentSection(
 internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: SnackbarHostState) {
     val pending by history.pendingDelete.collectAsState()
     val failed by history.failedDeletes.collectAsState()
+    val failureGeneration by history.failedDeleteGeneration.collectAsState()
     val deletedMessage = stringResource(R.string.check_deleted)
     val undoLabel = stringResource(R.string.undo)
     val incompleteMessage = stringResource(R.string.history_delete_incomplete)
@@ -116,7 +117,7 @@ internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: Snackb
     // Undo takes priority. Failed committed work stays hidden and durable, including when
     // storage deleted the row but couldn't finish cleanup. Retry every failed ID so one
     // failure can't keep another from being retried.
-    LaunchedEffect(failed, pending) {
+    LaunchedEffect(failed, pending, failureGeneration) {
         if (pending != null || failed.isEmpty()) return@LaunchedEffect
         val result = snackbar.showSnackbar(incompleteMessage, actionLabel = retryLabel, duration = SnackbarDuration.Indefinite)
         if (result == SnackbarResult.ActionPerformed) history.retryFailedDeletes()

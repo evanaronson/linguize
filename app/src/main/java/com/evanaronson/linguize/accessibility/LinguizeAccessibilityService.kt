@@ -75,6 +75,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val field: AccessibilityNodeInfo?,
         val restore: () -> Unit,
         val discard: () -> Unit,
+        val discardOnFieldChange: Boolean = true,
     )
 
     override fun onServiceConnected() {
@@ -353,7 +354,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-            card = Card(window, field = null, restore = backFromApp, discard = dismiss)
+            card = Card(window, field = null, restore = backFromApp, discard = dismiss,
+                discardOnFieldChange = false)
         } catch (_: RuntimeException) {
             dismiss()
             Toast.makeText(this, R.string.shortcut_recovery_failed, Toast.LENGTH_LONG).show()
@@ -369,7 +371,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val since = window.hiddenSince ?: return false
         if (SystemClock.elapsedRealtime() - since > MAX_HIDDEN_MILLIS) return true
         if (focused == null || focused.packageName?.toString() == packageName) return false
-        return focused != field
+        // Recovery holds text only; it has no source field to become stale.
+        return discardOnFieldChange && focused != field
     }
 
     /**

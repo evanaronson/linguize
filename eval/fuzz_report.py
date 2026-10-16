@@ -53,6 +53,7 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False, repai
 
     answers = indexed(replies, lambda row: row["case"]["request_id"], "Replies")
     engines = indexed(engine_rows, lambda row: row["request_id"], "Replay")
+    identity_fields = ("provider", "model", "prompt_sha256", "corpus_sha256")
     for identity, case in expected.items():
         reply = answers[identity]
         if reply["case"] != case:
@@ -61,6 +62,9 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False, repai
             raise ValueError(f"Audit requires a returned verdict for every request: {identity}")
         if engines[identity].get("result") not in ("reviewed", "unclear", "wrong_language"):
             raise ValueError(f"Audit requires a successful replay for every request: {identity}")
+        if not (legacy_unbound and "replay_input" not in engines[identity]) and any(
+                not isinstance(reply.get(key), str) or not reply[key].strip() for key in identity_fields):
+            raise ValueError(f"Audit requires nonempty provider, model and prompt/corpus hashes: {identity}")
         repair = reply.get("repair")
         if repair is not None and (repair.get("provider") != reply["provider"] or repair.get("model") != reply["model"] or
                                    repair.get("attempts") != 1 or ("verdict" in repair) == ("error" in repair)):
@@ -76,10 +80,11 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False, repai
             if legacy_unbound and "replay_input" not in engines[identity]:
                 continue
             source = engines[identity].get("replay_input")
-            fields = ("case", "provider", "model", "prompt_sha256", "corpus_sha256", "verdict", "repair")
-            if not isinstance(source, dict) or \
-                    {key: source[key] for key in fields if key in source} != \
-                    {key: reply[key] for key in fields if key in reply}:
+            required_fields = ("case", *identity_fields, "verdict")
+            fields = (*required_fields, "repair")
+            if not isinstance(source, dict) or any(key not in source for key in required_fields) or \
+                    evidence_digest({key: source[key] for key in fields if key in source}) != \
+                    evidence_digest({key: reply[key] for key in fields if key in reply}):
                 raise ValueError(f"Replay input is unbound or differs from current reply; replay again: {identity}")
     return engines
 

@@ -26,6 +26,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.popup.PopupReturn
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -180,17 +181,20 @@ class ReplacementRecoveryTest {
         val (original, check) = review()
         back(original)
         val recovery = currentWindow()
-        field.packageName = service.packageName
+        // Home/Recents returns to the original editor without finishing the app gateway.
+        val returnToken = PopupReturn.await(ReflectionHelpers.getField(card()!!, "restore"))
         recovery.hidden = true
         ReflectionHelpers.callInstanceMethod<Unit>(service, "tapped")
         assertSame(recovery, currentWindow())
         assertFalse(recovery.hidden)
         assertNull(check.state)
         assertTrue(recovery.viewModelStore.keys().isEmpty())
+        assertEquals(listOf(revision.workingText), writes)
         click(R.string.shortcut_copy_accepted)
         assertSame(recovery, currentWindow())
         assertEquals(revision.workingText, clipboard.primaryClip!!.getItemAt(0).text.toString())
         click(R.string.shortcut_dismiss)
+        PopupReturn.left(returnToken)
         assertNull(card())
     }
 

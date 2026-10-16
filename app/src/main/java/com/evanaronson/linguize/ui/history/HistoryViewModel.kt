@@ -50,6 +50,7 @@ class HistoryViewModel internal constructor(
     private val hidden = MutableStateFlow<Set<String>>(emptySet())
     private val pending = MutableStateFlow<String?>(null)
     private val failed = MutableStateFlow<Set<String>>(emptySet())
+    private val failureGeneration = MutableStateFlow(0L)
 
     /** Commits [pending] when no Undo is on screen to answer for it. */
     private var timer: Job? = null
@@ -86,6 +87,9 @@ class HistoryViewModel internal constructor(
 
     /** Committed deletions whose row deletion or storage cleanup still needs a retry. */
     val failedDeletes: StateFlow<Set<String>> = failed.asStateFlow()
+
+    /** Every failed completion, even when retry restores the same IDs before a UI frame. */
+    internal val failedDeleteGeneration: StateFlow<Long> = failureGeneration.asStateFlow()
 
     init {
         // A deletion that was waiting for Undo when the last process ended: that Undo is gone.
@@ -144,7 +148,10 @@ class HistoryViewModel internal constructor(
             // Compare and clear on the same thread as delete/undo. An IO-thread
             // read-then-remove could erase a newer pending deletion's durable note.
             withContext(Dispatchers.Main.immediate) {
-                if (deleted) deletionCommitted(id) else failed.update { it + id }
+                if (deleted) deletionCommitted(id) else {
+                    failed.update { it + id }
+                    failureGeneration.update { it + 1 }
+                }
             }
         }
     }

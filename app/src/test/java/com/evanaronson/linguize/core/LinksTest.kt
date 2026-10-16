@@ -136,6 +136,15 @@ class LinksTest {
     }
 
     @Test
+    fun repeatedScansOfALongFailedTokenExhaustWorkBeforeTheCharacterAllowance() {
+        val original = ";".repeat(8) + " " + "x".repeat(1_000)
+        val edits = (0 until 8).map { position ->
+            Edit(position, EditKind.Fix, position, position + 1, ";", ":", null)
+        }
+        assertEquals(emptyList<Edit>(), Links.withoutNew(original, edits))
+    }
+
+    @Test
     fun replacementExpansionCountsTowardTheAggregateLimit() {
         val original = ";".repeat(8)
         fun edits(length: Int) = original.indices.map { position ->

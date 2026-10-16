@@ -23,6 +23,12 @@ if Path(sys.argv[0]).name != "adb":
 path = Path(os.environ["FAKE_STATE"])
 state = json.loads(path.read_text())
 args = sys.argv[1:]
+
+def probe_enabled():
+    services = state["settings"].get("enabled_accessibility_services", "").split(":")
+    return (state["settings"].get("accessibility_enabled") == "1" and
+            "com.evanaronson.linguize/.accessibility.ClipboardProbeService" in services)
+
 if args[:1] == ["uninstall"]:
     assert args[1:] == ["com.linguize.clipboardprobe"], args
     state["helper_uninstalls"] = state.get("helper_uninstalls", 0) + 1
@@ -54,30 +60,40 @@ if args[:1] == ["shell"]:
         assert len(values) == (1 if operation == "put" else 0), args
         state["writes"].append([operation, key, *values])
         failure = state["fail_calls"].get(str(len(state["writes"])))
+        was_enabled = probe_enabled()
         # Initial writes may change settings before returning failure.
         if not failure or len(state["writes"]) <= 2:
             if operation == "put":
                 state["settings"][key] = values[0]
             else:
                 state["settings"].pop(key, None)
+        # The real one-shot service produces a file only when it connects.
+        if not was_enabled and probe_enabled():
+            state["connections"] += 1
+            if not state["suppress_result"]:
+                state["probe_file"] = state["result"]
         path.write_text(json.dumps(state))
         if failure:
             sys.exit(failure)
     elif args[:1] == ["run-as"]:
         if args[2:] == ["rm", "-f", "files/clipboard-probe.txt"]:
             state["probe_delete"] = args[1:]
+            state["probe_file"] = None
             path.write_text(json.dumps(state))
             if state.get("fail_probe_delete"):
                 sys.exit(26)
         else:
-            print(state["result"])
+            assert args[2:] == ["cat", "files/clipboard-probe.txt"], args
+            if state["probe_file"] is None:
+                sys.exit(1)
+            print(state["probe_file"])
 '''
 
 
 class ClipboardSettingsTest(unittest.TestCase):
     def run_probe(self, settings, *, result="matches=true before=NoText", fail_calls=None,
                   fail_snapshot=False, fail_probe_delete=False, helper_installed=False,
-                  fail_uninstall=False):
+                  fail_uninstall=False, suppress_result=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             bin_dir = root / "bin"
@@ -100,6 +116,8 @@ class ClipboardSettingsTest(unittest.TestCase):
                 "fail_probe_delete": fail_probe_delete,
                 "helper_installed": helper_installed, "installs": [], "helper_uninstalls": 0,
                 "fail_uninstall": fail_uninstall,
+                "probe_file": "matches=true before=NoText stale-output",
+                "connections": 0, "suppress_result": suppress_result,
             }))
             process = subprocess.run(
                 ["bash", str(SCRIPT)], cwd=root, text=True, capture_output=True,
@@ -138,14 +156,22 @@ class ClipboardSettingsTest(unittest.TestCase):
                     self.assertEqual([SERVICES, ENABLED],
                                      [write[1] for write in state["writes"][-2:]])
 
-    def test_probe_already_listed_is_not_duplicated(self):
-        for services in [PROBE, f"other/.Service:{PROBE}:last/.Service"]:
-            with self.subTest(services=services):
-                original = {SERVICES: services, ENABLED: "1"}
-                process, state = self.run_probe(original)
-                self.assertEqual(0, process.returncode, process.stderr)
-                self.assertEqual(["put", SERVICES, services], state["writes"][0])
-                self.assertEqual(original, state["settings"])
+    def test_probe_already_listed_aborts_before_install_settings_or_output_changes(self):
+        full_probe = "com.evanaronson.linguize/com.evanaronson.linguize.accessibility.ClipboardProbeService"
+        for probe in [PROBE, full_probe]:
+            for services in [probe, f"other/.Service:{probe}:last/.Service"]:
+                for enabled in ["0", "1"]:
+                    with self.subTest(services=services, enabled=enabled):
+                        original = {SERVICES: services, ENABLED: enabled}
+                        process, state = self.run_probe(original)
+                        self.assertEqual(1, process.returncode, process.stderr)
+                        self.assertIn("Disable ClipboardProbeService", process.stderr)
+                        self.assertEqual(original, state["settings"])
+                        self.assertEqual([], state["writes"])
+                        self.assertEqual([], state["installs"])
+                        self.assertNotIn("probe_delete", state)
+                        self.assertEqual("matches=true before=NoText stale-output", state["probe_file"])
+                        self.assertEqual(0, state["connections"])
 
     def test_each_failed_initial_write_still_restores_both_keys(self):
         for original in [{}, {SERVICES: "other/.Service", ENABLED: "0"}]:
@@ -188,6 +214,15 @@ class ClipboardSettingsTest(unittest.TestCase):
         self.assertEqual(["com.evanaronson.linguize", "rm", "-f",
                           "files/clipboard-probe.txt"], state["probe_delete"])
         self.assertEqual(["put", SERVICES], state["writes"][0][:2])
+        self.assertEqual(1, state["connections"])
+        self.assertEqual("matches=true before=NoText", state["probe_file"])
+
+    def test_no_fresh_output_fails_instead_of_reusing_stale_success(self):
+        process, state = self.run_probe({}, suppress_result=True)
+        self.assertEqual(1, process.returncode, process.stderr)
+        self.assertEqual(1, state["connections"])
+        self.assertIsNone(state["probe_file"])
+        self.assertEqual({}, state["settings"])
 
     def test_stale_result_deletion_failure_aborts_before_enabling_probe(self):
         original = {SERVICES: "other/.Service", ENABLED: "1"}

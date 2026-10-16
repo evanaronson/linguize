@@ -133,7 +133,7 @@ internal fun errorMessage(payload: String): String? = runCatching {
 
 /** What the card says when an answer was cut off at the output limit. */
 internal fun truncated(): CheckFailure = CheckFailure(
-    CheckFailure.Reason.TooLong,
+    CheckFailure.Reason.BadResponse,
     userMessage = CheckFailure.Message.TruncatedReply,
 )
 

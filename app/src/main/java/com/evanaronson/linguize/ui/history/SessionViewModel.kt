@@ -14,6 +14,7 @@ import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Replayed
 import com.evanaronson.linguize.history.SessionDetail
+import com.evanaronson.linguize.history.SessionDetailResult
 import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.history.SuggestionRecord
 import com.evanaronson.linguize.history.replay
@@ -33,10 +34,13 @@ sealed interface SessionPage {
     /** Deleted, or never kept. */
     data object Missing : SessionPage
 
+    /** The saved check could not be read; it may still be available on retry. */
+    data object Failed : SessionPage
+
     data class Shown(
         val session: SessionRecord,
         val appLabel: String?,
-        /** Optional read-only Meaning, from the same revision as [suggestions]. */
+        /** Optional read-only Meaning and dependency context, from the same revision as [suggestions]. */
         val card: CardState.Done?,
         /** Why the last attempt failed, if it did. */
         val failure: CheckFailure.Reason?,
@@ -81,6 +85,8 @@ class SessionViewModel internal constructor(
      * closed or its first save landed. The same session stays on screen while it's reread.
      */
     fun load(id: String) {
+        // A host resume must not reread text during or after an acknowledged local delete.
+        if (id == this.id && (deletion == SessionDeletion.Deleting || deletion == SessionDeletion.Deleted)) return
         if (id != this.id) {
             page = SessionPage.Loading
             deletion = SessionDeletion.Ready
@@ -88,13 +94,13 @@ class SessionViewModel internal constructor(
         this.id = id
         job?.cancel()
         job = viewModelScope.launch {
-            val detail = history.detail(id)
-            page = if (detail == null) {
-                SessionPage.Missing
-            } else {
-                withContext(Dispatchers.IO) {
+            page = when (val result = history.detail(id)) {
+                SessionDetailResult.Missing -> SessionPage.Missing
+                SessionDetailResult.Failed -> SessionPage.Failed
+                is SessionDetailResult.Found -> withContext(Dispatchers.IO) {
+                    val detail = result.detail
                     val rows = savedSuggestions(detail)
-                    // Replay is optional Meaning only. Never attach a different revision
+                    // Replay supplies optional read-only context. Never attach a different revision
                     // when saved rows survive a missing raw answer.
                     val sameAttempt = rows.isEmpty() || detail.decidedAttempt() == rows.first().attempt
                     val replayed = if (sameAttempt) replay(detail, prompt()::parseVerdict) else null
@@ -102,6 +108,11 @@ class SessionViewModel internal constructor(
                 }
             }
         }
+    }
+
+    /** Reads the current check again after a storage failure. */
+    fun retry() {
+        id?.let(::load)
     }
 
     /** Keep the check visible until the write succeeds; a failed write can be retried. */

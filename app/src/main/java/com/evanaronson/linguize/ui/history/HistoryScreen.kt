@@ -47,7 +47,7 @@ fun HistoryScreen(
     val list = rememberLazyListState()
     val snackbar = remember { SnackbarHostState() }
     val time = rememberTimeFormat()
-    HistoryUndo(history, snackbar)
+    HistoryDeletionFeedback(history, snackbar)
     LaunchedEffect(history) {
         history.showHistory(list.firstVisibleItemIndex + HistoryPager.PAGE_SIZE)
     }

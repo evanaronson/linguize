@@ -178,13 +178,17 @@ class SessionRecording(
 
     /**
      * The writer picked another [language] on the open card, which checks the text again in
-     * it ([runWith], with [settings]). The card starts over (nothing accepted is carried over
-     * to a review in another language), so the revision on offer is replaced now, whatever
-     * the next attempt brings: its suggestions become [Decision.Superseded].
+     * it. The requested language changes immediately; settings stay last known until [runWith].
+     * The card starts over (nothing accepted is carried over to a review in another
+     * language), so the revision on offer is replaced now, whatever
+     * the next attempt brings: its suggestions become [Decision.Superseded]. Prior answers
+     * become ineligible for replay, including reviews with no suggestions and switches
+     * closed before another attempt finishes.
      */
-    fun changeLanguage(language: String?, settings: SessionSettings, at: Long) {
+    fun changeLanguage(language: String?, at: Long) {
         if (closed != null) return
-        runWith(language, settings)
+        this.language = language
+        session = session.copy(attempts = session.attempts.map { it.copy(replayInvalidated = true) })
         supersede(at)
         revision = null
         revisionAttempt = -1

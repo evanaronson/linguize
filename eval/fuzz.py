@@ -226,9 +226,10 @@ def main(argv=None):
     if args.repair_from:
         from fuzz_report import complete_evidence
         engines = complete_evidence(list(existing.values()),
-                                    [json.loads(line) for line in args.repair_from.read_text().split("\n") if line], records)
+                                    [json.loads(line) for line in args.repair_from.read_text().split("\n") if line], records,
+                                    repair_collection=True)
         pending = [item["case"] for identity, item in existing.items()
-                   if engines[identity].get("withheld") and "repair" not in item]
+                   if "repair" not in item and engines[identity].get("withheld")]
         for provider in {existing[case["request_id"]]["provider"] for case in pending}:
             variable = runner.PROVIDERS[provider][2]
             credentials[provider] = os.environ.get(variable)

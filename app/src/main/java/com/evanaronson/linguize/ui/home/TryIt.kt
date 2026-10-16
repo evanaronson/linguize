@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
@@ -31,7 +32,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
     var sample by rememberSaveable { mutableStateOf(initialSample) }
 
     fun applyAndClose() {
-        check.workingText?.let { sample = it }
+        check.workingText?.let { sample = Selection.of(sample).with(it) }
         check.dismiss()
     }
 

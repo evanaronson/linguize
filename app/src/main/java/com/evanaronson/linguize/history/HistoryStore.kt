@@ -9,7 +9,7 @@ import java.io.OutputStream
  * thread: implementations move their own work off it.
  *
  * Nothing here throws but cancellation: a store that can't be read or written logs it
- * and answers with nothing (an empty list, null, zero, false), because history must
+ * and answers with a failure result or fallback, because history must
  * never take the app down with it.
  *
  * [clear] and [delete] are final for the sessions they remove, including one still open
@@ -50,7 +50,8 @@ interface HistoryStore {
     /** Older than [before], in timestamp/id order. Null means a read failed and can be retried. */
     suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage?
 
-    suspend fun detail(id: String): SessionDetail?
+    /** Distinguishes an absent session from a failed read, which callers can retry. */
+    suspend fun detail(id: String): SessionDetailResult
 
     /**
      * The most recent closed session matching [key], started at or after [since], whose
@@ -72,6 +73,13 @@ interface HistoryStore {
      * incomplete and shouldn't be shared.
      */
     suspend fun export(out: OutputStream): Boolean
+}
+
+/** The outcome of reading one saved check; a failure does not establish that it was deleted. */
+sealed interface SessionDetailResult {
+    data class Found(val detail: SessionDetail) : SessionDetailResult
+    data object Missing : SessionDetailResult
+    data object Failed : SessionDetailResult
 }
 
 /**

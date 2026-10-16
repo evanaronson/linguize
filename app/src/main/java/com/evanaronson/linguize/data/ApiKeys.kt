@@ -25,6 +25,11 @@ class ApiKeys(context: Context) : ProviderKeys {
 
     /** Decrypted keys; reads and writes are synchronized so a slow read can't bring back a removed key. */
     private val cache = mutableMapOf<Provider, String>()
+    private val revisions = mutableMapOf<Provider, Long>()
+
+    /** Process-local freshness only; never stored with keys or linguistic history. */
+    @Synchronized
+    fun revision(provider: Provider): Long = revisions[provider] ?: 0L
 
     @Synchronized
     override fun get(provider: Provider): String? = cache[provider] ?: prefs.getString(provider.token, null)
@@ -48,6 +53,7 @@ class ApiKeys(context: Context) : ProviderKeys {
         if (key.isEmpty()) {
             prefs.edit().remove(provider.token).apply()
             cache.remove(provider)
+            revisions[provider] = revision(provider) + 1
             return true
         }
         val sealed = try {
@@ -58,6 +64,7 @@ class ApiKeys(context: Context) : ProviderKeys {
         }
         prefs.edit().putString(provider.token, sealed).apply()
         cache[provider] = key
+        revisions[provider] = revision(provider) + 1
         return true
     }
 

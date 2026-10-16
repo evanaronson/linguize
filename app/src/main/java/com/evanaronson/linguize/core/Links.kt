@@ -13,6 +13,16 @@ internal object Links {
     /** The most edits that can share a run of text for every combination of them to be tried; more aren't offered. */
     private const val MOST_TOGETHER = 8
 
+    // Conservative starting cap for full-text render/scan work, including expansion.
+    // This caps candidate text lengths, not latency; tune only with Android measurements.
+    private const val MOST_SCANNED_CHARACTERS = 1_000_000L
+
+    // Failed matches can retry at each character of an unbroken token. Weight scan
+    // length by token width as well, so long failed tokens cannot consume the cap
+    // through hundreds of scans. Calibrated on the production Kotlin/JVM scanner;
+    // Android latency still needs measurement before release.
+    private const val MOST_SCAN_WORK = 8_000_000L
+
     /**
      * [edits] without those that would add a link ("https://…", "www.…", "example.com")
      * to [original] in any combination the writer can accept. Edits that add no link on
@@ -21,11 +31,36 @@ internal object Links {
      * edits that can end up in one run of text without spaces is tried, and if any adds
      * a link, the edits in that combination are withheld. If the complete run introduces
      * an address, discard that proposal together so no partial address is left as a fix.
+     * Proposals exceeding the aggregate scan allowance are withheld before rendering.
      */
     fun withoutNew(original: String, edits: List<Edit>): List<Edit> {
+        if (edits.isEmpty()) return edits
+        val grouped = runs(original, edits)
+        var remaining = MOST_SCANNED_CHARACTERS - original.length.toLong()
+        if (remaining < 0) return emptyList()
+        val originalWidth = longestToken(original).toLong().coerceAtLeast(1)
+        var work = MOST_SCAN_WORK - original.length.toLong() * originalWidth
+        if (work < 0) return emptyList()
+        for (run in grouped) {
+            if (run.size > MOST_TOGETHER) continue // These edits are withheld without scanning.
+            val longest = original.length.toLong() + run.sumOf {
+                (it.replacement.length.toLong() - (it.end - it.start)).coerceAtLeast(0)
+            }
+            // One complete-run scan plus every nonempty subset, before any pruning.
+            val scans = 1L shl run.size
+            if (longest > remaining / scans) return emptyList()
+            remaining -= longest * scans
+            // Removing k spaces can join at most k + 1 original tokens. A rendered
+            // token can also contain at most one whitespace-free piece per edit.
+            val removedSpaces = run.filter { edit -> edit.replacement.none(Char::isWhitespace) }
+                .sumOf { edit -> (edit.start until edit.end).count { original[it].isWhitespace() }.toLong() }
+            val widest = originalWidth * (removedSpaces + 1) + run.sumOf { longestToken(it.replacement).toLong() }
+            if (longest > work / scans / widest) return emptyList()
+            work -= longest * scans * widest
+        }
         val known = links(original)
         val dropped = mutableSetOf<Int>()
-        for (run in runs(original, edits)) {
+        for (run in grouped) {
             if (run.size > MOST_TOGETHER || linking(original, known, shown(run))) {
                 dropped += run.map { it.id }
                 continue
@@ -39,6 +74,16 @@ internal object Links {
             }
         }
         return edits.filterNot { it.id in dropped }
+    }
+
+    private fun longestToken(text: String): Int {
+        var longest = 0
+        var width = 0
+        for (char in text) {
+            width = if (char.isWhitespace()) 0 else width + 1
+            longest = maxOf(longest, width)
+        }
+        return longest
     }
 
     /** Whether [text] holds a link that [original] doesn't. */
@@ -55,9 +100,9 @@ internal object Links {
     private fun hasNew(known: Set<String>, text: String) =
         LINK.findAll(text).any { !isAbbreviation(it.value) && identity(it.value) !in known }
 
-    /** Short capitals joined by dots, like "EE.UU." or "RR.HH.", are abbreviations, not addresses. */
+    /** Supported abbreviations; the domain match omits their terminal punctuation. */
     private fun isAbbreviation(match: String) =
-        match.split('.').all { it.length <= 2 && it.all(Char::isUpperCase) }
+        match == "EE.UU" || match == "RR.HH"
 
     /**
      * [edits] grouped by the stretch of [original] between two spaces that stay spaces
@@ -92,25 +137,29 @@ internal object Links {
 
     /**
      * Compare complete texts: clipping the context could truncate an unchanged adjacent
-     * URL and mistake it for a new destination. Input length and combination count are
-     * bounded by the checker and [MOST_TOGETHER].
+     * URL and mistake it for a new destination. [MOST_SCANNED_CHARACTERS] bounds the
+     * aggregate rendered length across all runs and their combinations.
      */
     private fun linking(original: String, known: Set<String>, edits: List<Edit>) =
         hasNew(known, render(original, edits).text)
 
     private const val LABEL = """[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?"""
+    private const val OCTET = """(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"""
 
     /** What a link's path may end with: not the punctuation of the sentence around it. */
     private const val PATH = """[^\s]*[^\s.,;:!?)\]}"'»…]"""
 
     /**
-     * A web address with a scheme or "www.", or anything shaped like a domain name.
+     * A web address with a scheme or "www.", a domain name, or a bare ASCII IPv4
+     * dotted quad with valid octets and no leading zeros. The quad must be a complete
+     * token, not part of a longer dotted version or a word. This isn't every address syntax.
      * DNS names have at most 127 labels. Bounding their repetition also keeps malformed
      * model output with thousands of dotted labels from exhausting the regex stack.
      */
     private val LINK = Regex(
         """(?i)(?:[a-z][a-z0-9+.-]*://|www\.)$PATH""" +
-            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:?#]$PATH)?""",
+            """|(?:(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])""" +
+            """|(?<![\p{L}\p{N}_.-])$OCTET(?:\.$OCTET){3}(?![\p{L}\p{N}_-]|\.[\p{L}\p{N}_-]))(?:[/:?#]$PATH)?""",
     )
 
     private val SCHEME = Regex("""(?i)^[a-z][a-z0-9+.-]*://""")

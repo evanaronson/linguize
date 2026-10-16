@@ -623,6 +623,35 @@ class ReviewTest {
     }
 
     @Test
+    fun correctionsOverTheLinkScanBudgetAreWithheldRatherThanReportedClean() {
+        val original = List(333) { ";".repeat(8) }.joinToString(" ")
+        val corrected = original.replace(';', ':')
+        val proposed = Edits.fixes(original, corrected, emptyList())
+        assertFalse(proposed.rejected)
+        assertEquals(2_664, proposed.edits.size)
+
+        val result = reviewed(original, Verdict(status = Verdict.Status.Ok,
+            hasErrors = true, corrected = corrected))
+        assertTrue(result.revision.edits.isEmpty())
+        assertEquals(setOf(EditKind.Fix), result.withheld)
+        assertFalse(result.looksGood)
+        assertFalse(result.isResolved)
+        assertEquals(original, result.revision.workingText)
+    }
+
+    @Test
+    fun aRewordingStillCannotCreateALinkWhenTheWriterLeavesAFixUnaccepted() {
+        val original = "evil.a"
+        val result = reviewed(original, Verdict(status = Verdict.Status.Ok,
+            hasErrors = true, corrected = "evil a",
+            moreNatural = true, natural = "evil com",
+            naturalChanges = listOf(VerdictChange("a", "com"))))
+        assertEquals(listOf(" "), result.revision.edits(EditKind.Fix).map { it.replacement })
+        assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+        assertEquals(setOf(EditKind.Natural), result.withheld)
+    }
+
+    @Test
     fun rewordingsCannotDependOnADiscardedCorrection() {
         val result = reviewed("Hola bonic. Tinc un erro.", Verdict(
             status = Verdict.Status.Ok,
@@ -701,16 +730,17 @@ class ReviewTest {
     }
 
     @Test
-    fun aMeaningThatJustRepeatsTheTextIsDropped() {
-        val original = "Charles y yo vamos a tomar las cervezas que me ha traído de Montreal"
-        fun meaningOf(meaning: String) =
+    fun meaningIsPreservedEvenWhenTranslationSharesWordsOrIsIdentical() {
+        val cognateOriginal = "El hotel es popular y normal."
+        val cognateTranslation = "The hotel is popular and normal."
+        val identicalTranslation = "Taxi."
+
+        fun meaningOf(original: String, meaning: String) =
             (interpret(original, Verdict(status = Verdict.Status.Ok, meaning = meaning)) as CheckResult.Reviewed).meaning
 
-        assertEquals("", meaningOf("Charles y yo vamos a tomar las cervezas que me ha traído de Montreal."))
-        assertEquals(
-            "Charles and I are going to drink the beers he brought me from Montreal.",
-            meaningOf("Charles and I are going to drink the beers he brought me from Montreal."),
-        )
+        assertEquals(cognateTranslation, meaningOf(cognateOriginal, cognateTranslation))
+        assertEquals("Taxi.", meaningOf("Taxi.", identicalTranslation))
+        assertEquals("Taxi.", meaningOf("Taxi.", "  Taxi.  "))
     }
 
     @Test

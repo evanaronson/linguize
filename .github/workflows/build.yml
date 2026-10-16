@@ -100,7 +100,7 @@ jobs:
           retention-days: 7
 
   # Signs what the build job made and publishes it. It runs no code from the repo, only the
-  # runner's own apksigner, gh and the pinned actions below. The key is in the "signing"
+  # runner's own apksigner, gh, Python and the pinned actions below. The key is in the "signing"
   # environment, which only main and feature/* may use, so no other branch's workflow can read it.
   sign-and-publish:
     # Pull requests only test and build; they never enter the signing environment.
@@ -244,7 +244,32 @@ jobs:
             --target "$SHA" \
             --title "$VERSION" \
             --notes "$notes" \
-            --latest
+            --latest=false
+
+          # Older unpublished runs may finish after newer ones. Enumerate every page before
+          # promoting the highest stable version, using the same release-metadata lock.
+          gh api --paginate --slurp "repos/$GH_REPO/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          latest=$(python3 - "$RUNNER_TEMP/releases.json" <<'PY'
+          import json
+          import re
+          import sys
+
+          stable = []
+          with open(sys.argv[1]) as source:
+              for page in json.load(source):
+                  for release in page:
+                      if release["draft"] or release["prerelease"]:
+                          continue
+                      # Stable canonical and historical tags; previews and build inputs do not compete.
+                      match = re.fullmatch(r"(?:v([0-9]{6})|build-([0-9]+))", release["tag_name"])
+                      if match:
+                          number = int(match.group(1) or match.group(2))
+                          if 1 <= number <= 999_999:
+                              stable.append((number, release["tag_name"]))
+          print(max(stable)[1])
+          PY
+          )
+          gh release edit "$latest" --latest
 
   # Run by hand (workflow_dispatch with pin_build_inputs) after changing the Gradle version or any
   # dependency. It writes the official checksum of the Gradle distribution into

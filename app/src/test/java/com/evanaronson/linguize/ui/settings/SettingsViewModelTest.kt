@@ -2,13 +2,17 @@ package com.evanaronson.linguize.ui.settings
 
 import android.os.Looper
 import androidx.lifecycle.ViewModelStore
+import com.evanaronson.linguize.data.MenuEntry
 import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.llm.Provider
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.CoroutineContext
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -101,6 +105,151 @@ class SettingsViewModelTest {
             assertEquals(Punctuation.Strict, settings.state!!.punctuation)
         } finally {
             store.clear()
+        }
+    }
+
+    @Test
+    fun aDelayedToggleKeepsItsCapturedIntentWhenRefreshIsRequested() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val io = QueuedDispatcher()
+        val settings = SettingsViewModel(app, io)
+        val store = ViewModelStore().apply { put("settings", settings) }
+        try {
+            io.drain()
+            settings.toggleMenuEntry(MenuEntry.Catalan)
+            settings.refresh()
+            assertEquals(setOf(MenuEntry.Auto, MenuEntry.Catalan), settings.state!!.menu)
+            io.drain()
+            assertEquals(setOf(MenuEntry.Auto, MenuEntry.Catalan), app.menu.enabled())
+            assertEquals(app.menu.enabled(), settings.state!!.menu)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun anOlderRefreshCannotReplaceAnAcceptedToggleWhileItsWriteWaits() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val io = QueuedDispatcher()
+        val settings = SettingsViewModel(app, io)
+        val store = ViewModelStore().apply { put("settings", settings) }
+        try {
+            io.drain()
+            settings.refresh()
+            shadowOf(Looper.getMainLooper()).idle()
+            // Finish the old IO read, but leave its result waiting for the main thread.
+            io.runNext()
+            settings.toggleMenuEntry(MenuEntry.Catalan)
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(setOf(MenuEntry.Auto, MenuEntry.Catalan), settings.state!!.menu)
+            io.drain()
+            assertEquals(setOf(MenuEntry.Auto, MenuEntry.Catalan), app.menu.enabled())
+            assertEquals(app.menu.enabled(), settings.state!!.menu)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun rapidEnableThenDisablePersistsInCallerOrderAndKeepsTheMenuNonempty() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val io = QueuedDispatcher()
+        val settings = SettingsViewModel(app, io)
+        val store = ViewModelStore().apply { put("settings", settings) }
+        try {
+            io.drain()
+            settings.toggleMenuEntry(MenuEntry.Catalan)
+            settings.toggleMenuEntry(MenuEntry.Auto)
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(setOf(MenuEntry.Catalan), settings.state!!.menu)
+            io.runNext()
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(setOf(MenuEntry.Auto, MenuEntry.Catalan), app.menu.enabled())
+            assertEquals(setOf(MenuEntry.Catalan), settings.state!!.menu)
+            io.drain()
+            assertEquals(setOf(MenuEntry.Catalan), app.menu.enabled())
+            assertEquals(app.menu.enabled(), settings.state!!.menu)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun staleHostsCannotDisableDifferentRemainingAliases() {
+        val app = RuntimeEnvironment.getApplication() as App
+        app.menu.setEnabled(MenuEntry.Catalan, true)
+        val io = QueuedDispatcher()
+        val first = SettingsViewModel(app, io)
+        val second = SettingsViewModel(app, io)
+        val store = ViewModelStore().apply {
+            put("first", first)
+            put("second", second)
+        }
+        try {
+            io.drain()
+            first.toggleMenuEntry(MenuEntry.Auto)
+            second.toggleMenuEntry(MenuEntry.Catalan)
+            io.drain()
+            assertEquals(setOf(MenuEntry.Catalan), app.menu.enabled())
+            assertEquals(app.menu.enabled(), second.state!!.menu)
+            first.refresh()
+            io.drain()
+            assertEquals(app.menu.enabled(), first.state!!.menu)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun staleHostsKeepEachOthersUnrelatedEnables() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val io = QueuedDispatcher()
+        val first = SettingsViewModel(app, io)
+        val second = SettingsViewModel(app, io)
+        val store = ViewModelStore().apply {
+            put("first", first)
+            put("second", second)
+        }
+        try {
+            io.drain()
+            first.toggleMenuEntry(MenuEntry.Catalan)
+            second.toggleMenuEntry(MenuEntry.Castilian)
+            io.drain()
+            assertEquals(MenuEntry.entries.toSet(), app.menu.enabled())
+            first.refresh()
+            second.refresh()
+            io.drain()
+            assertEquals(app.menu.enabled(), first.state!!.menu)
+            assertEquals(app.menu.enabled(), second.state!!.menu)
+        } finally {
+            store.clear()
+        }
+    }
+
+    /** Runs settings IO only when the test allows it; no timing or real worker race is needed. */
+    private class QueuedDispatcher : CoroutineDispatcher() {
+        private val tasks = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            tasks.addLast(block)
+        }
+
+        fun runNext() {
+            assertTrue("Expected queued settings IO", tasks.isNotEmpty())
+            // Completing off main leaves readback queued there until the test idles it.
+            val worker = Thread(tasks.removeFirst(), "settings-test-io")
+            worker.start()
+            worker.join(5_000)
+            assertTrue("Settings IO did not finish", !worker.isAlive)
+        }
+
+        fun drain() {
+            repeat(100) {
+                shadowOf(Looper.getMainLooper()).idle()
+                if (tasks.isEmpty()) return
+                runNext()
+            }
+            throw AssertionError("Settings IO did not settle")
         }
     }
 

@@ -3,6 +3,7 @@ package com.evanaronson.linguize.data
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.core.Language
 import org.junit.Assert.assertEquals
@@ -34,6 +35,28 @@ class SelectionMenuTest {
         assertEquals(setOf(MenuEntry.Catalan, MenuEntry.Castilian), menu.enabled())
         menu.setEnabled(MenuEntry.Castilian, false)
         assertEquals(setOf(MenuEntry.Catalan), SelectionMenu(context).enabled())
+    }
+
+    @Test
+    fun disablingTheLastEntryKeepsTheActualAliasEnabled() {
+        menu.setEnabled(MenuEntry.Catalan, true)
+        menu.setEnabled(MenuEntry.Auto, false)
+        assertEquals(setOf(MenuEntry.Catalan), menu.setEnabled(MenuEntry.Catalan, false))
+        assertEquals(PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            context.packageManager.getComponentEnabledSetting(alias("CatalanizeEntry")))
+    }
+
+    @Test
+    fun anEmptySavedMenuIsRepairedBeforeItsSnapshotIsReturned() {
+        MenuEntry.entries.forEach {
+            context.packageManager.setComponentEnabledSetting(
+                alias(it.alias), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP,
+            )
+        }
+        assertEquals(setOf(MenuEntry.Auto), menu.enabled())
+        assertEquals(PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            context.packageManager.getComponentEnabledSetting(alias("LinguizeEntry")))
+        assertEquals(setOf(MenuEntry.Auto), SelectionMenu(context).enabled())
     }
 
     @Test

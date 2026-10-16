@@ -118,6 +118,10 @@ pasted result. Suggestions come directly from the final non-superseded revision'
 saved rows, including applied proposals. Tapping a row reveals its recorded reason
 and assessment; ignored/undone means Not applied, not rejected. Retired means
 Covered by a rewording, which may have been applied or copied.
+When same-attempt replay has one exact structural match for a row, its explanation
+can also show the unresolved assumptions that change depends on, without clarification
+controls. Ambiguous matches and replay built from rows alone omit this optional context;
+the saved reason and assessment remain authoritative.
 
 This comparison does not depend on replay, raw answers, or valid source spans.
 Its local selection preserves saved decision rows even when missing raw data
@@ -130,8 +134,14 @@ Optional read-only Meaning still uses replay of the same decided revision. Repla
 requires a readable answer and valid spans, so incompatible records can lack
 Meaning while retaining the comparison. Its stored spans and decisions also
 support answer reuse when today's edit engine produces different edits. The
-shared replay and cache-selection rules are unchanged, and neither rewrites the
-recorded evidence.
+shared decided-attempt helper excludes answers invalidated by a language change,
+even if the old review had no suggestions or the replacement never finished.
+This additive flag lives in the existing attempts JSON; raw answers, failures and
+request settings stay intact. For older records, superseded rows and recorded
+language transitions can prove invalidation, but an unrecorded cancelled switch
+cannot be recovered. Ordinary failed or unclear rechecks do not invalidate prior answers.
+Replay and cache selection use the same eligibility rule and neither rewrites
+the recorded evidence.
 
 ## Storage, deletion, and export
 

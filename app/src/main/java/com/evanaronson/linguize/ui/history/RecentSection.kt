@@ -61,7 +61,7 @@ fun RecentSection(
 ) {
     val rows by history.recent.collectAsState()
     val time = rememberTimeFormat()
-    HistoryUndo(history, snackbar)
+    HistoryDeletionFeedback(history, snackbar)
 
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.history), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -87,12 +87,15 @@ fun RecentSection(
     }
 }
 
-/** The visible list owns the Undo snackbar; the operation itself stays in the view model. */
+/** The visible list owns deletion feedback; the operation itself stays in the view model. */
 @Composable
-internal fun HistoryUndo(history: HistoryViewModel, snackbar: SnackbarHostState) {
+internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: SnackbarHostState) {
     val pending by history.pendingDelete.collectAsState()
+    val failed by history.failedDeletes.collectAsState()
     val deletedMessage = stringResource(R.string.check_deleted)
     val undoLabel = stringResource(R.string.undo)
+    val incompleteMessage = stringResource(R.string.history_delete_incomplete)
+    val retryLabel = stringResource(R.string.retry)
 
     // Undo for the row just deleted. The deletion itself waits in the view model: here it's
     // committed only when the snackbar goes unanswered. If the snackbar is torn down instead
@@ -108,6 +111,15 @@ internal fun HistoryUndo(history: HistoryViewModel, snackbar: SnackbarHostState)
         } finally {
             if (!answered) history.undoHidden(id)
         }
+    }
+
+    // Undo takes priority. Failed committed work stays hidden and durable, including when
+    // storage deleted the row but couldn't finish cleanup. Retry every failed ID so one
+    // failure can't keep another from being retried.
+    LaunchedEffect(failed, pending) {
+        if (pending != null || failed.isEmpty()) return@LaunchedEffect
+        val result = snackbar.showSnackbar(incompleteMessage, actionLabel = retryLabel, duration = SnackbarDuration.Indefinite)
+        if (result == SnackbarResult.ActionPerformed) history.retryFailedDeletes()
     }
 }
 

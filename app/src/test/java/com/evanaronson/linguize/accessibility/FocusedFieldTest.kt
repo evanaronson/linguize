@@ -109,6 +109,14 @@ class FocusedFieldTest {
         assertNull(FocusedField.selection(editor))
     }
 
+    @Test fun indexedPrivateFieldIsRejectedBeforeItsTextCanBeSelected() {
+        val editor = node(focused = true, editable = true).apply {
+            viewIdResourceName = "com.bank:id/password2"
+            text = "sensitive value"
+        }
+        assertNull(FocusedField.selection(editor))
+    }
+
     @Test fun hintExposedAsTextWithoutTheHintFlagDoesNotBecomeWriting() {
         val editor = node(focused = true, editable = true).apply {
             text = "Message"

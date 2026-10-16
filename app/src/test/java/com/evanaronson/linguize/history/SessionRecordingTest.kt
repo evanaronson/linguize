@@ -7,6 +7,9 @@ import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.core.VerdictChange
 import com.evanaronson.linguize.core.interpret
+import com.evanaronson.linguize.llm.Prompt
+import com.evanaronson.linguize.llm.read
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -89,7 +92,7 @@ class SessionRecordingTest {
         assertEquals("ca", detected.attempts.single().targetLanguage)
         assertEquals("earlier", detected.attempts.single().reusedFrom)
 
-        recording.changeLanguage("es", auto.opening.settings, 102)
+        recording.changeLanguage("es", 102)
         val wrong = answer("""{"status":"wrong_language","language":"Catalan"}""")
         assertEquals("es", wrong.targetLanguage)
         assertEquals("ca", wrong.detectedLanguage)
@@ -100,13 +103,38 @@ class SessionRecordingTest {
         assertNull(failed.detectedLanguage)
         assertNull(failed.attempts.last().detectedLanguage)
 
-        recording.changeLanguage(null, auto.opening.settings, 103)
+        recording.changeLanguage(null, 103)
         val unclear = answer("""{"status":"unclear","language":"Spanish"}""")
         assertNull(unclear.targetLanguage)
         assertNull(unclear.detectedLanguage)
         val offline = answer("", "offline")
         assertNull(offline.targetLanguage)
         assertNull(offline.detectedLanguage)
+    }
+
+    @Test
+    fun acceptedCorrectionsWithMalformedOptionalLinksKeepAutoDetectedLanguageAndRaw() {
+        val prompt = Prompt.load { File("src/main/assets/$it").readText() }
+        val auto = context.copy(opening = context.opening.copy(requestedLanguage = null))
+        for (references in listOf("null", "{}", "true")) {
+            val raw = """{"status":"ok","language":"Catalan","meaning":"How are you?","assumptions":[],
+                "has_errors":true,"corrected":"Com estàs amb la pluja?",
+                "fixes":[{"from":"estas","to":"estàs","why":"Accent","confidence":3,"impact":1,
+                    "assumption_indices":$references}],
+                "more_natural":false,"natural":"","natural_changes":[]}"""
+            val answer = prompt.read(raw)
+            val revision = (interpret(rain, answer.verdict) as CheckResult.Reviewed).revision
+            val session = SessionRecording(rain, auto, now = 100).attempt(
+                101, emptyList(), answer.raw, null, null, revision, answer.verdict.meaning,
+                status = answer.verdict.status,
+            )
+            assertEquals("ca", session.targetLanguage)
+            assertEquals("ca", session.detectedLanguage)
+            assertEquals("ca", session.attempts.single().targetLanguage)
+            assertEquals("ca", session.attempts.single().detectedLanguage)
+            assertEquals(raw, session.attempts.single().raw)
+            assertEquals(3, answer.verdict.fixes.single().assessment!!.confidence)
+        }
     }
 
     @Test
@@ -588,11 +616,12 @@ class SessionRecordingTest {
         val recording = recording(rain)
         val settings = context.opening.settings
         recording.succeeded(200, rainRevision())
-        recording.changeLanguage("es", settings, 250)
+        recording.changeLanguage("es", 250)
         // The session takes the language with the attempt.
         assertEquals("ca", recording.session.requestedLanguage)
         assertEquals("es", recording.succeeded(300, rainRevision()).requestedLanguage)
-        recording.changeLanguage(null, settings.copy(model = "b-model"), 350)
+        recording.changeLanguage(null, 350)
+        recording.runWith(null, settings.copy(model = "b-model"))
         recording.failed(400)
 
         val detail = recording.close(500, null)
@@ -613,7 +642,7 @@ class SessionRecordingTest {
         val fixed = revision.acceptAll(EditKind.Fix)
         recording.changed(fixed)
         recording.copied(EditKind.Fix)
-        recording.changeLanguage("es", context.opening.settings, 300)
+        recording.changeLanguage("es", 300)
         // The new language's check failed: the card shows the failure, not the old suggestions.
         recording.failed(400)
         // A late report about the old card decides nothing.
@@ -630,7 +659,7 @@ class SessionRecordingTest {
     fun theNewLanguagesRevisionIsDecidedAtTheClose() {
         val recording = recording(rain)
         recording.succeeded(200, rainRevision())
-        recording.changeLanguage("es", context.opening.settings, 300)
+        recording.changeLanguage("es", 300)
         val revision = rainRevision()
         recording.succeeded(400, revision)
         val fixed = revision.acceptAll(EditKind.Fix)
@@ -666,7 +695,7 @@ class SessionRecordingTest {
     fun aClosedSessionDoesntChange() {
         val recording = recording(rain)
         recording.close(200, null)
-        recording.changeLanguage("es", context.opening.settings, 300)
+        recording.changeLanguage("es", 300)
         recording.runWith("es", context.opening.settings.copy(model = "b-model"))
         assertEquals("ca", recording.session.requestedLanguage)
         assertEquals("a-model", recording.session.model)

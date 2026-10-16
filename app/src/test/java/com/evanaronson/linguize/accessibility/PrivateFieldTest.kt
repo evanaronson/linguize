@@ -51,6 +51,16 @@ class PrivateFieldTest {
     }
 
     @Test
+    fun terminalDigitsOnPrivateTokensAreRecognisedWithoutSplittingOtherIdentifiers() {
+        for (name in listOf("otp1", "password2", "cardNumber2")) {
+            assertTrue(name, PrivateField.matches(text, null, "com.bank:id/$name"))
+        }
+        for (name in listOf("version2", "text1", "Compose email2")) {
+            assertFalse(name, PrivateField.matches(message, name, "com.chat:id/$name"))
+        }
+    }
+
+    @Test
     fun acronymPrefixesInCustomCodeFieldsAreRecognised() {
         for (name in listOf("OTPInput", "PINEntry", "CVVField", "CVCInput")) {
             assertTrue(name, PrivateField.matches(text, null, "com.bank:id/$name"))

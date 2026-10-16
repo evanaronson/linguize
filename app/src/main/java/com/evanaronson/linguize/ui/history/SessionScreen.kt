@@ -56,6 +56,10 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
         when (val page = session.page) {
             SessionPage.Loading -> Unit
             SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
+            SessionPage.Failed -> Column(Modifier.padding(vertical = 12.dp)) {
+                Faint(stringResource(R.string.history_load_failed))
+                TextButton(onClick = session::retry) { Text(stringResource(R.string.retry)) }
+            }
             is SessionPage.Shown -> Shown(
                 page,
                 deletion = deletion,
@@ -86,7 +90,7 @@ private fun Shown(
     BackHandler(enabled = meaningOpen) { showMeaning(false) }
     if (meaningOpen && reviewed != null) {
         UnderstandingPage(reviewed.meaning, reviewed.assumptions, settled,
-            onSettle = null, onBack = { showMeaning(false) })
+            onSettle = null, onRemoveChoice = null, onBack = { showMeaning(false) })
     } else {
         TextBlock(stringResource(R.string.history_before), session.text)
         WhatCameOfIt(session)
@@ -103,7 +107,8 @@ private fun Shown(
             UnderstandingEntry(understandingEntry(reviewed.meaning, reviewed.assumptions,
                 settled, readOnly = true), onOpen = { showMeaning(true) })
         }
-        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null)
+        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+            reviewed = reviewed, settled = settled)
     }
     if (deletion == SessionDeletion.Failed) {
         Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)

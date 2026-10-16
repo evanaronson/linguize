@@ -35,6 +35,7 @@ class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
     private var readOnly = true
+    private val canReplace: Boolean get() = !readOnly && callingActivity != null
     private var limited = false
     private var returningFromApp = false
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
@@ -76,7 +77,7 @@ class CheckActivity : ComponentActivity() {
             context = this,
             onClose = ::finish,
             onOpenSettings = null,
-            canReplace = !readOnly,
+            canReplace = canReplace,
         )
         setContent {
             AppTheme {
@@ -133,7 +134,7 @@ class CheckActivity : ComponentActivity() {
     override fun finish() {
         val accepted = check.workingText
         val selection = selection
-        val handedBack = if (!readOnly && accepted != null && selection != null) {
+        val handedBack = if (canReplace && accepted != null && selection != null) {
             setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, selection.with(accepted)))
             true
         } else {

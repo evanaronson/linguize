@@ -49,6 +49,7 @@ class HistoryViewModel internal constructor(
     /** Rows awaiting Undo or an acknowledged deletion; never an archive of deleted IDs. */
     private val hidden = MutableStateFlow<Set<String>>(emptySet())
     private val pending = MutableStateFlow<String?>(null)
+    private val failed = MutableStateFlow<Set<String>>(emptySet())
 
     /** Commits [pending] when no Undo is on screen to answer for it. */
     private var timer: Job? = null
@@ -56,11 +57,11 @@ class HistoryViewModel internal constructor(
     /** Every screen's pending deletion is durable until that screen commits or undoes it. */
     private val deletions = PendingDeletions(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
 
-    /** Five preview rows plus one to decide whether View all is needed. */
+    /** Five preview rows; hidden IDs are compensated for in the query limit. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val recent: StateFlow<List<RecentRow>?> = hidden.flatMapLatest { excluded ->
-        history.recent(PREVIEW_SIZE + 1 + excluded.size).map { rows ->
-            rows.filterNot { it.id in excluded }.take(PREVIEW_SIZE + 1)
+        history.recent(PREVIEW_SIZE + excluded.size).map { rows ->
+            rows.filterNot { it.id in excluded }.take(PREVIEW_SIZE)
                 .map { RecentRow(it, labels.of(it.hostApp)) }
         }
     }.flowOn(Dispatchers.IO)
@@ -83,18 +84,16 @@ class HistoryViewModel internal constructor(
     /** The row deleted from the list that can still be undone; null when there's none. */
     val pendingDelete: StateFlow<String?> = pending.asStateFlow()
 
+    /** Committed deletions whose row deletion or storage cleanup still needs a retry. */
+    val failedDeletes: StateFlow<Set<String>> = failed.asStateFlow()
+
     init {
         // A deletion that was waiting for Undo when the last process ended: that Undo is gone.
         // Snapshot it before dispatching work. Reading it later can mistake a deletion
         // made on this new screen for one abandoned by the previous process.
         val abandoned = deletions.recover()
         hidden.update { it + abandoned }
-        if (abandoned.isNotEmpty()) app.appScope.launch {
-            for (id in abandoned) {
-                if (history.delete(id)) withContext(Dispatchers.Main.immediate) { deletionCommitted(id) }
-            }
-            app.forgetExports()
-        }
+        abandoned.forEach(::deleteCommitted)
     }
 
     /**
@@ -127,14 +126,26 @@ class HistoryViewModel internal constructor(
         if (id != null && id != pendingId) return
         timer?.cancel()
         pending.value = null
+        deleteCommitted(pendingId)
+    }
+
+    /** Retries committed work without offering another Undo or making hidden rows visible. */
+    fun retryFailedDeletes() {
+        failed.value.forEach(::deleteCommitted)
+    }
+
+    private fun deleteCommitted(id: String) {
+        failed.update { it - id }
         // On the app's scope, so it happens even as the screen closes. Any export goes too,
         // since it holds the deleted text.
         app.appScope.launch {
-            val deleted = history.delete(pendingId)
+            val deleted = history.delete(id)
             app.forgetExports()
             // Compare and clear on the same thread as delete/undo. An IO-thread
             // read-then-remove could erase a newer pending deletion's durable note.
-            if (deleted) withContext(Dispatchers.Main.immediate) { deletionCommitted(pendingId) }
+            withContext(Dispatchers.Main.immediate) {
+                if (deleted) deletionCommitted(id) else failed.update { it + id }
+            }
         }
     }
 

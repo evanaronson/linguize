@@ -12,6 +12,7 @@ import com.evanaronson.linguize.App
 import com.evanaronson.linguize.UnderstandContext
 import com.evanaronson.linguize.core.Understood
 import com.evanaronson.linguize.llm.CheckFailure
+import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.ui.ClipboardText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,7 @@ sealed interface UnderstandState {
 /** No history or write-back hooks. Retries always use the captured input. */
 class UnderstandViewModel(
     private val context: suspend () -> UnderstandContext,
+    private val keyRevision: (Provider) -> Long = { 0L },
     private val explain: suspend (String, UnderstandContext) -> Understood,
 ) : ViewModel() {
     var state by mutableStateOf<UnderstandState>(UnderstandState.ReadingClipboard)
@@ -39,6 +41,7 @@ class UnderstandViewModel(
     private var job: Job? = null
     private var staleCheck: Job? = null
     private var ranWith: UnderstandContext? = null
+    private var ranWithKeyRevision: Long? = null
 
     fun readingClipboard() {
         cancel()
@@ -64,11 +67,14 @@ class UnderstandViewModel(
         cancel()
         val requested = generation
         ranWith = null
+        ranWithKeyRevision = null
         state = UnderstandState.Loading(snapshot)
         job = viewModelScope.launch {
             val shown = try {
                 val used = context()
                 if (requested != generation) return@launch
+                // Sample before explain can acquire its key; a concurrent save may cause one safe retry.
+                ranWithKeyRevision = keyRevision(used.provider)
                 ranWith = used
                 UnderstandState.Done(snapshot, explain(snapshot, used))
             } catch (e: CancellationException) {
@@ -96,7 +102,10 @@ class UnderstandViewModel(
                 null
             }
             if (requested != generation || text == null) return@launch
-            if (state is UnderstandState.Failed || now == null || now != ranWith) {
+            // A successful result stays valid when only its credential changes.
+            val keyChanged = state is UnderstandState.Loading && now != null &&
+                keyRevision(now.provider) != ranWithKeyRevision
+            if (state is UnderstandState.Failed || now == null || now != ranWith || keyChanged) {
                 staleCheck = null
                 retry()
             }
@@ -116,6 +125,7 @@ class UnderstandViewModel(
             initializer {
                 UnderstandViewModel(
                     context = { withContext(Dispatchers.Default) { app.understander }.context() },
+                    keyRevision = { app.keys.revision(it) },
                     explain = { text, used -> app.understander.understand(text, used) },
                 )
             }

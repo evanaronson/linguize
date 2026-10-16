@@ -104,15 +104,17 @@ def check_gemini(model, key, system, schema, message):
         data=json.dumps(body).encode(),
         headers={"x-goog-api-key": key, "Content-Type": "application/json"},
     )
+    start = time.monotonic()
     try:
-        payload, elapsed = post(request)
+        payload, _ = post(request)
     except urllib.error.HTTPError as error:
         # Mirrors GeminiClient's DroppableOption for models without thinkingLevel.
         if error.code != 400 or b"thinking" not in error.read().lower():
             raise
         del body["generationConfig"]["thinkingConfig"]
         request = urllib.request.Request(request.full_url, data=json.dumps(body).encode(), headers=request.headers)
-        payload, elapsed = post(request)
+        payload, _ = post(request)
+    elapsed = time.monotonic() - start
     payload = json_object(payload, "Gemini response")
     candidates = json_array(payload.get("candidates", []), "Gemini candidates")
     if not candidates:

@@ -126,6 +126,7 @@ jobs:
         env:
           LINGUIZE_FUZZ_REPLIES: ${{ github.workspace }}/eval/fuzz/results/replies.jsonl
           LINGUIZE_FUZZ_ENGINE: ${{ github.workspace }}/eval/fuzz/results/engine.jsonl
+          LINGUIZE_FUZZ_PARSER: ${{ steps.request.outputs.live != 'true' && steps.request.outputs.reuse_run == '' && 'legacy' || 'fresh' }}
         run: ./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
       - name: Retry incomplete live answers once
         if: steps.request.outputs.live == 'true'

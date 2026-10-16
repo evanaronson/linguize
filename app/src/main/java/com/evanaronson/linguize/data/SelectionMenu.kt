@@ -25,9 +25,28 @@ enum class MenuEntry(@StringRes val label: Int, val language: Language?, val ali
 class SelectionMenu(private val context: Context) {
     private val packageManager get() = context.packageManager
 
-    fun enabled(): Set<MenuEntry> = MenuEntry.entries.filterTo(mutableSetOf()) { isEnabled(it) }
+    /** Reads the saved aliases, repairing an empty menu in the package manager itself. */
+    @Synchronized
+    fun enabled(): Set<MenuEntry> {
+        val enabled = MenuEntry.entries.filterTo(mutableSetOf()) { isEnabled(it) }
+        if (enabled.isEmpty()) {
+            writeEnabled(MenuEntry.Auto, true)
+            enabled += MenuEntry.Auto
+        }
+        return enabled
+    }
 
-    fun setEnabled(entry: MenuEntry, enabled: Boolean) {
+    /** Applies one host's intent against the current aliases; the last entry stays enabled. */
+    @Synchronized
+    fun setEnabled(entry: MenuEntry, enabled: Boolean): Set<MenuEntry> {
+        val current = this.enabled()
+        if (enabled != (entry in current) && (enabled || current.size > 1)) {
+            writeEnabled(entry, enabled)
+        }
+        return this.enabled()
+    }
+
+    private fun writeEnabled(entry: MenuEntry, enabled: Boolean) {
         val state = if (enabled) {
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         } else {

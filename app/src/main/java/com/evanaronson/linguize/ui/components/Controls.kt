@@ -28,8 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
@@ -128,6 +132,10 @@ fun <T> MultiSelectDropdown(
                     text = { Text(optionLabel(option)) },
                     leadingIcon = { Checkbox(checked = option in selected, onCheckedChange = null) },
                     onClick = { onToggle(option) },
+                    modifier = Modifier.semantics {
+                        role = Role.Checkbox
+                        toggleableState = if (option in selected) ToggleableState.On else ToggleableState.Off
+                    },
                 )
             }
         }

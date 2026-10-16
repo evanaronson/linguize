@@ -275,6 +275,28 @@ class HistorySchemaTest {
     }
 
     @Test
+    fun legacySupersededRowsAndLanguageTransitionsExcludeEarlierFallbackAnswers() {
+        val ok = Attempt(at = 1, raw = "{}", requestedLanguage = "ca")
+        val failedSpanish = Attempt(at = 2, failure = "offline", requestedLanguage = "es")
+        fun detail(attempts: List<Attempt>, rows: List<SuggestionRecord> = emptyList()) =
+            SessionDetail(session.copy(attempts = attempts), rows)
+
+        assertNull(detail(listOf(ok), listOf(suggestion.copy(attempt = 0, decision = Decision.Superseded))).decidedAttempt())
+        assertNull(detail(listOf(ok, failedSpanish)).decidedAttempt())
+        // Returning to the original language does not revive an answer discarded in between.
+        assertNull(detail(listOf(ok, failedSpanish, failedSpanish.copy(requestedLanguage = "ca"))).decidedAttempt())
+        assertNull(detail(listOf(ok, failedSpanish.copy(requestedLanguage = null))).decidedAttempt())
+        // Detection is not a language-picker change. Earlier schemas had no per-attempt context.
+        assertEquals(0, detail(listOf(ok.copy(requestedLanguage = null, detectedLanguage = "ca"),
+            failedSpanish.copy(requestedLanguage = null, detectedLanguage = "es"))).decidedAttempt())
+        val old = detail(listOf(ok, failedSpanish))
+        assertEquals(0, old.copy(session = old.session.copy(schema = 3)).decidedAttempt())
+        // No event survives for an old cancelled switch: do not invent one.
+        assertEquals(0, detail(listOf(ok)).decidedAttempt())
+        assertEquals(1, detail(listOf(ok, ok.copy(requestedLanguage = "es"))).decidedAttempt())
+    }
+
+    @Test
     fun theLanguagesAreMatchedEvenWhenAuto() {
         val key = session.reuseKey
         assertTrue(HistorySchema.reusable(key.copy(requestedLanguage = null)).contains("\"requestedLanguage\" IS NULL"))

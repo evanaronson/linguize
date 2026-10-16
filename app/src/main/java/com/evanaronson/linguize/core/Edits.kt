@@ -213,10 +213,13 @@ internal object Edits {
     private fun toEdits(spans: List<Span>, reported: List<VerdictChange>, kind: EditKind, firstId: Int): List<Edit> {
         val unused = reported.toMutableList()
         return spans.mapIndexed { index, span ->
-            val match = unused.indexOfFirst {
-                Alignment.same(it.from, span.from) && Alignment.same(it.to, span.replacement)
+            // A located report owns its reason, including an intentionally blank one.
+            val why = if (span.reportId != null) span.why else {
+                val match = unused.indexOfFirst {
+                    Alignment.same(it.from, span.from) && Alignment.same(it.to, span.replacement)
+                }
+                span.why ?: if (match >= 0) unused.removeAt(match).why.trim().ifEmpty { null } else null
             }
-            val why = span.why ?: if (match >= 0) unused.removeAt(match).why.trim().ifEmpty { null } else null
             Edit(firstId + index, kind, span.start, span.end, span.from, span.replacement, why, span.includes, span.order,
                 span.assessment, span.assumptionIndices)
         }

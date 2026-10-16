@@ -43,6 +43,7 @@ class SuggestionAssessmentTest {
         )).edits
         assertEquals(2, edits.size)
         assertTrue(edits.all { it.assessment == null })
+        assertTrue(edits.all { it.why == null })
         val separate = Edits.fixes("estas despres", "estàs després", listOf(
             VerdictChange("estas", "estàs", "Accent", 3, 1),
             VerdictChange("despres", "després", "Accent", 2, 2),
@@ -50,6 +51,27 @@ class SuggestionAssessmentTest {
         assertEquals(listOf(SuggestionAssessment(3, 1), SuggestionAssessment(2, 2)), separate.map { it.assessment })
         assertEquals(edits.map { it.copy(assessment = null, why = null) },
             separate.map { it.copy(assessment = null, why = null) })
+    }
+
+    @Test fun repeatedIdenticalReportsKeepTheirOwnReasonsAndMetadata() {
+        for ((firstReason, secondReason) in listOf(
+            "First accent" to " \t ",
+            " \t " to "Second accent",
+            "First accent" to "Second accent",
+        )) {
+            val result = Edits.fixes("estas estas", "estàs estàs", listOf(
+                VerdictChange("estas", "estàs", firstReason, 3, 1, listOf(0)),
+                VerdictChange("estas", "estàs", secondReason, 2, 2, listOf(1)),
+            ))
+            assertFalse(result.rejected)
+            assertEquals(listOf(firstReason, secondReason).map { it.trim().ifEmpty { null } },
+                result.edits.map { it.why })
+            assertEquals(listOf(0, 6), result.edits.map { it.start })
+            assertEquals(listOf(5, 11), result.edits.map { it.end })
+            assertEquals(listOf(SuggestionAssessment(3, 1), SuggestionAssessment(2, 2)),
+                result.edits.map { it.assessment })
+            assertEquals(listOf(listOf(0), listOf(1)), result.edits.map { it.assumptionIndices })
+        }
     }
 
     @Test fun boundaryCaseGroupingRetainsOneDecisionButNeverInventsACombinedScore() {

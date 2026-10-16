@@ -56,6 +56,18 @@ def natural_export():
 
 
 class AssessmentTest(unittest.TestCase):
+    def test_jsonl_writer_reader_round_trip_preserves_unicode_separators_and_line_endings(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for index, separator in enumerate(("\u0085", "\u2028", "\u2029")):
+                for newline in ("\n", "\r\n"):
+                    with self.subTest(separator=hex(ord(separator)), newline=repr(newline)):
+                        records = [{"text": f"before{separator}after"}, {"text": "second record"}]
+                        path = Path(folder) / f"records-{index}-{len(newline)}.jsonl"
+                        experiment.write_lines(path, records)
+                        if newline == "\r\n":
+                            path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+                        self.assertEqual(records, experiment.load_lines(path))
+
     def test_natural_history_matches_corrected_decision_preserving_original_utf16_evidence(self):
         row = natural_export()
         before = copy.deepcopy(row)

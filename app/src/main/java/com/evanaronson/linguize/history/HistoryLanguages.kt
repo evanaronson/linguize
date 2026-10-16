@@ -3,6 +3,9 @@ package com.evanaronson.linguize.history
 import com.evanaronson.linguize.core.Verdict
 import java.util.Locale
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
 
 /** Stable ISO 639-1 partition keys, never translated UI labels or model prose. */
 internal fun languageCode(value: String?): String? {
@@ -20,15 +23,18 @@ private val languageCodes: Map<String, String> by lazy {
     }
 }
 
-/** Only a readable, successful answer is evidence of detection; unclear isn't a guess. */
+/** Only readable status/language evidence from a successful answer counts; unclear isn't a guess. */
 internal fun detectedLanguage(raw: String?, failure: String?): String? {
     if (failure != null || raw == null) return null
-    val verdict = try {
-        historyJson.decodeFromString<Verdict>(raw)
+    return try {
+        val fields = historyJson.parseToJsonElement(raw) as? JsonObject ?: return null
+        val status = (fields["status"] as? JsonPrimitive)?.takeIf { it.isString } ?: return null
+        if (historyJson.decodeFromJsonElement<Verdict.Status>(status) == Verdict.Status.Unclear) return null
+        val language = (fields["language"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        languageCode(language)
     } catch (_: SerializationException) {
         return null
     } catch (_: IllegalArgumentException) {
         return null
     }
-    return if (verdict.status == Verdict.Status.Unclear) null else languageCode(verdict.language)
 }

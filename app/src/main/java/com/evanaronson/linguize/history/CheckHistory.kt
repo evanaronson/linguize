@@ -102,8 +102,10 @@ class CheckHistory(
     private val maxChars: Int = Int.MAX_VALUE,
     private val reuseWithin: Long = REUSE_WITHIN_MS,
     private val newId: () -> String = { java.util.UUID.randomUUID().toString() },
-    /** Where [environment] is first read when a session opens. */
+    /** Where [environment] is first read and export files are retired. */
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** Retires shared history files after a provisional deletion attempt. Runs on [io]. */
+    private val retireExports: suspend () -> Unit = {},
 ) {
     /** The open session's record; null when history is off or no card is open. */
     private var recording: SessionRecording? = null
@@ -117,7 +119,7 @@ class CheckHistory(
     /**
      * Whether the card's session has been decided, opened or refused ([open] got past
      * reading the environment, or found the check isn't recorded), until [close]. Once it
-     * has, a language change never opens one: a card that wasn't recorded from its start,
+     * has, a retry or language change never opens one: a card that wasn't recorded from its start,
      * or stopped being recorded when history was turned off, stays unrecorded.
      */
     private var decided = false
@@ -131,10 +133,11 @@ class CheckHistory(
     /**
      * Starts a fresh check of [text]: starts [ask] (the model request) at once, then opens
      * a session for it and, while the request runs, looks for a kept verdict. A kept
-     * verdict that arrives before the model's answer is turned into a result by [reuse]
-     * and shown instead, and the request is cancelled; otherwise the model's answer is
-     * returned (or its failure thrown) as soon as it comes, whatever the lookup is doing,
-     * so the lookup can never add latency. Closes nothing: [close] the previous session first.
+     * verdict that [reuse] turns into a result before the model answers is shown instead,
+     * and the request is cancelled. Once session preparation finishes, the model's answer
+     * is returned (or its failure thrown) as soon as it comes, whatever lookup or reuse is
+     * doing; session preparation can still add latency. Closes nothing: [close] the previous
+     * session first.
      */
     suspend fun <T> firstAttempt(
         text: String,
@@ -143,11 +146,17 @@ class CheckHistory(
         reuse: suspend (Kept) -> T?,
     ): Answer<T> = race(ask, reuse) { open(text, opening)?.reuseKey }
 
+    /** Resets the offered review as soon as the writer selects a language, before settings are read. */
+    fun changeLanguage(language: String?) {
+        recording?.let { quietly("change the language") { it.changeLanguage(language, clock()) } }
+    }
+
     /**
      * The writer picked another language on the open card, and [text] is checked again in
      * it ([opening] has the new [Opening.requestedLanguage], and the settings as they are
      * now): the open session gets the attempt, so a card is one session however often its
-     * language changes. The revision it offered is superseded ([SessionRecording.changeLanguage]).
+     * language changes. Call [changeLanguage] when the selection clears the offered review,
+     * before acquiring these settings.
      * Like [firstAttempt], starts [ask] at once and races it against a kept verdict for the
      * text in the new language. When the card's first check was cancelled before it opened
      * its session, opens one as [firstAttempt] would; a card that isn't recorded (history
@@ -158,7 +167,10 @@ class CheckHistory(
         opening: Opening,
         ask: suspend () -> T,
         reuse: suspend (Kept) -> T?,
-    ): Answer<T> = race(ask, reuse) { switchLanguage(text, opening) }
+    ): Answer<T> = race(ask, reuse) {
+        recheck(text, opening)
+        recording?.let { ReuseKey(it.session.textHash, opening.requestedLanguage, opening.settings) }
+    }
 
     /**
      * Starts [ask] at once, then runs [prepare], which gives what the attempt must match in
@@ -175,51 +187,46 @@ class CheckHistory(
         val key = prepare()
         val permission = permission
         val since = clock() - reuseWithin
-        // Not a child: a blocking query that's slow must never be waited for.
-        val lookup: Deferred<Kept?>? = key?.takeIf { permission?.allowed() == true }
-            ?.let { scope.async { if (permission?.allowed() == true) find(it, since) else null } }
-        try {
-            val kept = lookup?.let {
-                select<Kept?> {
-                    answer.onAwait { null }
-                    lookup.onAwait { it }
+        // Not a child: slow lookup or interpretation must never be waited for.
+        val candidate: Deferred<Answer<T>?>? = key?.takeIf { permission?.allowed() == true }
+            ?.let { key ->
+                scope.async {
+                    if (permission?.allowed() != true) return@async null
+                    val kept = find(key, since) ?: return@async null
+                    if (!permission.allowed()) return@async null
+                    quietly("show a kept answer") { reuse(kept) }?.let { Answer(it, kept) }
                 }
             }
-            if (kept != null && answer.isActive && permission?.allowed() == true) {
-                val reused = quietly("show a kept answer") { reuse(kept) }
-                if (reused != null && answer.isActive && permission.allowed()) {
-                    answer.cancel()
-                    return@coroutineScope Answer(reused, kept)
+        try {
+            val reused = candidate?.let {
+                select<Answer<T>?> {
+                    answer.onAwait { null }
+                    candidate.onAwait { it }
                 }
+            }
+            if (reused != null && answer.isActive && permission?.allowed() == true) {
+                answer.cancel()
+                return@coroutineScope reused
             }
             Answer(answer.await().getOrThrow(), null)
         } finally {
-            lookup?.cancel()
+            candidate?.cancel()
         }
     }
 
     /**
-     * Before a re-check of the open session's text with [opening]: when the settings
+     * Before a re-check of [text] with [opening]: when the settings
      * changed while the card was up (the provider, model, options, prompt or native
      * language), the attempts from now on record the new ones, and so does the session with
-     * the next attempt. It stays one session: a card is one, whatever changes. Does nothing
-     * when no session is open.
+     * the next attempt. It stays one session: a card is one, whatever changes. If the first
+     * opening was interrupted, opens it now; a card already refused or revoked stays unrecorded.
      */
-    fun recheck(opening: Opening) {
-        val recording = recording ?: return
+    suspend fun recheck(text: String, opening: Opening) {
+        val recording = recording ?: run {
+            if (!decided) open(text, opening)
+            return
+        }
         quietly("change the settings") { recording.runWith(opening.requestedLanguage, opening.settings) }
-    }
-
-    /**
-     * Before the attempt in another language: the open session's next attempts run with
-     * [opening]'s language and settings, and its card starts over; or, when the card's first
-     * check didn't get as far as [open], one is opened. Returns what a kept verdict must
-     * match, or null when nothing is recorded.
-     */
-    private suspend fun switchLanguage(text: String, opening: Opening): ReuseKey? {
-        val recording = recording ?: return if (decided) null else open(text, opening)?.reuseKey
-        quietly("change the language") { recording.changeLanguage(opening.requestedLanguage, opening.settings, clock()) } ?: return null
-        return ReuseKey(recording.session.textHash, opening.requestedLanguage, opening.settings)
     }
 
     /**
@@ -299,7 +306,7 @@ class CheckHistory(
         recording?.let { quietly("record a copy") { it.copied(kind) } }
     }
 
-    /** Closes the open session, if any, with what went back to the app ([finalText], null for nothing). */
+    /** Removes an untouched provisional session and retires exports that may contain it. */
     fun discard() {
         decided = true
         val id = activeId
@@ -312,6 +319,7 @@ class CheckHistory(
         lastWrite = scope.launch {
             previous?.join()
             quietly("discard a provisional check") { store.delete(id) }
+            quietly("retire history exports") { withContext(io) { retireExports() } }
         }
     }
 

@@ -14,7 +14,6 @@ import com.evanaronson.linguize.CheckContext
 import com.evanaronson.linguize.Checked
 import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.core.CheckResult
-import com.evanaronson.linguize.core.Edit
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
@@ -25,22 +24,29 @@ import com.evanaronson.linguize.history.Kept
 import com.evanaronson.linguize.history.Opening
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure
+import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 sealed interface CardState {
-    data class Loading(val text: String) : CardState
+    /** The previous revision, retained until a check offers a new one. */
+    val retainedRevision: Revision?
+
+    data class Loading(val text: String, override val retainedRevision: Revision? = null) : CardState
     data class Failed(
         val reason: CheckFailure.Reason,
         val detail: String?,
         val userMessage: CheckFailure.Message? = null,
+        override val retainedRevision: Revision? = null,
     ) : CardState
     data class Done(
         val result: CheckResult,
         /** The writer's answers to assumptions, kept until the card closes. */
         val settled: List<Settled> = emptyList(),
+        /** A non-reviewed answer leaves the previous accepted text available to the host. */
+        override val retainedRevision: Revision? = null,
     ) : CardState
 }
 
@@ -63,6 +69,7 @@ sealed interface CardState {
 class CheckViewModel(
     private val checker: () -> Checker,
     private val history: CheckHistory,
+    private val keyRevision: (Provider) -> Long = { 0L },
 ) : ViewModel() {
     private var text = ""
     private var language: Language? = null
@@ -70,8 +77,6 @@ class CheckViewModel(
     private var hostApp: String? = null
     private var settled: List<Settled> = emptyList()
 
-    /** Changes accepted before the current check started, kept while it runs. */
-    private var carried: List<Edit> = emptyList()
     private var job: Job? = null
     private var staleCheck: Job? = null
     private var generation = 0L
@@ -80,6 +85,7 @@ class CheckViewModel(
 
     /** The settings the latest check ran (or is running) with; null before it read them. */
     private var ranWith: CheckContext? = null
+    private var ranWithKeyRevision: Long? = null
 
     /** Null before the first check and after [dismiss]. */
     var state by mutableStateOf<CardState?>(null)
@@ -87,10 +93,7 @@ class CheckViewModel(
 
     /** The text with accepted changes, or null when nothing has been accepted. */
     val workingText: String?
-        get() {
-            val revision = reviewed?.revision ?: Revision(text, carried, listOf(carried.map { it.id }))
-            return revision.takeIf { it.acceptedCount > 0 }?.workingText
-        }
+        get() = revision?.takeIf { it.acceptedCount > 0 }?.workingText
 
     /**
      * Checks [text] as [language], or detects the language when it's null, starting afresh.
@@ -113,10 +116,11 @@ class CheckViewModel(
      * same text again in it. A different language is a different review, so nothing
      * accepted is carried over and the answers to assumptions start afresh, as with a new
      * [check]; but it's the same card, so history keeps one session for it, which ends with
-     * the last language picked. Does nothing when no card is open.
+     * the last language picked. Does nothing when no card is open or the requested language
+     * is unchanged.
      */
     fun changeLanguage(language: Language?) {
-        if (state == null) return
+        if (state == null || this.language == language) return
         this.language = language
         settled = emptyList()
         run(Run.NewLanguage)
@@ -130,7 +134,7 @@ class CheckViewModel(
     /**
      * Back from settings with the card still up: checks again, as [recheck] does, when the
      * check failed or the settings that affect it ([CheckContext]) are no longer the ones it
-     * ran with. Does nothing when no card is open.
+     * ran with, or a pending request used an older key. Does nothing when no card is open.
      */
     fun recheckIfStale() {
         if (state == null) return
@@ -145,9 +149,10 @@ class CheckViewModel(
             // A settings read belongs to the request that asked for it. A new card, another
             // language or dismissal may have overtaken the read while it was off-thread.
             if (requestedGeneration != generation || state == null) return@launch
-            // This request has not read settings yet, so it will already use the latest ones.
-            if (state is CardState.Loading && ranWith == null) return@launch
-            if (state is CardState.Failed || now == null || now != ranWith) {
+            // A successful result stays valid when only its credential changes.
+            val keyChanged = state is CardState.Loading && now != null &&
+                keyRevision(now.provider) != ranWithKeyRevision
+            if (state is CardState.Failed || now == null || now != ranWith || keyChanged) {
                 staleCheck = null
                 recheck()
             }
@@ -159,6 +164,14 @@ class CheckViewModel(
         if (state == null) return
         hasReviewed = true
         settled = settled.filterNot { it.about == about } + Settled(about, answer)
+        run(Run.Again)
+    }
+
+    /** Retracts the writer's answer about one assumption and checks again. */
+    fun removeChoice(about: String) {
+        if (state == null || settled.none { it.about == about }) return
+        hasReviewed = true
+        settled = settled.filterNot { it.about == about }
         run(Run.Again)
     }
 
@@ -179,18 +192,15 @@ class CheckViewModel(
         staleCheck?.cancel()
         staleCheck = null
         ranWith = null
-        if (kind == Run.Again) {
-            reviewed?.let { carried = it.revision.acceptedEdits }
-        } else {
-            carried = emptyList()
-        }
+        ranWithKeyRevision = null
+        val retained = if (kind == Run.Again) revision else null
         val text = text
         val language = language
         val origin = origin
         val hostApp = hostApp
-        val keep = carried
         job?.cancel()
-        state = CardState.Loading(text)
+        if (kind == Run.NewLanguage) history.changeLanguage(language?.code)
+        state = CardState.Loading(text, retained)
         val requestedGeneration = generation
         job = viewModelScope.launch {
             var answers = settled
@@ -198,6 +208,8 @@ class CheckViewModel(
                 // Creating the checker reads its prompt from assets, so not on the main thread.
                 val checker = withContext(Dispatchers.Default) { checker() }
                 val context = checker.context()
+                // Runtime credential freshness stays outside the context recorded in history.
+                ranWithKeyRevision = keyRevision(context.provider)
                 ranWith = context
                 val ask: suspend () -> Checked = { checker.check(text, language, answers, context) }
                 val opening = Opening(origin, hostApp, language?.code, context.stored)
@@ -207,7 +219,7 @@ class CheckViewModel(
                     Run.NewLanguage -> history.languageChanged(text, opening, ask, reuse)
                     Run.Again -> {
                         // Settings may have changed while the card was up: the attempt records the new ones.
-                        history.recheck(opening)
+                        history.recheck(text, opening)
                         Answer(ask(), null)
                     }
                 }
@@ -216,18 +228,20 @@ class CheckViewModel(
                     answers = it.settled
                     settled = it.settled
                 }
+                // Undo can change the retained revision while the request is in flight.
+                val retained = state?.retainedRevision
                 val result = answer.value.result
                 val kept = if (result is CheckResult.Reviewed) {
-                    result.copy(revision = result.revision.acceptMatching(keep))
+                    result.copy(revision = result.revision.acceptMatching(retained?.acceptedEdits.orEmpty()))
                 } else {
                     result
                 }
                 history.succeeded(answers, answer.value.raw, kept, reusedFrom = answer.reused?.sessionId)
-                CardState.Done(kept, answers)
+                CardState.Done(kept, answers, retainedRevision = retained.takeUnless { kept is CheckResult.Reviewed })
             } catch (failure: CheckFailure) {
                 if (requestedGeneration != generation) return@launch
                 history.failed(answers, failure.reason.token, failure.detail, failure.raw, message = failure.userMessage?.token)
-                CardState.Failed(failure.reason, failure.detail, failure.userMessage)
+                CardState.Failed(failure.reason, failure.detail, failure.userMessage, state?.retainedRevision)
             }
             if (requestedGeneration == generation) state = shown
         }
@@ -241,7 +255,22 @@ class CheckViewModel(
         return reviewed?.isResolved == true
     }
 
-    fun undo() = update { it.undo() }
+    fun undo() {
+        val current = state
+        if (current is CardState.Loading || current is CardState.Failed) {
+            val previous = current.retainedRevision ?: return
+            val revision = previous.undo()
+            if (revision != previous) hasReviewed = true
+            state = when (current) {
+                is CardState.Loading -> current.copy(retainedRevision = revision)
+                is CardState.Failed -> current.copy(retainedRevision = revision)
+                else -> return
+            }
+            history.changed(revision)
+        } else {
+            update { it.undo() }
+        }
+    }
 
     /** The writer copied the version shown for [kind]; only history needs to know. */
     fun copied(kind: EditKind) {
@@ -261,7 +290,6 @@ class CheckViewModel(
         staleCheck = null
         history.close(finalText = if (applied) workingText else null)
         job?.cancel()
-        carried = emptyList()
         state = null
         hasReviewed = false
         if (waitMs > 0) history.awaitWrites(waitMs)
@@ -280,7 +308,6 @@ class CheckViewModel(
         staleCheck?.cancel()
         staleCheck = null
         job?.cancel()
-        carried = emptyList()
         state = null
         hasReviewed = false
         history.discard()
@@ -288,6 +315,8 @@ class CheckViewModel(
 
     /** Gone without [dismiss]: nothing was handed back. */
     override fun onCleared() = history.close(finalText = null)
+
+    private val revision get() = reviewed?.revision ?: state?.retainedRevision
 
     private val reviewed get() = (state as? CardState.Done)?.result as? CheckResult.Reviewed
 
@@ -306,12 +335,14 @@ class CheckViewModel(
             initializer {
                 CheckViewModel(
                     checker = { app.checker },
+                    keyRevision = { app.keys.revision(it) },
                     history = CheckHistory(
                         store = app.history,
                         environment = app.historyEnvironment,
                         scope = app.appScope,
                         log = { message, e -> Log.w(TAG, message, e) },
                         maxChars = Checker.MAX_CHARS,
+                        retireExports = { app.exports.clear() },
                     ),
                 )
             }

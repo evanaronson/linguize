@@ -38,7 +38,7 @@
     <string name="fixes_withheld">Some fixes could not be offered</string>
     <string name="rewordings_withheld">Some rewordings could not be offered</string>
     <string name="no_changes">No changes offered</string>
-    <string name="fixes_accepted">Fixes accepted</string>
+    <string name="fixes_accepted">Fixes accepted or covered by a rewording</string>
     <string name="rewordings_accepted">Rewordings accepted</string>
     <string name="copy_with_fixes">Copy with fixes</string>
     <string name="copy_with_rewordings">Copy with rewordings</string>
@@ -48,6 +48,8 @@
     <string name="meaning_caution">The AI can be wrong, and text from someone else can mislead it.</string>
     <string name="assumptions_description">Where your text could mean two things, the AI picked one.</string>
     <string name="your_choice">Your choice</string>
+    <string name="remove_choice">Remove choice</string>
+    <string name="remove_choice_about">Remove choice: %1$s</string>
     <string name="not_right">Not right</string>
     <string name="what_did_you_mean">What did you mean?</string>
     <string name="show_understanding">Show how the AI read it</string>
@@ -100,6 +102,7 @@
     <string name="save_history_off">New checks aren\'t saved. Saved ones stay until you delete them.</string>
     <string name="delete_all">Delete all</string>
     <string name="delete_all_question">Delete all checks?</string>
+    <string name="delete_all_history_description">This deletes all saved history from this phone. It can\'t be undone.</string>
     <string name="export">Export</string>
     <string name="exporting">Exporting…</string>
     <string name="selection_menu_unavailable">When Linguize isn\'t in the menu</string>
@@ -136,6 +139,7 @@
     <string name="delete_check">Delete check</string>
     <string name="open_check">Open check</string>
     <string name="check_deleted">Check deleted</string>
+    <string name="history_delete_incomplete">Deletion incomplete</string>
     <string name="no_checks_saved">No checks saved</string>
     <string name="export_failed">Couldn\'t export history. Try again.</string>
     <string name="export_history">Export history</string>
@@ -176,7 +180,7 @@
     <string name="hint_rate_limited">Wait a minute, then retry</string>
     <string name="hint_too_long">Select a shorter part, then check again</string>
     <string name="hint_too_many">Wait a minute, then select the text again</string>
-    <string name="accessibility_setup_description">In some apps, like Telegram, Linguize isn\'t in the selection menu. There, turn on Linguize\'s accessibility button and tap it while you type. It reads only the field you\'re typing in, and only when you tap.</string>
+    <string name="accessibility_setup_description">In some apps, like Telegram, Linguize isn\'t in the selection menu. There, turn on Linguize\'s accessibility button and tap it while you type. When you tap, it checks the writing in your typing field. If there is no writing in the field to check, it reads copied text to explain its meaning. It reads text only when you ask.</string>
     <string name="accessibility_setup_steps">1. Open Accessibility, choose Linguize, and turn on Linguize and its shortcut.\n2. If Android says it\'s a restricted setting, open App info, tap ⋮, choose Allow restricted settings, then try step 1 again.</string>
     <string name="list_separator">", "</string>
     <string name="status_separator">" · "</string>
@@ -207,11 +211,6 @@
         <item quantity="one">%1$d check since %2$s</item>
         <item quantity="other">%1$d checks since %2$s</item>
     </plurals>
-    <plurals name="delete_all_checks_description">
-        <item quantity="one">This deletes %1$d check from this phone. It can\'t be undone.</item>
-        <item quantity="other">This deletes %1$d checks from this phone. It can\'t be undone.</item>
-    </plurals>
-
     <string name="message_input_too_long">Linguize checks up to %1$,d characters at a time.</string>
     <string name="message_invalid_key">The saved key contains invalid characters. Paste the key again in settings.</string>
     <string name="message_empty_reply">The AI returned an empty reply.</string>

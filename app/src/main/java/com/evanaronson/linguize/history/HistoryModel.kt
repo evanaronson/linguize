@@ -239,6 +239,8 @@ data class Attempt(
     /** Detected ISO 639-1 code from this successful answer; null for failures or unclear text. */
     val detectedLanguage: String? = null,
     val writingProfiles: List<WritingProfile> = emptyList(),
+    /** A language change discarded this answer as the ending card; its evidence stays intact. */
+    val replayInvalidated: Boolean = false,
 ) {
     /** Whether a verdict came back and was read: the card showed it. */
     val succeeded: Boolean get() = failure == null && raw != null
@@ -345,11 +347,21 @@ data class SessionDetail(val session: SessionRecord, val suggestions: List<Sugge
     /**
      * The attempt the session's card ended on, whose answer is shown again (on its page, or
      * reused by a later check): the one the decided suggestions came from (those not
-     * [Decision.Superseded]), or else the last attempt that succeeded. Null when none did.
-     * The one place that decides it.
+     * [Decision.Superseded]), or else the last eligible attempt that succeeded. Language
+     * changes invalidate earlier answers, even when there were no suggestions. Older rows
+     * can prove that only through superseded suggestions or recorded language transitions.
+     * The one place that decides it; raw answers remain historical evidence.
      */
     fun decidedAttempt(): Int? {
-        val succeeded = session.attempts.indices.filter { session.attempts[it].succeeded }
+        val attempts = session.attempts
+        val languageChangedAt = if (session.schema >= 4) {
+            (1 until attempts.size).lastOrNull { attempts[it].requestedLanguage != attempts[it - 1].requestedLanguage } ?: 0
+        } else 0
+        val superseded = suggestions.groupBy { it.attempt }
+            .filterValues { rows -> rows.all { it.decision == Decision.Superseded } }.keys
+        val succeeded = attempts.indices.filter {
+            it >= languageChangedAt && attempts[it].succeeded && !attempts[it].replayInvalidated && it !in superseded
+        }
         val decided = suggestions.filter { it.decision != Decision.Superseded }.maxOfOrNull { it.attempt }
         return decided?.takeIf { it in succeeded } ?: succeeded.lastOrNull()
     }

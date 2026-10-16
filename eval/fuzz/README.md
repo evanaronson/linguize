@@ -15,7 +15,11 @@ Each damaged text is checked once in its named language and once in Auto Detect:
 
 `FuzzReplayTest` feeds saved replies through the production Checker, parsing, interpretation, history reuse and edit engine. It records all offered edits and each individual Accept result, both previews and Accept all. It checks original span mappings, sentence boundaries, overlaps, previews, Undo, acceptance order and link safety. Ordinary app test runs skip this opt-in replay.
 
-The workflow defaults to offline replay of committed evidence when dispatched. Enable its `live` input explicitly to make billed calls, select a provider/model, and optionally supply ordered fallback targets. Pull requests replay committed evidence without provider requests. An optional `reuse_run` input retains successful answers from an earlier evidence run; live mode retries only its failures. Results are uploaded as `fuzz-100-evidence`.
+Replay defaults to `LINGUIZE_FUZZ_PARSER=fresh`: initial and recorded repair answers use the shipping reader, including required numeric suggestion scores. Historical captures that predate scoring require the explicit `LINGUIZE_FUZZ_PARSER=legacy` option. The console and every engine row identify the selected parser mode. Live and unknown captures use fresh mode; compatibility is never inferred from an answer's fields.
+
+Each new replay row includes its parsed `replay_input`. Reports require that input's case, actual provider/model, prompt/schema and corpus hashes, verdict and optional repair to match the current reply. Reordering JSON keys or changing top-level collection timing does not require another replay. Changing an answer or adding a repair does. Repair collection checks this binding before using withheld flags for requests without a recorded repair; a saved repair attempt is never repeated when resuming against the initial replay. Final reports still require a new replay of those repairs.
+
+The workflow defaults to offline replay of committed evidence when dispatched, explicitly using the legacy parser for that pre-scoring baseline. Enable its `live` input explicitly to make billed calls, select a provider/model, and optionally supply ordered fallback targets. Pull requests replay committed evidence without provider requests. An optional `reuse_run` input retains successful answers from an earlier evidence run; live mode retries only its failures. Live and resumed runs use the fresh parser. Results are uploaded as `fuzz-100-evidence`.
 
 Every provider and rendered result must also be reviewed for linguistic quality and independent phrasing. The original clean text is context, not a mandatory exact output: random word substitutions can change the meaning without making the new text incorrect. A valid alternative correction is not automatically a failure. Synthetic inputs contain no user history or API keys.
 
@@ -36,11 +40,26 @@ Only failed requests trigger fallback. A valid answer with bad suggestions stays
 
 The replay continues after recording invariant violations. A successful replay enforces its deterministic safety gates and captures evidence; it does not establish linguistic quality. The diagnostic flags and manual review ledger expose both structural failures and linguistic concerns.
 
-Frozen evidence and the completed findings are described in [REPORT.md](REPORT.md). To review or replay it without API access:
+Frozen evidence and the completed findings are described in [REPORT.md](REPORT.md). The legacy `baseline/engine.jsonl` and its derived review artifacts are **unbound**: they predate replay-input provenance. They remain historical evidence and cannot pass the default report gate. Do not add inferred provenance to old outputs. To produce separate, newly bound evidence without API access:
 
 ```sh
-python3 eval/fuzz_report.py --results eval/fuzz/baseline
-LINGUIZE_FUZZ_REPLIES="$PWD/eval/fuzz/baseline/replies.jsonl" \
+mkdir -p eval/fuzz/results
+cp eval/fuzz/baseline/replies.jsonl eval/fuzz/results/replies.jsonl
+LINGUIZE_FUZZ_REPLIES="$PWD/eval/fuzz/results/replies.jsonl" \
 LINGUIZE_FUZZ_ENGINE="$PWD/eval/fuzz/results/engine.jsonl" \
-./gradlew testDebugUnitTest --tests com.evanaronson.linguize.FuzzReplayTest
+LINGUIZE_FUZZ_PARSER=legacy \
+./gradlew testDebugUnitTest --rerun-tasks --tests com.evanaronson.linguize.FuzzReplayTest
+python3 eval/fuzz_report.py --results eval/fuzz/results
 ```
+
+This executes the current engine against frozen answers; it does not reproduce the historical engine output or transfer its manual reviews.
+
+To inspect the historical pairing without replaying, copy its source files to a separate output directory and explicitly select `--legacy-unbound`:
+
+```sh
+mkdir -p eval/fuzz/results/historical
+cp eval/fuzz/baseline/replies.jsonl eval/fuzz/baseline/engine.jsonl eval/fuzz/results/historical/
+python3 eval/fuzz_report.py --results eval/fuzz/results/historical --legacy-unbound
+```
+
+This labels the report, summary and joined rows as `legacy_unbound`; it cannot verify that those outputs consumed the paired answers. It never overrides mismatched recorded provenance and cannot be combined with `--require-repairs` or used to select live repairs. This report-only option is separate from `LINGUIZE_FUZZ_PARSER=legacy`, which selects parsing compatibility when executing a new replay.

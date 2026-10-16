@@ -58,7 +58,11 @@ class HistoryJsonTest {
 
     @Test
     fun languageBackfillPreservesRawAndUnknownEvidenceWithoutGuessing() {
-        val raw = """{"status":"ok","language":"Catalan"}"""
+        val raw = """{"status":"ok","language":"Catalan","meaning":"How are you?","assumptions":[],
+            "has_errors":true,"corrected":"Com estàs?",
+            "fixes":[{"from":"estas","to":"estàs","why":"Accent","confidence":3,"impact":1,
+                "assumption_indices":null}],
+            "more_natural":false,"natural":"","natural_changes":[]}"""
         val stored = """[{"at":1,"raw":${kotlinx.serialization.json.JsonPrimitive(raw)},"future":42},
             {"at":2,"requestedLanguage":"es","raw":${kotlinx.serialization.json.JsonPrimitive(raw)}},
             {"at":3,"raw":${kotlinx.serialization.json.JsonPrimitive(raw)},"failure":"bad_response"},
@@ -76,9 +80,49 @@ class HistoryJsonTest {
     }
 
     @Test
+    fun languageDetectionRequiresKnownStatusAndStringLanguageEvidence() {
+        val invalid = listOf(
+            "broken", "[]", "null",
+            """{"language":"Catalan"}""",
+            """{"status":"future","language":"Catalan"}""",
+            """{"status":1,"language":"Catalan"}""",
+            """{"status":true,"language":"Catalan"}""",
+            """{"status":null,"language":"Catalan"}""",
+            """{"status":{},"language":"Catalan"}""",
+            """{"status":"unclear","language":"Catalan"}""",
+            """{"status":"ok"}""",
+            """{"status":"ok","language":1}""",
+            """{"status":"ok","language":true}""",
+            """{"status":"ok","language":null}""",
+            """{"status":"ok","language":{}}""",
+        )
+        for (raw in invalid) {
+            assertEquals(raw, null, detectedLanguage(raw, null))
+            val stored = """[{"at":1,"raw":${kotlinx.serialization.json.JsonPrimitive(raw)},"future":42}]"""
+            val upgraded = upgradeLanguageAttempts(stored)
+            val attempt = decodeAttempts(upgraded).single()
+            assertEquals(raw, attempt.raw)
+            assertEquals(raw, null, attempt.targetLanguage)
+            assertEquals(raw, null, attempt.detectedLanguage)
+            assertTrue(upgraded.contains("\"future\":42"))
+        }
+    }
+
+    @Test
     fun attemptsReadBackOrAsNone() {
         assertEquals(session.attempts, decodeAttempts(encodeAttempts(session.attempts)))
         assertEquals(emptyList<Attempt>(), decodeAttempts("{broken"))
+    }
+
+    @Test
+    fun replayInvalidationRoundTripsWithoutChangingAnswerEvidenceAndDefaultsForOldJson() {
+        val answer = Attempt(at = 1, raw = "raw answer", requestedLanguage = "ca", model = "model")
+        val invalidated = answer.copy(replayInvalidated = true)
+        val attempts = listOf(invalidated, Attempt(at = 2, failure = "offline", failureDetail = "detail"))
+        assertEquals(attempts, decodeAttempts(encodeAttempts(attempts)))
+        assertTrue(decodeAttempts(encodeAttempts(attempts)).first().succeeded)
+        assertEquals(answer, decodeAttempts("""[{"at":1,"raw":"raw answer","requestedLanguage":"ca","model":"model","future":42}]""").single())
+        assertEquals(listOf(invalidated.raw, null), decodeAttempts(encodeAttempts(attempts)).map { it.raw })
     }
 
     @Test

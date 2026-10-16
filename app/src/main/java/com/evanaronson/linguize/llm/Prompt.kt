@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.security.MessageDigest
 
@@ -57,17 +58,32 @@ class Prompt(val system: String, schemaJson: String) {
         append("Text: $TEXT_OPEN${request.text}$TEXT_CLOSE")
     }
 
-    /** Saved answers may predate scoring; the single-argument API remains replay-compatible. */
-    fun parseVerdict(answer: String): Verdict = parseVerdict(answer, requireScores = false)
+    /** Saved answers may predate the current contract; the single-argument API remains replay-compatible. */
+    fun parseVerdict(answer: String): Verdict = parseVerdict(answer, requireFreshContract = false)
 
-    fun parseVerdict(answer: String, requireScores: Boolean): Verdict {
+    /**
+     * Fresh answers require schema-declared top-level fields and integer scores. False proposal
+     * flags forbid their target text and changes; non-ok statuses forbid both flags and payloads.
+     * Meaning and assumptions remain independent of these proposal checks.
+     */
+    fun parseVerdict(answer: String, requireFreshContract: Boolean): Verdict {
         if (answer.isBlank()) throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
         if (answer.length > MAX_ANSWER_CHARS) throw replyTooLarge()
         return try {
             val fields = json.parseToJsonElement(answer).jsonObject
             json.decodeFromJsonElement<Verdict>(withValidAssumptionReferences(fields)).also { verdict ->
                 validateSize(verdict)
-                if (requireScores) {
+                if (requireFreshContract) {
+                    val required = (schema["required"] as? JsonArray).orEmpty().map { it.jsonPrimitive.content }
+                    val correctionPayload = verdict.corrected.isNotEmpty() || verdict.fixes.isNotEmpty()
+                    val naturalPayload = verdict.natural.isNotEmpty() || verdict.naturalChanges.isNotEmpty()
+                    if (required.any { it !in fields } ||
+                        (!verdict.hasErrors && correctionPayload) ||
+                        (!verdict.moreNatural && naturalPayload) ||
+                        (verdict.status != Verdict.Status.Ok &&
+                            (verdict.hasErrors || verdict.moreNatural || correctionPayload || naturalPayload))) {
+                        throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.InvalidReply)
+                    }
                     val changes = listOf("fixes", "natural_changes").flatMap { key ->
                         (fields[key] as? JsonArray).orEmpty()
                     }
@@ -134,7 +150,7 @@ class Prompt(val system: String, schemaJson: String) {
 
         /**
          * Output token limit for a check, thinking included. The answer can repeat the text three
-         * times (corrected, natural, meaning) plus the lists of changes; a cut-off answer fails as TooLong.
+         * times (corrected, natural, meaning) plus the lists of changes; a cut-off answer is an unusable reply.
          */
         const val MAX_OUTPUT_TOKENS = 8192
 

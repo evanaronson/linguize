@@ -104,6 +104,67 @@ class ReplayTest {
     }
 
     @Test
+    fun languageChangesNeverReplayTheDiscardedReviewAfterFailureOrDismissal() {
+        answers["clean"] = Verdict(status = Verdict.Status.Ok, language = "Catalan", meaning = "Clean review")
+        for (edits in listOf(true, false)) {
+            for (ending in listOf("failed", "dismissed", "returned-and-failed")) {
+                val recording = SessionRecording(rain, context, 100)
+                val raw = if (edits) "rain" else "clean"
+                recording.attempt(200, emptyList(), raw, null, null,
+                    if (edits) revision() else Revision(rain, emptyList()), null, Verdict.Status.Ok)
+                val original = recording.session.attempts.single()
+                recording.changeLanguage("es", 250)
+                if (ending != "dismissed") {
+                    recording.attempt(260, emptyList(), null, "offline", null, null, null)
+                }
+                if (ending == "returned-and-failed") {
+                    recording.changeLanguage("ca", 270)
+                    recording.attempt(280, emptyList(), null, "offline", null, null, null)
+                }
+                val detail = recording.close(300, null)
+                val discarded = detail.session.attempts.first()
+                assertTrue(discarded.replayInvalidated)
+                assertTrue(discarded.succeeded)
+                assertEquals(original, discarded.copy(replayInvalidated = false))
+                assertNull("edits=$edits ending=$ending", detail.decidedAttempt())
+                assertNull(detail.keptFor(detail.session.reuseKeyOf(0)!!))
+                assertNull(replay(detail, parse))
+            }
+        }
+    }
+
+    @Test
+    fun aSuccessfulReplacementLanguageCanBeReplayedNormally() {
+        answers["spanish"] = verdict.copy(language = "Spanish", meaning = "Replacement review")
+        val recording = SessionRecording(rain, context, 100)
+        recording.attempt(200, emptyList(), "rain", null, null, revision(), null, Verdict.Status.Ok)
+        recording.changeLanguage("es", 250)
+        recording.attempt(260, emptyList(), "spanish", null, null, revision(), null, Verdict.Status.Ok)
+        val detail = recording.close(300, null)
+
+        assertEquals(listOf(true, false), detail.session.attempts.map { it.replayInvalidated })
+        assertEquals(1, detail.decidedAttempt())
+        assertEquals("Replacement review", (replay(detail, parse)!!.result as CheckResult.Reviewed).meaning)
+    }
+
+    @Test
+    fun ordinaryFailedRechecksKeepTheEarlierReviewEvenWhenSettingsChanged() {
+        answers["clean"] = Verdict(status = Verdict.Status.Ok, language = "Catalan", meaning = "Clean review")
+        for (edits in listOf(true, false)) {
+            val recording = SessionRecording(rain, context, 100)
+            recording.attempt(200, emptyList(), if (edits) "rain" else "clean", null, null,
+                if (edits) revision() else Revision(rain, emptyList()), null, Verdict.Status.Ok)
+            recording.runWith("ca", context.opening.settings.copy(model = "different"))
+            recording.attempt(250, emptyList(), null, "offline", null, null, null)
+            val detail = recording.close(300, null)
+
+            assertTrue(detail.session.attempts.none { it.replayInvalidated })
+            assertEquals(0, detail.decidedAttempt())
+            assertTrue(replay(detail, parse)!!.result is CheckResult.Reviewed)
+        }
+    }
+
+    @Test
     fun nothingWhenNoAttemptSucceededOrTheAnswerCantBeRead() {
         val failed = SessionRecording(rain, context, 100)
         failed.attempt(200, emptyList(), "garbled", "BadResponse", null, null, null)

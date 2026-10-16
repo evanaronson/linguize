@@ -55,6 +55,6 @@ internal object PrivateField {
      * is a message; those fields are recognised by their input type instead.
      */
     private val PRIVATE_WORDS = Regex(
-        """\b(otp|one ?time (code|password|pin)|passcode|password|passwd|pin|cvv|cvc|iban|card ?(number|num|no)|cc ?(number|num)|(verification|security|confirmation|auth|sms) ?code|contrasenya|contrasena|(codigo|codi) (de )?(verificacion|verificacio|seguridad|seguretat|confirmacion|confirmacio|sms)|(numero|num) (de )?(tarjeta|targeta))\b""",
+        """\b(otp|one ?time (code|password|pin)|passcode|password|passwd|pin|cvv|cvc|iban|card ?(number|num|no)|cc ?(number|num)|(verification|security|confirmation|auth|sms) ?code|contrasenya|contrasena|(codigo|codi) (de )?(verificacion|verificacio|seguridad|seguretat|confirmacion|confirmacio|sms)|(numero|num) (de )?(tarjeta|targeta))[0-9]*\b""",
     )
 }

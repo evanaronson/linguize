@@ -124,6 +124,18 @@ class PromptTest {
         assertEquals("I'm at home.", verdict.meaning)
     }
 
+    @Test
+    fun sameLanguageMeaningIsEmptyWithoutSuppressingOtherFindings() {
+        val promptText = File("src/main/assets/check_prompt.md").readText()
+        val schema = Json.parseToJsonElement(File("src/main/assets/check_schema.json").readText()).jsonObject
+        val meaningDescription = schema.getValue("properties").jsonObject
+            .getValue("meaning").jsonObject.getValue("description").jsonPrimitive.content
+
+        assertTrue(promptText.contains("return an empty string when it is already in the native language"))
+        assertTrue(promptText.contains("Keep assumptions and corrections independent of whether `meaning` is empty"))
+        assertTrue(meaningDescription.contains("empty when the text is already in the native language"))
+    }
+
     /** Every answer the prompt shows the model as an example must be one the app can read. */
     @Test
     fun theExamplesInThePromptAreValidAnswers() {

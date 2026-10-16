@@ -97,7 +97,7 @@ class GeminiClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
         /** Pages of models read at most; one page of 1000 holds them all today. */
         const val MAX_MODEL_PAGES = 10
 
-        /** The answer text, without any thought parts. Throws [CheckFailure]; TooLong when it was cut off. */
+        /** The answer text, without any thought parts. Throws [CheckFailure]; BadResponse when output was cut off. */
         fun answer(payload: String): String = readResponse(payload) { root ->
             val candidate = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
                 ?: throw if (root["promptFeedback"]?.jsonObject?.get("blockReason") != null) {

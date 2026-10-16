@@ -131,6 +131,50 @@ class UnderstandViewModelTest {
         } finally { store.clear() }
     }
 
+    @Test fun replacingAKeyDuringLoadingRetriesAndRejectsTheLateOldKeyFailure() {
+        val revisions = Provider.entries.associateWith { 0L }.toMutableMap()
+        val oldFailure = CompletableDeferred<Unit>()
+        var requests = 0
+        val vm = UnderstandViewModel(
+            context = { initialContext },
+            keyRevision = { revisions.getValue(it) },
+        ) { _, _ ->
+            requests++
+            if (requests == 1) withContext(NonCancellable) {
+                oldFailure.await()
+                throw CheckFailure(CheckFailure.Reason.BadKey)
+            }
+            Understood("With the new key", emptyList())
+        }
+        val store = ViewModelStore().apply { put("understand", vm) }
+        try {
+            vm.captured(ClipboardText.Text("captured once"))
+            waitFor { requests == 1 }
+            vm.recheckIfStale()
+            repeat(10) { shadowOf(Looper.getMainLooper()).idle(); Thread.sleep(2) }
+            assertEquals(1, requests)
+            revisions[Provider.OpenAI] = 1L
+            vm.recheckIfStale()
+            repeat(10) { shadowOf(Looper.getMainLooper()).idle(); Thread.sleep(2) }
+            assertEquals(1, requests)
+            assertTrue(vm.state is UnderstandState.Loading)
+
+            revisions[Provider.Gemini] = 1L
+            vm.recheckIfStale()
+            waitFor { vm.state is UnderstandState.Done }
+            assertEquals(2, requests)
+            oldFailure.complete(Unit)
+            repeat(20) { shadowOf(Looper.getMainLooper()).idle(); Thread.sleep(2) }
+            assertEquals("With the new key", (vm.state as UnderstandState.Done).result.translation)
+
+            // Completed linguistic results remain usable after credential-only changes.
+            revisions[Provider.Gemini] = 2L
+            vm.recheckIfStale()
+            repeat(10) { shadowOf(Looper.getMainLooper()).idle(); Thread.sleep(2) }
+            assertEquals(2, requests)
+        } finally { oldFailure.complete(Unit); store.clear() }
+    }
+
     private fun waitFor(condition: () -> Boolean) {
         val until = System.nanoTime() + 5_000_000_000L
         while (!condition()) {

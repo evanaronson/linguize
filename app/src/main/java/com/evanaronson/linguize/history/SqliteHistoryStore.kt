@@ -27,7 +27,7 @@ import java.io.OutputStream
  * write made through this store.
  *
  * Nothing throws but cancellation: a failure (the database can't be opened or upgraded,
- * a write fails, a row can't be read) is logged and answered with nothing.
+ * a write fails, a row can't be read) is logged and answered with a failure result or fallback.
  *
  * Deleting is a hard delete for now. The rows have `deletedAt` so a deletion can travel
  * once there's a sync; until then there's nothing to carry it, and the writer asked for
@@ -114,8 +114,8 @@ class SqliteHistoryStore(
         HistoryPage(rows, next)
     }
 
-    override suspend fun detail(id: String): SessionDetail? = read("read a session", null) { db ->
-        db.snapshot { db.detail(id) }
+    override suspend fun detail(id: String): SessionDetailResult = read("read a session", SessionDetailResult.Failed) { db ->
+        db.snapshot { db.detail(id)?.let { SessionDetailResult.Found(it) } ?: SessionDetailResult.Missing }
     }
 
     /**

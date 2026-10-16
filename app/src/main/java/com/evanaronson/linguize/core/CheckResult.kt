@@ -74,7 +74,7 @@ fun interpret(
         withheld += EditKind.Natural
     }
     val proposed = fixes + naturals?.edits.orEmpty()
-    val safe = Links.withoutNew(original, proposed)
+    val safe = if (naturals?.edits.isNullOrEmpty()) fixes else Links.withoutNew(original, proposed)
     withheld += (proposed - safe.toSet()).map { it.kind }
 
     // Keep references attached to their original assumption even when a malformed
@@ -86,19 +86,7 @@ fun interpret(
         Revision(original, linked),
         kinds = EditKind.entries.filter { it in judgments.kinds },
         assumptions = assumptions.map { it.value },
-        meaning = verdict.meaning.trim().takeUnless { isUntranslated(it, original) }.orEmpty(),
+        meaning = verdict.meaning.trim(),
         withheld = withheld,
     )
-}
-
-/**
- * Whether [meaning] is mostly [original]'s own words: the model echoed the text
- * instead of translating it, so there's no meaning worth showing.
- */
-internal fun isUntranslated(meaning: String, original: String): Boolean {
-    fun words(text: String) = Regex("""\p{L}{3,}""").findAll(text.lowercase()).map { it.value }.toList()
-    val meaningWords = words(meaning)
-    if (meaningWords.isEmpty()) return false
-    val originalWords = words(original).toSet()
-    return meaningWords.count { it in originalWords } * 2 >= meaningWords.size
 }

@@ -109,7 +109,7 @@ class Checker(
         (System.nanoTime() - started) / 1_000_000
     }
 
-    /** The models [provider]'s key can use, newest first. */
+    /** The models [provider]'s key can use, ordered by extracted numeric version descending, then ID ascending. */
     suspend fun models(provider: Provider): List<String> = failingAsCheckFailure {
         clients.getValue(provider).models(key(provider))
     }

@@ -53,6 +53,7 @@ If an improvement meets these conditions, set `more_natural: true`, put the comp
 Each item represents one independently meaningful linguistic decision, safe to accept by itself. Being adjacent, inside one sentence, or expressible as one phrase does not make different decisions atomic. Do not hide independent changes behind one broad replacement or split one repair into broken fragments.
 
 - Correct a complete word or inseparable construction. `micaabans → mica abans` is one spacing repair. `pasti:lla → pastilla` and `despres → després` are two separate word repairs. A capital and accent on the same word can share an item.
+- A contraction and the adjoining verb form must remain a complete unit: `de experimentat → d'experimentar`, not separate changes to `de ` and `experimentat`. Preserve unchanged typography such as `...`; do not normalize it to `…` outside the change list.
 - Keep independent punctuation and word changes separate. A sentence boundary and its required following capitalization belong together when accepting either alone would create an error. Punctuation internal to a word or formatted number belongs to that complete unit; `2130 → 21:30` must not change the digits.
 - A grammatical construction can involve several words while still making one decision. Catalan `tinc que usar → he d'usar` corrects obligation while preserving valid `usar`. Replacing it with `he de fer servir` also changes the verb choice; do not bundle that preference with the grammar repair or call the combined change naturalness.
 

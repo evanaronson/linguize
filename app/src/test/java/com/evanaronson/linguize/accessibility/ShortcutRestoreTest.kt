@@ -99,6 +99,19 @@ class ShortcutRestoreTest {
 
     @After fun tearDown() = service.onDestroy()
 
+    @Test fun androidButtonCallbackOpensTheFocusedWhatsAppText() {
+        field.packageName = "com.whatsapp"
+        field.viewIdResourceName = "com.whatsapp:id/entry"
+        field.text = "Pues... potser haurem de experimentat viure com abans "
+        ReflectionHelpers.callInstanceMethod<Unit>(service, "onServiceConnected")
+        // Exercise Android's registered callback, not a reflective call to tapped().
+        ReflectionHelpers.callInstanceMethod<Unit>(service.accessibilityButtonController, "dispatchAccessibilityButtonClicked")
+        waitFor { ReflectionHelpers.getField<Any?>(service, "card") != null }
+        val check = ViewModelProvider(window())[CheckViewModel::class.java]
+        waitFor { check.state is CardState.Done }
+        assertEquals(listOf("Pues... potser haurem de experimentat viure com abans"), checks.checks.map { it.third.text })
+    }
+
     @Test fun hiddenCheckRefreshesPositionAndContextAndKeepsTheLaterAppReturn() {
         tap()
         val original = window()

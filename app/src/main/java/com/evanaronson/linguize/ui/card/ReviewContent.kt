@@ -80,9 +80,17 @@ private fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, ac
     }
 
     val review = actions.review
-    result.kinds.forEachIndexed { index, kind ->
+    // Naturalness was judged on the model's corrected text. It cannot reassure
+    // the writer about the original when required corrections were withheld.
+    result.kinds.filterNot { it == EditKind.Natural && EditKind.Fix in result.withheld &&
+        it !in result.withheld && result.revision.edits(it).isEmpty()
+    }.forEachIndexed { index, kind ->
         if (index > 0) SectionDivider()
         EditSection(kind, result, settled, actions)
+    }
+
+    if (result.withheld.isNotEmpty()) {
+        TextButton(onClick = actions.onRetry) { Text(stringResource(R.string.retry)) }
     }
 
     if (review != null && result.revision.canUndo) {

@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Replayed
 import com.evanaronson.linguize.history.SessionDetail
@@ -39,7 +41,15 @@ sealed interface SessionPage {
         /** Why the last attempt failed, if it did. */
         val failure: CheckFailure.Reason?,
         val suggestions: List<SuggestionRecord> = emptyList(),
-    ) : SessionPage
+    ) : SessionPage {
+        /** Replay validates contradictory answers; saved status survives unavailable replay. */
+        val warning: Verdict.Status?
+            get() = when (card?.result) {
+                is CheckResult.WrongLanguage -> Verdict.Status.WrongLanguage
+                CheckResult.Unclear -> Verdict.Status.Unclear
+                else -> session.status?.takeUnless { it == Verdict.Status.Ok }
+            }
+    }
 }
 
 internal enum class SessionDeletion { Ready, Deleting, Failed, Deleted }

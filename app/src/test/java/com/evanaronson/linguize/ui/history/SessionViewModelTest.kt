@@ -3,7 +3,9 @@ package com.evanaronson.linguize.ui.history
 import android.app.Application
 import android.os.Looper
 import com.evanaronson.linguize.data.Exports
+import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
+import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.Attempt
 import com.evanaronson.linguize.history.Decision
 import com.evanaronson.linguize.history.HistoryStore
@@ -41,6 +43,36 @@ import java.util.concurrent.atomic.AtomicInteger
 @Config(sdk = [35], application = Application::class)
 class SessionViewModelTest {
     @get:Rule val cache = TemporaryFolder()
+
+    @Test
+    fun contradictoryOkAnswerKeepsItsLanguageWarningAndUnreadableAnswersUseSavedStatus() {
+        val context = RuntimeEnvironment.getApplication()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val history = object : HistoryStore by SqliteHistoryStore(context, "unused") {
+            override suspend fun detail(id: String): SessionDetail {
+                val raw = if (id == "contradictory") """{"status":"ok","language":"English"}""" else "not JSON"
+                return detailOf(id).let { it.copy(session = it.session.copy(
+                    requestedLanguage = "ca", status = if (id == "contradictory") Verdict.Status.Ok else Verdict.Status.WrongLanguage,
+                    attempts = listOf(Attempt(2, raw = raw)),
+                )) }
+            }
+        }
+        val model = SessionViewModel(history, { Prompt("", "{}") }, AppLabels(context.packageManager), scope, {})
+        try {
+            listOf("contradictory", "unreadable").forEach { id ->
+                model.load(id)
+                waitFor { (model.page as? SessionPage.Shown)?.session?.id == id }
+                val shown = model.page as SessionPage.Shown
+                assertEquals(Verdict.Status.WrongLanguage, shown.warning)
+                if (id == "contradictory") {
+                    assertEquals(Verdict.Status.Ok, shown.session.status)
+                    assertTrue(shown.card?.result is CheckResult.WrongLanguage)
+                } else assertNull(shown.card)
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
 
     @Test
     fun loadingDamagedAnswersPreservesExactTextAndRowsWithoutWriting() {

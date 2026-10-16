@@ -48,7 +48,8 @@ internal fun understandingEntry(
     settled: List<Settled>,
     readOnly: Boolean,
 ): UnderstandingEntryState {
-    val unresolved = assumptions.count { a -> a.alternatives.any { it.isNotBlank() } && settled.none { it.about == a.about } }
+    val unresolved = assumptions.count { a -> hasUniqueLabel(a, assumptions) &&
+        a.alternatives.any { it.isNotBlank() } && settled.none { it.about == a.about } }
     return UnderstandingEntryState(
         visible = meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
         unresolved = unresolved,
@@ -158,7 +159,7 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
     }
     open.forEachIndexed { index, assumption ->
         if (index > 0 || settled.isNotEmpty()) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        AssumptionItem(assumption, onSettle)
+        AssumptionItem(assumption, onSettle.takeIf { hasUniqueLabel(assumption, assumptions) })
     }
 }
 
@@ -207,8 +208,12 @@ internal fun assumptionChoices(assumption: Assumption): List<String> =
 
 internal fun linkedAssumptions(indices: List<Int>, assumptions: List<Assumption>, settled: List<Settled>): List<Assumption> =
     indices.distinct().mapNotNull(assumptions::getOrNull).filter { a ->
-        assumptions.count { it.about == a.about } == 1 && settled.none { it.about == a.about }
+        hasUniqueLabel(a, assumptions) && settled.none { it.about == a.about }
     }
+
+/** Settling identifies questions by their label; never offer an action that could answer two. */
+private fun hasUniqueLabel(assumption: Assumption, assumptions: List<Assumption>) =
+    assumptions.count { it.about == assumption.about } == 1
 
 @Composable
 private fun Label(text: String) {

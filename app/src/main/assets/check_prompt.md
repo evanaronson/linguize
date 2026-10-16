@@ -151,5 +151,5 @@ Language: auto
 Punctuation: moderate
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
-Text: <text>I saw her duck.</text>
-{"status":"ok","language":"English","meaning":"I saw her lower her head.","assumptions":[{"about":"Meaning of duck","assumed":"She lowered her head","words":"her duck","alternatives":["I saw a duck belonging to her"]}],"has_errors":false,"corrected":"","fixes":[],"more_natural":true,"natural":"I saw her lower her head.","natural_changes":[{"from":"her duck","to":"her lower her head","why":"Clarify duck as movement","confidence":1,"impact":3,"assumption_indices":[0]}]}
+Text: <text>Demà vaig anar al metge.</text>
+{"status":"ok","language":"Catalan","meaning":"I will go to the doctor tomorrow.","assumptions":[{"about":"Time of the visit","assumed":"The visit is tomorrow","words":"Demà vaig anar","alternatives":["The visit already happened"]}],"has_errors":true,"corrected":"Demà aniré al metge.","fixes":[{"from":"vaig anar","to":"aniré","why":"Future tense for tomorrow","confidence":1,"impact":3,"assumption_indices":[0]}],"more_natural":false,"natural":"","natural_changes":[]}

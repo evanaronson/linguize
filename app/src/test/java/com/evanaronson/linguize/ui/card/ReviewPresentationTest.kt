@@ -11,6 +11,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReviewPresentationTest {
+    @Test fun duplicateQuestionLabelsStayReadableButCannotPromiseAClarificationAction() {
+        val assumptions = listOf(Assumption("Who?", "I", alternatives = listOf("You")),
+            Assumption("Who?", "Someone else", alternatives = listOf("A friend")))
+        val entry = understandingEntry("Meaning", assumptions, emptyList(), false)
+        assertTrue(entry.visible)
+        assertFalse(entry.canClarify)
+        assertEquals(0, entry.unresolved)
+        assertTrue(linkedAssumptions(listOf(0, 1), assumptions, emptyList()).isEmpty())
+    }
     @Test fun inlineDependenciesOnlyShowExplicitUnresolvedReferencesWithoutInventingLinks() {
         val assumptions = listOf(Assumption("Who?", "I", alternatives = listOf("You")),
             Assumption("When?", "Tomorrow", alternatives = listOf("Today")))

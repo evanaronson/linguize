@@ -17,6 +17,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,10 +35,13 @@ import com.evanaronson.linguize.ui.card.UnderstandingEntry
 import com.evanaronson.linguize.ui.card.UnderstandingPage
 import com.evanaronson.linguize.ui.card.understandingEntry
 import com.evanaronson.linguize.ui.text.titleResource
+import kotlinx.coroutines.launch
 
 /** Exact saved text and decisions; inspecting a past check cannot change it. */
 @Composable
 fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
     val deletion = session.deletion
     LaunchedEffect(deletion) {
         if (deletion == SessionDeletion.Deleted) onDeleted()
@@ -45,7 +49,7 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -56,23 +60,33 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
                 page,
                 deletion = deletion,
                 onDelete = session::delete,
+                onMeaningNavigation = { scope.launch { scroll.scrollTo(0) } },
             )
         }
     }
 }
 
 @Composable
-private fun Shown(page: SessionPage.Shown, deletion: SessionDeletion, onDelete: () -> Unit) {
+private fun Shown(
+    page: SessionPage.Shown,
+    deletion: SessionDeletion,
+    onDelete: () -> Unit,
+    onMeaningNavigation: () -> Unit,
+) {
     val session = page.session
     SessionDetails(session, page.appLabel)
 
     val reviewed = page.card?.result as? CheckResult.Reviewed
     val settled = page.card?.settled.orEmpty()
     var meaningOpen by rememberSaveable(session.id) { mutableStateOf(false) }
-    BackHandler(enabled = meaningOpen) { meaningOpen = false }
+    val showMeaning: (Boolean) -> Unit = {
+        meaningOpen = it
+        onMeaningNavigation()
+    }
+    BackHandler(enabled = meaningOpen) { showMeaning(false) }
     if (meaningOpen && reviewed != null) {
         UnderstandingPage(reviewed.meaning, reviewed.assumptions, settled,
-            onSettle = null, onBack = { meaningOpen = false })
+            onSettle = null, onBack = { showMeaning(false) })
     } else {
         TextBlock(stringResource(R.string.history_before), session.text)
         WhatCameOfIt(session)
@@ -87,7 +101,7 @@ private fun Shown(page: SessionPage.Shown, deletion: SessionDeletion, onDelete: 
         }
         if (reviewed != null) {
             UnderstandingEntry(understandingEntry(reviewed.meaning, reviewed.assumptions,
-                settled, readOnly = true), onOpen = { meaningOpen = true })
+                settled, readOnly = true), onOpen = { showMeaning(true) })
         }
         SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null)
     }

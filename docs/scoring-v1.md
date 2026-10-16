@@ -44,6 +44,26 @@ creating intent questions for grammar, style or hypothetical dictionary senses.
 Re-checks produce fresh ratings and retain the writer's settled facts; no automatic
 confidence increase follows clarification.
 
+Adjustments now declare optional meaning dependencies using `assumption_indices`,
+zero-based references into the same response's existing assumptions. The schema
+requires an explicit list (usually empty); legacy or missing lists read as empty.
+The parser drops malformed/out-of-range references without discarding a usable
+correction. Filtering malformed assumptions remaps links instead of retargeting
+them. Split, grouped unrelated, and inferred repairs do not inherit dependencies.
+No confidence cutoff creates a question or link.
+
+Opening a suggestion shows its linked unresolved assumptions inline, using the
+same AssumptionItem and settling callback as Meaning. Clarify offers the current
+reading plus distinct alternatives, so a writer can confirm or correct it. The
+whole original text is checked again; answers belong to the check, not an inline
+copy of the assumption. Duplicate question labels are not offered inline because
+the existing settling action identifies a question by its label.
+
+History stores the exact response already, so no new link table or database
+migration is needed. Replay reads dependencies only from that attempt and only
+when interpreted edits exactly match the recorded rows. Otherwise links remain
+unknown/empty. Historical cards render the same information without actions.
+
 The existing offline evaluator supports explicit complete writing_profiles and
 validates/prints both fresh scores. The retrospective importer resolves only the
 profiles recorded on the suggestion's own attempt. No conversation import, memory,

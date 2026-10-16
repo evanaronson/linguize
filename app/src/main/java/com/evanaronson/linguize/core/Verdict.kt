@@ -65,6 +65,8 @@ data class VerdictChange(
     /** Nullable only for pre-scoring history and legacy evaluation fixtures. */
     val confidence: Int? = null,
     val impact: Int? = null,
+    /** Zero-based references into this verdict's assumptions; absent on older answers. */
+    @SerialName("assumption_indices") val assumptionIndices: List<Int> = emptyList(),
 ) {
     init {
         require((confidence == null) == (impact == null)) { "Both suggestion scores are required together" }

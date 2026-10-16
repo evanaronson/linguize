@@ -3,6 +3,7 @@
     <string name="change_why_remove">Why remove %1$s</string>
     <!-- Temporary labels for the display-only, ordinal 0–3 scoring experiment. -->
     <string name="assessment_confidence">Confidence</string>
+    <string name="depends_on">Depends on</string>
     <string name="assessment_impact">Impact</string>
     <string name="assessment_dimension">%1$s: %2$s</string>
     <string name="assessment_score">%1$d/3 · %2$s</string>

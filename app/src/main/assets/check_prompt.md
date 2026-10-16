@@ -60,6 +60,12 @@ For each item, `from` is the exact source text and `to` is its exact replacement
 
 List changes in source order. Fixes refer to the original text; natural changes refer to the corrected text when used, otherwise the original. Applying the listed items once must reproduce the declared complete result, with no unlisted changes. Omit a proposed rewording if you cannot isolate it without changing another decision.
 
+## Link meaning dependencies
+
+Each change must include `assumption_indices`: zero-based indices into this response's `assumptions` array, or `[]` when none apply. Link only a material uncertainty about intended meaning that this exact change relies on: a different answer could change, remove, or justify this suggestion. Several suggestions may share one assumption; a suggestion may depend on more than one. Give each assumption a distinct `about` label. Do not invent assumptions to explain low confidence, create a link merely because words overlap, or link grammar/style uncertainty that the writer cannot resolve by clarifying their meaning. Rewording links concern its additional expression change, not fixes it already includes. A link does not depend on a confidence cutoff and never changes a score automatically.
+
+Only reference assumptions in this answer, never indices from an earlier check. After a `Settled:` answer, use that answer as fact and reassess the original text; do not repeat or relink the resolved assumption. Confirming the current assumed reading also counts as a settled answer, not proof that the suggestion is linguistically correct.
+
 ## Assess every adjustment
 
 Every item in `fixes` and `natural_changes` must have integer `confidence` and `impact` scores from 0 to 3. Never omit a score or return null. These are independent, ordinal assessments of that exact decision, not percentages, ranks within the message, instructions to accept a change, or filtering thresholds. Do not inflate a score because you generated the suggestion or because other suggestions scored higher. Keep the existing criteria for proposing changes: scoring does not invite extra candidates, alternative phrasings, or speculative repairs.
@@ -89,14 +95,14 @@ Punctuation: moderate
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>Bon dia! Com estas amb la pluja?</text>
-{"status":"ok","language":"Catalan","meaning":"Good morning! How are you doing with the rain?","assumptions":[],"has_errors":true,"corrected":"Bon dia! Com estàs amb la pluja?","fixes":[{"from":"estas","to":"estàs","why":"Missing accent","confidence":3,"impact":1}],"more_natural":true,"natural":"Bon dia! Com portes la pluja?","natural_changes":[{"from":"estàs amb","to":"portes","why":"Idiom for coping with something","confidence":2,"impact":1}]}
+{"status":"ok","language":"Catalan","meaning":"Good morning! How are you doing with the rain?","assumptions":[],"has_errors":true,"corrected":"Bon dia! Com estàs amb la pluja?","fixes":[{"from":"estas","to":"estàs","why":"Missing accent","confidence":3,"impact":1,"assumption_indices":[]}],"more_natural":true,"natural":"Bon dia! Com portes la pluja?","natural_changes":[{"from":"estàs amb","to":"portes","why":"Idiom for coping with something","confidence":2,"impact":1,"assumption_indices":[]}]}
 
 Language: Catalan
 Punctuation: moderate
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>Quan parlo català tinc que usar l'aplicació.</text>
-{"status":"ok","language":"Catalan","meaning":"When I speak Catalan I have to use the app.","assumptions":[],"has_errors":true,"corrected":"Quan parlo català he d'usar l'aplicació.","fixes":[{"from":"tinc que usar","to":"he d'usar","why":"Catalan obligation construction","confidence":3,"impact":2}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Catalan","meaning":"When I speak Catalan I have to use the app.","assumptions":[],"has_errors":true,"corrected":"Quan parlo català he d'usar l'aplicació.","fixes":[{"from":"tinc que usar","to":"he d'usar","why":"Catalan obligation construction","confidence":3,"impact":2,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: Catalan
 Punctuation: moderate
@@ -110,14 +116,14 @@ Punctuation: strict
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>que tal el finde</text>
-{"status":"ok","language":"Spanish","meaning":"How was the weekend?","assumptions":[],"has_errors":true,"corrected":"¿Qué tal el finde?","fixes":[{"from":"","to":"¿","why":"Opening question mark","confidence":3,"impact":1},{"from":"que","to":"Qué","why":"Capital and accent","confidence":3,"impact":1},{"from":"","to":"?","why":"Closing question mark","confidence":3,"impact":1}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Spanish","meaning":"How was the weekend?","assumptions":[],"has_errors":true,"corrected":"¿Qué tal el finde?","fixes":[{"from":"","to":"¿","why":"Opening question mark","confidence":3,"impact":1,"assumption_indices":[]},{"from":"que","to":"Qué","why":"Capital and accent","confidence":3,"impact":1,"assumption_indices":[]},{"from":"","to":"?","why":"Closing question mark","confidence":3,"impact":1,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: auto
 Punctuation: casual
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>hola q tal bb estas bien</text>
-{"status":"ok","language":"Spanish","meaning":"Hi, how's it going, babe? Are you OK?","assumptions":[],"has_errors":true,"corrected":"hola q tal bb estás bien","fixes":[{"from":"estas","to":"estás","why":"Missing accent","confidence":3,"impact":1}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Spanish","meaning":"Hi, how's it going, babe? Are you OK?","assumptions":[],"has_errors":true,"corrected":"hola q tal bb estás bien","fixes":[{"from":"estas","to":"estás","why":"Missing accent","confidence":3,"impact":1,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: auto
 Punctuation: moderate
@@ -125,7 +131,7 @@ Checks: fix
 Native: English (write meaning, assumptions and reasons in English)
 Settled: {"about":"Who brought the beers","answer":"I did (the writer)"}
 Text: <text>Charles y yo vamos a tomar las cervezas que me ha traído de Montreal</text>
-{"status":"ok","language":"Spanish","meaning":"Charles and I are going to drink the beers I brought from Montreal.","assumptions":[],"has_errors":true,"corrected":"Charles y yo vamos a tomar las cervezas que he traído de Montreal","fixes":[{"from":"me ha traído","to":"he traído","why":"The writer brought them","confidence":3,"impact":2}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Spanish","meaning":"Charles and I are going to drink the beers I brought from Montreal.","assumptions":[],"has_errors":true,"corrected":"Charles y yo vamos a tomar las cervezas que he traído de Montreal","fixes":[{"from":"me ha traído","to":"he traído","why":"The writer brought them","confidence":3,"impact":2,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: auto
 Punctuation: moderate
@@ -140,3 +146,10 @@ Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>See you tomorrow at the station</text>
 {"status":"wrong_language","language":"English","meaning":"","assumptions":[],"has_errors":false,"corrected":"","fixes":[],"more_natural":false,"natural":"","natural_changes":[]}
+
+Language: auto
+Punctuation: moderate
+Checks: both
+Native: English (write meaning, assumptions and reasons in English)
+Text: <text>I saw her duck.</text>
+{"status":"ok","language":"English","meaning":"I saw her lower her head.","assumptions":[{"about":"Meaning of duck","assumed":"She lowered her head","words":"her duck","alternatives":["I saw a duck belonging to her"]}],"has_errors":false,"corrected":"","fixes":[],"more_natural":true,"natural":"I saw her lower her head.","natural_changes":[{"from":"her duck","to":"her lower her head","why":"Clarify duck as movement","confidence":1,"impact":3,"assumption_indices":[0]}]}

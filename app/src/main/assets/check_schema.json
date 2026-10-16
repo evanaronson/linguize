@@ -22,10 +22,12 @@
         "type": "object",
         "properties": {
           "about": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "assumed": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "words": {
             "type": "string"
@@ -33,8 +35,11 @@
           "alternatives": {
             "type": "array",
             "items": {
-              "type": "string"
-            }
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 3
           }
         },
         "required": [
@@ -44,7 +49,8 @@
           "alternatives"
         ],
         "additionalProperties": false
-      }
+      },
+      "maxItems": 4
     },
     "has_errors": {
       "type": "boolean"
@@ -77,6 +83,16 @@
             "minimum": 0,
             "maximum": 3,
             "description": "Benefit assuming justified: 0 none, 1 minor, 2 substantial, 3 prevents significant misunderstanding. Independent of confidence."
+          },
+          "assumption_indices": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "description": "Zero-based indices into this response's assumptions, only for intended-meaning dependencies of this exact adjustment; otherwise []."
           }
         },
         "required": [
@@ -84,7 +100,8 @@
           "to",
           "why",
           "confidence",
-          "impact"
+          "impact",
+          "assumption_indices"
         ],
         "additionalProperties": false
       }
@@ -120,6 +137,16 @@
             "minimum": 0,
             "maximum": 3,
             "description": "Benefit assuming justified: 0 none, 1 minor, 2 substantial, 3 prevents significant misunderstanding. Independent of confidence."
+          },
+          "assumption_indices": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "description": "Zero-based indices into this response's assumptions, only for intended-meaning dependencies of this exact adjustment; otherwise []."
           }
         },
         "required": [
@@ -127,7 +154,8 @@
           "to",
           "why",
           "confidence",
-          "impact"
+          "impact",
+          "assumption_indices"
         ],
         "additionalProperties": false
       }

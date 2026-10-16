@@ -11,6 +11,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReviewPresentationTest {
+    @Test fun inlineDependenciesOnlyShowExplicitUnresolvedReferencesWithoutInventingLinks() {
+        val assumptions = listOf(Assumption("Who?", "I", alternatives = listOf("You")),
+            Assumption("When?", "Tomorrow", alternatives = listOf("Today")))
+        assertTrue(linkedAssumptions(emptyList(), assumptions, emptyList()).isEmpty())
+        assertEquals(assumptions, linkedAssumptions(listOf(0, 1, 0, -1, 2), assumptions, emptyList()))
+        assertEquals(listOf(assumptions[1]), linkedAssumptions(listOf(0, 1), assumptions, listOf(Settled("Who?", "I"))))
+        assertTrue(linkedAssumptions(listOf(0), emptyList(), emptyList()).isEmpty())
+        assertTrue(linkedAssumptions(listOf(0), listOf(assumptions[0], assumptions[0].copy(assumed = "Someone else")), emptyList()).isEmpty())
+    }
+
+    @Test fun clarificationCanConfirmTheCurrentReadingOrChooseADistinctAlternative() {
+        val assumption = Assumption("Who?", "I", alternatives = listOf("You", "I", "", "You"))
+        assertEquals(listOf("I", "You"), assumptionChoices(assumption))
+    }
+
     @Test
     fun missingAssessmentIsUnassessedWhileZeroIsAnActualRating() {
         val missing = assessmentPresentation(null)

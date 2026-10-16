@@ -7,6 +7,8 @@ import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.SuggestionAssessment
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.WritingRegister
+import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.llm.Prompt
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
@@ -20,6 +22,25 @@ class ScoredHistoryTest {
     private val fixture = HistorySchemaTest()
     private val profile = WritingProfile.defaultFor(Language.Catalan)
     private val rated = SuggestionAssessment(0, 3)
+
+    @Test fun historyReadsLinksOnlyFromItsOwnRecordedAttemptAndDropsThemWhenEditsNoLongerMatch() {
+        val raw = """{"status":"ok","language":"Catalan","has_errors":true,"corrected":"Com estàs?\nBé.",
+            "assumptions":[{"about":"Who?","assumed":"You","alternatives":["I"]}],
+            "fixes":[{"from":"estas","to":"estàs","assumption_indices":[0]}]}"""
+        val session = fixture.session.copy(attempts = listOf(Attempt(1, raw = "{}"), Attempt(2, raw = raw)))
+        // Export still contains the exact raw response; no separate link table or migration is needed.
+        val restored = sessionRecord(MapRow(session.values()))!!
+        val prompt = Prompt("", "{}")
+        val result = replay(SessionDetail(restored, listOf(fixture.suggestion)), prompt::parseVerdict)!!.result as CheckResult.Reviewed
+        assertEquals(listOf(0), result.revision.edits.single().assumptionIndices)
+        assertEquals("Who?", result.assumptions.single().about)
+        val changedRows = listOf(fixture.suggestion.copy(toText = "estás"))
+        val fallback = replay(SessionDetail(restored, changedRows), prompt::parseVerdict)!!.result as CheckResult.Reviewed
+        assertTrue(fallback.revision.edits.single().assumptionIndices.isEmpty())
+        val legacy = restored.copy(attempts = listOf(Attempt(1, raw = raw.replace(",\"assumption_indices\":[0]", ""))))
+        val old = replay(SessionDetail(legacy, listOf(fixture.suggestion.copy(attempt = 0))), prompt::parseVerdict)!!.result as CheckResult.Reviewed
+        assertTrue(old.revision.edits.single().assumptionIndices.isEmpty())
+    }
 
     @Test
     fun profilesAndAssessmentRoundTripAsStructuredExportWithoutTurningNullIntoZero() {

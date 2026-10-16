@@ -48,7 +48,7 @@ internal fun understandingEntry(
     settled: List<Settled>,
     readOnly: Boolean,
 ): UnderstandingEntryState {
-    val unresolved = assumptions.count { a -> a.alternatives.isNotEmpty() && settled.none { it.about == a.about } }
+    val unresolved = assumptions.count { a -> a.alternatives.any { it.isNotBlank() } && settled.none { it.about == a.about } }
     return UnderstandingEntryState(
         visible = meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
         unresolved = unresolved,
@@ -135,11 +135,9 @@ internal fun UnderstandingPage(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, onSettle: ((String, String) -> Unit)?) {
     val open = assumptions.filterNot { a -> settled.any { it.about == a.about } }
-    var changing by remember { mutableStateOf<String?>(null) }
     Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.titleMedium)
     Text(
         stringResource(R.string.assumptions_description),
@@ -160,40 +158,57 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
     }
     open.forEachIndexed { index, assumption ->
         if (index > 0 || settled.isNotEmpty()) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(Modifier.padding(vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Label(assumption.about)
-                    Text(assumption.assumed, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    if (assumption.words.isNotBlank()) {
-                        Text(
-                            stringResource(R.string.quoted_text, assumption.words),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (onSettle != null && assumption.alternatives.isNotEmpty() && changing != assumption.about) {
-                    val clarify = stringResource(R.string.clarify_about, assumption.about)
-                    TextButton(
-                        onClick = { changing = assumption.about },
-                        modifier = Modifier.semantics { contentDescription = clarify },
-                    ) { Text(stringResource(R.string.clarify)) }
+        AssumptionItem(assumption, onSettle)
+    }
+}
+
+/** The same question and answer action, whether shown on Meaning or beside a suggestion. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AssumptionItem(assumption: Assumption, onSettle: ((String, String) -> Unit)?) {
+    var changing by remember(assumption) { mutableStateOf(false) }
+    Column(Modifier.padding(vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Label(assumption.about)
+                Text(assumption.assumed, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                if (assumption.words.isNotBlank()) {
+                    Text(
+                        stringResource(R.string.quoted_text, assumption.words),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            if (onSettle != null && changing == assumption.about) {
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.what_did_you_mean), style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(4.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    assumption.alternatives.forEach { alternative ->
-                        SuggestionChip(onClick = { onSettle(assumption.about, alternative) }, label = { Text(alternative) })
-                    }
+            if (onSettle != null && assumption.alternatives.any { it.isNotBlank() } && !changing) {
+                val clarify = stringResource(R.string.clarify_about, assumption.about)
+                TextButton(
+                    onClick = { changing = true },
+                    modifier = Modifier.semantics { contentDescription = clarify },
+                ) { Text(stringResource(R.string.clarify)) }
+            }
+        }
+        if (onSettle != null && changing) {
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.what_did_you_mean), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(4.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                assumptionChoices(assumption).forEach { alternative ->
+                    SuggestionChip(onClick = { onSettle(assumption.about, alternative) }, label = { Text(alternative) })
                 }
             }
         }
     }
 }
+
+/** Include the current reading so clarification can confirm it as well as correct it. */
+internal fun assumptionChoices(assumption: Assumption): List<String> =
+    (listOf(assumption.assumed) + assumption.alternatives).filter { it.isNotBlank() }.distinct()
+
+internal fun linkedAssumptions(indices: List<Int>, assumptions: List<Assumption>, settled: List<Settled>): List<Assumption> =
+    indices.distinct().mapNotNull(assumptions::getOrNull).filter { a ->
+        assumptions.count { it.about == a.about } == 1 && settled.none { it.about == a.about }
+    }
 
 @Composable
 private fun Label(text: String) {

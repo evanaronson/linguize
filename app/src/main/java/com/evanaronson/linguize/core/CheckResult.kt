@@ -77,10 +77,15 @@ fun interpret(
     val safe = Links.withoutNew(original, proposed)
     withheld += (proposed - safe.toSet()).map { it.kind }
 
+    // Keep references attached to their original assumption even when a malformed
+    // assumption is omitted. Neither index gaps nor an invalid reference can retarget it.
+    val assumptions = verdict.assumptions.withIndex().filter { it.value.about.isNotBlank() && it.value.assumed.isNotBlank() }
+    val indices = assumptions.mapIndexed { index, value -> value.index to index }.toMap()
+    val linked = safe.map { edit -> edit.copy(assumptionIndices = edit.assumptionIndices.mapNotNull(indices::get).distinct()) }
     return CheckResult.Reviewed(
-        Revision(original, safe),
+        Revision(original, linked),
         kinds = EditKind.entries.filter { it in judgments.kinds },
-        assumptions = verdict.assumptions.filter { it.about.isNotBlank() && it.assumed.isNotBlank() },
+        assumptions = assumptions.map { it.value },
         meaning = verdict.meaning.trim().takeUnless { isUntranslated(it, original) }.orEmpty(),
         withheld = withheld,
     )

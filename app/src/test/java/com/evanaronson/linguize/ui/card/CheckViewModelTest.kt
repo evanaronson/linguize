@@ -24,6 +24,11 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.Assumption
+import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.fakeChecker
@@ -79,6 +84,26 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class CheckViewModelTest {
+    @Test fun clarifyingALinkedSuggestionRechecksTheWholeOriginalAndMayRemoveIt() {
+        val original = "I saw her duck."
+        client.answer = { request ->
+            val verdict = if (request.settled.isEmpty()) {
+                Verdict(Verdict.Status.Ok, language = "English", assumptions = listOf(
+                    Assumption("Meaning of duck", "She lowered her head", alternatives = listOf("Her bird"))),
+                    moreNatural = true, natural = "I saw her lower her head.", naturalChanges = listOf(
+                        VerdictChange("her duck", "her lower her head", confidence = 1, impact = 3, assumptionIndices = listOf(0))))
+            } else Verdict(Verdict.Status.Ok, language = "English")
+            ModelAnswer(verdict, Json.encodeToString(verdict))
+        }
+        check.check(original, null, Origin.Menu)
+        assertEquals(listOf(0), reviewed().revision.edits.single().assumptionIndices)
+        check.settle("Meaning of duck", "Her bird")
+        assertTrue(reviewed().revision.edits.isEmpty())
+        assertTrue(reviewed().assumptions.isEmpty())
+        assertEquals(2, client.checks.size)
+        assertEquals(original, client.checks.last().third.text)
+        assertEquals(listOf(Settled("Meaning of duck", "Her bird")), client.checks.last().third.settled)
+    }
     private val preferences = FakePreferences()
     private val client = FakeClient { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
     private val checker = fakeChecker(preferences, client)

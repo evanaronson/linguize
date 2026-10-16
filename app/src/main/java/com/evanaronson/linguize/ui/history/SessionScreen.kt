@@ -94,7 +94,7 @@ private fun Shown(
             Text(stringResource(R.string.check_failed_reason, stringResource(it.titleResource)),
                 color = MaterialTheme.colorScheme.error)
         }
-        when (session.status) {
+        when (page.warning) {
             Verdict.Status.Unclear -> Faint(stringResource(R.string.meaning_unclear))
             Verdict.Status.WrongLanguage -> Faint(stringResource(R.string.wrong_language_status))
             else -> Unit

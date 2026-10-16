@@ -21,7 +21,7 @@ RUBRIC = HERE / "scoring/rubric.md"
 SCHEMA = HERE / "scoring/answer_schema.json"
 VERSION = "suggestion-assessment-v1"
 CONTEXT_FIELDS = ("requestedLanguage", "targetLanguage", "detectedLanguage", "nativeLanguage",
-                  "punctuation", "settled", "variety")
+                  "punctuation", "settled", "variety", "register")
 CONFIDENCE = ("Unsupported", "Weak", "Moderate", "Strong")
 IMPACT = ("No clear benefit", "Minor", "Substantial", "Meaning-critical")
 
@@ -124,6 +124,16 @@ def history_cases(rows):
                     context[key] = session.get(key)
                 else:
                     context[key] = None
+            # Resolve only profiles actually recorded for THIS attempt. Never apply
+            # present-day settings, a later attempt, or missing defaults to old evidence.
+            profiles = attempt.get("writingProfiles") or []
+            if not isinstance(profiles, list):
+                raise ValueError("Historical writingProfiles must be a list")
+            target = context.get("targetLanguage") or context.get("detectedLanguage")
+            matching = [p for p in profiles if isinstance(p, dict) and p.get("language") == target]
+            if len(matching) == 1:
+                for key in ("register", "punctuation", "variety"):
+                    context[key] = matching[0].get(key)
             start = utf16_index(original, suggestion["start"])
             end = utf16_index(original, suggestion["end"])
             case = {

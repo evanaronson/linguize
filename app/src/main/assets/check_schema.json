@@ -65,12 +65,26 @@
           },
           "why": {
             "type": "string"
+          },
+          "confidence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Support for making this exact change: 0 none, 1 weak, 2 moderate, 3 strong. Ordinal, not probability."
+          },
+          "impact": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Benefit assuming justified: 0 none, 1 minor, 2 substantial, 3 prevents significant misunderstanding. Independent of confidence."
           }
         },
         "required": [
           "from",
           "to",
-          "why"
+          "why",
+          "confidence",
+          "impact"
         ],
         "additionalProperties": false
       }
@@ -94,12 +108,26 @@
           },
           "why": {
             "type": "string"
+          },
+          "confidence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Support for making this exact change: 0 none, 1 weak, 2 moderate, 3 strong. Ordinal, not probability."
+          },
+          "impact": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Benefit assuming justified: 0 none, 1 minor, 2 substantial, 3 prevents significant misunderstanding. Independent of confidence."
           }
         },
         "required": [
           "from",
           "to",
-          "why"
+          "why",
+          "confidence",
+          "impact"
         ],
         "additionalProperties": false
       }

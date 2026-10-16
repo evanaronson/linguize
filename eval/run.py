@@ -48,7 +48,17 @@ def one_line(text):
 
 def user_message(case):
     language = case.get("language", "auto")
-    if language != "auto":
+    profiles = case.get("writing_profiles", [])
+    if not isinstance(profiles, list):
+        raise ValueError("writing_profiles must be a list of complete profiles")
+    for profile in profiles:
+        if not isinstance(profile, dict) or set(profile) != {"id", "name", "language", "variety", "register", "punctuation"}:
+            raise ValueError("Each writing profile must supply all six fields")
+        if profile["register"] not in ("casual", "everyday", "formal") or profile["punctuation"] not in ("casual", "moderate", "strict"):
+            raise ValueError("Unknown writing profile register or punctuation")
+    if len({p["language"] for p in profiles}) != len(profiles):
+        raise ValueError("Only one active writing profile per language is allowed")
+    if language != "auto" and not profiles:
         language = f"{language} ({LANGUAGES[language]})"
     native = case.get("native", "English")
     settled = "".join(
@@ -56,9 +66,11 @@ def user_message(case):
                                  ensure_ascii=False, separators=(",", ":")) + "\n"
         for about, answer in case.get("settled", [])
     )
+    profile_line = ("Writing profiles: " + json.dumps(profiles, ensure_ascii=False, separators=(",", ":"))
+                    .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029") + "\n") if profiles else ""
     return (f"Language: {language}\n"
             f"Punctuation: {case.get('punctuation', 'moderate')}\n"
-            f"Checks: {case.get('checks', 'both')}\n"
+            + profile_line + f"Checks: {case.get('checks', 'both')}\n"
             f"Native: {native} (write meaning, assumptions and reasons in {native})\n"
             + settled + ("Repair: true\n" if case.get("repair") else "")
             + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
@@ -179,6 +191,13 @@ def summarize_answer(case, verdict, elapsed):
     """Finish validation and formatting before printing a successful case report."""
     verdict = json_object(verdict, "Model answer")
     problems = []
+    for kind in ("fixes", "natural_changes"):
+        for change in json_array(verdict.get(kind, []), kind):
+            change = json_object(change, "adjustment")
+            for dimension in ("confidence", "impact"):
+                score = change.get(dimension)
+                if type(score) is not int or score not in range(4):
+                    raise ValueError(f"Every adjustment needs integer {dimension} in 0..3")
     if "status" in case and verdict["status"] != case["status"]:
         problems.append(f"status {verdict['status']} != {case['status']}")
     if "answer_language" in case and verdict.get("language", "") != case["answer_language"]:
@@ -212,11 +231,11 @@ def summarize_answer(case, verdict, elapsed):
     if verdict.get("corrected"):
         lines.append(f"            fix: {verdict['corrected']}")
         for change in verdict.get("fixes", []):
-            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/3; impact {change['impact']}/3)")
     if verdict.get("natural"):
         lines.append(f"        natural: {verdict['natural']}")
         for change in verdict.get("natural_changes", []):
-            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/3; impact {change['impact']}/3)")
     lines.extend(f"        !! {problem}" for problem in problems)
     return problems, "\n".join(lines)
 

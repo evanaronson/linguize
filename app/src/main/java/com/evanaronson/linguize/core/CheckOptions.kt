@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.core
 
 import com.evanaronson.linguize.codec.Tokens
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /** A language a check can be pinned to; none means the model detects it. */
 data class Language(
@@ -30,13 +32,14 @@ data class Language(
 }
 
 /** How strictly fixes cover punctuation and capitalisation; check_prompt.md defines each level. */
+@Serializable
 enum class Punctuation(
     /** What the prompt sends and settings and history keep. */
     val token: String,
 ) {
-    Strict("strict"),
-    Moderate("moderate"),
-    Casual("casual"),
+    @SerialName("strict") Strict("strict"),
+    @SerialName("moderate") Moderate("moderate"),
+    @SerialName("casual") Casual("casual"),
     ;
 
     companion object {

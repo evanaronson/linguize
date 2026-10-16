@@ -58,4 +58,20 @@ data class Settled(val about: String, val answer: String)
 
 /** One change as the model describes it; used for its reason, not its position. */
 @Serializable
-data class VerdictChange(val from: String = "", val to: String = "", val why: String = "")
+data class VerdictChange(
+    val from: String = "",
+    val to: String = "",
+    val why: String = "",
+    /** Nullable only for pre-scoring history and legacy evaluation fixtures. */
+    val confidence: Int? = null,
+    val impact: Int? = null,
+) {
+    init {
+        require((confidence == null) == (impact == null)) { "Both suggestion scores are required together" }
+        require(confidence == null || confidence in 0..3) { "Confidence must be from 0 to 3" }
+        require(impact == null || impact in 0..3) { "Impact must be from 0 to 3" }
+    }
+
+    val assessment: SuggestionAssessment?
+        get() = confidence?.let { SuggestionAssessment(it, requireNotNull(impact)) }
+}

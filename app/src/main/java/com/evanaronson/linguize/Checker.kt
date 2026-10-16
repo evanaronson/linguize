@@ -49,7 +49,8 @@ class Checker(
         if (text.length > MAX_CHARS) throw CheckFailure(CheckFailure.Reason.TooLong, userMessage = CheckFailure.Message.InputTooLong)
         return failingAsCheckFailure {
             val used = context ?: readContext()
-            val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native)
+            val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native,
+                writingProfiles = used.writingProfiles)
             val client = clients.getValue(used.provider)
             val key = key(used.provider)
             val first = checked(text, language, client.check(key, used.model, request), used)
@@ -122,6 +123,7 @@ class Checker(
             judgments = settings.judgments,
             native = settings.nativeLanguage,
             promptHash = prompt.hash,
+            writingProfiles = settings.writingProfiles.distinctBy { it.language }.sortedBy { it.language }.toList(),
         )
     }
 

@@ -84,12 +84,12 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
                                {"from": "despres", "to": "després"}],
         }
         verdict = {"corrected": "Pren la pastilla després de dinar.", "fixes": [{
-            "from": "pasti:lla despres", "to": "pastilla després", "why": "Spelling and accent",
+            "from": "pasti:lla despres", "to": "pastilla després", "why": "Spelling and accent", "confidence": 3, "impact": 1,
         }]}
         status, output = self.evaluate([case], lambda *args: (verdict, 0.01))
         self.assertEqual(1, status)
         self.assertIn("!! fixes", output)
-        verdict["fixes"] = [dict(change, why="A provider's own reason") for change in case["expected_fixes"]]
+        verdict["fixes"] = [dict(change, why="A provider's own reason", confidence=3, impact=1) for change in case["expected_fixes"]]
         status, _ = self.evaluate([case], lambda *args: (verdict, 0.01))
         self.assertEqual(0, status)
 
@@ -97,13 +97,13 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
         case = {"text": "Com estàs amb la pluja?", "expected_natural": "Com portes la pluja?",
                 "expected_natural_changes": [{"from": "estàs amb", "to": "portes"}]}
         verdict = {"natural": "Com portes la pluja?", "natural_changes": [{
-            "from": "estàs amb", "to": "portes", "why": "Idiom",
+            "from": "estàs amb", "to": "portes", "why": "Idiom", "confidence": 2, "impact": 1,
         }]}
         self.assertEqual(0, self.evaluate([case], lambda *args: (verdict, 0.01))[0])
         verdict["natural"] = "Com portes el fred?"
         self.assertEqual(1, self.evaluate([case], lambda *args: (verdict, 0.01))[0])
         verdict["natural"] = case["expected_natural"]
-        verdict["natural_changes"].append({"from": "pluja", "to": "fred", "why": "Changed subject"})
+        verdict["natural_changes"].append({"from": "pluja", "to": "fred", "why": "Changed subject", "confidence": 0, "impact": 0})
         self.assertEqual(1, self.evaluate([case], lambda *args: (verdict, 0.01))[0])
 
     def test_an_empty_dataset_is_a_configuration_error(self):

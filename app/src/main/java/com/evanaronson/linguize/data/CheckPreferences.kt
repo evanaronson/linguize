@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.data
 
 import com.evanaronson.linguize.core.Judgments
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.llm.Provider
 
@@ -12,6 +14,10 @@ interface CheckPreferences {
     val provider: Provider
     val punctuation: Punctuation
     val judgments: Judgments
+
+    /** Complete language-specific snapshots; the default keeps older test/host implementations working. */
+    val writingProfiles: List<WritingProfile>
+        get() = Language.all.map { WritingProfile.defaultFor(it, punctuation) }
 
     /** The writer's own language: the meaning and reasons are written in it. */
     val nativeLanguage: String

@@ -20,3 +20,6 @@ eval/fuzz/results/
 eval/fuzz/baseline/review.html
 eval/fuzz/baseline/review.jsonl
 eval/fuzz/baseline/summary.json
+
+# Local History exports and assessment outputs contain private messages.
+/eval/private/

@@ -25,7 +25,7 @@ import org.robolectric.util.ReflectionHelpers
 
 /** Uses Android's actual focus cache; only the remote editor query is simulated. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class, shadows = [ShortcutCacheTest.FocusServiceShadow::class])
+@Config(sdk = [35], application = com.evanaronson.linguize.App::class, shadows = [ShortcutCacheTest.FocusServiceShadow::class])
 class ShortcutCacheTest {
     @Test fun switchingChatsDoesNotSpendTheFirstTapOnThePreviousEditor() {
         val service = Robolectric.buildService(LinguizeAccessibilityService::class.java).create().get()
@@ -46,13 +46,34 @@ class ShortcutCacheTest {
                 assertNotNull(focus.cachedFocus())
                 // Switching chats replaces the editor but leaves old focus cached.
                 // Handle the new private or empty editor on THIS tap.
-                focus.currentEditor = editor(private = private)
+                focus.currentEditor = editor(private = private).apply {
+                    // Regression: a WhatsApp composer can expose its placeholder as writing,
+                    // without hint metadata, and even with selection actions/cursor offsets.
+                    if (!private) {
+                        packageName = "com.whatsapp"
+                        viewIdResourceName = "com.whatsapp:id/entry"
+                        text = "Message"
+                        hintText = null
+                        isShowingHintText = false
+                        setTextSelection(7, 7)
+                        addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
+                    }
+                }
                 val before = focus.queries
+                ShadowToast.reset()
                 ReflectionHelpers.callInstanceMethod<Unit>(service, "tapped")
                 assertEquals(before + 1, focus.queries)
                 assertNull(focus.cachedFocus())
-                val feedback = if (private) R.string.shortcut_private_field else R.string.shortcut_no_text
-                assertEquals(service.getString(feedback), ShadowToast.getTextOfLatestToast())
+                if (private) {
+                    assertEquals(service.getString(R.string.shortcut_private_field), ShadowToast.getTextOfLatestToast())
+                } else {
+                    // A hint-only editor opens clipboard-based Understand on this same tap.
+                    val card = ReflectionHelpers.getField<Any>(service, "card")
+                    assertNotNull(card)
+                    // Understand has no write-back field; the hint never starts a check/history session.
+                    assertNull(ReflectionHelpers.getField<AccessibilityNodeInfo?>(card, "field"))
+                    assertNull(ShadowToast.getTextOfLatestToast())
+                }
             }
         } finally {
             client.getMethod("removeConnection", Int::class.javaPrimitiveType).invoke(null, connection)

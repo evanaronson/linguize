@@ -24,6 +24,11 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.Assumption
+import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.fakeChecker
@@ -79,6 +84,26 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class CheckViewModelTest {
+    @Test fun clarifyingALinkedSuggestionRechecksTheWholeOriginalAndMayRemoveIt() {
+        val original = "I saw her duck."
+        client.answer = { request ->
+            val verdict = if (request.settled.isEmpty()) {
+                Verdict(Verdict.Status.Ok, language = "English", assumptions = listOf(
+                    Assumption("Meaning of duck", "She lowered her head", alternatives = listOf("Her bird"))),
+                    moreNatural = true, natural = "I saw her lower her head.", naturalChanges = listOf(
+                        VerdictChange("her duck", "her lower her head", confidence = 1, impact = 3, assumptionIndices = listOf(0))))
+            } else Verdict(Verdict.Status.Ok, language = "English")
+            ModelAnswer(verdict, Json.encodeToString(verdict))
+        }
+        check.check(original, null, Origin.Menu)
+        assertEquals(listOf(0), reviewed().revision.edits.single().assumptionIndices)
+        check.settle("Meaning of duck", "Her bird")
+        assertTrue(reviewed().revision.edits.isEmpty())
+        assertTrue(reviewed().assumptions.isEmpty())
+        assertEquals(2, client.checks.size)
+        assertEquals(original, client.checks.last().third.text)
+        assertEquals(listOf(Settled("Meaning of duck", "Her bird")), client.checks.last().third.settled)
+    }
     private val preferences = FakePreferences()
     private val client = FakeClient { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
     private val checker = fakeChecker(preferences, client)
@@ -131,6 +156,76 @@ class CheckViewModelTest {
         return store.closed.toList()
     }
 
+
+    @Test
+    fun switchingToUnderstandDiscardsTheProvisionalCheckWithoutApplying() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        assertFalse(check.suspendForUnderstand())
+        runBlocking { history.flush() }
+        assertNull(check.state)
+        assertNull(check.workingText)
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+        // Closing the Understand popup or clearing the host cannot recreate that evidence.
+        check.dismiss(applied = false)
+        viewModels.clear()
+        runBlocking { history.flush() }
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+    }
+
+    @Test
+    fun switchingDuringLoadingCancelsAndDiscardsTheCheck() {
+        client.answer = { awaitCancellation() }
+        check.check(QUESTION, null, Origin.Button)
+        waitFor("a provisional record") { store.saves.get() > 0 }
+        assertFalse(check.suspendForUnderstand())
+        runBlocking { history.flush() }
+        settle()
+        assertNull(check.state)
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+    }
+
+    @Test
+    fun switchingToUnderstandKeepsAcceptedWorkAndClosingDoesNotApplyIt() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val retained = check.state
+        assertTrue(check.suspendForUnderstand())
+        assertEquals(retained, check.state)
+        assertEquals("Com estàs?", check.workingText)
+        assertTrue(store.deleted.isEmpty())
+        // Even if clipboard capture fails, returning uses this same state and Undo stack.
+        check.undo()
+        assertNull(check.workingText)
+        assertTrue(check.suspendForUnderstand())
+        check.dismiss(applied = false)
+        assertNull(closed().single().finalText)
+        assertTrue(store.deleted.isEmpty())
+    }
+
+    @Test
+    fun copiedAndClarifiedChecksAreRetainedWithoutAcceptedEdits() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.copied(EditKind.Fix)
+        assertTrue(check.suspendForUnderstand())
+        assertNull(check.workingText)
+        check.dismiss(applied = false)
+        assertEquals(Outcome.Copied, closed().single().outcome)
+
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.settle("tu", "informal")
+        val answered = done()
+        assertTrue(check.suspendForUnderstand())
+        assertEquals(answered, check.state)
+        assertEquals(listOf(Settled("tu", "informal")), answered.settled)
+        assertTrue(store.deleted.isEmpty())
+    }
 
     @Test
     fun acceptAllKeepsTheFinalTextUntilApplyWithoutTouchingTheClipboard() {
@@ -638,6 +733,7 @@ class CheckViewModelTest {
 
     /** Remembers the sessions it was asked to close, and counts saves and lookups; [kept] is what every reuse lookup finds. */
     private class RecordingStore : HistoryStore {
+        val deleted: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val closed: MutableList<SessionRecord> = Collections.synchronizedList(mutableListOf())
         val saves = AtomicInteger()
         val lookups = AtomicInteger()
@@ -662,7 +758,7 @@ class CheckViewModelTest {
         override suspend fun page(before: com.evanaronson.linguize.history.HistoryCursor?, limit: Int) =
             com.evanaronson.linguize.history.HistoryPage(emptyList(), null)
         override suspend fun detail(id: String): SessionDetail? = null
-        override suspend fun delete(id: String) = true
+        override suspend fun delete(id: String): Boolean { deleted += id; return true }
         override suspend fun clear() = Unit
         override suspend fun export(out: OutputStream) = true
     }

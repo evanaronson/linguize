@@ -22,8 +22,8 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 - On Android 13+, clear the accessibility node cache at the start of each explicit tap. Chat navigation can replace virtual editors while cached input focus still identifies the previous editor; refreshing that node cannot discover the replacement. Older Android versions retain the existing lookup path.
 - If the service-wide focus query is missing or returns a container, query input focus within the active source window before scanning. This handles a missing global focus result without requiring a second tap when the window already exposes its focused editor.
 - For fallback, require the source app and window to match the active root. Search the returned item's subtree first, then the same-window root only if the complete subtree has no candidate.
-- Accept only one visible, enabled, input-focused editor. Bound each scan to 128 nodes and 150 ms. A private, ambiguous or incomplete scan stops the attempt. A lone unfocused editor is insufficient.
-- When lookup reaches its limit, retry the fresh query once after 100 ms within the original tap. A new tap, service destruction, screen lock or source-window change cancels it. Private, ambiguous and genuinely empty fields do not schedule retries; a second limited lookup stops with feedback.
+- Accept only one visible, enabled, input-focused editor. Bound each scan to 128 nodes and 150 ms. A private, ambiguous or incomplete scan cannot supply writing to Check. A lone unfocused editor is insufficient.
+- When lookup reaches its limit, retry the fresh query once after 100 ms within the original tap. A new tap, service destruction, screen lock or source-window change cancels it. Private, ambiguous and genuinely empty fields do not schedule retries; a second limited lookup falls through to clipboard-based Understand.
 - Check password and private-field metadata before reading contents. Refresh every candidate, including the direct result, before reading text; cached nodes may still hold the text from before focus changed. Recheck fallback eligibility and the active source window before reading.
 - Give a short toast on failure, with instructions to focus the field and retry or paste into Try it. The temporary settings line, tap count, availability state, and stage tracking have been removed.
 
@@ -33,7 +33,7 @@ Individual Accept and Accept all change the card preview and keep the card open.
 
 Replacement targets the original field after the overlay detaches. Refresh it and require its full text to match the original before Set text. Preserve surrounding text and cursor placement.
 
-Keep one History session per popup, Origin.Button, the source package and existing outcomes. Lookup failures create no session. Start the check only after display setup succeeds; dispose of partial setup on failure. Replacement uses the text-action return value without post-write polling; see [History today](history.md) for what that outcome can establish.
+Keep one History session per Check popup, Origin.Button, the source package and existing outcomes. Understand and unavailable inputs create no session. Start the check only after display setup succeeds; dispose of partial setup on failure. Replacement uses the text-action return value without post-write polling; see [History today](history.md) for what that outcome can establish.
 
 ## Verification and scope
 
@@ -57,3 +57,54 @@ No background monitoring, new permissions, retrieval flags, screenshots, OCR, si
 - [FocusedField.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/FocusedField.kt) and [PrivateField.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/PrivateField.kt) own bounded lookup and private-field heuristics.
 - [OverlayWindow.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/OverlayWindow.kt) and [UnlockedScreen.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/UnlockedScreen.kt) own display lifecycle and lock-screen visibility.
 - [Accessibility tests](../app/src/test/java/com/evanaronson/linguize/accessibility/) preserve the lookup and lifecycle regressions.
+
+
+## Smart shortcut and Understand
+
+On a deliberate shortcut tap while unlocked, prefer a nonempty eligible editor.
+Private fields retain the existing blocked feedback and never trigger clipboard fallback.
+Hint-only fields do not start checks or history sessions: reject the platform hint
+flag, or text matching the field's hint without a positive cursor/selection offset.
+Selection actions alone describe capabilities and do not prove there is input.
+WhatsApp and WhatsApp Business have an additional composer-only fallback for the
+reported English placeholder "Message", including missing hint metadata and
+misleading cursor offsets. It applies to the entry resource id (or omitted ids),
+not search fields or other apps. Automatic routing conservatively treats a literal
+one-word "Message" in that composer as a placeholder too: accessibility cannot
+reliably distinguish those identical representations. Explicit text-selection
+checks remain available. Other drafts still take priority. If there is no usable writing, open
+Understand and capture plain clipboard text only after the actual overlay window
+gains focus. No clipboard listener, background polling, URI coercion, or chat-bubble
+scraping is used. A bounded focus failure shows unavailable guidance; missing or
+non-text clipboard content explains how to supply input. Clipboard access denial
+can also return no text on Android, so the message says unavailable rather than
+claiming the clipboard is empty.
+
+Check offers an explicit Understand copied text action because WhatsApp may retain
+editor focus after a message is copied. Switching deletes an untouched provisional
+Check, revokes its queued history writes, and cancels its request. If the writer
+already accepted a change (even if undone), copied a result, or clarified an
+assumption, the same Check remains available through Back to check, including its
+accepted changes and Undo stack. Closing while Understand is showing never applies
+that retained Check; its existing review evidence is kept in History. No return
+action appears when there was no reviewed Check. A request already sent to the
+provider cannot be retracted.
+
+Understand uses a separate prompt, structured result, controller and UI content.
+It has no history or write-back dependency. Translation appears first, followed by
+the original copied text. Optional notes are separate structured quote/explanation
+pairs, rendered below the source; every quote must occur in the original text.
+No notes heading appears when none are needed. Retries use the captured source.
+Configuration failures offer Open settings through the existing app-return gateway.
+Returning retries a failed request or refreshes a successful/in-flight request when
+its provider, model, or explanation language changed. Late answers from a replaced
+request cannot replace the current result. Returning to a retained Check similarly
+checks whether its settings changed and preserves accepted work on recheck.
+It shares the existing popup frame, positioning, scrim, loading/errors and Meaning
+text treatment. It has no Accept, Apply, correction highlights or persistent history.
+The popup header contains no noninteractive Understand label.
+
+The debug-only ClipboardProbeService and scripts/verify_clipboard_overlay.sh
+verify the real platform boundary: another app seeds the clipboard, Settings owns
+focus, and the actual accessibility overlay must gain focus before its text reader
+can capture that source. These fixtures are absent from release builds.

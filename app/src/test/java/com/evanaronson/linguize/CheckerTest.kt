@@ -56,9 +56,9 @@ class CheckerTest {
         preferences.judgments = Judgments.FixOnly
         preferences.nativeLanguage = "Spanish"
         val context = checker.context()
-        assertEquals(CheckContext(Provider.Gemini, Provider.Gemini.recommendedModel, Punctuation.Strict, Judgments.FixOnly, "Spanish", prompt.hash), context)
+        assertEquals(CheckContext(Provider.Gemini, Provider.Gemini.recommendedModel, Punctuation.Strict, Judgments.FixOnly, "Spanish", prompt.hash, preferences.writingProfiles), context)
         assertEquals(
-            SessionSettings("Spanish", "strict", "fix", "gemini", Provider.Gemini.recommendedModel, prompt.hash),
+            SessionSettings("Spanish", "strict", "fix", "gemini", Provider.Gemini.recommendedModel, prompt.hash, preferences.writingProfiles),
             context.stored,
         )
     }

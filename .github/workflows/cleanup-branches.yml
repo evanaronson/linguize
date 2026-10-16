@@ -51,8 +51,12 @@ jobs:
                     and p["head"]["repo"] and p["head"]["repo"]["full_name"] == repo}
           merged = {(p["head"]["ref"], p["head"]["sha"]) for p in pulls if p["merged_at"]
                     and p["head"]["repo"] and p["head"]["repo"]["full_name"] == repo}
-          # Retired signed-build experiment: its only unmerged changes are old CI triggers.
-          retired = {("feature/settings-home-test-build", "65601a11764d28b83b86d1f767baaa1d055c49e4")}
+          # Retired experiments: old CI triggers and shortcut diagnostics. The production
+          # shortcut retry and its regressions were merged separately in PR #17.
+          retired = {
+              ("feature/settings-home-test-build", "65601a11764d28b83b86d1f767baaa1d055c49e4"),
+              ("feature/shortcut-tap-probe", "018a7cbfeca15ebbc7554ec0e03ad8521a57dcba"),
+          }
           for branch in api(f"{prefix}/branches?per_page=100", paginate=True):
               name, sha = branch["name"], branch["commit"]["sha"]
               if name == default or branch["protected"] or name in active:

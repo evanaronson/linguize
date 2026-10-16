@@ -45,6 +45,10 @@ data class Edit(
      * text starts goes before it.
      */
     val order: Int = 0,
+    /** Null means unassessed, including unmatched mechanically inferred repairs. */
+    val assessment: SuggestionAssessment? = null,
+    /** References into the same Reviewed result's assumptions, never into another attempt. */
+    val assumptionIndices: List<Int> = emptyList(),
 ) {
     val isInsertion get() = start == end
 

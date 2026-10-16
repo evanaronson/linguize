@@ -3,6 +3,9 @@ package com.evanaronson.linguize
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.Judgments
+import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.Links
 import com.evanaronson.linguize.core.Sentences
 import com.evanaronson.linguize.llm.ModelAnswer
@@ -10,6 +13,7 @@ import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,7 +70,10 @@ class FuzzReplayTest {
                         }
                         val checker = fakeChecker(preferences, client, prompt = prompt)
                         val selected = Language.all.firstOrNull { it.name == language }
-                        val checked = runBlocking { checker.check(original, selected) }
+                        // Replay the request context actually recorded with this evidence. Older
+                        // captures predate profiles; today's defaults must not be injected into them.
+                        val context = recordedContext(runBlocking { checker.context() }, case)
+                        val checked = runBlocking { checker.check(original, selected, context = context) }
                         val verdict = prompt.parseVerdict(checked.raw)
                         put("selected_verdict", Json.parseToJsonElement(checked.raw))
                         put("retry_evidence", if (client.checks.size == 1) "not_needed" else if (repair == null) "simulated" else "recorded")
@@ -75,10 +82,20 @@ class FuzzReplayTest {
                         if (checked.context.provider != preferences.provider ||
                             checked.context.model != entry.getValue("model").jsonPrimitive.content)
                             flags += "model_context_drift"
-                        val expectedMessage = "Language: " +
-                            (selected?.let { it.name + " (" + it.variety + ")" } ?: "auto") +
-                            "\nPunctuation: moderate\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)" +
-                            "\nText: <text>" + original + "</text>"
+                        val expectedMessage = buildString {
+                            appendLine("Language: " + (selected?.let {
+                                if (context.writingProfiles.isEmpty()) it.name + " (" + it.variety + ")" else it.name
+                            } ?: "auto"))
+                            appendLine("Punctuation: ${context.punctuation.token}")
+                            if (context.writingProfiles.isNotEmpty()) {
+                                val profiles = Json.encodeToString(context.writingProfiles)
+                                    .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+                                appendLine("Writing profiles: $profiles")
+                            }
+                            appendLine("Checks: ${context.judgments.token}")
+                            appendLine("Native: ${context.native} (write meaning, assumptions and reasons in ${context.native})")
+                            append("Text: <text>$original</text>")
+                        }
                         val requests = client.checks.map { it.third }
                         if (prompt.userMessage(requests.first()) != expectedMessage || requests.size !in 1..2 ||
                             requests.drop(1).any { it != requests.first().copy(repair = true) })
@@ -188,6 +205,38 @@ class FuzzReplayTest {
         assertEquals("Every named-language and Auto Detect request must be replayed", 200, processed)
         requireCompleteReplies(evidence)
         assertTrue("Replay violated deterministic safety gates: $safetyFailures", safetyFailures.isEmpty())
+    }
+
+    /** Missing profile data is genuinely legacy evidence, never permission to invent it. */
+    private fun recordedContext(current: CheckContext, case: JsonObject): CheckContext = current.copy(
+        punctuation = Punctuation.tokens.decode(case["punctuation"]?.jsonPrimitive?.content ?: "moderate")
+            ?: error("Unknown recorded punctuation"),
+        judgments = Judgments.tokens.decode(case["checks"]?.jsonPrimitive?.content ?: "both")
+            ?: error("Unknown recorded judgments"),
+        native = case["native"]?.jsonPrimitive?.content ?: "English",
+        writingProfiles = case["writing_profiles"]?.let { Json.decodeFromJsonElement<List<WritingProfile>>(it) }.orEmpty(),
+    )
+
+    @Test fun replayPreservesLegacyAndProfileAwareRequestContexts() {
+        val defaults = Language.all.map { WritingProfile.defaultFor(it) }
+        val current = CheckContext(Provider.Gemini, "model", Punctuation.Strict, Judgments.FixOnly,
+            "French", "hash", defaults)
+        val legacy = recordedContext(current, buildJsonObject {
+            put("punctuation", "moderate"); put("checks", "both"); put("native", "English")
+        })
+        assertTrue(legacy.writingProfiles.isEmpty())
+        assertEquals(Punctuation.Moderate, legacy.punctuation)
+        assertEquals(Judgments.Both, legacy.judgments)
+        assertEquals("English", legacy.native)
+        val profile = defaults.first().copy(register = com.evanaronson.linguize.core.WritingRegister.Formal)
+        val recorded = recordedContext(current, buildJsonObject {
+            put("writing_profiles", Json.encodeToJsonElement(listOf(profile)))
+            put("punctuation", "casual"); put("checks", "naturalize"); put("native", "Spanish")
+        })
+        assertEquals(listOf(profile), recorded.writingProfiles)
+        assertEquals(Punctuation.Casual, recorded.punctuation)
+        assertEquals(Judgments.NaturalizeOnly, recorded.judgments)
+        assertEquals("Spanish", recorded.native)
     }
 
     /** Capture failed requests above, but never count them as a completed audit. */

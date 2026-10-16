@@ -2,6 +2,8 @@ package com.evanaronson.linguize.history
 
 import com.evanaronson.linguize.codec.TokenSerializer
 import com.evanaronson.linguize.codec.Tokens
+import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
@@ -153,10 +155,12 @@ data class SessionRecord(
     val targetLanguage: String? = requestedLanguage,
     /** Latest attempt's detected ISO code; distinct from a conflicting explicit target. */
     val detectedLanguage: String? = null,
+    /** Complete request-time preferences; empty means historical context is unknown. */
+    val writingProfiles: List<WritingProfile> = emptyList(),
 ) {
     /** The settings this session's latest attempt ran with. */
     val settings: SessionSettings
-        get() = SessionSettings(nativeLanguage, punctuation, judgments, provider, model, promptHash)
+        get() = SessionSettings(nativeLanguage, punctuation, judgments, provider, model, promptHash, writingProfiles)
 
     /** The latest attempt's text, language and settings. */
     val reuseKey: ReuseKey
@@ -178,6 +182,7 @@ data class SessionRecord(
             provider = ran.provider ?: return null,
             model = ran.model ?: return null,
             promptHash = ran.promptHash ?: return null,
+            writingProfiles = ran.writingProfiles,
         )
         return ReuseKey(textHash, ran.requestedLanguage, settings)
     }
@@ -189,8 +194,9 @@ data class SessionRecord(
          * 4: one session per card; an attempt keeps the language and settings it ran with,
          *    and the session's are the latest attempt's.
          * 5: target and detected language ISO codes, including Auto Detect.
+         * 6: request-time writing profiles and nullable, versioned suggestion assessments.
          */
-        const val SCHEMA = 5
+        const val SCHEMA = 6
     }
 }
 
@@ -232,6 +238,7 @@ data class Attempt(
     val targetLanguage: String? = requestedLanguage,
     /** Detected ISO 639-1 code from this successful answer; null for failures or unclear text. */
     val detectedLanguage: String? = null,
+    val writingProfiles: List<WritingProfile> = emptyList(),
 ) {
     /** Whether a verdict came back and was read: the card showed it. */
     val succeeded: Boolean get() = failure == null && raw != null
@@ -259,6 +266,8 @@ data class SuggestionRecord(
     val why: String? = null,
     val decision: Decision,
     val decidedAt: Long,
+    /** Null means unassessed, never confidence/impact zero. */
+    val assessment: SuggestionAssessment? = null,
 )
 
 /**
@@ -275,6 +284,7 @@ data class SessionSettings(
     val model: String,
     /** Hash of the system prompt and schema. */
     val promptHash: String,
+    val writingProfiles: List<WritingProfile> = emptyList(),
 )
 
 /** Everything a check must share with an earlier attempt for that attempt's verdict to be shown again. */

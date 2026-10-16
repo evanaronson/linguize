@@ -75,6 +75,8 @@ class CheckViewModel(
     private var job: Job? = null
     private var staleCheck: Job? = null
     private var generation = 0L
+    /** Sticky for this card: a copied result, accepted change (even undone), or clarified assumption. */
+    private var hasReviewed = false
 
     /** The settings the latest check ran (or is running) with; null before it read them. */
     private var ranWith: CheckContext? = null
@@ -97,6 +99,7 @@ class CheckViewModel(
     fun check(text: String, language: Language?, origin: Origin, hostApp: String? = null) {
         // A new check replaces the card; whatever it had accepted was never applied.
         history.close(finalText = null)
+        hasReviewed = false
         this.text = text
         this.language = language
         this.origin = origin
@@ -154,6 +157,7 @@ class CheckViewModel(
     /** Overrides an assumption with the writer's [answer] and checks again. */
     fun settle(about: String, answer: String) {
         if (state == null) return
+        hasReviewed = true
         settled = settled.filterNot { it.about == about } + Settled(about, answer)
         run(Run.Again)
     }
@@ -187,6 +191,7 @@ class CheckViewModel(
         val keep = carried
         job?.cancel()
         state = CardState.Loading(text)
+        val requestedGeneration = generation
         job = viewModelScope.launch {
             var answers = settled
             val shown = try {
@@ -206,6 +211,7 @@ class CheckViewModel(
                         Answer(ask(), null)
                     }
                 }
+                if (requestedGeneration != generation) return@launch
                 answer.reused?.let {
                     answers = it.settled
                     settled = it.settled
@@ -219,10 +225,11 @@ class CheckViewModel(
                 history.succeeded(answers, answer.value.raw, kept, reusedFrom = answer.reused?.sessionId)
                 CardState.Done(kept, answers)
             } catch (failure: CheckFailure) {
+                if (requestedGeneration != generation) return@launch
                 history.failed(answers, failure.reason.token, failure.detail, failure.raw, message = failure.userMessage?.token)
                 CardState.Failed(failure.reason, failure.detail, failure.userMessage)
             }
-            state = shown
+            if (requestedGeneration == generation) state = shown
         }
     }
 
@@ -237,7 +244,10 @@ class CheckViewModel(
     fun undo() = update { it.undo() }
 
     /** The writer copied the version shown for [kind]; only history needs to know. */
-    fun copied(kind: EditKind) = history.copied(kind)
+    fun copied(kind: EditKind) {
+        if (state != null) hasReviewed = true
+        history.copied(kind)
+    }
 
     /**
      * Closes the card. [applied] says whether its accepted changes went back to the text:
@@ -253,7 +263,27 @@ class CheckViewModel(
         job?.cancel()
         carried = emptyList()
         state = null
+        hasReviewed = false
         if (waitMs > 0) history.awaitWrites(waitMs)
+    }
+
+    /** Keep actual review work available to return to; erase only an untouched provisional check. */
+    fun suspendForUnderstand(): Boolean {
+        if (state != null && hasReviewed) return true
+        discard()
+        return false
+    }
+
+    /** Explicitly abandons an untouched provisional check, without recording a decision. */
+    fun discard() {
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
+        job?.cancel()
+        carried = emptyList()
+        state = null
+        hasReviewed = false
+        history.discard()
     }
 
     /** Gone without [dismiss]: nothing was handed back. */
@@ -265,6 +295,7 @@ class CheckViewModel(
         val done = state as? CardState.Done ?: return
         val current = done.result as? CheckResult.Reviewed ?: return
         val revision = change(current.revision)
+        if (revision != current.revision) hasReviewed = true
         state = done.copy(result = current.copy(revision = revision))
         history.changed(revision)
     }

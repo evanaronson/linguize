@@ -2,6 +2,7 @@ package com.evanaronson.linguize.ui.card
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,10 +54,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.Assumption
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
-data class Highlight(val id: Int, val range: IntRange, val from: String, val why: String?)
+data class Highlight(
+    val id: Int,
+    val range: IntRange,
+    val from: String,
+    val why: String?,
+    val assessment: SuggestionAssessment? = null,
+    val assumptions: List<Assumption> = emptyList(),
+)
 
 /** Deletions and spacing cannot offer a visible text target; show their controls separately. */
 internal fun Highlight.needsPanel(text: String) = text.substring(range).isSpacing()
@@ -87,9 +97,11 @@ fun HighlightedText(
     onReplace: ((Int) -> Unit)?,
     onCopy: () -> Unit,
     copyDescription: String,
+    onSettle: ((String, String) -> Unit)? = null,
 ) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
+    val explanation = remember { BringIntoViewRequester() }
     val (panels, visible) = remember(text, changes) { changes.partition { it.needsPanel(text) } }
     val selected = visible.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
     // Drawing runs every frame. Index neighboring edges once instead of rescanning
@@ -109,12 +121,19 @@ fun HighlightedText(
     }
 
     // Resolve labels during composition so screen-reader actions also follow locale changes.
-    val actions = visible.flatMap { change ->
-        val to = text.substring(change.range)
-        val whyLabel = if (change.from.isEmpty()) stringResource(R.string.change_why_add, to)
-            else stringResource(R.string.change_why_replace, change.from, to)
-        val replaceLabel = if (change.from.isEmpty()) stringResource(R.string.change_add, to)
-            else stringResource(R.string.change_replace, change.from, to)
+    val actions = changes.flatMap { change ->
+        val to = text.substring(change.range).visibleValue()
+        val from = change.from.visibleValue()
+        val whyLabel = when {
+            change.from.isEmpty() -> stringResource(R.string.change_why_add, to)
+            change.range.isEmpty() -> stringResource(R.string.change_why_remove, from)
+            else -> stringResource(R.string.change_why_replace, from, to)
+        }
+        val replaceLabel = when {
+            change.from.isEmpty() -> stringResource(R.string.change_add, to)
+            change.range.isEmpty() -> stringResource(R.string.change_remove, from)
+            else -> stringResource(R.string.change_replace, from, to)
+        }
         listOfNotNull(
             CustomAccessibilityAction(whyLabel) {
                 selectedId = change.id
@@ -190,15 +209,18 @@ fun HighlightedText(
         panels.forEach { change ->
             Spacer(Modifier.height(8.dp))
             Explanation(change, text.substring(change.range), accent,
-                onReplace = onReplace?.let { replace -> { replace(change.id) } },
+                onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
                 context = change.context(text),
+                expanded = selectedId == change.id,
+                onToggle = { selectedId = if (selectedId == change.id) null else change.id },
+                modifier = if (selectedId == change.id) Modifier.bringIntoViewRequester(explanation) else Modifier,
+                onSettle = onSettle,
             )
         }
 
         val shown = selected?.let { visible.getOrNull(it) }
         // Whenever a highlight is tapped, scroll (the card, or the screen around it) so its
         // explanation and Replace button are fully visible, once the panel has opened.
-        val explanation = remember { BringIntoViewRequester() }
         LaunchedEffect(selectedId) {
             if (selectedId != null) {
                 delay(EXPAND_MILLIS)
@@ -219,6 +241,7 @@ fun HighlightedText(
                     replacement,
                     accent,
                     onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
+                    onSettle = onSettle,
                 )
             }
         }
@@ -226,7 +249,17 @@ fun HighlightedText(
 }
 
 @Composable
-private fun Explanation(change: Highlight, replacement: String, accent: Color, onReplace: (() -> Unit)?, context: String? = null) {
+private fun Explanation(
+    change: Highlight,
+    replacement: String,
+    accent: Color,
+    onReplace: (() -> Unit)?,
+    context: String? = null,
+    expanded: Boolean = true,
+    onToggle: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    onSettle: ((String, String) -> Unit)? = null,
+) {
     val from = change.from.visibleValue()
     val to = replacement.visibleValue()
     val description = when {
@@ -236,44 +269,63 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
     }
     val display = if (change.from.isEmpty() || replacement.isEmpty()) description
         else stringResource(R.string.change_replacement, from, to)
+    val whyLabel = when {
+        change.from.isEmpty() -> stringResource(R.string.change_why_add, to)
+        replacement.isEmpty() -> stringResource(R.string.change_why_remove, from)
+        else -> stringResource(R.string.change_why_replace, from, to)
+    }
     // Read out as it opens, which matters when it was opened by a screen reader's "Why" action.
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = accent.copy(alpha = 0.12f),
-        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        modifier = modifier
+            .then(if (onToggle != null) Modifier.clickable(onClickLabel = whyLabel, onClick = onToggle) else Modifier)
+            .semantics { liveRegion = LiveRegionMode.Polite },
     ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    buildAnnotatedString {
-                        append(display)
-                        if (from.isNotEmpty()) {
-                            val fromStart = display.indexOf(from)
-                            if (fromStart >= 0) addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough),
-                                fromStart, fromStart + from.length)
+        Column {
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        buildAnnotatedString {
+                            append(display)
+                            if (from.isNotEmpty()) {
+                                val fromStart = display.indexOf(from)
+                                if (fromStart >= 0) addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough),
+                                    fromStart, fromStart + from.length)
+                            }
+                            val replacementStart = display.lastIndexOf(to)
+                            if (to.isNotEmpty() && replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
+                                replacementStart, replacementStart + to.length)
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        // In words: the arrow would be read out as "right arrow".
+                        modifier = Modifier.semantics {
+                            contentDescription = description
+                        },
+                    )
+                    if (!context.isNullOrBlank()) {
+                        Text(context, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (expanded) {
+                        change.why?.let {
+                            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        val replacementStart = display.lastIndexOf(to)
-                        if (to.isNotEmpty() && replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
-                            replacementStart, replacementStart + to.length)
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    // In words: the arrow would be read out as "right arrow".
-                    modifier = Modifier.semantics {
-                        contentDescription = description
-                    },
-                )
-                if (!context.isNullOrBlank()) {
-                    Text(context, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        AssessmentDetails(change.assessment)
+                    }
                 }
-                change.why?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (onReplace != null) {
+                    Spacer(Modifier.width(8.dp))
+                    FilledTonalButton(onClick = onReplace) { Text(stringResource(R.string.accept)) }
                 }
             }
-            if (onReplace != null) {
-                Spacer(Modifier.width(8.dp))
-                FilledTonalButton(onClick = onReplace) { Text(stringResource(R.string.accept)) }
+            if (expanded && change.assumptions.isNotEmpty()) {
+                Column(Modifier.padding(horizontal = 12.dp)) {
+                    Text(stringResource(R.string.depends_on), style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    change.assumptions.forEach { AssumptionItem(it, onSettle) }
+                }
             }
         }
     }

@@ -5,6 +5,16 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingProfile
+import com.evanaronson.linguize.core.WritingRegister
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import com.evanaronson.linguize.llm.Provider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +30,137 @@ import org.robolectric.annotation.Config
 class SettingsTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    @Test
+    fun writingProfilesMigrateLegacyPunctuationExactlyOnce() {
+        prefs.edit().putString("punctuation", "Strict").commit()
+        val settings = Settings(context)
+        val migrated = settings.writingProfiles
+        assertEquals(Language.all.map { WritingProfile.defaultFor(it, Punctuation.Strict) }, migrated)
+        settings.punctuation = Punctuation.Casual
+        assertEquals(migrated, Settings(context).writingProfiles)
+        assertEquals(listOf("default-ca", "default-es"), migrated.map { it.id })
+        assertEquals(listOf("Catalan", "Spanish"), migrated.map { it.name })
+    }
+
+    @Test
+    fun writingProfilesRoundTripIndependentlyAsCompleteRecords() {
+        val settings = Settings(context)
+        val spanish = settings.writingProfiles.single { it.language == "es" }
+        val catalan = settings.writingProfiles.single { it.language == "ca" }.copy(
+            name = "Catalan chat",
+            variety = "Girona",
+            register = WritingRegister.Casual,
+            punctuation = Punctuation.Strict,
+        )
+        settings.updateWritingProfile(catalan)
+        val restored = Settings(context).writingProfiles
+        assertEquals(listOf(catalan, spanish), restored)
+        assertEquals(Punctuation.Moderate, settings.punctuation)
+        val raw = prefs.getString("writingProfiles.v1", null)!!
+        assertEquals(restored, Json.decodeFromString<List<WritingProfile>>(raw))
+        org.junit.Assert.assertTrue(raw.contains("\"register\":\"casual\""))
+        org.junit.Assert.assertTrue(raw.contains("\"punctuation\":\"strict\""))
+    }
+
+    @Test
+    fun malformedProfileDoesNotEraseOtherLanguageOrUnrelatedSettings() {
+        val spanish = WritingProfile.defaultFor(Language.Spanish).copy(register = WritingRegister.Formal)
+        val valid = Json.encodeToString(spanish)
+        prefs.edit().putString("writingProfiles.v1", "[{\"language\":\"ca\",\"register\":\"future-value\"},$valid]")
+            .putString("model.gemini", "keep-this-model").commit()
+        val settings = Settings(context)
+        assertEquals(listOf(WritingProfile.defaultFor(Language.Catalan), spanish), settings.writingProfiles)
+        assertEquals("keep-this-model", settings.model(Provider.Gemini))
+        settings.updateWritingProfile(WritingProfile.defaultFor(Language.Catalan).copy(register = WritingRegister.Casual))
+        assertEquals(spanish, settings.writingProfiles.single { it.language == "es" })
+        assertEquals("keep-this-model", settings.model(Provider.Gemini))
+    }
+
+    @Test
+    fun additionalNamedProfilesSurviveDefaultProfileEdits() {
+        val first = WritingProfile.defaultFor(Language.Catalan)
+        val work = first.copy(id = "catalan-work", name = "Catalan work", register = WritingRegister.Formal)
+        prefs.edit().putString("writingProfiles.v1", Json.encodeToString(listOf(first, work))).commit()
+        val settings = Settings(context)
+        settings.updateWritingProfile(first.copy(register = WritingRegister.Casual))
+        val stored = Json.decodeFromString<List<WritingProfile>>(prefs.getString("writingProfiles.v1", null)!!)
+        assertEquals(work, stored.last())
+        assertEquals(listOf("ca", "es"), Settings(context).writingProfiles.map { it.language })
+    }
+
+    @Test
+    fun corruptProfileStateDefaultsWithoutRewritingStoredData() {
+        prefs.edit().putString("writingProfiles.v1", "not JSON").putString("punctuation", "strict").commit()
+        assertEquals(Language.all.map { WritingProfile.defaultFor(it) }, Settings(context).writingProfiles)
+        assertEquals("not JSON", prefs.getString("writingProfiles.v1", null))
+    }
+
+    @Test
+    fun futureLanguageRecordsSurviveSupportedLanguageEdits() {
+        val future = WritingProfile("english-chat", "English chat", "en", "West Coast Californian", WritingRegister.Casual, Punctuation.Casual)
+        prefs.edit().putString("writingProfiles.v1", Json.encodeToString(listOf(future))).commit()
+        val settings = Settings(context)
+        settings.updateWritingProfile(WritingProfile.defaultFor(Language.Catalan).copy(register = WritingRegister.Formal))
+        val stored = Json.decodeFromString<List<WritingProfile>>(prefs.getString("writingProfiles.v1", null)!!)
+        assertEquals(future, stored.single { it.language == "en" })
+        assertEquals(listOf("ca", "es"), Settings(context).writingProfiles.map { it.language })
+    }
+
+    @Test
+    fun editingProfilePreservesUnknownFieldsOnEditedAndUnrelatedRecords() {
+        val catalan = WritingProfile.defaultFor(Language.Catalan)
+        val spanish = WritingProfile.defaultFor(Language.Spanish)
+        val extra = Json.parseToJsonElement("""{"future":{"choices":[1,true,null]}}""")
+        fun withExtra(profile: WritingProfile) = JsonObject(
+            Json.parseToJsonElement(Json.encodeToString(profile)).jsonObject + ("extension" to extra)
+        )
+        val rawCatalan = withExtra(catalan)
+        val rawSpanish = withExtra(spanish)
+        prefs.edit().putString("writingProfiles.v1", JsonArray(listOf(rawCatalan, rawSpanish)).toString()).commit()
+
+        Settings(context).updateWritingProfile(catalan.copy(punctuation = Punctuation.Strict))
+
+        val stored = Json.parseToJsonElement(prefs.getString("writingProfiles.v1", null)!!).jsonArray
+        assertEquals(rawSpanish, stored[1])
+        assertEquals(JsonObject(rawCatalan + ("punctuation" to JsonPrimitive("strict"))), stored[0])
+        assertEquals(Punctuation.Strict, Settings(context).writingProfiles.first().punctuation)
+    }
+
+    @Test
+    fun editingSupportedProfilePreservesOpaqueFutureEnumRecords() {
+        val catalan = WritingProfile.defaultFor(Language.Catalan)
+        val spanish = WritingProfile.defaultFor(Language.Spanish)
+        val future = Json.parseToJsonElement("""{"id":"english-work","name":"English work","language":"en","variety":null,"register":"professional","punctuation":"strict","futureField":42}""")
+        val records = listOf(Json.parseToJsonElement(Json.encodeToString(catalan)), future,
+            Json.parseToJsonElement(Json.encodeToString(spanish)))
+        prefs.edit().putString("writingProfiles.v1", JsonArray(records).toString()).commit()
+        val settings = Settings(context)
+
+        settings.updateWritingProfile(catalan.copy(register = WritingRegister.Formal))
+        settings.updateWritingProfile(settings.writingProfiles.single { it.language == "es" }.copy(punctuation = Punctuation.Casual))
+
+        val stored = Json.parseToJsonElement(prefs.getString("writingProfiles.v1", null)!!).jsonArray
+        assertEquals(future, stored[1])
+        assertEquals(listOf("ca", "es"), settings.writingProfiles.map { it.language })
+    }
+
+    @Test
+    fun editingCatalanDoesNotShadowOpaqueSpanishProfileWithDefault() {
+        val catalan = WritingProfile.defaultFor(Language.Catalan)
+        val futureSpanish = Json.parseToJsonElement("""{"id":"default-es","name":"Spanish","language":"es","variety":"Peninsular","register":"professional","punctuation":"strict","futureField":42}""")
+        val records = listOf(futureSpanish, Json.parseToJsonElement(Json.encodeToString(catalan)))
+        prefs.edit().putString("writingProfiles.v1", JsonArray(records).toString()).commit()
+        val settings = Settings(context)
+        assertEquals(WritingProfile.defaultFor(Language.Spanish), settings.writingProfiles.single { it.language == "es" })
+
+        settings.updateWritingProfile(catalan.copy(punctuation = Punctuation.Strict))
+
+        val stored = Json.parseToJsonElement(prefs.getString("writingProfiles.v1", null)!!).jsonArray
+        assertEquals(2, stored.size)
+        assertEquals(futureSpanish, stored[0])
+        assertEquals(1, stored.count { it.jsonObject["language"] == JsonPrimitive("es") })
+    }
 
     @Test
     fun popupPositionDefaultsToBottomForMissingOrUnknownValues() {

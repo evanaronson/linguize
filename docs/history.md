@@ -36,7 +36,7 @@ One card is one session, including retries, language changes, and settings chang
 A session keeps the original text, source package when known, timestamps, app
 version, and a random installation ID. Each completed attempt keeps its raw answer
 when available, settled assumptions, failure tokens, and the language, provider,
-model, options, native language, and prompt hash it ran with. A reused answer also
+model, options, native language, prompt hash, and complete writing-profile snapshot it ran with. A reused answer also
 records its source session as `reusedFrom`.
 
 The session is queued for saving when recording opens, then updated after each
@@ -77,6 +77,27 @@ attempt. `status` separately records the last successful linguistic result:
 `ok`, `unclear`, or `wrong_language`. A technical failure and an unclear sentence
 are different observations.
 
+## Suggestion assessments and writing preferences
+
+Each suggestion may carry an `assessment` object: integer `confidence` and `impact`
+from 0 to 3, a `rubricVersion`, and an `origin` (`generated` or `retrospective`).
+Null means unassessed or unreadable; it must never be converted to zero. Generation
+requires both scores for every explicitly reported adjustment. Mechanically inferred
+or ambiguously mapped edits can remain unassessed. This metadata does not control
+acceptance or suggestion order.
+
+A session stores the latest attempt's complete `writingProfiles` list, and each
+attempt preserves its own list. An empty historical list means the preferences
+were not captured, not today's defaults. Profiles do not inherit, and editing a
+profile never rewrites old attempts. Auto Detect requests retain every profile
+sent to the provider. Cache matching includes these exact request-time values.
+
+Database upgrades leave old assessment columns null and profile lists empty.
+Retrospective offline assessments remain separate from original historical evidence;
+this migration does not generate or attach retrospective scores. Replay takes
+assessments from recorded suggestion rows even when today's edit engine derives
+the same spans with different scores.
+
 ## Reuse and replay
 
 A first check, or the first check after a language change, starts the model
@@ -86,7 +107,7 @@ not guarantee that no request reaches the provider or incurs usage.
 
 Candidates are closed sessions whose last attempt succeeded, started within ten
 minutes, with the same text hash and matching language and check settings,
-including the prompt hash. The chosen answer's own attempt must match, even if
+including the prompt hash and exact writing-profile list sent with the request. The chosen answer's own attempt must match, even if
 settings changed later on its card. Lookup is disabled for unrecorded checks.
 Normal rechecks ask the model again.
 
@@ -100,7 +121,7 @@ the recorded evidence.
 ## Storage, deletion, and export
 
 The SQLite database has `sessions` and `suggestions` tables. The database is at
-version 5; row schemas are at version 4. Migration code preserves earlier formats,
+version 7; row schemas are at version 6. Migration code preserves earlier formats,
 including old enum names and language names, and removes old Try it sessions.
 Keep these migrations and stable tokens when reorganizing code.
 
@@ -171,3 +192,10 @@ Existing database versions 1–5 are upgraded in place and backfilled from saved
 successful raw answers and explicit requests. No network requests or text guesses
 are made. Unreadable evidence stays intact and unresolved language stays null.
 The fields are included in JSONL exports, Recent/History rows and check details.
+
+
+Understand is not a recorded origin or a different kind of correction session.
+It never calls CheckHistory. Switching an automatic Check to Understand discards
+the provisional Check: queued writes lose their recording permission, and deletion
+is ordered after writes already in flight. No accepted changes are applied by the
+switch. This differs from ordinary dismissal, which keeps a Check's history.

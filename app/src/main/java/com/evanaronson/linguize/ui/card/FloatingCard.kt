@@ -52,6 +52,20 @@ fun FloatingCard(
     position: PopupPosition = PopupPosition.Bottom,
     header: @Composable RowScope.() -> Unit = {},
 ) {
+    FloatingPopup(onDismiss, onOpenApp, position, header) { modifier ->
+        ResultCard(state, actions, modifier)
+    }
+}
+
+/** Shared window presentation; the content decides its job and actions. */
+@Composable
+fun FloatingPopup(
+    onDismiss: () -> Unit,
+    onOpenApp: () -> Unit,
+    position: PopupPosition = PopupPosition.Bottom,
+    header: @Composable RowScope.() -> Unit = {},
+    content: @Composable (Modifier) -> Unit,
+) {
     val appName = stringResource(R.string.app_name)
     Box(Modifier.fillMaxSize().semantics { paneTitle = appName }) {
         Box(
@@ -105,7 +119,7 @@ fun FloatingCard(
                     header()
                 }
                 val cardModifier = Modifier.fillMaxWidth().heightIn(max = cardMaxHeight)
-                ResultCard(state, actions, cardModifier)
+                content(cardModifier)
             }
         }
     }

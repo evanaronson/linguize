@@ -24,7 +24,10 @@ class GeminiClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
     /** Minimal thinking; models that reject it get their default instead. */
     private val minimal = DroppableOption(refusal = "thinking")
 
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
+    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
+        prompt.read(generate(key, model, prompt.generation(request)))
+
+    override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
         // One time limit for the whole check, the retry without minimal thinking included.
         val deadline = Deadline(http)
         val (code, payload) = minimal.send(model) { withMinimal ->
@@ -36,7 +39,7 @@ class GeminiClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
             deadline.send(call)
         }
         if (code != 200) throw failure(code, payload)
-        return prompt.read(answer(payload))
+        return answer(payload)
     }
 
     override suspend fun models(key: String): List<String> {
@@ -67,22 +70,22 @@ class GeminiClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
         return textModels(ids)
     }
 
-    private fun body(request: CheckRequest, minimalThinking: Boolean): JsonObject = buildJsonObject {
+    private fun body(request: GenerationRequest, minimalThinking: Boolean): JsonObject = buildJsonObject {
         putJsonObject("systemInstruction") {
-            putJsonArray("parts") { add(buildJsonObject { put("text", prompt.system) }) }
+            putJsonArray("parts") { add(buildJsonObject { put("text", request.system) }) }
         }
         putJsonArray("contents") {
             add(
                 buildJsonObject {
                     put("role", "user")
-                    putJsonArray("parts") { add(buildJsonObject { put("text", prompt.userMessage(request)) }) }
+                    putJsonArray("parts") { add(buildJsonObject { put("text", request.user) }) }
                 },
             )
         }
         putJsonObject("generationConfig") {
             put("responseMimeType", "application/json")
-            put("responseJsonSchema", prompt.schema)
-            put("maxOutputTokens", Prompt.MAX_OUTPUT_TOKENS)
+            put("responseJsonSchema", request.schema)
+            put("maxOutputTokens", request.maxTokens)
             // Minimal thinking keeps a check inside the ~2 s budget.
             if (minimalThinking) putJsonObject("thinkingConfig") { put("thinkingLevel", "MINIMAL") }
         }

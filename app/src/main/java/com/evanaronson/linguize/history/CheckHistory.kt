@@ -108,6 +108,9 @@ class CheckHistory(
     /** The open session's record; null when history is off or no card is open. */
     private var recording: SessionRecording? = null
 
+    /** Retained if recording permission is revoked, so an explicit job switch can still delete it. */
+    private var activeId: String? = null
+
     /** Permission belongs to a session, including its queued writes after the card closes. */
     private var permission: RecordingPermission? = null
 
@@ -226,6 +229,7 @@ class CheckHistory(
      */
     internal suspend fun open(text: String, opening: Opening): SessionRecord? {
         recording = null
+        activeId = null
         permission = null
         decided = false
         val context = if (opening.origin.recorded && text.length <= maxChars) {
@@ -246,6 +250,7 @@ class CheckHistory(
             SessionRecording(text, context.first, clock(), newId).also { store.registerSession(it.session.id) }
         } ?: return null
         recording = started
+        activeId = started.session.id
         permission = context.second
         val session = started.session
         write("save a session") { store.save(session) }
@@ -295,7 +300,23 @@ class CheckHistory(
     }
 
     /** Closes the open session, if any, with what went back to the app ([finalText], null for nothing). */
+    fun discard() {
+        decided = true
+        val id = activeId
+        activeId = null
+        recording = null
+        permission?.revoke()
+        permission = null
+        if (id == null) return
+        val previous = lastWrite
+        lastWrite = scope.launch {
+            previous?.join()
+            quietly("discard a provisional check") { store.delete(id) }
+        }
+    }
+
     fun close(finalText: String?) {
+        activeId = null
         decided = false
         val recording = recording ?: return
         this.recording = null
@@ -352,6 +373,8 @@ class CheckHistory(
 
     private inner class RecordingPermission(private val epoch: Long) {
         private val active = AtomicBoolean(true)
+
+        fun revoke() { active.set(false) }
 
         fun allowed(): Boolean {
             if (!active.get()) return false

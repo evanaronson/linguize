@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
-import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
 
 /** The way into the meaning and assumptions, one section per judgment, then Undo and Done once something has been accepted. */
@@ -62,17 +61,17 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
                     onBack = { showingUnderstanding = false },
                 )
             } else {
-                val count = settled.size + result.assumptions.count { a -> settled.none { it.about == a.about } }
-                UnderstandingEntry(result.meaning, count, onOpen = { showingUnderstanding = true })
-                if (count > 0 || result.meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
-                Suggestions(result, actions)
+                val entry = understandingEntry(result.meaning, result.assumptions, settled, actions.readOnly)
+                UnderstandingEntry(entry, onOpen = { showingUnderstanding = true })
+                if (entry.visible) Spacer(Modifier.height(8.dp))
+                Suggestions(result, settled, actions)
             }
         }
     }
 }
 
 @Composable
-private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
+private fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     if (result.looksGood) {
         val checked = result.kinds.map { if (it == EditKind.Fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural) }
         Outcome(Mark.Good, stringResource(R.string.looks_good), checked.joinToString(stringResource(R.string.status_separator)))
@@ -82,7 +81,7 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
     val review = actions.review
     result.kinds.forEachIndexed { index, kind ->
         if (index > 0) SectionDivider()
-        EditSection(kind, result.revision, kind in result.withheld, actions.onCopy, review)
+        EditSection(kind, result, settled, actions)
     }
 
     if (review != null && result.revision.canUndo) {
@@ -103,7 +102,10 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
 }
 
 @Composable
-private fun EditSection(kind: EditKind, revision: Revision, withheld: Boolean, onCopy: (String, EditKind) -> Unit, review: ReviewActions?) {
+private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
+    val revision = result.revision
+    val withheld = kind in result.withheld
+    val review = actions.review
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
     if (withheld) {
@@ -124,7 +126,8 @@ private fun EditSection(kind: EditKind, revision: Revision, withheld: Boolean, o
     )
     val preview = revision.preview(kind)
     val highlights = remaining.mapNotNull { edit ->
-        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
+        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why, edit.assessment,
+            linkedAssumptions(edit.assumptionIndices, result.assumptions, settled)) }
     }
     Text(
         label,
@@ -135,8 +138,9 @@ private fun EditSection(kind: EditKind, revision: Revision, withheld: Boolean, o
     Spacer(Modifier.height(6.dp))
     HighlightedText(
         preview.text, highlights, accent, review?.onAccept,
-        onCopy = { onCopy(preview.text, kind) },
+        onCopy = { actions.onCopy(preview.text, kind) },
         copyDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
+        onSettle = actions.onSettle.takeUnless { actions.readOnly },
     )
     if (remaining.isEmpty()) {
         Spacer(Modifier.height(10.dp))

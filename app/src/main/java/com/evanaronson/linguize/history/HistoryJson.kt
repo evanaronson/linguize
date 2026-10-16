@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.history
 
+import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.WritingProfile
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -94,7 +96,7 @@ internal fun rowJson(row: Row, columns: List<String>): JsonObject = JsonObject(
     columns.associateWith { column ->
         when (column) {
             in INTEGER_COLUMNS -> row.longOrNull(column)?.let(::JsonPrimitive) ?: JsonNull
-            "attempts" -> row.stringOrNull(column)?.let(::storedJson) ?: JsonNull
+            "attempts", "writingProfiles", "assessment" -> row.stringOrNull(column)?.let(::storedJson) ?: JsonNull
             else -> row.stringOrNull(column)?.let(::JsonPrimitive) ?: JsonNull
         }
     },
@@ -132,3 +134,19 @@ internal fun upgradeLanguageAttempts(stored: String): String {
         ))
     }).toString()
 }
+
+/** Structured metadata is nullable/empty on corruption; it must never become invented scores. */
+internal fun encodeProfiles(profiles: List<WritingProfile>): String =
+    historyJson.encodeToString(ListSerializer(WritingProfile.serializer()), profiles)
+
+internal fun decodeProfiles(stored: String?): List<WritingProfile> = try {
+    stored?.let { historyJson.decodeFromString(ListSerializer(WritingProfile.serializer()), it) }.orEmpty()
+} catch (_: Exception) { emptyList() }
+
+internal fun encodeAssessment(assessment: SuggestionAssessment?): String? =
+    assessment?.let { historyJson.encodeToString(SuggestionAssessment.serializer(), it) }
+
+internal fun decodeAssessment(stored: String?): SuggestionAssessment? = try {
+    stored?.let { historyJson.decodeFromString(SuggestionAssessment.serializer(), it) }
+        ?.takeIf { it.confidence in 0..3 && it.impact in 0..3 && it.rubricVersion.isNotBlank() && it.origin.isNotBlank() }
+} catch (_: Exception) { null }

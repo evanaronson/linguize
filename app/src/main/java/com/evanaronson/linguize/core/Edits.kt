@@ -31,10 +31,17 @@ internal object Edits {
                 // The model supplies linguistic decisions. Only mechanically equivalent
                 // orthography/formatting can be divided without inventing new decisions.
                 if (wording(span.from, span.replacement)) listOf(span)
-                else mechanicalRepairs(span.from, span.replacement).map { part ->
-                    part.copy(start = span.start + part.start, end = span.start + part.end,
-                        why = span.why.takeIf { Alignment.same(part.from, span.from) &&
-                            Alignment.same(part.replacement, span.replacement) })
+                else {
+                    val parts = mechanicalRepairs(span.from, span.replacement)
+                    parts.map { part ->
+                        part.copy(start = span.start + part.start, end = span.start + part.end,
+                            // A rating of the whole report does not assess each independent
+                            // repair produced by splitting it. Keep the raw report as evidence.
+                            assessment = span.assessment.takeIf { parts.size == 1 }, reportId = span.reportId,
+                            assumptionIndices = span.assumptionIndices.takeIf { parts.size == 1 }.orEmpty(),
+                            why = span.why.takeIf { Alignment.same(part.from, span.from) &&
+                                Alignment.same(part.replacement, span.replacement) })
+                    }
                 }
             }
         } else if (!wording(original, corrected)) {
@@ -90,7 +97,10 @@ internal object Edits {
             val local = dependent.map { it.copy(start = it.start - start, end = it.end - start) }
             val replacement = render(from, toEdits(local, emptyList(), EditKind.Fix, 0)).text
             result.subList(boundary, result.size).clear()
-            result += Span(start, end, from, replacement)
+            val commonReport = dependent.first().reportId?.takeIf { report -> dependent.all { it.reportId == report } }
+            result += Span(start, end, from, replacement,
+                assessment = dependent.first().assessment.takeIf { commonReport != null }, reportId = commonReport,
+                assumptionIndices = dependent.first().assumptionIndices.takeIf { commonReport != null }.orEmpty())
         }
         return result
     }
@@ -195,6 +205,9 @@ internal object Edits {
         val order: Int = 0,
         val targetStart: Int = -1,
         val targetEnd: Int = -1,
+        val assessment: SuggestionAssessment? = null,
+        val reportId: Int? = null,
+        val assumptionIndices: List<Int> = emptyList(),
     )
 
     private fun toEdits(spans: List<Span>, reported: List<VerdictChange>, kind: EditKind, firstId: Int): List<Edit> {
@@ -204,7 +217,8 @@ internal object Edits {
                 Alignment.same(it.from, span.from) && Alignment.same(it.to, span.replacement)
             }
             val why = span.why ?: if (match >= 0) unused.removeAt(match).why.trim().ifEmpty { null } else null
-            Edit(firstId + index, kind, span.start, span.end, span.from, span.replacement, why, span.includes, span.order)
+            Edit(firstId + index, kind, span.start, span.end, span.from, span.replacement, why, span.includes, span.order,
+                span.assessment, span.assumptionIndices)
         }
     }
 
@@ -287,7 +301,7 @@ internal object Edits {
         val spans = mutableListOf<Span>()
         var source = 0
         var destination = 0
-        for (change in reported) {
+        for ((reportId, change) in reported.withIndex()) {
             if (Alignment.same(change.from, change.to)) continue
             val from = Normalizer.normalize(change.from, Normalizer.Form.NFC)
             val to = Normalizer.normalize(change.to, Normalizer.Form.NFC)
@@ -311,7 +325,8 @@ internal object Edits {
             val targetStart = targetPositions.getValue(targetAt)
             val targetEnd = targetPositions.getValue(targetAt + to.length)
             spans += Span(start, end, base.substring(start, end), target.substring(targetStart, targetEnd),
-                change.why.trim().ifEmpty { null }, targetStart = targetStart, targetEnd = targetEnd)
+                change.why.trim().ifEmpty { null }, targetStart = targetStart, targetEnd = targetEnd,
+                assessment = change.assessment, reportId = reportId, assumptionIndices = change.assumptionIndices)
             destination = targetAt + to.length
             source = at + from.length
         }
@@ -443,7 +458,8 @@ internal object Edits {
             .map { it.fix.id }.toSet()
         return Span(from, to, original.substring(from, to),
             base.substring(start, span.start) + span.replacement + base.substring(span.end, end),
-            span.why, includes, 2 * start + if (start < end) 1 else 0)
+            span.why, includes, 2 * start + if (start < end) 1 else 0,
+            assessment = span.assessment, reportId = span.reportId, assumptionIndices = span.assumptionIndices)
     }
 
     private fun originalPosition(position: Int, placed: List<Placed>): Int {

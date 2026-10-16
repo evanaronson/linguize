@@ -1,0 +1,60 @@
+name: Clipboard overlay
+on:
+  pull_request:
+    paths:
+      - 'app/src/main/java/**/accessibility/**'
+      - 'app/src/main/java/**/ui/Clipboard.kt'
+      - 'app/src/debug/**'
+      - 'scripts/verify_clipboard_overlay.sh'
+      - '.github/workflows/clipboard-overlay.yml'
+permissions:
+  contents: read
+concurrency:
+  group: clipboard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  focus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ANDROID_USER_HOME: /tmp/linguize-android
+      ANDROID_AVD_HOME: /tmp/linguize-android/avd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
+      - name: Build debug probe host
+        run: ./gradlew assembleDebug
+      - name: Install Android 15 image
+        run: |
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          sudo chmod 666 /dev/kvm
+          sdkmanager 'platforms;android-35' 'system-images;android-35;default;x86_64' 'emulator'
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd -n clipboard -k 'system-images;android-35;default;x86_64' --path "$ANDROID_AVD_HOME/clipboard.avd" --force
+          test -f "$ANDROID_AVD_HOME/clipboard.ini"
+      - name: Boot Android 15 emulator
+        run: |
+          trap 'cat /tmp/emulator.log || true' EXIT
+          "$ANDROID_HOME/emulator/emulator" -avd clipboard -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > /tmp/emulator.log 2>&1 &
+          emulator_pid=$!
+          for attempt in $(seq 1 120); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then exit 1; fi
+            if [ "$(timeout 2 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/emulator.log
+          exit 1
+      - name: Verify clipboard after overlay focus
+        run: bash scripts/verify_clipboard_overlay.sh
+      - name: Diagnostic logs
+        if: failure()
+        run: |
+          cat /tmp/emulator.log || true
+          timeout 10 adb logcat -d -s AndroidRuntime ClipboardService || true

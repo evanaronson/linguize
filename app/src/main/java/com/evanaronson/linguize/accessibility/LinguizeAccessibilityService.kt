@@ -16,6 +16,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import com.evanaronson.linguize.ui.ClipboardText
+import com.evanaronson.linguize.ui.readCopiedText
+import com.evanaronson.linguize.ui.card.FloatingPopup
+import com.evanaronson.linguize.ui.card.ResultCard
+import com.evanaronson.linguize.ui.card.UnderstandCard
+import com.evanaronson.linguize.ui.understand.UnderstandState
+import com.evanaronson.linguize.ui.understand.UnderstandViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
@@ -24,7 +34,6 @@ import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import com.evanaronson.linguize.ui.card.FloatingCard
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.MenuState
 import com.evanaronson.linguize.ui.popup.PopupAppActivity
@@ -53,7 +62,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
      * An open card: its [window], the [field] it will write back to, and [discard], which
      * closes it without writing anything back.
      */
-    private class Card(val window: OverlayWindow, val field: AccessibilityNodeInfo, val discard: () -> Unit)
+    private class Card(val window: OverlayWindow, val field: AccessibilityNodeInfo?, val discard: () -> Unit)
 
     override fun onServiceConnected() {
         try {
@@ -98,6 +107,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     private fun open(retrySource: AccessibilityNodeInfo? = null) {
+        if (getSystemService(KeyguardManager::class.java).isKeyguardLocked ||
+            !getSystemService(PowerManager::class.java).isInteractive) return
         // Chat navigation can replace virtual editors without invalidating Android's
         // cached input focus. Refreshing the old node cannot discover its replacement.
         // Start this explicit tap with a fresh focus/tree query, not the previous chat.
@@ -151,26 +162,21 @@ class LinguizeAccessibilityService : AccessibilityService() {
                     rootInActiveWindow?.let { FocusedField.sameWindow(it, source) } != true)))) {
             resolved = null
         }
-        if (resolved == null) {
-            Toast.makeText(this, R.string.shortcut_no_editor, Toast.LENGTH_LONG).show()
-            return
-        }
-        val field = resolved
-        if (field.isPassword || PrivateField.matches(field.inputType, field.hintText, field.viewIdResourceName)) {
+        if (resolved != null && FocusedField.isPrivate(resolved)) {
             Toast.makeText(this, R.string.shortcut_private_field, Toast.LENGTH_LONG).show()
             return
         }
-        val selection = field.takeUnless { it.isShowingHintText }?.text?.toString()
-            ?.let { Selection.of(it, field.textSelectionStart, field.textSelectionEnd) }
-        if (selection == null || selection.text.isEmpty()) {
-            Toast.makeText(this, R.string.shortcut_no_text, Toast.LENGTH_LONG).show()
-            return
-        }
+        val field = resolved
+        // Read writing only after privacy checks. Hint/empty text falls through to Understand.
+        val selection = FocusedField.selection(field)
 
         // Back closes the card as a tap outside it does; [close] is set just below.
         var onBack: () -> Unit = {}
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
+        val understand = ViewModelProvider(window, UnderstandViewModel.factory(App.of(this)))[UnderstandViewModel::class.java]
+        var understanding by mutableStateOf(selection == null)
+        var retainedCheck by mutableStateOf(false)
         var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
         var language by mutableStateOf<Language?>(null)
         // The app opens in a separate task. Hide this overlay until it returns, keeping
@@ -178,18 +184,22 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val backFromApp: () -> Unit = {
             popupPosition = App.of(this).settings.popupPosition
             window.hidden = false
-            check.recheckIfStale()
+            if (understanding) {
+                understand.recheckIfStale()
+            } else check.recheckIfStale()
         }
-        val openApp: () -> Unit = {
+        fun openAppAt(settings: Boolean) {
             val returnToken = PopupReturn.await(backFromApp)
             window.hidden = true
             try {
-                startActivity(PopupAppActivity.intent(this, returnToken))
+                startActivity(PopupAppActivity.intent(this, returnToken, openSettings = settings))
             } catch (_: RuntimeException) {
                 PopupReturn.left(returnToken)
                 Toast.makeText(this, R.string.open_linguize_failed, Toast.LENGTH_SHORT).show()
             }
         }
+        val openApp: () -> Unit = { openAppAt(settings = false) }
+        val openSettings: () -> Unit = { openAppAt(settings = true) }
 
         var closed = false
         // Ends this card, once: Back can arrive both as a key and as a back callback.
@@ -199,45 +209,84 @@ class LinguizeAccessibilityService : AccessibilityService() {
             PopupReturn.cancel(backFromApp)
             // Restore the source app's window before requesting a replacement.
             // Keep the view model alive until the write result is reported to History.
-            window.remove { check.dismiss(applied = applied()) }
+            window.remove {
+                understand.cancel()
+                check.dismiss(applied = if (understanding) false else applied())
+            }
             if (card?.window === window) card = null
         }
         val close: () -> Unit = {
             // Only a successful replacement is applied. A failed write never copies
             // text or records a Copy decision.
-            end { check.workingText?.let { writeBack(field, selection, it) } == true }
+            end { if (field != null && selection != null) check.workingText?.let { writeBack(field, selection, it) } == true else false }
         }
         val menus = MenuState()
         onBack = { if (!menus.dismiss()) close() }
 
         val actions = CardActions.of(
-            check, context = this, onClose = close, onOpenSettings = null,
+            check, context = this, onClose = close, onOpenSettings = openSettings,
         )
+        fun captureClipboard() {
+            understand.readingClipboard()
+            window.whenFocused(
+                onReady = { if (!closed && understanding) understand.captured(readCopiedText()) },
+                onUnavailable = { if (!closed && understanding) understand.captured(ClipboardText.Unavailable) },
+            )
+        }
+        fun switchToUnderstand() {
+            retainedCheck = check.suspendForUnderstand()
+            understanding = true
+            menus.dismiss()
+            captureClipboard()
+        }
         try {
             window.show {
                 AppTheme(menuState = menus) {
-                    check.state?.let { state ->
-                        FloatingCard(state, actions,
-                            onDismiss = close,
-                            onOpenApp = openApp,
-                            position = popupPosition,
-                        ) {
-                            // Another language checks again on the same card: one history session for it.
-                            LanguagePicker(language, onSelect = {
-                                language = it
-                                check.changeLanguage(it)
-                            }, modifier = Modifier.weight(1f, fill = false))
+                    FloatingPopup(
+                        onDismiss = close,
+                        onOpenApp = openApp,
+                        position = popupPosition,
+                        header = {
+                            if (!understanding) {
+                                LanguagePicker(language, onSelect = {
+                                    language = it
+                                    check.changeLanguage(it)
+                                }, modifier = Modifier.weight(1f, fill = false))
+                            }
+                        },
+                    ) { modifier ->
+                        if (understanding) {
+                            UnderstandCard(understand.state, onRetry = {
+                                if (understand.state is UnderstandState.Message) captureClipboard() else understand.retry()
+                            }, modifier = modifier, onOpenSettings = openSettings,
+                                onBackToCheck = if (retainedCheck) ({
+                                    understand.cancel()
+                                    understanding = false
+                                    check.recheckIfStale()
+                                }) else null,
+                            )
+                        } else {
+                            check.state?.let { state ->
+                                ResultCard(state, actions, modifier, leadingContent = {
+                                    TextButton(onClick = ::switchToUnderstand) {
+                                        Text(stringResource(R.string.understand_copied_text))
+                                    }
+                                })
+                            }
                         }
                     }
                 }
             }
         } catch (failure: RuntimeException) {
-            // No model request starts before display setup succeeds. Clear any partial setup.
             window.remove { check.dismiss(applied = false) }
             throw failure
         }
-        card = Card(window, field, discard = { end { false } })
-        check.check(selection.text, language, Origin.Button, field.packageName?.toString())
+        card = Card(window, field.takeIf { selection != null }, discard = { end { false } })
+        if (selection != null) {
+            check.check(selection.text, language, Origin.Button, field?.packageName?.toString())
+        } else {
+            captureClipboard()
+        }
     }
 
     /**

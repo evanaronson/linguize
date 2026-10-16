@@ -18,6 +18,8 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.data.MenuEntry
 import com.evanaronson.linguize.ui.components.Dropdown
 import com.evanaronson.linguize.ui.components.MultiSelectDropdown
@@ -41,6 +43,7 @@ fun SettingsScreen(settings: SettingsViewModel) {
         val state = settings.state ?: return@Column
         LaunchedEffect(Unit) { settings.showModels() }
         CheckingSection(state, settings)
+        WritingSection(state, settings)
         PopupSection(state, settings)
         ModelSection(state, settings)
         HistorySection(state, settings)
@@ -55,7 +58,6 @@ private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
         stringResource(R.string.menu_entry_description, labels.getValue(entry),
             entry.language?.displayName() ?: stringResource(R.string.detect_language))
     }
-    val punctuationLabels = Punctuation.entries.associateWith { stringResource(it.labelResource) }
     MultiSelectDropdown(
         label = stringResource(R.string.selection_menu_label),
         options = MenuEntry.entries,
@@ -70,18 +72,6 @@ private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-    Dropdown(
-        label = stringResource(R.string.punctuation),
-        selected = state.punctuation,
-        options = Punctuation.entries,
-        optionLabel = punctuationLabels::getValue,
-        onSelect = settings::setPunctuation,
-    )
-    Text(
-        stringResource(state.punctuation.descriptionResource),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
     Text(stringResource(R.string.what_to_suggest), style = MaterialTheme.typography.titleSmall)
     Column(Modifier.selectableGroup()) {
         Judgments.entries.forEach { option ->
@@ -90,6 +80,48 @@ private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
     }
     Text(
         stringResource(R.string.suggestions_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun WritingSection(state: SettingsState, settings: SettingsViewModel) {
+    SectionTitle(stringResource(R.string.writing_preferences))
+    val languageLabels = Language.all.associateWith { it.displayName() }
+    val language = Language.forCode(state.writingLanguage) ?: Language.Catalan
+    Dropdown(
+        label = stringResource(R.string.writing_language),
+        selected = language,
+        options = Language.all,
+        optionLabel = languageLabels::getValue,
+        onSelect = settings::selectWritingLanguage,
+    )
+    val registerLabels = WritingRegister.entries.associateWith { register ->
+        stringResource(when (register) {
+            WritingRegister.Casual -> R.string.writing_register_casual
+            WritingRegister.Everyday -> R.string.writing_register_everyday
+            WritingRegister.Formal -> R.string.writing_register_formal
+        })
+    }
+    val profile = state.writingProfile
+    Dropdown(
+        label = stringResource(R.string.writing_register),
+        selected = profile.register,
+        options = WritingRegister.entries,
+        optionLabel = registerLabels::getValue,
+        onSelect = settings::setWritingRegister,
+    )
+    val punctuationLabels = Punctuation.entries.associateWith { stringResource(it.labelResource) }
+    Dropdown(
+        label = stringResource(R.string.punctuation),
+        selected = profile.punctuation,
+        options = Punctuation.entries,
+        optionLabel = punctuationLabels::getValue,
+        onSelect = settings::setWritingPunctuation,
+    )
+    Text(
+        stringResource(profile.punctuation.descriptionResource),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

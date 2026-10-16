@@ -2,6 +2,8 @@ package com.evanaronson.linguize.accessibility
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.os.Handler
+import android.os.Looper
 import android.os.Build
 import android.os.SystemClock
 import android.view.KeyEvent
@@ -56,7 +58,40 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         softInputMode = LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE
     }
 
+    private val focusHandler = Handler(Looper.getMainLooper())
+    private var focusAction: (() -> Unit)? = null
+    private var focusTimeout: Runnable? = null
     private var root: View? = null
+
+    /** Clipboard reads require focus; never read speculatively while attaching or hidden. */
+    fun whenFocused(onReady: () -> Unit, onUnavailable: () -> Unit) {
+        clearFocusAction()
+        val root = root
+        if (root == null || hidden || !screenAvailable) {
+            onUnavailable()
+        } else if (root.hasWindowFocus()) {
+            onReady()
+        } else {
+            focusAction = onReady
+            focusTimeout = Runnable {
+                clearFocusAction()
+                onUnavailable()
+            }.also { focusHandler.postDelayed(it, 1500) }
+        }
+    }
+
+    private fun clearFocusAction() {
+        focusAction = null
+        focusTimeout?.let(focusHandler::removeCallbacks)
+        focusTimeout = null
+    }
+
+    private fun focused() {
+        if (hidden || !screenAvailable) return
+        val action = focusAction ?: return
+        clearFocusAction()
+        action()
+    }
     private var screenAvailable = false
     private val unlockedScreen = UnlockedScreen(context) {
         screenAvailable = it
@@ -73,7 +108,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
 
     fun show(content: @Composable () -> Unit) {
         unlockedScreen.start()
-        val root = BackKeyLayout(context, onBack).apply {
+        val root = BackKeyLayout(context, onBack, ::focused).apply {
             setViewTreeLifecycleOwner(this@OverlayWindow)
             setViewTreeSavedStateRegistryOwner(this@OverlayWindow)
             setViewTreeViewModelStoreOwner(this@OverlayWindow)
@@ -121,6 +156,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
      * Its view models stay alive until that callback has reported the actual outcome.
      */
     fun remove(afterDetach: () -> Unit = {}) {
+        clearFocusAction()
         unlockedScreen.stop()
         root?.let { root ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -152,7 +188,16 @@ internal fun windowFlags(hidden: Boolean): Int =
     }
 
 /** The window's root: answers the Back key itself, on versions and apps that still send it as a key. */
-private class BackKeyLayout(context: Context, private val onBack: () -> Unit) : FrameLayout(context) {
+private class BackKeyLayout(
+    context: Context,
+    private val onBack: () -> Unit,
+    private val onFocused: () -> Unit,
+) : FrameLayout(context) {
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (hasWindowFocus) onFocused()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBack()

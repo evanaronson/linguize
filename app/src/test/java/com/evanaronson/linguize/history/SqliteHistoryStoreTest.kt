@@ -93,6 +93,15 @@ class SqliteHistoryStoreTest {
         decidedAt = session.updatedAt,
     )
 
+    /** The actual pre-v5 column layout: positional suggestion inserts have 16 columns. */
+    private fun prePagingSchema(): List<String> = HistorySchema.CREATE
+        .filterNot { it == HistorySchema.PAGE_INDEX }
+        .map { statement ->
+            statement.replace(",\n    \"writingProfiles\" TEXT NOT NULL DEFAULT '[]'", "")
+                .replace(",\n    \"targetLanguage\" TEXT,\n    \"detectedLanguage\" TEXT", "")
+                .replace(",\n    \"assessment\" TEXT", "")
+        }
+
     @Test
     fun versionSixAddsUnknownMetadataWithoutReinterpretingOriginalLanguageOrAnswer() = runBlocking<Unit> {
         val old = open("legacy", 10).answered(11, """{"status":"ok","language":"Catalan","future":42}""")
@@ -225,8 +234,10 @@ class SqliteHistoryStoreTest {
         val file = context.getDatabasePath(NAME)
         file.parentFile!!.mkdirs()
         SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
-            HistorySchema.CREATE.filterNot { it == HistorySchema.PAGE_INDEX }.forEach(db::execSQL)
-            db.execSQL(HistorySchema.CLOSE_SESSION, kept.values().values.toTypedArray())
+            prePagingSchema().forEach(db::execSQL)
+            val values = kept.copy(schema = 4).values() - setOf("targetLanguage", "detectedLanguage", "writingProfiles")
+            val columns = values.keys.joinToString { "\"$it\"" }
+            db.execSQL("INSERT INTO sessions ($columns) VALUES (${values.keys.joinToString { "?" }})", values.values.toTypedArray())
             db.version = 4
         }
         assertEquals(listOf("kept"), store.page(null, 25)!!.rows.map { it.id })
@@ -236,7 +247,7 @@ class SqliteHistoryStoreTest {
             db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'sessions_page'", null).use {
                 assertTrue(it.moveToFirst())
             }
-            assertEquals(6, db.version)
+            assertEquals(HistorySchema.VERSION, db.version)
         }
     }
 
@@ -558,9 +569,10 @@ class SqliteHistoryStoreTest {
 
     @Test
     fun aVersion3DatabaseLosesTheTestersSessionsAndKeepsEachAttemptsLanguage() = runBlocking<Unit> {
-        // Version 3 had this version's tables, and recorded the "Try it" card as origin 'tester'.
+        // Versions 3/4 predate paging, language metadata, profiles, and assessments.
+        // Version 3 also recorded the "Try it" card as origin 'tester'.
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(NAME), null).use { db ->
-            HistorySchema.CREATE.forEach(db::execSQL)
+            prePagingSchema().forEach(db::execSQL)
             val attempts = """[{"at":1500,"settled":[],"raw":"{\"status\":\"ok\"}","failure":null,"failureDetail":null,"reusedFrom":null}]"""
             for ((id, origin, language) in listOf(Triple("menu", "menu", "'ca'"), Triple("tester", "tester", "'es'"), Triple("auto", "button", "NULL"))) {
                 db.execSQL(

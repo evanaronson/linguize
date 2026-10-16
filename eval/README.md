@@ -50,3 +50,10 @@ Keep a held-out set separate from examples used to tune a prompt or learner, rec
 the baseline, and compare fixes, unwanted rewrites and latency by language. Passing
 this dataset is evidence about its cases, not proof that a learner improves every
 writer. The learning and evidence design is in [architecture](../docs/architecture.md).
+
+## Retrospective confidence and impact experiment
+
+[Suggestion assessment](scoring/README.md) evaluates exact existing adjustments
+outside the app using separate 0–3 confidence and impact ratings. It supports
+phone History exports, repeated provider calls, blind reference review and local
+HTML/JSON reports. Production checking behavior remains unchanged.

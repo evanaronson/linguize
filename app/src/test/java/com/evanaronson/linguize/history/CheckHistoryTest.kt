@@ -8,18 +8,25 @@ import com.evanaronson.linguize.core.interpret
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -98,6 +105,40 @@ class CheckHistoryTest {
         assertEquals(1, closed.attempts.size)
         assertEquals(Decision.Accepted, suggestions.single { it.kind == EditKind.Fix }.decision)
         assertNull(history.session)
+    }
+
+    @Test
+    fun discardRetiresExportsEvenWhenDeletionReportsFailureOrThrows() = runBlocking<Unit> {
+        for (throws in listOf(false, true)) {
+            val deletionAttempted = CompletableDeferred<Unit>()
+            var retired = false
+            val failing = object : HistoryStore by store {
+                override suspend fun delete(id: String): Boolean {
+                    deletionAttempted.complete(Unit)
+                    if (throws) error("disk full")
+                    return false
+                }
+            }
+            val history = CheckHistory(failing, environment, scope, retireExports = {
+                assertTrue("retirement follows the deletion attempt", deletionAttempted.isCompleted)
+                retired = true
+            })
+            history.open(rain, opening)
+            history.discard()
+            history.flush()
+            assertTrue(retired)
+        }
+    }
+
+    @Test
+    fun discardWithoutARecordedSessionDoesNotRetireExports() = runBlocking<Unit> {
+        var retired = false
+        val history = CheckHistory(store, environment, scope, retireExports = { retired = true })
+        history.discard()
+        history.open(rain, opening.copy(origin = Origin.Tester))
+        history.discard()
+        history.flush()
+        assertFalse(retired)
     }
 
     @Test
@@ -283,6 +324,122 @@ class CheckHistoryTest {
     }
 
     @Test
+    fun aSlowReuseNeverHoldsUpTheModelsAnswer() = modelWinsDuringReuse()
+
+    @Test
+    fun aSlowReuseNeverHoldsUpTheModelsFailure() = modelWinsDuringReuse(IllegalStateException("offline"))
+
+    private fun modelWinsDuringReuse(failure: IllegalStateException? = null) = runBlocking<Unit> {
+        store.kept = keptSession("earlier", "{}")
+        val model = CompletableDeferred<String>()
+        val reuseStarted = CompletableDeferred<Unit>()
+        val reuseGate = CompletableDeferred<Unit>()
+        val reuseFinished = CompletableDeferred<Unit>()
+        val pending = scope.async {
+            history.firstAttempt(
+                rain,
+                opening,
+                ask = { model.await() },
+                reuse = {
+                    // A non-cooperative loser must not hold up the live result or its caller.
+                    withContext(NonCancellable) {
+                        reuseStarted.complete(Unit)
+                        reuseGate.await()
+                        reuseFinished.complete(Unit)
+                    }
+                    "kept"
+                },
+            )
+        }
+        try {
+            withTimeout(5_000) {
+                reuseStarted.await()
+                if (failure == null) model.complete("model") else model.completeExceptionally(failure)
+                try {
+                    assertEquals(Answer("model", null), pending.await())
+                    assertNull(failure)
+                    history.succeeded(emptyList(), "model", result)
+                } catch (caught: IllegalStateException) {
+                    // Coroutine stack recovery may copy the exception across suspension.
+                    assertEquals(failure?.javaClass, caught.javaClass)
+                    assertEquals(failure?.message, caught.message)
+                    history.failed(emptyList(), "Offline", null)
+                }
+            }
+            assertFalse(reuseGate.isCompleted)
+            history.close(null)
+            val next = history.open("next card", opening)!!
+            reuseGate.complete(Unit)
+            withTimeout(5_000) { reuseFinished.await() }
+            history.flush()
+            assertEquals(next.id, history.session!!.id)
+            assertTrue(history.session!!.attempts.isEmpty())
+            val closed = store.calls.single { it.first == "close" }.second
+            assertEquals(1, closed.attempts.size)
+            assertNull(closed.attempts.single().reusedFrom)
+        } finally {
+            reuseGate.complete(Unit)
+            pending.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun aReadyModelAnswerStillWaitsForSessionPreparation() = runBlocking<Unit> {
+        val dispatcher = QueuedDispatcher()
+        val preparing = CheckHistory(store, environment, scope, io = dispatcher)
+        var asked = false
+        val pending = async(start = CoroutineStart.UNDISPATCHED) {
+            preparing.firstAttempt(rain, opening, ask = { asked = true; "model" }, reuse = { "kept" })
+        }
+        assertTrue(asked)
+        assertFalse(pending.isCompleted)
+        assertNull(preparing.session)
+
+        dispatcher.runAll()
+        assertEquals(Answer("model", null), withTimeout(5_000) { pending.await() })
+        // Recording ownership is ready before the caller records its result.
+        preparing.succeeded(emptyList(), "model", result)
+        assertEquals(1, preparing.session!!.attempts.size)
+    }
+
+    @Test
+    fun aKeptAnswerCannotBeAcceptedAfterPermissionIsRevokedDuringReuse() = runBlocking<Unit> {
+        store.kept = keptSession("earlier", "{}")
+        val interpreted = CompletableDeferred<Unit>()
+        val answer = history.firstAttempt(
+            rain,
+            opening,
+            ask = { interpreted.await(); delay(100); "model" },
+            reuse = {
+                environment.enabled = false
+                environment.recordingEpoch++
+                environment.enabled = true
+                interpreted.complete(Unit)
+                "kept"
+            },
+        )
+        assertEquals(Answer("model", null), answer)
+    }
+
+    @Test
+    fun aReuseFailureIsLoggedAndFallsBackToTheModel() = runBlocking<Unit> {
+        store.kept = keptSession("earlier", "{}")
+        val failed = CompletableDeferred<Unit>()
+        val logging = CheckHistory(store, environment, scope, log = { message, _ ->
+            logged += message
+            failed.complete(Unit)
+        })
+        val answer = logging.firstAttempt(
+            rain,
+            opening,
+            ask = { failed.await(); "model" },
+            reuse = { error("unreadable") },
+        )
+        assertEquals(Answer("model", null), answer)
+        assertEquals(listOf("History: couldn't show a kept answer"), logged.toList())
+    }
+
+    @Test
     fun aKeptVerdictThatCantBeReadFallsBackToTheModel() = runBlocking<Unit> {
         store.kept = keptSession("earlier", "{}")
         val answer = history.firstAttempt(
@@ -342,11 +499,11 @@ class CheckHistoryTest {
     fun aRecheckWithOtherSettingsStaysInTheSessionAndRecordsThem() = runBlocking<Unit> {
         val first = history.open(rain, opening)!!
         history.succeeded(emptyList(), "{}", result)
-        history.recheck(opening)
+        history.recheck(rain, opening)
         assertEquals(first.id, history.session?.id)
 
         now = 1_500
-        history.recheck(opening.copy(settings = settings.copy(model = "another-model", punctuation = "strict")))
+        history.recheck(rain, opening.copy(settings = settings.copy(model = "another-model", punctuation = "strict")))
         // Nothing changes until the attempt runs with them.
         assertEquals(first.id, history.session!!.id)
         assertEquals("a-model", history.session!!.model)
@@ -369,14 +526,71 @@ class CheckHistoryTest {
     }
 
     @Test
-    fun aRecheckWithNothingOpenOpensNothing() = runBlocking<Unit> {
+    fun aRecheckOfACardOpenedWithHistoryOffStaysUnrecorded() = runBlocking<Unit> {
         environment.enabled = false
         history.open(rain, opening)
         environment.enabled = true
-        history.recheck(opening.copy(settings = settings.copy(model = "another-model")))
+        history.recheck(rain, opening.copy(settings = settings.copy(model = "another-model")))
         history.flush()
         assertNull(history.session)
         assertTrue(store.calls.isEmpty())
+    }
+
+    @Test
+    fun aRecheckRecoversAfterRepeatedInterruptedOpenings() = runBlocking<Unit> {
+        val dispatcher = QueuedDispatcher()
+        val recovering = CheckHistory(store, environment, scope, io = dispatcher)
+        val first = launch(start = CoroutineStart.UNDISPATCHED) { recovering.open(rain, opening) }
+        first.cancel()
+        dispatcher.runAll()
+        first.join()
+
+        repeat(2) {
+            val retry = launch(start = CoroutineStart.UNDISPATCHED) { recovering.recheck(rain, opening) }
+            retry.cancel()
+            dispatcher.runAll()
+            retry.join()
+        }
+        assertNull(recovering.session)
+        assertTrue(store.calls.isEmpty())
+
+        val changed = opening.copy(settings = settings.copy(model = "another-model"))
+        val retry = launch(start = CoroutineStart.UNDISPATCHED) { recovering.recheck(rain, changed) }
+        dispatcher.runAll()
+        retry.join()
+        recovering.succeeded(emptyList(), "{}", result)
+        recovering.close(null)
+        recovering.flush()
+
+        assertEquals(listOf("save", "save", "close"), store.calls.map { it.first })
+        val closed = store.calls.last().second
+        assertEquals(1, store.calls.map { it.second.id }.distinct().size)
+        assertEquals("another-model", closed.attempts.single().model)
+        assertEquals(Outcome.None, closed.outcome)
+        assertTrue(store.lookedUp.isEmpty())
+    }
+
+    @Test
+    fun aRecheckCannotResumeRecordingAfterHistoryWasTurnedOffAndOn() = runBlocking<Unit> {
+        history.open(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        history.flush()
+        environment.enabled = false
+        environment.recordingEpoch++
+        environment.enabled = true
+
+        history.recheck(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        assertNull(history.session)
+        // The revoked write cleared the recorder, but its card is still decided.
+        history.recheck(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        history.close(null)
+        history.flush()
+
+        assertEquals(listOf("save", "save"), store.calls.map { it.first })
+        assertEquals(1, store.calls.map { it.second.id }.distinct().size)
+        assertEquals(1, store.calls.last().second.attempts.size)
     }
 
     @Test
@@ -417,8 +631,9 @@ class CheckHistoryTest {
         history.succeeded(emptyList(), "{}", result)
         history.changed(result.revision.acceptAll(EditKind.Fix))
         history.copied(EditKind.Fix)
+        history.changeLanguage("es")
         assertEquals(Answer("model", null), history.languageChanged(rain, tester.copy(requestedLanguage = "es"), ask = { delay(100); "model" }, reuse = { "kept" }))
-        history.recheck(tester.copy(settings = settings.copy(model = "another-model")))
+        history.recheck(rain, tester.copy(settings = settings.copy(model = "another-model")))
         history.failed(emptyList(), "offline", null)
         history.close(rain)
         history.flush()
@@ -443,6 +658,7 @@ class CheckHistoryTest {
 
         now = 1_200
         val spanish = opening.copy(requestedLanguage = "es")
+        history.changeLanguage(spanish.requestedLanguage)
         assertEquals(Answer("model", null), history.languageChanged(rain, spanish, ask = { slowly() }, reuse = { "kept" }))
         assertEquals(id, history.session!!.id)
         now = 1_300
@@ -451,11 +667,12 @@ class CheckHistoryTest {
 
         now = 1_400
         val auto = opening.copy(requestedLanguage = null)
+        history.changeLanguage(null)
         history.languageChanged(rain, auto, ask = { slowly() }, reuse = { "kept" })
         now = 1_500
         history.succeeded(emptyList(), "{}", result)
         // A re-check in the language picked last is the same session too.
-        history.recheck(auto)
+        history.recheck(rain, auto)
         assertEquals(id, history.session!!.id)
         history.close(null)
         history.flush()
@@ -481,6 +698,7 @@ class CheckHistoryTest {
         history.firstAttempt(rain, opening, ask = { "model" }, reuse = { "kept" })
         history.succeeded(emptyList(), "{}", result)
         store.kept = keptSession("earlier", "{\"status\":\"ok\"}", language = "es")
+        history.changeLanguage("es")
         val answer = history.languageChanged(rain, opening.copy(requestedLanguage = "es"), ask = { delay(10_000); "model" }, reuse = { it.raw })
         assertEquals("{\"status\":\"ok\"}", answer.value)
         assertEquals("earlier", answer.reused?.sessionId)
@@ -495,7 +713,7 @@ class CheckHistoryTest {
         // Its card ended in Spanish, but the only answer it has was made in Catalan.
         val kept = SessionRecording(rain, keptContext, 500, newId = { "earlier" })
         kept.attempt(600, emptyList(), "{\"catalan\":1}", null, null, result.revision, null)
-        kept.changeLanguage("es", settings, 650)
+        kept.changeLanguage("es", 650)
         kept.attempt(660, emptyList(), null, "offline", null, null, null)
         store.kept = kept.close(700, null)
         val answer = history.firstAttempt(rain, opening.copy(requestedLanguage = "es"), ask = { delay(200); "model" }, reuse = { it.raw })
@@ -507,6 +725,7 @@ class CheckHistoryTest {
         val first = history.open(rain, opening)!!
         history.succeeded(emptyList(), "{}", result)
         val changed = opening.copy(requestedLanguage = "es", settings = settings.copy(model = "another-model"))
+        history.changeLanguage(changed.requestedLanguage)
         history.languageChanged(rain, changed, ask = { slowly() }, reuse = { null })
         history.succeeded(emptyList(), "{}", result)
         assertEquals(first.id, history.session!!.id)
@@ -543,6 +762,7 @@ class CheckHistoryTest {
     @Test
     fun anotherLanguageWithNoSessionOpenOpensOne() = runBlocking<Unit> {
         // The first check was cancelled before it opened its session.
+        history.changeLanguage("es")
         history.languageChanged(rain, opening.copy(requestedLanguage = "es"), ask = { "model" }, reuse = { null })
         assertEquals("es", history.session?.requestedLanguage)
         history.flush()
@@ -556,10 +776,12 @@ class CheckHistoryTest {
         history.flush()
         // Turned off from Settings while the card is up: the next write stops the recording.
         environment.enabled = false
+        history.changeLanguage("es")
         history.languageChanged(rain, opening.copy(requestedLanguage = "es"), ask = { "model" }, reuse = { null })
         history.succeeded(emptyList(), "{}", result)
         // Turned on again, and another language picked on the same card.
         environment.enabled = true
+        history.changeLanguage(null)
         history.languageChanged(rain, opening.copy(requestedLanguage = null), ask = { "model" }, reuse = { null })
         history.succeeded(emptyList(), "{}", result)
         assertNull(history.session)
@@ -574,6 +796,7 @@ class CheckHistoryTest {
         environment.enabled = false
         history.firstAttempt(rain, opening, ask = { "model" }, reuse = { null })
         environment.enabled = true
+        history.changeLanguage("es")
         history.languageChanged(rain, opening.copy(requestedLanguage = "es"), ask = { "model" }, reuse = { null })
         history.succeeded(emptyList(), "{}", result)
         history.close(null)
@@ -656,7 +879,7 @@ class CheckHistoryTest {
         override fun revisions(): Flow<Long> = flowOf(0L)
         override suspend fun page(before: com.evanaronson.linguize.history.HistoryCursor?, limit: Int) =
             com.evanaronson.linguize.history.HistoryPage(emptyList(), null)
-        override suspend fun detail(id: String): SessionDetail? = null
+        override suspend fun detail(id: String) = SessionDetailResult.Missing
         override suspend fun delete(id: String) = true
         override suspend fun clear() = Unit
         override suspend fun export(out: OutputStream) = true

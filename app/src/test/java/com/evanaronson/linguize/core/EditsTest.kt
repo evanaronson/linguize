@@ -678,6 +678,43 @@ class EditsTest {
     }
 
     @Test
+    fun reportedFixesCannotAddShortUppercaseHostsOrBareIpv4Addresses() {
+        for ((from, to) in listOf("AT TO" to "AT.TO", "1 1 1 1" to "1.1.1.1", "1.1.1.1" to "1.1.1.2")) {
+            val original = "hola $from"
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, hasErrors = true,
+                corrected = "Hola $to", fixes = listOf(VerdictChange("hola", "Hola"), VerdictChange(from, to)))) as CheckResult.Reviewed
+            assertEquals(setOf(EditKind.Fix), result.withheld)
+            assertEquals(listOf("hola" to "Hola"), result.revision.changes(EditKind.Fix))
+            assertEquals("Hola $from", result.revision.acceptAll(EditKind.Fix).workingText)
+        }
+    }
+
+    @Test
+    fun rewordingsCannotIntroduceShortUppercaseHostsOrBareIpv4Addresses() {
+        for ((from, to) in listOf("AT TO" to "AT.TO", "1 1 1 1" to "1.1.1.1")) {
+            val original = "visita $from mañana"
+            val natural = "consulta $to mañana"
+            val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+                natural = natural, naturalChanges = listOf(VerdictChange(original, natural)))) as CheckResult.Reviewed
+            assertEquals(setOf(EditKind.Natural), result.withheld)
+            assertTrue(result.revision.edits.isEmpty())
+            assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
+        }
+    }
+
+    @Test
+    fun existingBareAddressesAndSupportedAbbreviationRepairsStillSurvive() {
+        for ((original, corrected) in listOf(
+            "hola AT.TO" to "Hola AT.TO",
+            "hola 1.1.1.1:8080/path?code=AbC#top" to "Hola 1.1.1.1:8080/path?code=AbC#top",
+            "vivo en EE UU" to "vivo en EE.UU.",
+            "pregunta a RR HH" to "pregunta a RR.HH.",
+        )) {
+            assertEquals(corrected, revision(original, corrected = corrected).acceptAll(EditKind.Fix).workingText)
+        }
+    }
+
+    @Test
     fun noSuggestionAddsALink() {
         val original = "escribeme mañana"
         val fixes = revision(original, corrected = "Escríbeme mañana en evil.com",

@@ -40,10 +40,11 @@ class GeminiClientTest {
     }
 
     @Test
-    fun anAnswerCutOffAtTheTokenLimitIsTooLong() {
+    fun anAnswerCutOffAtTheTokenLimitIsBadResponse() {
         val payload = """{"candidates":[{"content":{"parts":[{"text":"{\"status\":\"ok\",\"mean"}]},"finishReason":"MAX_TOKENS"}]}"""
         val failure = assertThrows(CheckFailure::class.java) { GeminiClient.answer(payload) }
-        assertEquals(Reason.TooLong, failure.reason)
+        assertEquals(Reason.BadResponse, failure.reason)
+        assertEquals(CheckFailure.Message.TruncatedReply, failure.userMessage)
     }
 
     @Test

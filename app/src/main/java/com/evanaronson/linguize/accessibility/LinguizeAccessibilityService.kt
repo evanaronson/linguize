@@ -17,10 +17,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.res.stringResource
 import com.evanaronson.linguize.ui.ClipboardText
 import com.evanaronson.linguize.ui.readCopiedText
+import com.evanaronson.linguize.ui.copyToClipboard
+import com.evanaronson.linguize.ui.card.ResultSurface
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.ui.card.FloatingPopup
 import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.card.UnderstandCard
@@ -59,10 +67,16 @@ class LinguizeAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * An open card: its [window], the [field] it will write back to, and [discard], which
-     * closes it without writing anything back.
+     * An open card: its [window], the [field] it will write back to, [restore] after
+     * an app detour, and [discard], which closes it without writing anything back.
      */
-    private class Card(val window: OverlayWindow, val field: AccessibilityNodeInfo?, val discard: () -> Unit)
+    private class Card(
+        val window: OverlayWindow,
+        val field: AccessibilityNodeInfo?,
+        val restore: () -> Unit,
+        val discard: () -> Unit,
+        val discardOnFieldChange: Boolean = true,
+    )
 
     override fun onServiceConnected() {
         try {
@@ -129,7 +143,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             // Tapping the button while the card waits behind the app brings it back, unless
             // it was left there: it waited too long, or the tap is for another app's field.
             if (!current.window.hidden || !current.leftBehind(focused)) {
-                current.window.hidden = false
+                if (current.window.hidden) current.restore()
                 return
             }
             current.discard()
@@ -156,9 +170,9 @@ class LinguizeAccessibilityService : AccessibilityService() {
         }
         var resolved = result.field
         // Refresh direct results too: a cached node may still hold the pre-focus text.
-        if (resolved != null && (!resolved.refresh() || !resolved.isVisibleToUser || !resolved.isEnabled ||
+        if (resolved != null && (!resolved.refresh() || !resolved.isFocused || !resolved.isVisibleToUser || !resolved.isEnabled ||
             !FocusedField.supportsEditing(resolved) || (!direct &&
-                (!resolved.isFocused || source == null || !FocusedField.sameWindow(resolved, source) ||
+                (source == null || !FocusedField.sameWindow(resolved, source) ||
                     rootInActiveWindow?.let { FocusedField.sameWindow(it, source) } != true)))) {
             resolved = null
         }
@@ -203,22 +217,29 @@ class LinguizeAccessibilityService : AccessibilityService() {
 
         var closed = false
         // Ends this card, once: Back can arrive both as a key and as a back callback.
-        fun end(applied: () -> Boolean) {
-            if (closed) return
+        fun end(applied: () -> Boolean): Boolean? {
+            if (closed) return null
             closed = true
             PopupReturn.cancel(backFromApp)
             // Restore the source app's window before requesting a replacement.
             // Keep the view model alive until the write result is reported to History.
+            var putBack = false
             window.remove {
                 understand.cancel()
-                check.dismiss(applied = if (understanding) false else applied())
+                putBack = !understanding && applied()
+                check.dismiss(applied = putBack)
             }
             if (card?.window === window) card = null
+            return putBack
         }
         val close: () -> Unit = {
             // Only a successful replacement is applied. A failed write never copies
             // text or records a Copy decision.
-            end { if (field != null && selection != null) check.workingText?.let { writeBack(field, selection, it) } == true else false }
+            // Freeze the exact accepted text before dismiss clears the revision. A kind's
+            // preview could include additional changes the writer never accepted.
+            val replacement = if (!understanding && field != null && selection != null) check.workingText else null
+            val applied = end { replacement != null && field != null && selection != null && writeBack(field, selection, replacement) }
+            if (applied == false && replacement != null) showRecovery(replacement, popupPosition)
         }
         val menus = MenuState()
         onBack = { if (!menus.dismiss()) close() }
@@ -281,11 +302,63 @@ class LinguizeAccessibilityService : AccessibilityService() {
             window.remove { check.dismiss(applied = false) }
             throw failure
         }
-        card = Card(window, field.takeIf { selection != null }, discard = { end { false } })
+        card = Card(window, field.takeIf { selection != null }, restore = backFromApp, discard = { end { false } })
         if (selection != null) {
             check.check(selection.text, language, Origin.Button, field?.packageName?.toString())
         } else {
             captureClipboard()
+        }
+    }
+
+    /** A fresh window keeps only the failed handoff's text, never its check or source field. */
+    private fun showRecovery(text: String, position: PopupPosition) {
+        var onBack: () -> Unit = {}
+        val window = OverlayWindow(this, onBack = { onBack() })
+        val backFromApp: () -> Unit = { window.hidden = false }
+        var closed = false
+        val dismiss: () -> Unit = {
+            if (!closed) {
+                closed = true
+                PopupReturn.cancel(backFromApp)
+                window.remove()
+                if (card?.window === window) card = null
+            }
+        }
+        onBack = dismiss
+        val openApp: () -> Unit = {
+            val token = PopupReturn.await(backFromApp)
+            window.hidden = true
+            try {
+                startActivity(PopupAppActivity.intent(this, token))
+            } catch (_: RuntimeException) {
+                PopupReturn.left(token)
+                Toast.makeText(this, R.string.open_linguize_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+        try {
+            window.show {
+                AppTheme {
+                    FloatingPopup(onDismiss = dismiss, onOpenApp = openApp, position = position) { modifier ->
+                        ResultSurface(modifier) {
+                            Text(stringResource(R.string.shortcut_recovery_hint))
+                            Spacer(Modifier.height(12.dp))
+                            Text(text)
+                            Spacer(Modifier.height(12.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { copyToClipboard(text) }) {
+                                    Text(stringResource(R.string.shortcut_copy_accepted))
+                                }
+                                TextButton(onClick = dismiss) { Text(stringResource(R.string.shortcut_dismiss)) }
+                            }
+                        }
+                    }
+                }
+            }
+            card = Card(window, field = null, restore = backFromApp, discard = dismiss,
+                discardOnFieldChange = false)
+        } catch (_: RuntimeException) {
+            dismiss()
+            Toast.makeText(this, R.string.shortcut_recovery_failed, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -298,7 +371,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val since = window.hiddenSince ?: return false
         if (SystemClock.elapsedRealtime() - since > MAX_HIDDEN_MILLIS) return true
         if (focused == null || focused.packageName?.toString() == packageName) return false
-        return focused != field
+        // Recovery holds text only; it has no source field to become stale.
+        return discardOnFieldChange && focused != field
     }
 
     /**

@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -64,7 +63,7 @@ internal fun HistoryDataControls(settings: SettingsViewModel) {
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(kept?.let { keptLabel(resources, it) }.orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        TextButton(enabled = count > 0, onClick = { confirmingClear = true }) { Text(stringResource(R.string.delete_all)) }
+        TextButton(onClick = { confirmingClear = true }) { Text(stringResource(R.string.delete_all)) }
         TextButton(
             enabled = count > 0 && !settings.exporting,
             onClick = settings::exportHistory,
@@ -86,7 +85,7 @@ internal fun HistoryDataControls(settings: SettingsViewModel) {
         AlertDialog(
             onDismissRequest = { confirmingClear = false },
             title = { Text(stringResource(R.string.delete_all_question)) },
-            text = { Text(pluralStringResource(R.plurals.delete_all_checks_description, count, count)) },
+            text = { Text(stringResource(R.string.delete_all_history_description)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmingClear = false

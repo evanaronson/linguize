@@ -44,9 +44,11 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -85,6 +87,7 @@ internal fun Highlight.context(text: String): String {
  * Suggested text with a separate rounded highlight behind each change, so
  * adjacent changes read as distinct blocks. Tapping a highlight shows why,
  * with a Replace button to accept just that change when [onReplace] is set.
+ * The same highlighted words are keyboard links that open the existing explanation.
  * Screen readers, which can't aim a tap at a highlight, get the same as actions
  * on the text: "Why" for each change, and "Replace" when [onReplace] is set.
  */
@@ -104,16 +107,30 @@ fun HighlightedText(
     val explanation = remember { BringIntoViewRequester() }
     val (panels, visible) = remember(text, changes) { changes.partition { it.needsPanel(text) } }
     val selected = visible.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
-    // Drawing runs every frame. Index neighboring edges once instead of rescanning
-    // every highlight for every other highlight as a longer check is scrolled.
-    val starts = remember(visible) { visible.mapTo(HashSet()) { it.range.first } }
-    val ends = remember(visible) { visible.mapTo(HashSet()) { it.range.last + 1 } }
+    val boxes = remember(layout, visible) {
+        visible.map { change -> layout?.let { lineBoxes(it, change.range) }.orEmpty() }
+    }
+    // Neighboring changes need a gap on the edges that actually touch on screen.
+    // Logical before/after can be on either side of an RTL or mixed-direction run.
+    val leftEdges = remember(boxes) { boxes.flatten().filter { it.right > it.left }.mapTo(HashSet()) { it.top to it.left } }
+    val rightEdges = remember(boxes) { boxes.flatten().filter { it.right > it.left }.mapTo(HashSet()) { it.top to it.right } }
 
-    val annotated = remember(text, changes) {
+    val annotated = remember(text, changes, accent) {
         buildAnnotatedString {
             append(text)
             for (change in visible) {
                 addStyle(SpanStyle(fontWeight = FontWeight.SemiBold), change.range.first, change.range.last + 1)
+                addLink(
+                    LinkAnnotation.Clickable(
+                        tag = change.id.toString(),
+                        styles = TextLinkStyles(focusedStyle = SpanStyle(
+                            background = accent.copy(alpha = 0.3f),
+                            textDecoration = TextDecoration.Underline,
+                        )),
+                    ) { selectedId = if (selectedId == change.id) null else change.id },
+                    change.range.first,
+                    change.range.last + 1,
+                )
             }
             append(" ")
             appendInlineContent("copy", "\uFFFC")
@@ -174,30 +191,29 @@ fun HighlightedText(
                     }
                 }
                 .drawBehind {
-                    val result = layout ?: return@drawBehind
                     // Highlights grow a little past their text, except where two changes touch,
                     // where both pull back so a gap keeps them visibly separate.
                     val grow = 2.5.dp.toPx()
                     val gap = 1.dp.toPx()
                     val padY = 1.dp.toPx()
                     val radius = CornerRadius(5.dp.toPx())
-                    visible.forEachIndexed { index, change ->
-                        val touchesBefore = change.range.first in ends
-                        val touchesAfter = change.range.last + 1 in starts
-                        val padLeft = if (touchesBefore) -gap else grow
-                        val padRight = if (touchesAfter) -gap else grow
+                    boxes.forEachIndexed { index, segments ->
                         val color = accent.copy(alpha = if (index == selected) 0.42f else 0.18f)
-                        for ((left, top, right, bottom) in lineBoxes(result, change.range)) {
+                        for ((left, top, right, bottom) in segments) {
+                            val padLeft = if (top to left in rightEdges) -gap else grow
+                            val padRight = if (top to right in leftEdges) -gap else grow
                             drawRoundRect(
                                 color = color,
                                 topLeft = Offset(left - padLeft, top + padY),
-                                size = Size(right - left + padLeft + padRight, bottom - top - 2 * padY),
+                                size = Size((right - left + padLeft + padRight).coerceAtLeast(0f), bottom - top - 2 * padY),
                                 cornerRadius = radius,
                             )
                         }
                     }
                 }
                 .pointerInput(visible) {
+                    // Link children own direct taps. This recognizer waits for an unconsumed
+                    // down, preserving the nearest-highlight allowance for taps outside them.
                     detectTapGestures { position ->
                         val result = layout ?: return@detectTapGestures
                         val hit = nearest(result, visible, position, maxDistance = TOUCH_RADIUS.toPx())
@@ -340,18 +356,33 @@ internal fun String.visibleValue(): String = when {
     else -> stringResource(R.string.change_spacing)
 }
 
-private data class LineBox(val left: Float, val top: Float, val right: Float, val bottom: Float)
+internal data class LineBox(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
-/** One box per line the range covers, so a highlight wraps cleanly. */
-private fun lineBoxes(layout: TextLayoutResult, range: IntRange): List<LineBox> {
-    if (range.isEmpty() || range.last >= layout.layoutInput.text.length) return emptyList()
-    val firstLine = layout.getLineForOffset(range.first)
-    val lastLine = layout.getLineForOffset(range.last)
-    return (firstLine..lastLine).map { line ->
-        val left = if (line == firstLine) layout.getBoundingBox(range.first).left else layout.getLineLeft(line)
-        val right = if (line == lastLine) layout.getBoundingBox(range.last).right else layout.getLineRight(line)
-        LineBox(left, layout.getLineTop(line), right, layout.getLineBottom(line))
-    }
+/** Selected visual segments, which can be disconnected within one bidi line. */
+internal fun lineBoxes(layout: TextLayoutResult, range: IntRange): List<LineBox> {
+    if (range.isEmpty() || range.first < 0 || range.last >= layout.layoutInput.text.length) return emptyList()
+    return range
+        .filterNot { layout.layoutInput.text[it].isLineBreak() }
+        .groupBy { layout.getLineForOffset(it) }
+        .flatMap { (line, offsets) ->
+            val segments = mutableListOf<LineBox>()
+            // Cluster continuation offsets can have zero advance. Retain their position
+            // so even a range containing only a combining mark keeps its touch allowance.
+            val glyphs = offsets.mapNotNull { offset ->
+                val glyph = layout.getBoundingBox(offset)
+                // Wrapped trailing spaces can sit at a detached line edge with no ink.
+                glyph.takeUnless { it.width == 0f && layout.layoutInput.text[offset].isWhitespace() }
+            }.sortedBy { it.left }
+            for (glyph in glyphs) {
+                val previous = segments.lastOrNull()
+                if (previous != null && glyph.left <= previous.right) {
+                    segments[segments.lastIndex] = previous.copy(right = maxOf(previous.right, glyph.right))
+                } else {
+                    segments += LineBox(glyph.left, layout.getLineTop(line), glyph.right, layout.getLineBottom(line))
+                }
+            }
+            segments
+        }
 }
 
 /**
@@ -359,7 +390,7 @@ private fun lineBoxes(layout: TextLayoutResult, range: IntRange): List<LineBox> 
  * a highlight always picks it; otherwise a finger-sized miss still reaches a
  * narrow one such as a lone comma.
  */
-private fun nearest(layout: TextLayoutResult, changes: List<Highlight>, position: Offset, maxDistance: Float): Highlight? =
+internal fun nearest(layout: TextLayoutResult, changes: List<Highlight>, position: Offset, maxDistance: Float): Highlight? =
     changes
         .map { change -> change to lineBoxes(layout, change.range).minOfOrNull { distance(it, position) } }
         .filter { (_, distance) -> distance != null && distance <= maxDistance }

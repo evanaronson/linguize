@@ -33,11 +33,12 @@ class OpenAIClientTest {
     }
 
     @Test
-    fun anAnswerCutOffAtTheTokenLimitIsTooLong() {
+    fun anAnswerCutOffAtTheTokenLimitIsBadResponse() {
         val payload = """{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},""" +
             """"output":[{"type":"message","content":[{"type":"output_text","text":"{\"status\":\"ok\",\"mea"}]}]}"""
         val failure = assertThrows(CheckFailure::class.java) { OpenAIClient.answer(payload) }
-        assertEquals(Reason.TooLong, failure.reason)
+        assertEquals(Reason.BadResponse, failure.reason)
+        assertEquals(CheckFailure.Message.TruncatedReply, failure.userMessage)
     }
 
     @Test

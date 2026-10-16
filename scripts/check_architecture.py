@@ -62,10 +62,14 @@ def declarations(source: str):
         content = "".join(clean).strip()
         if not content or content.startswith("@file:"):
             continue
-        match = DECLARATION.fullmatch(content)
-        if match is None:
-            break
-        yield number, match.group(1), match.group(2)
+        for segment in content.split(";"):
+            segment = segment.strip()
+            if not segment:
+                continue
+            match = DECLARATION.fullmatch(segment)
+            if match is None:
+                return
+            yield number, match.group(1), match.group(2)
 
 
 def imported_layer(name: str) -> str | None:

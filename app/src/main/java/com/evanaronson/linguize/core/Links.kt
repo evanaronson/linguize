@@ -13,6 +13,16 @@ internal object Links {
     /** The most edits that can share a run of text for every combination of them to be tried; more aren't offered. */
     private const val MOST_TOGETHER = 8
 
+    // Conservative starting cap for full-text render/scan work, including expansion.
+    // This caps candidate text lengths, not latency; tune only with Android measurements.
+    private const val MOST_SCANNED_CHARACTERS = 1_000_000L
+
+    // Failed matches can retry at each character of an unbroken token. Charge each
+    // token's squared width, so one long URL doesn't inflate every ordinary word's
+    // cost, while repeated long failed tokens remain bounded. Android latency still
+    // needs measurement before release.
+    private const val MOST_SCAN_WORK = 8_000_000L
+
     /**
      * [edits] without those that would add a link ("https://…", "www.…", "example.com")
      * to [original] in any combination the writer can accept. Edits that add no link on
@@ -21,24 +31,70 @@ internal object Links {
      * edits that can end up in one run of text without spaces is tried, and if any adds
      * a link, the edits in that combination are withheld. If the complete run introduces
      * an address, discard that proposal together so no partial address is left as a fix.
+     * The aggregate length allowance bounds rendering; the token-work allowance is
+     * charged before each complete candidate is scanned.
      */
     fun withoutNew(original: String, edits: List<Edit>): List<Edit> {
+        if (edits.isEmpty()) return edits
+        val grouped = runs(original, edits)
+        var remaining = MOST_SCANNED_CHARACTERS - original.length.toLong()
+        if (remaining < 0) return emptyList()
+        var work = MOST_SCAN_WORK - scanWork(original)
+        if (work < 0) return emptyList()
+        for (run in grouped) {
+            if (run.size > MOST_TOGETHER) continue // These edits are withheld without scanning.
+            val longest = original.length.toLong() + run.sumOf {
+                (it.replacement.length.toLong() - (it.end - it.start)).coerceAtLeast(0)
+            }
+            // One complete-run scan plus every nonempty subset, before any pruning.
+            val scans = 1L shl run.size
+            if (longest > remaining / scans) return emptyList()
+            remaining -= longest * scans
+        }
         val known = links(original)
+        // Clipping context could truncate an unchanged adjacent URL and mistake it
+        // for a new destination, so keep the complete text for each scan.
+        fun linking(edits: List<Edit>): Boolean? {
+            val text = render(original, edits).text
+            work -= scanWork(text)
+            // The character preflight bounds rendering; charge the actual joined or
+            // expanded tokens before the regex scans this complete candidate.
+            return if (work < 0) null else hasNew(known, text)
+        }
         val dropped = mutableSetOf<Int>()
-        for (run in runs(original, edits)) {
-            if (run.size > MOST_TOGETHER || linking(original, known, shown(run))) {
+        for (run in grouped) {
+            if (run.size > MOST_TOGETHER) {
+                dropped += run.map { it.id }
+                continue
+            }
+            val completeLinks = linking(shown(run)) ?: return emptyList()
+            if (completeLinks) {
                 dropped += run.map { it.id }
                 continue
             }
             for (mask in 1 until (1 shl run.size)) {
                 val subset = run.filterIndexed { k, _ -> mask shr k and 1 == 1 }
                 // A subset containing a withheld edit can no longer be accepted.
-                if (subset.none { it.id in dropped } && linking(original, known, shown(subset))) {
-                    dropped += subset.map { it.id }
+                if (subset.none { it.id in dropped }) {
+                    val subsetLinks = linking(shown(subset)) ?: return emptyList()
+                    if (subsetLinks) dropped += subset.map { it.id }
                 }
             }
         }
         return edits.filterNot { it.id in dropped }
+    }
+
+    private fun scanWork(text: String): Long {
+        var work = text.length.toLong()
+        var width = 0L
+        for (char in text) {
+            // Match LINK's ASCII \s boundaries, including its path alternative.
+            if (char == ' ' || char in '\t'..'\r') {
+                work += width * width
+                width = 0
+            } else width++
+        }
+        return work + width * width
     }
 
     /** Whether [text] holds a link that [original] doesn't. */
@@ -55,9 +111,9 @@ internal object Links {
     private fun hasNew(known: Set<String>, text: String) =
         LINK.findAll(text).any { !isAbbreviation(it.value) && identity(it.value) !in known }
 
-    /** Short capitals joined by dots, like "EE.UU." or "RR.HH.", are abbreviations, not addresses. */
+    /** Supported abbreviations; the domain match omits their terminal punctuation. */
     private fun isAbbreviation(match: String) =
-        match.split('.').all { it.length <= 2 && it.all(Char::isUpperCase) }
+        match == "EE.UU" || match == "RR.HH"
 
     /**
      * [edits] grouped by the stretch of [original] between two spaces that stay spaces
@@ -90,27 +146,23 @@ internal object Links {
         return runs.values.distinct()
     }
 
-    /**
-     * Compare complete texts: clipping the context could truncate an unchanged adjacent
-     * URL and mistake it for a new destination. Input length and combination count are
-     * bounded by the checker and [MOST_TOGETHER].
-     */
-    private fun linking(original: String, known: Set<String>, edits: List<Edit>) =
-        hasNew(known, render(original, edits).text)
-
     private const val LABEL = """[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?"""
+    private const val OCTET = """(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"""
 
     /** What a link's path may end with: not the punctuation of the sentence around it. */
     private const val PATH = """[^\s]*[^\s.,;:!?)\]}"'»…]"""
 
     /**
-     * A web address with a scheme or "www.", or anything shaped like a domain name.
+     * A web address with a scheme or "www.", a domain name, or a bare ASCII IPv4
+     * dotted quad with valid octets and no leading zeros. The quad must be a complete
+     * token, not part of a longer dotted version or a word. This isn't every address syntax.
      * DNS names have at most 127 labels. Bounding their repetition also keeps malformed
      * model output with thousands of dotted labels from exhausting the regex stack.
      */
     private val LINK = Regex(
         """(?i)(?:[a-z][a-z0-9+.-]*://|www\.)$PATH""" +
-            """|(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])(?:[/:?#]$PATH)?""",
+            """|(?:(?<![\p{L}\p{N}\-])$LABEL(?:\.$LABEL){0,125}\.(?:\p{L}{2,24}|xn--[a-z0-9-]+)(?![\p{L}\p{N}\-])""" +
+            """|(?<![\p{L}\p{N}_.-])$OCTET(?:\.$OCTET){3}(?![\p{L}\p{N}_-]|\.[\p{L}\p{N}_-]))(?:[/:?#]$PATH)?""",
     )
 
     private val SCHEME = Regex("""(?i)^[a-z][a-z0-9+.-]*://""")

@@ -1,15 +1,23 @@
 """Reviews cannot silently follow different models, answers or engine behavior."""
 import copy
+import contextlib
+import io
+import json
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 from fuzz import generate, requests
-from fuzz_report import complete_evidence, evidence_digest, matching_review
+from fuzz_report import complete_evidence, evidence_digest, matching_review, main
 
 
 class CompleteEvidenceTest(unittest.TestCase):
     def setUp(self):
         self.corpus = generate()
-        self.replies = [{"case": case, "verdict": {"status": "ok"}} for case in requests(self.corpus)]
-        self.engines = [{"request_id": row["case"]["request_id"], "result": "reviewed"} for row in self.replies]
+        self.replies = [{"case": case, "provider": "gemini", "model": "actual", "prompt_sha256": "prompt",
+                         "corpus_sha256": "corpus", "verdict": {"status": "ok"}} for case in requests(self.corpus)]
+        self.engines = [{"request_id": row["case"]["request_id"], "result": "reviewed",
+                         "replay_input": copy.deepcopy(row)} for row in self.replies]
 
     def audit(self):
         return complete_evidence(self.replies, self.engines, self.corpus)
@@ -17,6 +25,134 @@ class CompleteEvidenceTest(unittest.TestCase):
     def test_complete_named_and_auto_pairs_pass_in_any_order(self):
         self.engines.reverse()
         self.assertEqual(200, len(self.audit()))
+
+    def test_missing_replay_binding_is_not_evidence_for_current_answers(self):
+        self.engines[0].pop("replay_input")
+        with self.assertRaisesRegex(ValueError, "Replay input is unbound"):
+            self.audit()
+
+    def test_explicit_legacy_mode_only_accepts_missing_binding_for_historical_reports(self):
+        self.engines[0].pop("replay_input")
+        self.assertEqual(200, len(complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)))
+        for option in ("require_repairs", "repair_collection"):
+            with self.subTest(option=option), self.assertRaisesRegex(ValueError, "Historical unbound replay"):
+                complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True, **{option: True})
+        self.engines[1]["replay_input"]["model"] = "stale"
+        with self.assertRaisesRegex(ValueError, "differs from current reply"):
+            complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)
+
+    def test_historical_report_labels_unbound_evidence_without_changing_source_rows(self):
+        for engine in self.engines:
+            engine.pop("replay_input")
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name, rows in (("replies.jsonl", self.replies), ("engine.jsonl", self.engines), ("corpus.jsonl", self.corpus)):
+                (root / name).write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows))
+            argv = ["fuzz_report.py", "--results", str(root), "--corpus", str(root / "corpus.jsonl"),
+                    "--reviews", str(root / "absent.json"), "--legacy-unbound"]
+            with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()):
+                main()
+            self.assertEqual({"legacy_unbound": 200}, json.loads((root / "summary.json").read_text())["replay_input_binding"])
+            self.assertIn("Historical unbound replay", (root / "review.html").read_text())
+            joined = [json.loads(line) for line in (root / "review.jsonl").read_text().split("\n") if line]
+            self.assertTrue(all(row["replay_input_binding"] == "legacy_unbound" for row in joined))
+            self.assertEqual(self.engines, [json.loads(line) for line in (root / "engine.jsonl").read_text().split("\n") if line])
+            with patch("sys.argv", argv + ["--require-repairs"]), contextlib.redirect_stderr(io.StringIO()), \
+                    self.assertRaises(SystemExit):
+                main()
+
+    def test_explicit_unbound_archival_mode_preserves_missing_historical_hashes(self):
+        self.engines[0].pop("replay_input")
+        for field in ("prompt_sha256", "corpus_sha256"):
+            self.replies[0].pop(field)
+        self.assertEqual(200, len(complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)))
+        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+        with self.assertRaisesRegex(ValueError, "nonempty provider, model and prompt/corpus hashes"):
+            complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)
+
+    def test_changed_replay_inputs_need_a_new_replay(self):
+        changes = {"provider": "openai", "model": "different", "prompt_sha256": "new-prompt",
+                   "corpus_sha256": "new-corpus", "verdict": {"status": "unclear"},
+                   "repair": {"provider": "gemini", "model": "actual", "attempts": 1,
+                              "verdict": {"status": "ok", "meaning": "repaired"}}}
+        for field, value in changes.items():
+            with self.subTest(field=field):
+                self.setUp()
+                self.replies[0][field] = value
+                with self.assertRaisesRegex(ValueError, "differs from current reply"):
+                    self.audit()
+                self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+                self.assertEqual(200, len(self.audit()))
+
+    def test_replay_binding_checks_recorded_case_and_repair(self):
+        self.engines[0]["replay_input"]["case"]["text"] = "another replayed passage"
+        with self.assertRaisesRegex(ValueError, "differs from current reply"):
+            self.audit()
+        self.setUp()
+        self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1,
+                                     "error": "TimeoutError"}
+        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+        self.replies[0]["repair"]["error"] = "InterruptedBeforeResult"
+        with self.assertRaisesRegex(ValueError, "differs from current reply"):
+            self.audit()
+
+    def test_replay_binding_distinguishes_integer_boolean_and_float_scores(self):
+        for repaired in (False, True):
+            for field in ("confidence", "impact"):
+                for recorded, changed in ((1, True), (0, False), (1, 1.0)):
+                    with self.subTest(repaired=repaired, field=field, recorded=recorded, changed=changed):
+                        self.setUp()
+                        verdict = {"status": "ok", "fixes": [{"confidence": recorded, "impact": recorded}]}
+                        if repaired:
+                            self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1,
+                                                         "verdict": verdict}
+                        else:
+                            self.replies[0]["verdict"] = verdict
+                        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+                        self.assertEqual(200, len(self.audit()))
+                        verdict["fixes"][0][field] = changed
+                        with self.assertRaisesRegex(ValueError, "differs from current reply"):
+                            self.audit()
+
+    def test_bound_evidence_requires_nonempty_capture_identity(self):
+        for field in ("provider", "model", "prompt_sha256", "corpus_sha256"):
+            for value in ("missing", "", " \t", None, False, 1):
+                for require_repairs in (False, True):
+                    with self.subTest(field=field, value=value, require_repairs=require_repairs):
+                        self.setUp()
+                        for engine in self.engines:
+                            engine["retry_evidence"] = "not_needed"
+                        if value == "missing":
+                            self.replies[0].pop(field)
+                        else:
+                            self.replies[0][field] = value
+                        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+                        with self.assertRaisesRegex(ValueError, "nonempty provider, model and prompt/corpus hashes"):
+                            complete_evidence(self.replies, self.engines, self.corpus, require_repairs=require_repairs)
+
+    def test_replay_input_requires_every_mandatory_provenance_field(self):
+        for field in ("case", "provider", "model", "prompt_sha256", "corpus_sha256", "verdict"):
+            with self.subTest(field=field):
+                self.setUp()
+                self.engines[0]["replay_input"].pop(field)
+                with self.assertRaisesRegex(ValueError, "Replay input is unbound"):
+                    self.audit()
+
+    def test_equivalent_json_order_and_collection_timing_do_not_require_replay(self):
+        self.engines[0]["replay_input"] = dict(reversed(list(self.replies[0].items())))
+        self.replies[0].update(latency_seconds=42, attempts=3)
+        self.assertEqual(200, len(self.audit()))
+
+    def test_repair_resume_skips_only_already_recorded_repairs(self):
+        self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1,
+                                     "error": "InterruptedBeforeResult"}
+        self.engines[0].pop("replay_input")
+        self.assertEqual(200, len(complete_evidence(self.replies, self.engines, self.corpus, repair_collection=True)))
+        with self.assertRaisesRegex(ValueError, "Replay input is unbound"):
+            self.audit()
+        self.engines[1].pop("replay_input")
+        with self.assertRaisesRegex(ValueError, "Replay input is unbound"):
+            complete_evidence(self.replies, self.engines, self.corpus, repair_collection=True)
 
     def test_final_live_gate_requires_recorded_retry_but_accepts_recorded_failure(self):
         for row in self.engines:
@@ -27,6 +163,7 @@ class CompleteEvidenceTest(unittest.TestCase):
         self.replies[0].update(provider="gemini", model="actual")
         self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1, "error": "TimeoutError"}
         self.engines[0]["retry_evidence"] = "recorded"
+        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
         self.assertEqual(200, len(complete_evidence(self.replies, self.engines, self.corpus, require_repairs=True)))
         self.replies[0]["repair"]["model"] = "different"
         with self.assertRaisesRegex(ValueError, "same-provider/model"):

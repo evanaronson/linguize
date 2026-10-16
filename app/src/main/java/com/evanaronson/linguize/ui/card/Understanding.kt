@@ -111,6 +111,8 @@ internal fun UnderstandingPage(
     settled: List<Settled>,
     /** Null on a past check, which cannot be checked again. */
     onSettle: ((String, String) -> Unit)?,
+    /** Null on a past check, whose answers remain evidence of that request. */
+    onRemoveChoice: ((String) -> Unit)?,
     onBack: () -> Unit,
 ) {
     BackButton(onBack)
@@ -126,7 +128,7 @@ internal fun UnderstandingPage(
     }
     if (assumptions.isNotEmpty() || settled.isNotEmpty()) {
         if (meaning.isNotBlank()) Spacer(Modifier.height(20.dp))
-        Assumptions(assumptions, settled, onSettle)
+        Assumptions(assumptions, settled, onSettle, onRemoveChoice)
     }
     Spacer(Modifier.height(16.dp))
     Text(
@@ -137,7 +139,12 @@ internal fun UnderstandingPage(
 }
 
 @Composable
-private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, onSettle: ((String, String) -> Unit)?) {
+private fun Assumptions(
+    assumptions: List<Assumption>,
+    settled: List<Settled>,
+    onSettle: ((String, String) -> Unit)?,
+    onRemoveChoice: ((String) -> Unit)?,
+) {
     val open = assumptions.filterNot { a -> settled.any { it.about == a.about } }
     Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.titleMedium)
     Text(
@@ -154,7 +161,16 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
                 Label(answer.about)
                 Text(answer.answer, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
             }
-            Text(stringResource(R.string.your_choice), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Column(horizontalAlignment = Alignment.End) {
+                Text(stringResource(R.string.your_choice), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                if (onRemoveChoice != null) {
+                    val remove = stringResource(R.string.remove_choice_about, answer.about)
+                    TextButton(
+                        onClick = { onRemoveChoice(answer.about) },
+                        modifier = Modifier.semantics { contentDescription = remove },
+                    ) { Text(stringResource(R.string.remove_choice)) }
+                }
+            }
         }
     }
     open.forEachIndexed { index, assumption ->

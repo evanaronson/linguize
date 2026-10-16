@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -78,7 +79,12 @@ internal fun ModelSection(state: SettingsState, settings: SettingsViewModel) {
 
     when (val status = state.keys[provider]) {
         is KeyStatus.Saved -> SavedKey(provider, status.lastFour, onRemove = settings::removeKey)
-        else -> KeyEntry(provider, unreadable = status == KeyStatus.Unreadable, saveFailed = state.keySaveFailed, onSave = settings::saveKey)
+        else -> {
+            KeyEntry(provider, unreadable = status == KeyStatus.Unreadable, saveFailed = state.keySaveFailed, onSave = settings::saveKey)
+            if (status == KeyStatus.Unreadable) {
+                TextButton(onClick = settings::removeKey) { Text(stringResource(R.string.delete_key)) }
+            }
+        }
     }
 }
 
@@ -191,7 +197,10 @@ private fun SavedKey(provider: Provider, lastFour: String, onRemove: () -> Unit)
                 Text(stringResource(R.string.provider_key_saved, stringResource(provider.labelResource)), style = MaterialTheme.typography.titleSmall, color = onContainer)
                 Text(stringResource(R.string.key_last_four, lastFour), style = MaterialTheme.typography.bodySmall, color = onContainer)
             }
-            TextButton(onClick = onRemove) { Text(stringResource(R.string.delete_key)) }
+            TextButton(
+                onClick = onRemove,
+                colors = ButtonDefaults.textButtonColors(contentColor = onContainer),
+            ) { Text(stringResource(R.string.delete_key)) }
         }
     }
 }

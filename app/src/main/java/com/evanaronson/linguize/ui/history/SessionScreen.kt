@@ -43,6 +43,7 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val deletion = session.deletion
+    val page = session.page
     LaunchedEffect(deletion) {
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
@@ -53,15 +54,24 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        when (val page = session.page) {
+        when (page) {
             SessionPage.Loading -> Unit
             SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
+            SessionPage.Failed -> Column(Modifier.padding(vertical = 12.dp)) {
+                Faint(stringResource(R.string.history_load_failed))
+                TextButton(onClick = session::retry) { Text(stringResource(R.string.retry)) }
+            }
             is SessionPage.Shown -> Shown(
                 page,
-                deletion = deletion,
-                onDelete = session::delete,
                 onMeaningNavigation = { scope.launch { scroll.scrollTo(0) } },
             )
+        }
+        if (deletion == SessionDeletion.Failed) {
+            Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
+        }
+        // A refresh may remove the row before a failed checkpoint has been retried.
+        if (page is SessionPage.Shown || deletion == SessionDeletion.Failed) {
+            DeleteButton(session::delete, deleting = deletion == SessionDeletion.Deleting)
         }
     }
 }
@@ -69,8 +79,6 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
 @Composable
 private fun Shown(
     page: SessionPage.Shown,
-    deletion: SessionDeletion,
-    onDelete: () -> Unit,
     onMeaningNavigation: () -> Unit,
 ) {
     val session = page.session
@@ -86,7 +94,7 @@ private fun Shown(
     BackHandler(enabled = meaningOpen) { showMeaning(false) }
     if (meaningOpen && reviewed != null) {
         UnderstandingPage(reviewed.meaning, reviewed.assumptions, settled,
-            onSettle = null, onBack = { showMeaning(false) })
+            onSettle = null, onRemoveChoice = null, onBack = { showMeaning(false) })
     } else {
         TextBlock(stringResource(R.string.history_before), session.text)
         WhatCameOfIt(session)
@@ -103,12 +111,9 @@ private fun Shown(
             UnderstandingEntry(understandingEntry(reviewed.meaning, reviewed.assumptions,
                 settled, readOnly = true), onOpen = { showMeaning(true) })
         }
-        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null)
+        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+            reviewed = reviewed, settled = settled)
     }
-    if (deletion == SessionDeletion.Failed) {
-        Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
-    }
-    DeleteButton(onDelete, deleting = deletion == SessionDeletion.Deleting)
 }
 
 @Composable

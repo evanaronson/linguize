@@ -72,7 +72,7 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
     internal companion object {
         const val BASE = "https://api.openai.com/v1"
 
-        /** The text of the output message. Throws [CheckFailure]; TooLong when it was cut off. */
+        /** The text of the output message. Throws [CheckFailure]; BadResponse when output was cut off. */
         fun answer(payload: String): String = readResponse(payload) { root ->
             val status = root["status"]?.jsonPrimitive?.contentOrNull
             if (status == "incomplete") {

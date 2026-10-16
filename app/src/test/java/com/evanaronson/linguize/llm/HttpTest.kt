@@ -73,7 +73,7 @@ class HttpTest {
     }
 
     @Test
-    fun modelsForOtherJobsAreLeftOutAndTheNewestComeFirst() {
+    fun modelsForOtherJobsAreFilteredAndRemainingModelsFollowVersionOrder() {
         val ids = listOf("gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-embedding-001", "gemini-3.5-flash-lite", "gemini-2.5-flash-tts")
         assertEquals(listOf("gemini-3.5-flash-lite", "gemini-2.5-flash"), textModels(ids))
     }

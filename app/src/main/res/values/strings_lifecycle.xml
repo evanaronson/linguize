@@ -5,8 +5,12 @@
     <string name="shortcut_open_failed">Couldn\'t open the check. Tap your writing field and try again.</string>
     <string name="shortcut_no_text">No text to check. Tap the field you wrote in, then try again.</string>
     <string name="shortcut_private_field">This field looks private, so Linguize didn\'t read it.</string>
-    <string name="shortcut_replace_failed">Couldn\'t put the text back. Reopen the check and use Copy.</string>
-    <string name="shortcut_field_changed">The field changed or is gone. Reopen the check and use Copy.</string>
+    <string name="shortcut_replace_failed">Couldn\'t put the text back. Copy your accepted text from the popup.</string>
+    <string name="shortcut_field_changed">The field changed or is gone. Copy your accepted text from the popup.</string>
+    <string name="shortcut_recovery_hint">Copy your accepted text, then paste it into the app.</string>
+    <string name="shortcut_copy_accepted">Copy accepted text</string>
+    <string name="shortcut_dismiss">Dismiss</string>
+    <string name="shortcut_recovery_failed">Couldn\'t show the accepted text. Try the check again.</string>
     <string name="shortcut_start_failed">Couldn\'t start the shortcut. Turn Linguize off and on in Accessibility.</string>
     <string name="shortcut_no_editor">Couldn\'t find the focused text field. Tap the field you wrote in, then try again. You can also paste into Try it in Linguize.</string>
 </resources>

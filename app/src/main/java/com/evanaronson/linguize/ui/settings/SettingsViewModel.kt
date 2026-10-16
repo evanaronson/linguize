@@ -23,6 +23,7 @@ import com.evanaronson.linguize.data.MenuEntry
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.data.Exports
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -91,7 +92,10 @@ sealed interface ModelTest {
     ) : ModelTest
 }
 
-class SettingsViewModel(private val app: App) : ViewModel() {
+class SettingsViewModel(
+    private val app: App,
+    private val settingsIo: CoroutineDispatcher = Dispatchers.IO,
+) : ViewModel() {
     private var refreshJob: Job? = null
     private var modelsJob: Job? = null
     private var testJob: Job? = null
@@ -100,6 +104,8 @@ class SettingsViewModel(private val app: App) : ViewModel() {
 
     /** Selection-menu writes, one at a time (see [toggleMenuEntry]). */
     private val menuWrites = Mutex()
+    private var menuRequest = 0L
+    private var completedMenuRequest = 0L
     private val keyWrites = Mutex()
 
     /** Null until the saved settings have been read. */
@@ -138,37 +144,43 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     private fun refresh(afterRead: () -> Unit) {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            val fresh = withContext(Dispatchers.IO) {
-                val settings = app.settings
-                val provider = settings.provider
-                SettingsState(
-                    menu = app.menu.enabled().ifEmpty { setOf(MenuEntry.Auto) },
-                    punctuation = settings.punctuation,
-                    writingProfiles = settings.writingProfiles,
-                    judgments = settings.judgments,
-                    provider = provider,
-                    keys = Provider.entries.associateWith { app.keys.status(it) },
-                    model = settings.model(provider),
-                    historyEnabled = settings.historyEnabled,
-                    popupPosition = settings.popupPosition,
+            menuWrites.withLock {
+                val fresh = withContext(settingsIo) {
+                    val settings = app.settings
+                    val provider = settings.provider
+                    SettingsState(
+                        menu = app.menu.enabled(),
+                        punctuation = settings.punctuation,
+                        writingProfiles = settings.writingProfiles,
+                        judgments = settings.judgments,
+                        provider = provider,
+                        keys = Provider.entries.associateWith { app.keys.status(it) },
+                        model = settings.model(provider),
+                        historyEnabled = settings.historyEnabled,
+                        popupPosition = settings.popupPosition,
+                    )
+                }
+                val previous = state
+                val selectedLanguage = previous?.writingLanguage ?: Language.Catalan.code
+                val refreshed = fresh.copy(
+                    writingLanguage = selectedLanguage,
+                    // An action accepted during this read already has an ordered writer waiting.
+                    menu = if (menuRequest != completedMenuRequest) previous?.menu ?: fresh.menu else fresh.menu,
                 )
+                val sameService = previous != null && previous.provider == fresh.provider &&
+                    previous.model == fresh.model && previous.keys == fresh.keys
+                val reloadModels = modelsRequested && !sameService
+                state = if (sameService) refreshed.copy(models = previous!!.models,
+                    modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else refreshed
+                refreshJob = null
+                if (!sameService) {
+                    modelsRequested = false
+                    modelsJob?.cancel()
+                    testJob?.cancel()
+                    if (reloadModels) loadModels()
+                }
+                afterRead()
             }
-            val previous = state
-            val selectedLanguage = previous?.writingLanguage ?: Language.Catalan.code
-            val refreshed = fresh.copy(writingLanguage = selectedLanguage)
-            val sameService = previous != null && previous.provider == fresh.provider &&
-                previous.model == fresh.model && previous.keys == fresh.keys
-            val reloadModels = modelsRequested && !sameService
-            state = if (sameService) refreshed.copy(models = previous!!.models,
-                modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else refreshed
-            refreshJob = null
-            if (!sameService) {
-                modelsRequested = false
-                modelsJob?.cancel()
-                testJob?.cancel()
-                if (reloadModels) loadModels()
-            }
-            afterRead()
         }
     }
 
@@ -187,13 +199,14 @@ class SettingsViewModel(private val app: App) : ViewModel() {
         val on = entry !in menu
         if (!on && menu.size == 1) return
         change { it.copy(menu = if (on) it.menu + entry else it.menu - entry) }
-        // A call to the package manager, so off the main thread. Quick toggles start writes that
-        // could land in any order, so they run one at a time and each writes the switch's state
-        // as it is then: the last one to run leaves the menu as the screen shows it.
-        viewModelScope.launch(Dispatchers.IO) {
+        val request = ++menuRequest
+        viewModelScope.launch {
+            // Queue on main before dispatching IO, preserving the caller's entry/on intent.
             menuWrites.withLock {
-                val menu = state?.menu ?: return@withLock
-                app.menu.setEnabled(entry, entry in menu)
+                val actual = withContext(settingsIo) { app.menu.setEnabled(entry, on) }
+                completedMenuRequest = request
+                // Keep later optimistic actions visible until their own writes finish.
+                if (request == menuRequest) updateState { it.copy(menu = actual) }
             }
         }
     }
@@ -201,11 +214,6 @@ class SettingsViewModel(private val app: App) : ViewModel() {
     fun setPopupPosition(position: PopupPosition) = change { state ->
         app.settings.popupPosition = position
         state.copy(popupPosition = position)
-    }
-
-    fun setPunctuation(punctuation: Punctuation) = change { state ->
-        app.settings.punctuation = punctuation
-        state.copy(punctuation = punctuation)
     }
 
     fun selectWritingLanguage(language: Language) = change { it.copy(writingLanguage = language.code) }

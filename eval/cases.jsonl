@@ -68,3 +68,7 @@
 {"id":"repair-naturalize-leaves-unrelated-error","text":"Com estàs amb la pluja? Tornare demà.","language":"Catalan","checks":"naturalize","status":"ok","fix":false,"natural":true,"expected_corrected":"","expected_natural":"Com portes la pluja? Tornare demà.","expected_natural_changes":[{"from":"estàs amb","to":"portes"}]}
 {"id":"repair-valid-english-word-choices","text":"I saw a small cat beside a fast car. It was waiting for its owner.","status":"ok","fix":false,"natural":false}
 {"id":"repair-preserve-travel-intent","text":"Voy a viajar mañana. Tengo muchas ganas de ver a mi familia.","language":"Spanish","status":"ok","fix":false,"natural":false}
+{"id":"strict-optional-conjunction-comma-absent","text":"Ana lee y Luis escribe.","language":"Spanish","punctuation":"strict","status":"ok","fix":false,"natural":false,"expected_corrected":"","expected_fixes":[]}
+{"id":"strict-optional-conjunction-comma-present","text":"Ana lee, y Luis escribe.","language":"Spanish","punctuation":"strict","status":"ok","fix":false,"natural":false,"expected_corrected":"","expected_fixes":[]}
+{"id":"moderate-required-vocative-comma","text":"Ven, Ana y siéntate.","language":"Spanish","punctuation":"moderate","status":"ok","fix":true,"natural":false,"expected_corrected":"Ven, Ana, y siéntate.","expected_fixes":[{"from":"Ana","to":"Ana,"}]}
+{"id":"moderate-vocative-comma-present","text":"Ven, Ana, y siéntate.","language":"Spanish","punctuation":"moderate","status":"ok","fix":false,"natural":false,"expected_corrected":"","expected_fixes":[]}

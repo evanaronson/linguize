@@ -30,6 +30,14 @@ class ErrorTextTest {
     }
 
     @Test
+    fun longWhitespaceRunIsHandledAndOnlyOnePrecedingNewlineIsConsumedWithUrl() {
+        val longWhitespace = "start${" ".repeat(32_000)}end"
+        assertEquals("start end", scrubSecrets(longWhitespace))
+
+        assertEquals("before\n after", scrubSecrets("before\n\nhttps://example.com after"))
+    }
+
+    @Test
     fun errorMessageIsScrubbedBeforeItIsKept() {
         val payload = """{"error":{"message":"Incorrect API key provided: sk-abcdef123456."}}"""
         assertEquals("Incorrect API key provided: ….", errorMessage(payload))

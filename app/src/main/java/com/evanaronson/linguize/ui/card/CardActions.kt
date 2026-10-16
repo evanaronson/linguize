@@ -15,8 +15,8 @@ class CardActions(
     val onOpenSettings: (() -> Unit)?,
     /** Overrides an assumption (by its "about") with the writer's answer and checks again. */
     val onSettle: (about: String, answer: String) -> Unit,
-    /** True for a past check: the assumption chips would do nothing, so the card hides them. */
-    val readOnly: Boolean = false,
+    /** Retracts one live answer and checks again; null for a past check. */
+    val onRemoveChoice: ((about: String) -> Unit)? = null,
 ) {
     companion object {
         /**
@@ -49,19 +49,7 @@ class CardActions(
             onRetry = check::recheck,
             onOpenSettings = onOpenSettings,
             onSettle = check::settle,
-        )
-
-        /**
-         * For a card that's only read, like a past check: Copy copies and nothing else does
-         * anything. No check behind it, so it can't reach the model or history.
-         */
-        fun readOnly(context: Context) = CardActions(
-            onCopy = { text, _ -> context.copyToClipboard(text) },
-            review = null,
-            onRetry = {},
-            onOpenSettings = null,
-            onSettle = { _, _ -> },
-            readOnly = true,
+            onRemoveChoice = check::removeChoice,
         )
     }
 }

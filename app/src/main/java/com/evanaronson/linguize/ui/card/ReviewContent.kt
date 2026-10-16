@@ -57,11 +57,12 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
                     result.meaning,
                     result.assumptions,
                     settled,
-                    actions.onSettle.takeUnless { actions.readOnly },
+                    actions.onSettle,
+                    actions.onRemoveChoice,
                     onBack = { showingUnderstanding = false },
                 )
             } else {
-                val entry = understandingEntry(result.meaning, result.assumptions, settled, actions.readOnly)
+                val entry = understandingEntry(result.meaning, result.assumptions, settled, readOnly = false)
                 UnderstandingEntry(entry, onOpen = { showingUnderstanding = true })
                 if (entry.visible) Spacer(Modifier.height(8.dp))
                 Suggestions(result, settled, actions)
@@ -119,7 +120,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
     }
 
     val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val count = remaining.size.takeIf { it > 0 } ?: revision.edits(kind).size
+    val count = revision.edits(kind).size
     val label = pluralStringResource(
         if (fix) R.plurals.fix_count else R.plurals.rewording_count,
         count, count,
@@ -140,7 +141,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
         preview.text, highlights, accent, review?.onAccept,
         onCopy = { actions.onCopy(preview.text, kind) },
         copyDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
-        onSettle = actions.onSettle.takeUnless { actions.readOnly },
+        onSettle = actions.onSettle,
     )
     if (remaining.isEmpty()) {
         Spacer(Modifier.height(10.dp))

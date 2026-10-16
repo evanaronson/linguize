@@ -102,6 +102,7 @@ class HomeActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         settings.refresh()
+        (navigation.current as? Screen.Detail)?.let { session.load(it.id) }
     }
 
     override fun onNewIntent(intent: Intent) {

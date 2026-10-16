@@ -197,8 +197,18 @@ class FuzzCorpusTest(unittest.TestCase):
                                      "error": "InterruptedBeforeResult"}
                 replies.write_text("".join(json.dumps(row) + "\n" for row in rows))
                 engine.write_text("".join(json.dumps({"request_id": row["case"]["request_id"], "result": "reviewed",
+                                                      "replay_input": row,
                                                       "withheld": ["fix"] if i < 3 else []}) + "\n"
                                           for i, row in enumerate(rows)))
+                bound_replay = engine.read_text()
+                stale = [json.loads(line) for line in bound_replay.split("\n") if line]
+                stale[0]["replay_input"]["verdict"] = {"status": "unclear", "meaning": "old answer"}
+                engine.write_text("".join(json.dumps(row) + "\n" for row in stale))
+                with self.assertRaisesRegex(ValueError, "differs from current reply"):
+                    fuzz.main(argv + ["--repair-from", str(engine)])
+                self.assertEqual([], repair_calls)
+                self.assertEqual(rows, [json.loads(line) for line in replies.read_text().split("\n") if line])
+                engine.write_text(bound_replay)
                 self.assertEqual(0, fuzz.main(argv + ["--repair-from", str(engine)]))
                 self.assertEqual(0, fuzz.main(argv + ["--repair-from", str(engine), "--retry-errors"]))
                 saved = [json.loads(line) for line in replies.read_text().split("\n") if line]

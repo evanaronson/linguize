@@ -34,8 +34,8 @@ Request formatting mirrors `Prompt.userMessage`, including language varieties an
 normalization of settled answers; offline tests guard known drift points. Provider
 HTTP adapters are still separate Python implementations, so update them alongside
 changes to `llm/` and validate live results before drawing quality conclusions.
-They use the initial request options, without Android's retry that removes an
-unsupported reasoning/thinking option.
+Gemini retries once without a thinking option when the model rejects it, matching
+Android's compatibility behavior. OpenAI has no corresponding option retry.
 
 The live corruption workflow first replays the collected answers, then asks the same
 actual model once to repair structurally incomplete results (`Repair: true`). It

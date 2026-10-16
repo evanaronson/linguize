@@ -21,7 +21,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      # No checkout or third-party action: only GitHub's API and the runner's Python/gh.
+      # No checkout or third-party action: use the runner's Python, gh and Git.
       - name: Delete finished branches without deleting newer work
         env:
           GH_TOKEN: ${{ github.token }}
@@ -31,7 +31,7 @@ jobs:
           import json
           import os
           import subprocess
-          from urllib.parse import quote
+          import tempfile
           
           def api(path, method="GET", paginate=False):
               command = ["gh", "api", "--method", method, path]
@@ -57,18 +57,27 @@ jobs:
               ("feature/settings-home-test-build", "65601a11764d28b83b86d1f767baaa1d055c49e4"),
               ("feature/shortcut-tap-probe", "018a7cbfeca15ebbc7554ec0e03ad8521a57dcba"),
           }
-          for branch in api(f"{prefix}/branches?per_page=100", paginate=True):
-              name, sha = branch["name"], branch["commit"]["sha"]
-              if name == default or branch["protected"] or name in active:
-                  continue
-              if (name, sha) not in merged | retired:
-                  print(f"Keep {name}: no merged PR at its current tip")
-                  continue
-              ref = f"{prefix}/git/ref/heads/{quote(name, safe='')}"
-              current = api(ref)
-              if current["object"]["sha"] != sha:
-                  print(f"Keep {name}: branch moved during cleanup")
-                  continue
-              print(f"Delete {name} at {sha}")
-              api(f"{prefix}/git/refs/heads/{quote(name, safe='')}", method="DELETE")
+          # gh reads GH_TOKEN; no credential appears in the URL, argv or repository.
+          with tempfile.TemporaryDirectory() as directory:
+              subprocess.run(["git", "init", "--bare", "--quiet", directory], check=True)
+              git = ["git", "-C", directory, "-c", "credential.helper=",
+                     "-c", "credential.helper=!gh auth git-credential"]
+              git_env = dict(os.environ, GIT_TERMINAL_PROMPT="0", LC_ALL="C")
+              for branch in api(f"{prefix}/branches?per_page=100", paginate=True):
+                  name, sha = branch["name"], branch["commit"]["sha"]
+                  if name == default or branch["protected"] or name in active:
+                      continue
+                  if (name, sha) not in merged | retired:
+                      print(f"Keep {name}: no merged PR at its current tip")
+                      continue
+                  ref = f"refs/heads/{name}"
+                  result = subprocess.run(git + ["push", "--porcelain",
+                      f"--force-with-lease={ref}:{sha}", f"https://github.com/{repo}.git",
+                      f":{ref}"], env=git_env, capture_output=True, text=True)
+                  if result.returncode:
+                      if f"!\t(delete):{ref}\t[rejected] (stale info)" in result.stdout.splitlines():
+                          print(f"Keep {name}: branch moved or disappeared during cleanup")
+                          continue
+                      raise RuntimeError(f"Could not delete {name}:\n{result.stdout}{result.stderr}")
+                  print(f"Delete {name} at {sha}")
           PY

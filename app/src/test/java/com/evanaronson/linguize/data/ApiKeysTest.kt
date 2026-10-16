@@ -7,6 +7,7 @@ import com.evanaronson.linguize.llm.Provider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -14,7 +15,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Keys saved under a provider's name by earlier builds are moved to its token, as they're
- * stored. (Robolectric has no Android Keystore, so nothing here encrypts or decrypts.)
+ * stored. Robolectric has no Android Keystore, so successful encryption is not exercised here.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -39,6 +40,33 @@ class ApiKeysTest {
         ApiKeys(context)
         assertEquals("sealed-new", prefs.getString("openai", null))
         assertFalse(prefs.contains("OpenAI"))
+    }
+
+    @Test
+    fun successfulRemovalAdvancesOnlyThatProvidersRuntimeRevision() {
+        prefs.edit().putString("gemini", "sealed-key").commit()
+        val keys = ApiKeys(context)
+        assertEquals(0L, keys.revision(Provider.Gemini))
+        assertEquals(0L, keys.revision(Provider.OpenAI))
+
+        assertTrue(keys.set(Provider.Gemini, " "))
+
+        assertEquals(1L, keys.revision(Provider.Gemini))
+        assertEquals(0L, keys.revision(Provider.OpenAI))
+        assertEquals(emptyMap<String, Any?>(), prefs.all)
+        assertEquals(0L, ApiKeys(context).revision(Provider.Gemini))
+    }
+
+    @Test
+    fun failedEncryptionLeavesTheStoredKeyAndRuntimeRevisionUnchanged() {
+        prefs.edit().putString("gemini", "sealed-key").commit()
+        val keys = ApiKeys(context)
+
+        assertFalse(keys.set(Provider.Gemini, "replacement-key"))
+
+        assertEquals("sealed-key", prefs.getString("gemini", null))
+        assertEquals(0L, keys.revision(Provider.Gemini))
+        assertEquals(0L, keys.revision(Provider.OpenAI))
     }
 
     @Test

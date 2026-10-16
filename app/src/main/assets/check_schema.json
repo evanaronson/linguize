@@ -14,7 +14,7 @@
     },
     "meaning": {
       "type": "string",
-      "description": "The whole text translated into the writer's native language, the one on the Native: line. Never in the language the text is written in."
+      "description": "The whole text translated into the writer's native language, the one on the Native: line, when the text is in another language; empty when the text is already in the native language."
     },
     "assumptions": {
       "type": "array",

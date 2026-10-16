@@ -37,6 +37,29 @@ class ArchitectureGuardTest(unittest.TestCase):
         self.assertEqual(2, len(errors))
         self.assertTrue(all("must remain free of Android" in error for error in errors))
 
+    def test_semicolon_separated_android_import_is_checked_on_its_physical_line(self):
+        self.source("core/Example.kt", "package com.evanaronson.linguize.core; import android.os.Bundle\n")
+        _, errors = check(self.repo)
+        self.assertEqual(1, len(errors))
+        self.assertIn("core/Example.kt:1", errors[0])
+        self.assertIn("import android.os.Bundle", errors[0])
+        self.assertIn("must remain free of Android", errors[0])
+
+    def test_semicolon_sequence_checks_declarations_after_an_allowed_import(self):
+        self.source("core/Example.kt", "package com.evanaronson.linguize.core\n"
+                    "import com.evanaronson.linguize.codec.Tokens; "
+                    "import com.evanaronson.linguize.ui.card.CardState\n")
+        _, errors = check(self.repo)
+        self.assertEqual(1, len(errors))
+        self.assertIn("core/Example.kt:2", errors[0])
+        self.assertIn("forbidden dependency core -> ui", errors[0])
+
+    def test_allowed_semicolon_sequences_include_package_and_import_on_one_line(self):
+        self.source("core/Example.kt", "package com.evanaronson.linguize.core; "
+                    "import com.evanaronson.linguize.codec.Tokens;\n"
+                    "import com.evanaronson.linguize.codec.Codec\n")
+        self.assertEqual((1, []), check(self.repo))
+
     def test_allowed_edges_and_import_examples_in_comments_and_strings(self):
         self.source("core/Example.kt", '''/* Outer comment /* nested comment */
 import android.os.Bundle

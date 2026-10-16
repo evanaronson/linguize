@@ -26,8 +26,10 @@ def matching_review(reply, engine, note):
     return {"review_status": "not_reviewed_for_this_answer"}
 
 
-def complete_evidence(replies, engine_rows, corpus, require_repairs=False):
+def complete_evidence(replies, engine_rows, corpus, require_repairs=False, repair_collection=False, legacy_unbound=False):
     """Final audit gate; partial provider collection remains resumable elsewhere."""
+    if legacy_unbound and (require_repairs or repair_collection):
+        raise ValueError("Historical unbound replay cannot support live audit or repair collection")
     if len(corpus) != 100 or len({row["id"] for row in corpus}) != 100 or \
             len({row["original"] for row in corpus}) != 100 or \
             len({row["text"] for row in corpus}) != 100 or \
@@ -51,6 +53,7 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False):
 
     answers = indexed(replies, lambda row: row["case"]["request_id"], "Replies")
     engines = indexed(engine_rows, lambda row: row["request_id"], "Replay")
+    identity_fields = ("provider", "model", "prompt_sha256", "corpus_sha256")
     for identity, case in expected.items():
         reply = answers[identity]
         if reply["case"] != case:
@@ -59,6 +62,9 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False):
             raise ValueError(f"Audit requires a returned verdict for every request: {identity}")
         if engines[identity].get("result") not in ("reviewed", "unclear", "wrong_language"):
             raise ValueError(f"Audit requires a successful replay for every request: {identity}")
+        if not (legacy_unbound and "replay_input" not in engines[identity]) and any(
+                not isinstance(reply.get(key), str) or not reply[key].strip() for key in identity_fields):
+            raise ValueError(f"Audit requires nonempty provider, model and prompt/corpus hashes: {identity}")
         repair = reply.get("repair")
         if repair is not None and (repair.get("provider") != reply["provider"] or repair.get("model") != reply["model"] or
                                    repair.get("attempts") != 1 or ("verdict" in repair) == ("error" in repair)):
@@ -67,6 +73,19 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False):
         if require_repairs and (retry_evidence not in ("recorded", "not_needed") or
                                 retry_evidence == "recorded" and repair is None):
             raise ValueError(f"Final live audit requires actual repair evidence: {identity}")
+        # An initial replay remains usable to resume repair collection: rows with an
+        # already recorded attempt never consult its withheld flags or send again.
+        # Reports always need replay evidence for the current answer AND repair.
+        if not (repair_collection and "repair" in reply):
+            if legacy_unbound and "replay_input" not in engines[identity]:
+                continue
+            source = engines[identity].get("replay_input")
+            required_fields = ("case", *identity_fields, "verdict")
+            fields = (*required_fields, "repair")
+            if not isinstance(source, dict) or any(key not in source for key in required_fields) or \
+                    evidence_digest({key: source[key] for key in fields if key in source}) != \
+                    evidence_digest({key: reply[key] for key in fields if key in reply}):
+                raise ValueError(f"Replay input is unbound or differs from current reply; replay again: {identity}")
     return engines
 
 
@@ -76,7 +95,11 @@ def main():
     parser.add_argument("--reviews", type=Path, default=Path("eval/fuzz/manual_review.json"))
     parser.add_argument("--corpus", type=Path, default=Path("eval/fuzz/generated.jsonl"))
     parser.add_argument("--require-repairs", action="store_true", help="reject simulated retries in a final live audit")
+    parser.add_argument("--legacy-unbound", action="store_true",
+                        help="inspect historical replay without input provenance; never final live evidence")
     args = parser.parse_args()
+    if args.legacy_unbound and args.require_repairs:
+        parser.error("--legacy-unbound cannot support --require-repairs")
     reviews = {}
     if args.reviews.exists():
         rows = json.loads(args.reviews.read_text())
@@ -86,16 +109,18 @@ def main():
     replies = [json.loads(line) for line in (args.results / "replies.jsonl").read_text().split("\n") if line]
     engine_rows = [json.loads(line) for line in (args.results / "engine.jsonl").read_text().split("\n") if line]
     corpus = [json.loads(line) for line in args.corpus.read_text().split("\n") if line]
-    engines = complete_evidence(replies, engine_rows, corpus, args.require_repairs)
+    engines = complete_evidence(replies, engine_rows, corpus, args.require_repairs, legacy_unbound=args.legacy_unbound)
     joined = []
     for reply in sorted(replies, key=lambda r: r["case"]["request_id"]):
         case = reply["case"]
         engine = engines[case["request_id"]]
         review = matching_review(reply, engine, reviews.get(case["request_id"]))
-        joined.append({**reply, "engine": engine, "manual_review": review})
+        joined.append({**reply, "engine": engine, "manual_review": review,
+                       "replay_input_binding": "bound" if "replay_input" in engine else "legacy_unbound"})
     (args.results / "review.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in joined))
     summary = {
         "requests": len(joined),
+        "replay_input_binding": collections.Counter(row["replay_input_binding"] for row in joined),
         "answered": sum("verdict" in row for row in joined),
         "provider_errors": sum("error" in row for row in joined),
         "repair_attempts": sum("repair" in row for row in joined),
@@ -131,10 +156,13 @@ def main():
                         "</pre><h3>Individual Accept actions</h3><ol>" + edits +
                         "</ol><h3>Full evidence</h3><pre>" +
                         esc(json.dumps(row, ensure_ascii=False, indent=2)) + "</pre></details>")
+    binding_notice = "<p>Historical unbound replay: these outputs do not record which answers were replayed. " \
+        "Their pairing with the current reply file is unverified.</p>" if any(
+            row["replay_input_binding"] == "legacy_unbound" for row in joined) else ""
     document = "<!doctype html><meta charset='utf-8'><title>Linguize corruption review</title>" \
         "<style>body{font:16px system-ui;max-width:1100px;margin:32px auto;padding:16px}" \
         "details{border:1px solid #bbb;padding:16px;margin:12px 0}pre{white-space:pre-wrap}" \
-        "summary{cursor:pointer}li{margin:16px 0}</style><h1>200 checker results</h1>" \
+        "summary{cursor:pointer}li{margin:16px 0}</style><h1>200 checker results</h1>" + binding_notice + \
         "<p>100 synthetic passages; each checked in its named language and Auto Detect. " \
         "Clean context is not an exact correction oracle. Replies taking over 30 seconds use an extended " \
         "diagnostic timeout; the shipped app would time out. Engine flags record violations, " \

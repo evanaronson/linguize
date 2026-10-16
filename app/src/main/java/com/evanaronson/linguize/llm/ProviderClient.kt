@@ -48,13 +48,13 @@ interface ProviderClient {
     /** Throws [CheckFailure]; one about an answer that couldn't be read carries it as [CheckFailure.raw]. */
     suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer
 
-    /** Models this key can use for checks, newest first. Throws [CheckFailure]. */
+    /** Models this key can use for checks, ordered by extracted numeric version descending, then ID ascending. Throws [CheckFailure]. */
     suspend fun models(key: String): List<String>
 }
 
 /** [raw] read as a verdict, kept alongside it; a failure to read it keeps it too. */
 internal fun Prompt.read(raw: String): ModelAnswer = try {
-    ModelAnswer(parseVerdict(raw, requireScores = true), raw)
+    ModelAnswer(parseVerdict(raw, requireFreshContract = true), raw)
 } catch (e: CheckFailure) {
     throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw, userMessage = e.userMessage)
 }
@@ -80,7 +80,7 @@ internal class DroppableOption(private val refusal: String) {
     }
 }
 
-/** Drops models built for other jobs (speech, images, embeddings…) and sorts the rest newest first. */
+/** Drops models built for other jobs (speech, images, embeddings…) and orders the rest by extracted numeric version descending, then ID ascending. */
 internal fun textModels(ids: List<String>): List<String> = ids
     .filterNot { id -> SPECIAL_PURPOSE.any { it in id.lowercase() } }
     .distinct()

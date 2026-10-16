@@ -93,6 +93,7 @@ class SessionRecording(
             provider = settings.provider,
             model = settings.model,
             promptHash = settings.promptHash,
+            writingProfiles = settings.writingProfiles,
             appVersion = context.appVersion,
         )
     }
@@ -137,6 +138,7 @@ class SessionRecording(
             provider = settings.provider,
             model = settings.model,
             promptHash = settings.promptHash,
+            writingProfiles = settings.writingProfiles,
             failureMessage = failureMessage,
             targetLanguage = target,
             detectedLanguage = detected,
@@ -153,6 +155,7 @@ class SessionRecording(
             provider = settings.provider,
             model = settings.model,
             promptHash = settings.promptHash,
+            writingProfiles = settings.writingProfiles,
             updatedAt = maxOf(session.updatedAt, at),
             attempts = session.attempts + attempt,
             meaning = if (succeeded) meaning else session.meaning,
@@ -194,7 +197,7 @@ class SessionRecording(
      */
     fun changed(revision: Revision) {
         val current = this.revision ?: return
-        if (closed != null || revision.edits != current.edits) return
+        if (closed != null || revision.edits.map { it.copy(assessment = null) } != current.edits.map { it.copy(assessment = null) }) return
         this.revision = revision
         remember(revision)
     }
@@ -303,6 +306,7 @@ class SessionRecording(
             why = edit.why,
             decision = decision,
             decidedAt = decidedAt,
+            assessment = edit.assessment,
         )
     }
 

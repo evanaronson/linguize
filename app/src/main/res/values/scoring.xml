@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Temporary labels for the display-only, ordinal 0–3 scoring experiment. -->
+    <string name="assessment_confidence">Confidence</string>
+    <string name="assessment_impact">Impact</string>
+    <string name="assessment_dimension">%1$s: %2$s</string>
+    <string name="assessment_score">%1$d/3 · %2$s</string>
+    <string name="assessment_unassessed">Unassessed</string>
+    <string name="confidence_unsupported">Unsupported</string>
+    <string name="confidence_weak">Weak</string>
+    <string name="confidence_moderate">Moderate</string>
+    <string name="confidence_strong">Strong</string>
+    <string name="impact_none">No clear benefit</string>
+    <string name="impact_minor">Minor</string>
+    <string name="impact_substantial">Substantial</string>
+    <string name="impact_critical">Meaning-critical</string>
+    <plurals name="review_assumptions">
+        <item quantity="one">Review assumptions · %d</item>
+        <item quantity="other">Review assumptions · %d</item>
+    </plurals>
+    <string name="clarify">Clarify</string>
+    <string name="clarify_about">Clarify: %1$s</string>
+</resources>

@@ -53,10 +53,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.SuggestionAssessment
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
-data class Highlight(val id: Int, val range: IntRange, val from: String, val why: String?)
+data class Highlight(
+    val id: Int,
+    val range: IntRange,
+    val from: String,
+    val why: String?,
+    val assessment: SuggestionAssessment? = null,
+)
 
 /** Deletions and spacing cannot offer a visible text target; show their controls separately. */
 internal fun Highlight.needsPanel(text: String) = text.substring(range).isSpacing()
@@ -270,6 +277,7 @@ private fun Explanation(change: Highlight, replacement: String, accent: Color, o
                 change.why?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                AssessmentDetails(change.assessment)
             }
             if (onReplace != null) {
                 Spacer(Modifier.width(8.dp))

@@ -245,7 +245,7 @@ class SqliteHistoryStore(
          * is started afresh instead: the old rows are dropped, and that is logged.
          */
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            val statements = HistorySchema.upgrade(oldVersion, db.columns(HistorySchema.SESSIONS))
+            val statements = HistorySchema.upgrade(oldVersion, db.columns(HistorySchema.SESSIONS), db.columns(HistorySchema.SUGGESTIONS))
             if (statements == null) {
                 Log.w(TAG, "No way to upgrade history from version $oldVersion to $newVersion; starting afresh")
                 HistorySchema.DROP.forEach(db::execSQL)
@@ -253,13 +253,15 @@ class SqliteHistoryStore(
                 return
             }
             statements.forEach(db::execSQL)
+            // DB 6 already captured language evidence. Scoring adds unknown metadata only.
+            if (oldVersion >= 6) return
             val rewritten = buildList {
                 db.eachRow(HistorySchema.ALL_ATTEMPTS) { row ->
                     val stored = row.string("attempts")
                     val contextual = if (oldVersion < 4) {
                         upgradeAttempts(stored, HistorySchema.ATTEMPT_CONTEXT.associateWith(row::stringOrNull))
                     } else stored
-                    val upgraded = upgradeLanguageAttempts(contextual)
+                    val upgraded = if (oldVersion < 6) upgradeLanguageAttempts(contextual) else contextual
                     val latest = decodeAttempts(upgraded).lastOrNull()
                     val detected = latest?.detectedLanguage
                     val target = latest?.targetLanguage ?: languageCode(row.stringOrNull("requestedLanguage"))

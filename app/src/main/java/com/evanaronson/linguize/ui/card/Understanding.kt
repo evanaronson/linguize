@@ -39,22 +39,35 @@ import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.ui.components.BackButton
 
-/**
- * The quiet line at the top of the card that leads to how the text was
- * understood: its meaning and any assumptions. Nothing when there's neither.
- */
+/** Presentation keeps historical assumptions readable without promising a re-check. */
+internal data class UnderstandingEntryState(val visible: Boolean, val unresolved: Int, val canClarify: Boolean)
+
+internal fun understandingEntry(
+    meaning: String,
+    assumptions: List<Assumption>,
+    settled: List<Settled>,
+    readOnly: Boolean,
+): UnderstandingEntryState {
+    val unresolved = assumptions.count { a -> settled.none { it.about == a.about } }
+    return UnderstandingEntryState(
+        visible = meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
+        unresolved = unresolved,
+        canClarify = !readOnly && unresolved > 0,
+    )
+}
+
+/** The existing secondary page, with an explicit invitation when clarification is available. */
 @Composable
-internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () -> Unit) {
-    val parts = buildList {
-        if (meaning.isNotBlank()) add(stringResource(R.string.meaning))
-        if (assumptions > 0) add(pluralStringResource(R.plurals.assumption_count, assumptions, assumptions))
-    }
-    if (parts.isEmpty()) return
+internal fun UnderstandingEntry(entry: UnderstandingEntryState, onOpen: () -> Unit) {
+    if (!entry.visible) return
+    val label = if (entry.canClarify) {
+        pluralStringResource(R.plurals.review_assumptions, entry.unresolved, entry.unresolved)
+    } else stringResource(R.string.meaning)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClickLabel = stringResource(R.string.show_understanding), onClick = onOpen)
+            .clickable(onClickLabel = if (entry.canClarify) label else stringResource(R.string.show_understanding), onClick = onOpen)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -66,7 +79,7 @@ internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () ->
             modifier = Modifier.clearAndSetSemantics {},
         )
         Text(
-            parts.joinToString(stringResource(R.string.status_separator)),
+            label,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -84,7 +97,7 @@ internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () ->
  * How the text was understood, shown in place of the suggestions: what it means,
  * in the writer's own language, then what was assumed where it was ambiguous.
  * Each assumption is presented as right; alternatives appear only after
- * "Not right", and picking one checks again with that answer.
+ * "Clarify", and picking one checks again with that answer.
  *
  * Both are the AI's reading, and text written by someone else can steer it (a
  * message can ask to be "understood" as something it isn't), so a quiet line at the
@@ -161,11 +174,11 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
                     }
                 }
                 if (onSettle != null && assumption.alternatives.isNotEmpty() && changing != assumption.about) {
-                    val notRight = stringResource(R.string.not_right_about, assumption.about)
+                    val clarify = stringResource(R.string.clarify_about, assumption.about)
                     TextButton(
                         onClick = { changing = assumption.about },
-                        modifier = Modifier.semantics { contentDescription = notRight },
-                    ) { Text(stringResource(R.string.not_right)) }
+                        modifier = Modifier.semantics { contentDescription = clarify },
+                    ) { Text(stringResource(R.string.clarify)) }
                 }
             }
             if (onSettle != null && changing == assumption.about) {

@@ -62,9 +62,9 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
                     onBack = { showingUnderstanding = false },
                 )
             } else {
-                val count = settled.size + result.assumptions.count { a -> settled.none { it.about == a.about } }
-                UnderstandingEntry(result.meaning, count, onOpen = { showingUnderstanding = true })
-                if (count > 0 || result.meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
+                val entry = understandingEntry(result.meaning, result.assumptions, settled, actions.readOnly)
+                UnderstandingEntry(entry, onOpen = { showingUnderstanding = true })
+                if (entry.visible) Spacer(Modifier.height(8.dp))
                 Suggestions(result, actions)
             }
         }
@@ -124,7 +124,7 @@ private fun EditSection(kind: EditKind, revision: Revision, withheld: Boolean, o
     )
     val preview = revision.preview(kind)
     val highlights = remaining.mapNotNull { edit ->
-        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
+        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why, edit.assessment) }
     }
     Text(
         label,

@@ -48,7 +48,7 @@ internal fun understandingEntry(
     settled: List<Settled>,
     readOnly: Boolean,
 ): UnderstandingEntryState {
-    val unresolved = assumptions.count { a -> settled.none { it.about == a.about } }
+    val unresolved = assumptions.count { a -> a.alternatives.isNotEmpty() && settled.none { it.about == a.about } }
     return UnderstandingEntryState(
         visible = meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
         unresolved = unresolved,

@@ -37,12 +37,19 @@ class SuggestionAssessmentTest {
         assertEquals(SuggestionAssessment(3, 2), trimmed.assessment)
     }
 
-    @Test fun mechanicalSplitsRetainTheirReportedAssessment() {
+    @Test fun mechanicalSplitsDoNotInventIndividualAssessmentsFromAnAggregate() {
         val edits = Edits.fixes("estas despres", "estàs després", listOf(
             VerdictChange("estas despres", "estàs després", "Accents", 3, 1),
         )).edits
         assertEquals(2, edits.size)
-        assertTrue(edits.all { it.assessment == SuggestionAssessment(3, 1) })
+        assertTrue(edits.all { it.assessment == null })
+        val separate = Edits.fixes("estas despres", "estàs després", listOf(
+            VerdictChange("estas", "estàs", "Accent", 3, 1),
+            VerdictChange("despres", "després", "Accent", 2, 2),
+        )).edits
+        assertEquals(listOf(SuggestionAssessment(3, 1), SuggestionAssessment(2, 2)), separate.map { it.assessment })
+        assertEquals(edits.map { it.copy(assessment = null, why = null) },
+            separate.map { it.copy(assessment = null, why = null) })
     }
 
     @Test fun boundaryCaseGroupingRetainsOneDecisionButNeverInventsACombinedScore() {

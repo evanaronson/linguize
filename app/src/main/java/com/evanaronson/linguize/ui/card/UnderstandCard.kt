@@ -15,8 +15,17 @@ import com.evanaronson.linguize.ui.understand.UnderstandState
 
 /** Translation, original and optional source-anchored notes, without correction controls. */
 @Composable
-fun UnderstandCard(state: UnderstandState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+fun UnderstandCard(
+    state: UnderstandState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenSettings: (() -> Unit)? = null,
+    onBackToCheck: (() -> Unit)? = null,
+) {
     ResultSurface(modifier) {
+        onBackToCheck?.let { back ->
+            TextButton(onClick = back) { Text(stringResource(R.string.back_to_check)) }
+        }
         when (state) {
             UnderstandState.ReadingClipboard -> Loading("", stringResource(R.string.reading_copied_text))
             is UnderstandState.Message -> {
@@ -60,7 +69,7 @@ fun UnderstandCard(state: UnderstandState, onRetry: () -> Unit, modifier: Modifi
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             is UnderstandState.Failed -> Failure(
-                state.failure.reason, state.failure.userMessage, state.failure.detail, onRetry, null,
+                state.failure.reason, state.failure.userMessage, state.failure.detail, onRetry, onOpenSettings,
             )
         }
     }

@@ -9,8 +9,8 @@ prompt defines anchors, meaning-preservation checks and register/variety guidanc
 Ratings and temporary labels appear only when a suggestion explanation is opened.
 No score filters, reordering, automatic acceptance or clipboard/write-back changes
 are introduced. A validated report's assessment follows that linguistic decision
-through mapping. A mechanically split report keeps its assessment; a grouping of
-unrelated reports or inferred fallback repair remains Unassessed rather than
+through mapping. A report split into independent repairs, a grouping of
+unrelated reports or an inferred fallback repair remains Unassessed rather than
 inventing a model rating. Legacy records similarly remain unassessed. Model wire
 responses require paired JSON integers; invalid, missing, quoted, boolean or
 out-of-range fresh scores fail rather than becoming zero.

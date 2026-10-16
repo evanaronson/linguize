@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.UnderstandContext
 import com.evanaronson.linguize.core.Understood
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.ui.ClipboardText
@@ -27,12 +28,17 @@ sealed interface UnderstandState {
 }
 
 /** No history or write-back hooks. Retries always use the captured input. */
-class UnderstandViewModel(private val explain: suspend (String) -> Understood) : ViewModel() {
+class UnderstandViewModel(
+    private val context: suspend () -> UnderstandContext,
+    private val explain: suspend (String, UnderstandContext) -> Understood,
+) : ViewModel() {
     var state by mutableStateOf<UnderstandState>(UnderstandState.ReadingClipboard)
         private set
     private var text: String? = null
     private var generation = 0L
     private var job: Job? = null
+    private var staleCheck: Job? = null
+    private var ranWith: UnderstandContext? = null
 
     fun readingClipboard() {
         cancel()
@@ -57,10 +63,14 @@ class UnderstandViewModel(private val explain: suspend (String) -> Understood) :
         val snapshot = text ?: return
         cancel()
         val requested = generation
+        ranWith = null
         state = UnderstandState.Loading(snapshot)
         job = viewModelScope.launch {
             val shown = try {
-                UnderstandState.Done(snapshot, explain(snapshot))
+                val used = context()
+                if (requested != generation) return@launch
+                ranWith = used
+                UnderstandState.Done(snapshot, explain(snapshot, used))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CheckFailure) {
@@ -72,8 +82,31 @@ class UnderstandViewModel(private val explain: suspend (String) -> Understood) :
         }
     }
 
+    /** Returning from Settings refreshes the captured message, including an in-flight request. */
+    fun recheckIfStale() {
+        if (text == null) return
+        val requested = generation
+        staleCheck?.cancel()
+        staleCheck = viewModelScope.launch {
+            val now = try {
+                context()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (requested != generation || text == null) return@launch
+            if (state is UnderstandState.Failed || now == null || now != ranWith) {
+                staleCheck = null
+                retry()
+            }
+        }
+    }
+
     fun cancel() {
         generation++
+        staleCheck?.cancel()
+        staleCheck = null
         job?.cancel()
         job = null
     }
@@ -81,10 +114,10 @@ class UnderstandViewModel(private val explain: suspend (String) -> Understood) :
     companion object {
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                UnderstandViewModel { text ->
-                    val engine = withContext(Dispatchers.Default) { app.understander }
-                    engine.understand(text)
-                }
+                UnderstandViewModel(
+                    context = { withContext(Dispatchers.Default) { app.understander }.context() },
+                    explain = { text, used -> app.understander.understand(text, used) },
+                )
             }
         }
     }

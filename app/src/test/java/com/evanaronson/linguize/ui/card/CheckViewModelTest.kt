@@ -136,8 +136,7 @@ class CheckViewModelTest {
     fun switchingToUnderstandDiscardsTheProvisionalCheckWithoutApplying() {
         check.check(QUESTION, null, Origin.Button)
         reviewed()
-        check.acceptAll(EditKind.Fix)
-        check.discard()
+        assertFalse(check.suspendForUnderstand())
         runBlocking { history.flush() }
         assertNull(check.state)
         assertNull(check.workingText)
@@ -156,12 +155,51 @@ class CheckViewModelTest {
         client.answer = { awaitCancellation() }
         check.check(QUESTION, null, Origin.Button)
         waitFor("a provisional record") { store.saves.get() > 0 }
-        check.discard()
+        assertFalse(check.suspendForUnderstand())
         runBlocking { history.flush() }
         settle()
         assertNull(check.state)
         assertTrue(closed().isEmpty())
         assertEquals(1, store.deleted.size)
+    }
+
+    @Test
+    fun switchingToUnderstandKeepsAcceptedWorkAndClosingDoesNotApplyIt() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val retained = check.state
+        assertTrue(check.suspendForUnderstand())
+        assertEquals(retained, check.state)
+        assertEquals("Com estàs?", check.workingText)
+        assertTrue(store.deleted.isEmpty())
+        // Even if clipboard capture fails, returning uses this same state and Undo stack.
+        check.undo()
+        assertNull(check.workingText)
+        assertTrue(check.suspendForUnderstand())
+        check.dismiss(applied = false)
+        assertNull(closed().single().finalText)
+        assertTrue(store.deleted.isEmpty())
+    }
+
+    @Test
+    fun copiedAndClarifiedChecksAreRetainedWithoutAcceptedEdits() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.copied(EditKind.Fix)
+        assertTrue(check.suspendForUnderstand())
+        assertNull(check.workingText)
+        check.dismiss(applied = false)
+        assertEquals(Outcome.Copied, closed().single().outcome)
+
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.settle("tu", "informal")
+        val answered = done()
+        assertTrue(check.suspendForUnderstand())
+        assertEquals(answered, check.state)
+        assertEquals(listOf(Settled("tu", "informal")), answered.settled)
+        assertTrue(store.deleted.isEmpty())
     }
 
     @Test

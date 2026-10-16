@@ -10,6 +10,8 @@ import com.evanaronson.linguize.core.WritingProfile
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import com.evanaronson.linguize.llm.Provider
 
@@ -50,18 +52,32 @@ class Settings(private val context: Context) : CheckPreferences {
         writingProfiles // Complete first-use migration before editing the stored records.
         val existing = readStoredWritingProfiles()
         require(existing.any { it.id == profile.id && it.language == profile.language }) { "Unknown writing profile" }
-        val profiles = existing.map { if (it.id == profile.id) profile else it }
-        prefs.edit().putString(WRITING_PROFILES, profileJson.encodeToString(profiles)).apply()
+        val records = readStoredWritingProfileRecords().orEmpty().toMutableList()
+        // Change only the selected record. Opaque records must retain their order and
+        // identity so a newer build can still select them without a default shadowing them.
+        val index = records.indexOfFirst { entry ->
+            val decoded = runCatching { profileJson.decodeFromJsonElement<WritingProfile>(entry) }.getOrNull()
+            decoded != null && decoded.id == profile.id && decoded.language == profile.language
+        }
+        val updated = profileJson.encodeToJsonElement(profile) as JsonObject
+        if (index >= 0) {
+            records[index] = JsonObject((records[index] as JsonObject) + updated)
+        } else {
+            records += updated
+        }
+        prefs.edit().putString(WRITING_PROFILES, JsonArray(records).toString()).apply()
+    }
+
+    private fun readStoredWritingProfileRecords(): JsonArray? {
+        val raw = runCatching { prefs.getString(WRITING_PROFILES, null) }.getOrNull()
+        return raw?.takeIf { it.length <= 65_536 }?.let {
+            runCatching { profileJson.parseToJsonElement(it) as? JsonArray }.getOrNull()
+        }
     }
 
     private fun readStoredWritingProfiles(): List<WritingProfile> {
-        val raw = runCatching { prefs.getString(WRITING_PROFILES, null) }.getOrNull()
-        val records = raw?.takeIf { it.length <= 65_536 }?.let {
-            runCatching { profileJson.parseToJsonElement(it) as? JsonArray }.getOrNull()
-        }
-        // A malformed entry cannot erase another language's usable profile. Unknown records
-        // are retained when editing supported languages, allowing forward-compatible storage.
-        val decoded = records.orEmpty().mapNotNull { entry ->
+        // A malformed entry cannot erase another language's usable profile.
+        val decoded = readStoredWritingProfileRecords().orEmpty().mapNotNull { entry ->
             runCatching { profileJson.decodeFromJsonElement<WritingProfile>(entry) }.getOrNull()
         }.distinctBy { it.id }
         val supported = Language.all.map { language ->

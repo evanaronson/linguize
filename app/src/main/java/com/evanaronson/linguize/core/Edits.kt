@@ -31,11 +31,16 @@ internal object Edits {
                 // The model supplies linguistic decisions. Only mechanically equivalent
                 // orthography/formatting can be divided without inventing new decisions.
                 if (wording(span.from, span.replacement)) listOf(span)
-                else mechanicalRepairs(span.from, span.replacement).map { part ->
-                    part.copy(start = span.start + part.start, end = span.start + part.end,
-                        assessment = span.assessment, reportId = span.reportId,
-                        why = span.why.takeIf { Alignment.same(part.from, span.from) &&
-                            Alignment.same(part.replacement, span.replacement) })
+                else {
+                    val parts = mechanicalRepairs(span.from, span.replacement)
+                    parts.map { part ->
+                        part.copy(start = span.start + part.start, end = span.start + part.end,
+                            // A rating of the whole report does not assess each independent
+                            // repair produced by splitting it. Keep the raw report as evidence.
+                            assessment = span.assessment.takeIf { parts.size == 1 }, reportId = span.reportId,
+                            why = span.why.takeIf { Alignment.same(part.from, span.from) &&
+                                Alignment.same(part.replacement, span.replacement) })
+                    }
                 }
             }
         } else if (!wording(original, corrected)) {

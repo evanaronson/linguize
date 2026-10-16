@@ -43,7 +43,128 @@ def exported():
                              "fromText": "estas", "toText": "estàs", "decision": "accepted", "why": "Accent"}]}
 
 
+def natural_export():
+    original = "😀 estas amb pluja"
+    return {"session": {"id": "natural-session", "schema": 6, "text": original,
+                        "attempts": [{"targetLanguage": "ca", "settled": [], "raw": json.dumps({
+                            "status": "ok", "has_errors": True, "corrected": "😀 estàs amb pluja",
+                            "fixes": [{"from": "estas", "to": "estàs"}],
+                            "natural": "😀 portes pluja",
+                            "natural_changes": [{"from": "estàs amb", "to": "portes"}]})}]},
+            "suggestions": [{"id": "natural-edit", "attempt": 0, "kind": "natural",
+                             "start": 3, "end": 12, "fromText": "estas amb", "toText": "portes"}]}
+
+
 class AssessmentTest(unittest.TestCase):
+    def test_natural_history_matches_corrected_decision_preserving_original_utf16_evidence(self):
+        row = natural_export()
+        before = copy.deepcopy(row)
+        c = experiment.history_cases([row])[0]
+        self.assertEqual(before, row)
+        self.assertEqual((2, 11, "estas amb", "portes"), (c["start"], c["end"], c["from"], c["to"]))
+        self.assertEqual({"baseline": "😀 estàs amb pluja", "start": 2, "end": 11,
+                          "from": "estàs amb", "to": "portes"}, c["assessmentInput"])
+        self.assertIsNone(experiment.unassessable_reason(c))
+
+    def test_missing_inconsistent_ambiguous_or_unmatched_raw_keeps_natural_evidence_unknown(self):
+        for mode in ("missing", "invalid-json", "incomplete-fixes", "unmatched", "ambiguous"):
+            row = natural_export()
+            attempt = row["session"]["attempts"][0]
+            raw = json.loads(attempt["raw"])
+            if mode == "missing":
+                attempt.pop("raw")
+            elif mode == "invalid-json":
+                attempt["raw"] = "{"
+            else:
+                if mode == "incomplete-fixes":
+                    raw["fixes"] = []
+                elif mode == "unmatched":
+                    row["suggestions"][0]["toText"] = "aguantes"
+                else:
+                    row["session"]["text"] = "a a"
+                    row["suggestions"][0].update(start=0, end=1, fromText="a", toText="b")
+                    raw.update(has_errors=False, corrected="", fixes=[], natural="a a a",
+                               natural_changes=[{"from": "", "to": "a "}])
+                attempt["raw"] = json.dumps(raw)
+            with self.subTest(mode=mode):
+                c = experiment.history_cases([row])[0]
+                self.assertNotIn("assessmentInput", c)
+                self.assertTrue(experiment.unassessable_reason(c))
+                self.assertEqual(row["suggestions"][0]["toText"], c["to"])
+
+    def test_exact_natural_matching_maps_length_changing_fix(self):
+        row = natural_export()
+        row["session"]["text"] = "😀 tinc que usar això"
+        row["suggestions"][0].update(start=3, end=16, fromText="tinc que usar", toText="necessito utilitzar")
+        row["session"]["attempts"][0]["raw"] = json.dumps({
+            "status": "ok", "has_errors": True, "corrected": "😀 he d'usar això",
+            "fixes": [{"from": "tinc que usar", "to": "he d'usar"}],
+            "natural": "😀 necessito utilitzar això",
+            "natural_changes": [{"from": "he d'usar", "to": "necessito utilitzar"}]})
+        c = experiment.history_cases([row])[0]
+        self.assertEqual("he d'usar", c["assessmentInput"]["from"])
+
+    def test_natural_without_fixes_uses_explicit_original_baseline(self):
+        row = natural_export()
+        row["session"]["text"] = "😀 estàs amb pluja"
+        row["suggestions"][0]["fromText"] = "estàs amb"
+        raw = json.loads(row["session"]["attempts"][0]["raw"])
+        raw.update(has_errors=False, corrected="", fixes=[])
+        row["session"]["attempts"][0]["raw"] = json.dumps(raw)
+        c = experiment.history_cases([row])[0]
+        self.assertEqual(c["original"], c["assessmentInput"]["baseline"])
+
+    def test_trimmed_report_context_is_unknown_rather_than_reimplementing_engine(self):
+        row = natural_export()
+        raw = json.loads(row["session"]["attempts"][0]["raw"])
+        raw["natural_changes"] = [{"from": "😀 estàs amb pluja", "to": "😀 portes pluja"}]
+        row["session"]["attempts"][0]["raw"] = json.dumps(raw)
+        c = experiment.history_cases([row])[0]
+        self.assertNotIn("assessmentInput", c)
+        self.assertTrue(experiment.unassessable_reason(c))
+
+    def test_natural_live_and_blind_review_use_identical_corrected_context(self):
+        c = experiment.history_cases([natural_export()])[0]
+        unknown = copy.deepcopy(c)
+        unknown["id"] = "unknown"
+        unknown.pop("assessmentInput")
+        calls = []
+        def check(model, key, system, schema, message):
+            calls.append(json.loads(message))
+            return assessment(), .1
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.dict(experiment.provider_eval.PROVIDERS, {"fake": (check, "fixture-model", "FIXTURE_KEY")}), \
+                patch.dict(os.environ, {"FIXTURE_KEY": "fixture"}), contextlib.redirect_stdout(io.StringIO()):
+            out = Path(folder) / "results.jsonl"
+            self.assertEqual(1, experiment.score([c, unknown], out, "fake", None, 1))
+            records = experiment.load_lines(out)
+            self.assertEqual([experiment.assessable(c)], calls)
+            unavailable = next(r for r in records if r["id"] == "unknown")
+            self.assertIsNone(unavailable["assessment"])
+            self.assertTrue(unavailable["unassessableReason"])
+            summary = experiment.summarize([c, unknown], records, {})
+            self.assertEqual(1, summary["unassessableCases"])
+            self.assertEqual(0, summary["failedCalls"])
+            report = Path(folder) / "report"
+            experiment.report([c, unknown], records, {}, report)
+            for filename in ("blind.html", "review.html"):
+                page = (report / filename).read_text()
+                self.assertIn("Corrected baseline: 😀 estàs amb pluja", page)
+                self.assertIn("Only this natural decision applied: 😀 portes pluja", page)
+                self.assertIn("NOT ASSESSABLE", page)
+                self.assertIn("estas amb", page)
+            with self.assertRaises(ValueError):
+                experiment.summarize([unknown], [result(unknown, assessment())], {})
+
+    def test_baseline_changes_invalidate_hashes_and_malformed_basis_is_rejected(self):
+        c = experiment.history_cases([natural_export()])[0]
+        old_hash = experiment.digest(experiment.assessable(c))
+        c["assessmentInput"]["baseline"] += "!"
+        self.assertNotEqual(old_hash, experiment.digest(experiment.assessable(c)))
+        c["assessmentInput"]["from"] = "wrong"
+        with self.assertRaises(ValueError):
+            experiment.validate_case(c)
+
     def test_history_uses_utf16_spans_and_own_attempt_context(self):
         row = exported()
         before = copy.deepcopy(row)

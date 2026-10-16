@@ -18,6 +18,27 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class)
 class PopupAppActivityTest {
     @Test
+    fun settingsRecoveryUsesTheSameReturnGatewayAndTargetsSettings() {
+        val context = RuntimeEnvironment.getApplication()
+        var returns = 0
+        val onReturn = { returns++; Unit }
+        val token = PopupReturn.await(onReturn)
+        val intent = PopupAppActivity.intent(context, token, openSettings = true)
+        val controller = Robolectric.buildActivity(PopupAppActivity::class.java, intent)
+        try {
+            controller.create().start().resume()
+            val opened = shadowOf(controller.get()).nextStartedActivityForResult.intent
+            val expected = HomeActivity.settingsIntent(context)
+            assertEquals(expected.component, opened.component)
+            assertEquals(expected.extras?.getBoolean("openSettings"), opened.extras?.getBoolean("openSettings"))
+            assertTrue(opened.getBooleanExtra("openSettings", false))
+            controller.get().finish()
+            controller.pause().stop().destroy()
+            assertEquals(1, returns)
+        } finally { PopupReturn.cancel(onReturn) }
+    }
+
+    @Test
     fun recreationKeepsThePopupHiddenWithoutOpeningAnotherAppInstance() {
         var returns = 0
         val onReturn = { returns++; Unit }

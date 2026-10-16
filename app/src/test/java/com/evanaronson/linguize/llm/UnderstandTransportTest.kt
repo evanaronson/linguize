@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.llm
 
 import com.evanaronson.linguize.Understander
+import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.data.CheckPreferences
@@ -15,6 +16,23 @@ import org.junit.Test
 class UnderstandTransportTest {
     private val prompt = Prompt("CORRECTION PROMPT MUST NOT BE SENT", "{}")
     private val raw = """{"translation":"They are asking how you are.","notes":[]}"""
+
+    @Test fun aReadingRequestUsesTheExactSettingsSnapshotItWasStartedWith() = runBlocking {
+        val http = FakeHttp { _, _ ->
+            val wire = JsonPrimitive(raw)
+            200 to """{"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":$wire}]}}]}"""
+        }
+        val prefs = FakePreferences().apply { models[Provider.Gemini] = "captured-model" }
+        val engine = Understander(prefs, ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client, prompt)))
+        val used = engine.context()
+        prefs.provider = Provider.OpenAI
+        prefs.nativeLanguage = "Catalan"
+        prefs.models[Provider.Gemini] = "later-model"
+        engine.understand("Bon dia", used)
+        assertTrue(http.requests.single().url.toString().contains("captured-model"))
+        assertTrue(http.body(0).contains("English"))
+        assertFalse(http.body(0).contains("Catalan"))
+    }
 
     @Test fun bothProvidersSendTheReadingSchemaAndNeverInterpretItAsACorrection() = runBlocking {
         for (provider in Provider.entries) {

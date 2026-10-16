@@ -18,7 +18,9 @@ class PopupAppActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) return
         try {
-            launch.launch(HomeActivity.homeIntent(this))
+            launch.launch(if (intent.getBooleanExtra(OPEN_SETTINGS, false)) {
+                HomeActivity.settingsIntent(this)
+            } else HomeActivity.homeIntent(this))
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, R.string.open_linguize_failed, Toast.LENGTH_SHORT).show()
             finish()
@@ -37,8 +39,10 @@ class PopupAppActivity : ComponentActivity() {
 
     companion object {
         private const val RETURN_TOKEN = "returnToken"
-        fun intent(context: Context, returnToken: Long) = Intent(context, PopupAppActivity::class.java)
+        private const val OPEN_SETTINGS = "openSettings"
+        fun intent(context: Context, returnToken: Long, openSettings: Boolean = false) = Intent(context, PopupAppActivity::class.java)
             .putExtra(RETURN_TOKEN, returnToken)
+            .putExtra(OPEN_SETTINGS, openSettings)
             // Its own temporary task leaves the source app and popup untouched.
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
     }

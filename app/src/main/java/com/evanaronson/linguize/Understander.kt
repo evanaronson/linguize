@@ -11,6 +11,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Only the settings that affect a reading request; never includes credentials or writing profiles. */
+data class UnderstandContext(val provider: Provider, val model: String, val native: String)
+
 /** Reading assistance deliberately has no history, revision, or write-back dependency. */
 class Understander(
     private val settings: CheckPreferences,
@@ -18,20 +21,26 @@ class Understander(
     private val clients: Map<Provider, ProviderClient>,
     private val prompt: UnderstandPrompt = UnderstandPrompt(),
 ) {
-    suspend fun understand(text: String): Understood = withContext(Dispatchers.IO) {
+    suspend fun context(): UnderstandContext = withContext(Dispatchers.IO) {
+        val provider = settings.provider
+        UnderstandContext(provider, settings.model(provider) ?: provider.recommendedModel, settings.nativeLanguage)
+    }
+
+    suspend fun understand(text: String, requestedContext: UnderstandContext? = null): Understood = withContext(Dispatchers.IO) {
         if (text.isBlank() || text.length > Checker.MAX_CHARS) {
             throw CheckFailure(CheckFailure.Reason.TooLong, userMessage = CheckFailure.Message.InputTooLong)
         }
         try {
-            val provider = settings.provider
+            val used = requestedContext ?: context()
+            val provider = used.provider
             val key = keys.get(provider)?.takeUnless { it.isBlank() }
                 ?: throw CheckFailure(CheckFailure.Reason.NoKey)
             if (key.any { it !in '!'..'~' }) {
                 throw CheckFailure(CheckFailure.Reason.BadKey, userMessage = CheckFailure.Message.InvalidKey)
             }
-            val request = prompt.request(text, settings.nativeLanguage)
+            val request = prompt.request(text, used.native)
             val raw = clients.getValue(provider).generate(
-                key, settings.model(provider) ?: provider.recommendedModel, request,
+                key, used.model, request,
             )
             prompt.read(raw, text)
         } catch (e: CheckFailure) {

@@ -51,9 +51,27 @@ older schema versions 1–3 can use their session-wide context. Missing context 
 unknown. Unknown kinds, bad offsets, nonexistent attempts, duplicate identities
 and source mismatches fail rather than being silently guessed or skipped.
 
+Natural edits also need a reliable corrected baseline: the importer validates the
+attempt's raw fix and natural change lists against their complete texts, then
+uniquely matches the recorded original-anchored replacement to one natural decision.
+The imported `assessmentInput` contains that corrected baseline and the exact
+natural span/replacement. Confidence and impact evaluate only this additional
+decision beyond necessary fixes. The original anchored evidence remains unchanged.
+Matching is conservative: Unicode normalization, trimming and inferred repairs
+are not guessed. Missing raw answers, incomplete lists or ambiguous/unmatched
+decisions retain the case with an explicit `unassessableReason`. Live scoring makes
+no provider call for these cases, records null, and exits nonzero; both review
+reports mark them NOT ASSESSABLE. They cannot receive reference scores and are
+reported separately from failed provider calls. Old imported natural cases without
+`assessmentInput` likewise remain unassessable; re-import their history if available.
+Curated natural cases must explicitly supply a baseline and exact decision, even
+when that baseline equals the original because no fixes are needed.
+
 Original reasons and source provenance remain in the private imported case file
 for audit, but the assessor receives only original text, exact span/replacement,
-kind and available context. Acceptance decisions, later messages/answers, original
+kind, available context and the natural assessment input described above. Both
+blind and scored reports expose that same corrected assessment context.
+Acceptance decisions, later messages/answers, original
 model reasons and reference ratings are excluded. Checks without adjustments yield
 no scoring cases: this experiment cannot measure missed errors or generation recall.
 
@@ -81,6 +99,8 @@ parsed raw answer when available. Failures remain null and make the command exit
 nonzero, but later cases still run. CLI progress shows IDs rather than messages.
 The response parser rejects nulls, booleans, fractional/out-of-range scores,
 missing/extra fields and blank/overlong evidence. It never substitutes zeros.
+The v2 rubric and case hashes include the corrected natural assessment context;
+existing v1 results and references are not rewritten or silently reused.
 
 ## Independent review and comparison
 

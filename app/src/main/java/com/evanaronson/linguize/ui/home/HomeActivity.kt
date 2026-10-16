@@ -43,7 +43,8 @@ class HomeActivity : ComponentActivity() {
         enableEdgeToEdge()
         navigation = Navigation.restore(
             savedInstanceState?.getStringArrayList(STACK)
-                ?: savedInstanceState?.getString(SCREEN)?.let { listOf(it) },
+                ?: savedInstanceState?.getString(SCREEN)?.let { listOf(it) }
+                ?: if (intent.getBooleanExtra(OPEN_SETTINGS, false)) Navigation().open(Screen.Settings).saved else null,
         )
         (navigation.current as? Screen.Detail)?.let { session.load(it.id) }
         setContent {
@@ -105,7 +106,8 @@ class HomeActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        navigation = Navigation()
+        setIntent(intent)
+        navigation = if (intent.getBooleanExtra(OPEN_SETTINGS, false)) Navigation().open(Screen.Settings) else Navigation()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -128,6 +130,8 @@ class HomeActivity : ComponentActivity() {
     companion object {
         private const val SCREEN = "screen"
         private const val STACK = "navigation"
+        private const val OPEN_SETTINGS = "openSettings"
         fun homeIntent(context: Context) = Intent(context, HomeActivity::class.java)
+        fun settingsIntent(context: Context) = homeIntent(context).putExtra(OPEN_SETTINGS, true)
     }
 }

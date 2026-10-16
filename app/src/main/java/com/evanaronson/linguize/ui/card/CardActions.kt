@@ -11,7 +11,7 @@ class CardActions(
     /** Null when the selected text can't be replaced; the card then offers only Copy. */
     val review: ReviewActions?,
     val onRetry: () -> Unit,
-    /** In-app recovery for missing credentials; popups use their branded app button. */
+    /** Opens settings for configuration recovery; hosts own navigation and popup return. */
     val onOpenSettings: (() -> Unit)?,
     /** Overrides an assumption (by its "about") with the writer's answer and checks again. */
     val onSettle: (about: String, answer: String) -> Unit,

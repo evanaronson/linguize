@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="change_why_remove">Why remove %1$s</string>
     <!-- Temporary labels for the display-only, ordinal 0–3 scoring experiment. -->
     <string name="assessment_confidence">Confidence</string>
     <string name="assessment_impact">Impact</string>

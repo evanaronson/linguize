@@ -176,6 +176,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         val understand = ViewModelProvider(window, UnderstandViewModel.factory(App.of(this)))[UnderstandViewModel::class.java]
         var understanding by mutableStateOf(selection == null)
+        var retainedCheck by mutableStateOf(false)
         var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
         var language by mutableStateOf<Language?>(null)
         // The app opens in a separate task. Hide this overlay until it returns, keeping
@@ -184,19 +185,21 @@ class LinguizeAccessibilityService : AccessibilityService() {
             popupPosition = App.of(this).settings.popupPosition
             window.hidden = false
             if (understanding) {
-                if (understand.state is UnderstandState.Failed) understand.retry()
+                understand.recheckIfStale()
             } else check.recheckIfStale()
         }
-        val openApp: () -> Unit = {
+        fun openAppAt(settings: Boolean) {
             val returnToken = PopupReturn.await(backFromApp)
             window.hidden = true
             try {
-                startActivity(PopupAppActivity.intent(this, returnToken))
+                startActivity(PopupAppActivity.intent(this, returnToken, openSettings = settings))
             } catch (_: RuntimeException) {
                 PopupReturn.left(returnToken)
                 Toast.makeText(this, R.string.open_linguize_failed, Toast.LENGTH_SHORT).show()
             }
         }
+        val openApp: () -> Unit = { openAppAt(settings = false) }
+        val openSettings: () -> Unit = { openAppAt(settings = true) }
 
         var closed = false
         // Ends this card, once: Back can arrive both as a key and as a back callback.
@@ -221,18 +224,17 @@ class LinguizeAccessibilityService : AccessibilityService() {
         onBack = { if (!menus.dismiss()) close() }
 
         val actions = CardActions.of(
-            check, context = this, onClose = close, onOpenSettings = null,
+            check, context = this, onClose = close, onOpenSettings = openSettings,
         )
         fun captureClipboard() {
             understand.readingClipboard()
             window.whenFocused(
-                onReady = { understand.captured(readCopiedText()) },
-                onUnavailable = { understand.captured(ClipboardText.Unavailable) },
+                onReady = { if (!closed && understanding) understand.captured(readCopiedText()) },
+                onUnavailable = { if (!closed && understanding) understand.captured(ClipboardText.Unavailable) },
             )
         }
         fun switchToUnderstand() {
-            // Explicitly discard even if a correction answer already arrived.
-            check.discard()
+            retainedCheck = check.suspendForUnderstand()
             understanding = true
             menus.dismiss()
             captureClipboard()
@@ -256,7 +258,13 @@ class LinguizeAccessibilityService : AccessibilityService() {
                         if (understanding) {
                             UnderstandCard(understand.state, onRetry = {
                                 if (understand.state is UnderstandState.Message) captureClipboard() else understand.retry()
-                            }, modifier = modifier)
+                            }, modifier = modifier, onOpenSettings = openSettings,
+                                onBackToCheck = if (retainedCheck) ({
+                                    understand.cancel()
+                                    understanding = false
+                                    check.recheckIfStale()
+                                }) else null,
+                            )
                         } else {
                             check.state?.let { state ->
                                 ResultCard(state, actions, modifier, leadingContent = {

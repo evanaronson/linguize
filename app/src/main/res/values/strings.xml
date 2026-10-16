@@ -230,6 +230,7 @@
     <string name="history_target_language">Target language: %1$s</string>
     <string name="history_detected_language">Detected language: %1$s</string>
     <string name="understand_copied_text">Understand copied text</string>
+    <string name="back_to_check">Back to check</string>
     <string name="translation">Translation</string>
     <string name="understanding_notes">Notes</string>
     <string name="copied_text">Copied text</string>

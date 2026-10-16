@@ -81,15 +81,25 @@ can also return no text on Android, so the message says unavailable rather than
 claiming the clipboard is empty.
 
 Check offers an explicit Understand copied text action because WhatsApp may retain
-editor focus after a message is copied. Switching cancels Check, revokes queued
-history writes, deletes its provisional session, and never applies accepted text.
-A request already sent to the provider cannot be retracted.
+editor focus after a message is copied. Switching deletes an untouched provisional
+Check, revokes its queued history writes, and cancels its request. If the writer
+already accepted a change (even if undone), copied a result, or clarified an
+assumption, the same Check remains available through Back to check, including its
+accepted changes and Undo stack. Closing while Understand is showing never applies
+that retained Check; its existing review evidence is kept in History. No return
+action appears when there was no reviewed Check. A request already sent to the
+provider cannot be retracted.
 
 Understand uses a separate prompt, structured result, controller and UI content.
 It has no history or write-back dependency. Translation appears first, followed by
 the original copied text. Optional notes are separate structured quote/explanation
 pairs, rendered below the source; every quote must occur in the original text.
 No notes heading appears when none are needed. Retries use the captured source.
+Configuration failures offer Open settings through the existing app-return gateway.
+Returning retries a failed request or refreshes a successful/in-flight request when
+its provider, model, or explanation language changed. Late answers from a replaced
+request cannot replace the current result. Returning to a retained Check similarly
+checks whether its settings changed and preserves accepted work on recheck.
 It shares the existing popup frame, positioning, scrim, loading/errors and Meaning
 text treatment. It has no Accept, Apply, correction highlights or persistent history.
 The popup header contains no noninteractive Understand label.

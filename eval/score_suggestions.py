@@ -19,7 +19,7 @@ import run as provider_eval
 HERE = Path(__file__).resolve().parent
 RUBRIC = HERE / "scoring/rubric.md"
 SCHEMA = HERE / "scoring/answer_schema.json"
-VERSION = "suggestion-assessment-v1"
+VERSION = "suggestion-assessment-v2"
 CONTEXT_FIELDS = ("requestedLanguage", "targetLanguage", "detectedLanguage", "nativeLanguage",
                   "punctuation", "settled", "variety", "register")
 CONFIDENCE = ("Unsupported", "Weak", "Moderate", "Strong")
@@ -56,7 +56,17 @@ def integer(value, low, high, label):
 
 def assessable(case):
     """Whitelist inputs: source reason, decisions and reference labels cannot bias scoring."""
-    return {key: case[key] for key in ("original", "kind", "start", "end", "from", "to", "context")}
+    message = {key: case[key] for key in ("original", "kind", "start", "end", "from", "to", "context")}
+    if case["kind"] == "natural":
+        message["assessmentInput"] = case.get("assessmentInput")
+        message["unassessableReason"] = unassessable_reason(case)
+    return message
+
+
+def unassessable_reason(case):
+    if case["kind"] == "natural" and case.get("assessmentInput") is None:
+        return case.get("unassessableReason") or "Corrected baseline and exact natural change unavailable"
+    return None
 
 
 def validate_case(case):
@@ -71,6 +81,19 @@ def validate_case(case):
     end = integer(case.get("end"), start, len(case["original"]), "end")
     if case["original"][start:end] != case["from"] or case["from"] == case["to"]:
         raise ValueError(f"{case['id']}: adjustment must match its original span and change something")
+    basis = case.get("assessmentInput")
+    if basis is not None:
+        if case["kind"] != "natural" or not isinstance(basis, dict) or set(basis) != {"baseline", "start", "end", "from", "to"}:
+            raise ValueError("Natural assessmentInput must contain the exact baseline adjustment")
+        for key in ("baseline", "from", "to"):
+            if not isinstance(basis[key], str):
+                raise ValueError("Natural baseline and replacement must be text")
+        left = integer(basis["start"], 0, len(basis["baseline"]), "baseline start")
+        right = integer(basis["end"], left, len(basis["baseline"]), "baseline end")
+        if basis["baseline"][left:right] != basis["from"] or basis["from"] == basis["to"]:
+            raise ValueError("Natural adjustment must match and change its corrected baseline")
+    if "unassessableReason" in case and (not isinstance(case["unassessableReason"], str) or not case["unassessableReason"].strip() or basis is not None):
+        raise ValueError("An unavailable baseline needs a nonblank reason and no assessmentInput")
     context = case.get("context")
     if not isinstance(context, dict) or set(context) - set(CONTEXT_FIELDS):
         raise ValueError(f"{case['id']}: unknown or missing context shape")
@@ -98,6 +121,74 @@ def utf16_index(text, offset):
         return len(text.encode("utf-16-le")[:offset * 2].decode("utf-16-le"))
     except UnicodeDecodeError as error:
         raise ValueError("Android offset splits a surrogate pair") from error
+
+
+def located_changes(base, target, changes):
+    """Conservative exact ordered placement; never choose among repeated spans.
+
+    Both complete texts must be reproduced. Unlike the Android engine, no Unicode
+    normalization, lexical trimming or fallback repairs are inferred here.
+    """
+    if not isinstance(changes, list):
+        raise ValueError("Missing exact change list")
+    source = destination = 0
+    spans = []
+    for change in changes:
+        if not isinstance(change, dict) or any(not isinstance(change.get(k), str) for k in ("from", "to")):
+            raise ValueError("Malformed exact change")
+        before, after = change["from"], change["to"]
+        if before == after:
+            continue
+        shared = 0
+        while source + shared < len(base) and destination + shared < len(target) and base[source + shared] == target[destination + shared]:
+            shared += 1
+        matches = [at for at in range(source, source + shared + 1)
+                   if base.startswith(before, at) and target.startswith(after, destination + at - source)]
+        if len(matches) != 1:
+            raise ValueError("Ambiguous or unmatched exact change")
+        at = matches[0]
+        target_at = destination + at - source
+        spans.append((at, at + len(before), target_at, target_at + len(after), after))
+        source, destination = at + len(before), target_at + len(after)
+    if base[source:] != target[destination:]:
+        raise ValueError("Incomplete exact change list")
+    return spans
+
+
+def natural_assessment_input(original, attempt, suggestion, start, end):
+    """Match recorded original-anchored evidence to one raw corrected-text decision."""
+    raw = attempt.get("raw")
+    verdict = json.loads(raw) if isinstance(raw, str) else raw
+    if not isinstance(verdict, dict) or verdict.get("status") != "ok":
+        raise ValueError("Successful raw verdict unavailable")
+    if type(verdict.get("has_errors")) is not bool:
+        raise ValueError("Corrected baseline unavailable")
+    baseline = verdict.get("corrected") if verdict["has_errors"] else original
+    if not isinstance(baseline, str) or not isinstance(verdict.get("natural"), str):
+        raise ValueError("Complete baseline or natural text unavailable")
+    fixes = located_changes(original, baseline, verdict.get("fixes"))
+    naturals = located_changes(baseline, verdict["natural"], verdict.get("natural_changes"))
+    matches = []
+    for left, right, _, _, replacement in naturals:
+        # Only exact boundaries are supported. Android may trim or widen a
+        # decision; reproducing those policies here would invent a second engine.
+        if any(fix_left < left < fix_right or fix_left < right < fix_right
+               for _, _, fix_left, fix_right, _ in fixes):
+            continue
+        def original_position(position):
+            delta = 0
+            for fix_start, fix_end, fix_left, fix_right, _ in fixes:
+                if position <= fix_left:
+                    return position - (fix_left - fix_start)
+                delta = fix_right - fix_end
+            return position - delta
+        mapped_start, mapped_end = original_position(left), original_position(right)
+        if (mapped_start, mapped_end, replacement) == (start, end, suggestion["toText"]):
+            matches.append({"baseline": baseline, "start": left, "end": right,
+                            "from": baseline[left:right], "to": replacement})
+    if len(matches) != 1:
+        raise ValueError("No unique exact natural decision matches the recorded edit")
+    return matches[0]
 
 
 def history_cases(rows):
@@ -147,6 +238,12 @@ def history_cases(rows):
                            "promptHash": attempt.get("promptHash")},
                 "originalReason": suggestion.get("why"),
             }
+            if case["kind"] == "natural":
+                try:
+                    case["assessmentInput"] = natural_assessment_input(original, attempt, suggestion, start, end)
+                except (ValueError, TypeError, KeyError):
+                    # Keep the original evidence, without guessing at a baseline.
+                    case["unassessableReason"] = "No reliable corrected baseline and uniquely matched natural decision in this attempt's raw verdict"
             cases.append(validate_case(case))
     if not cases or len({c["id"] for c in cases}) != len(cases):
         raise ValueError("Export needs suggestions with unique session/suggestion identities")
@@ -190,6 +287,9 @@ def score(cases, out, provider, model, repeats):
                           "assessedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                           "origin": "retrospective", "assessment": None}
                 try:
+                    if unassessable_reason(case):
+                        record["unassessableReason"] = unassessable_reason(case)
+                        raise ValueError("Historical natural decision unavailable")
                     answer, elapsed = check(model, key, system, schema, canonical(assessable(case)))
                     record["rawAnswer"] = answer
                     record["latencySeconds"] = elapsed
@@ -221,6 +321,9 @@ def read_references(path, cases):
         if row["justified"] not in ("", "yes", "no", "uncertain"):
             raise ValueError("Reference justified must be yes/no/uncertain or blank")
         if any(row[k] is not None for k in ("confidence", "impact")) or row["justified"]:
+            case = next(c for c in cases if c["id"] == key)
+            if unassessable_reason(case):
+                raise ValueError("Cannot reference-rate a natural edit without its corrected baseline")
             if not row.get("reviewer", "").strip():
                 raise ValueError("Completed reference judgments require a reviewer identity")
         result[key] = row
@@ -244,8 +347,11 @@ def summarize(cases, results, references):
             raise ValueError("Duplicate case/repeat assessment; compare runs separately")
         seen.add(key)
         if record.get("assessment") is None:
-            failures += 1
+            if not unassessable_reason(next(c for c in cases if c["id"] == record["id"])):
+                failures += 1
             continue
+        if unassessable_reason(next(c for c in cases if c["id"] == record["id"])):
+            raise ValueError("Cannot assess a natural edit without its corrected baseline")
         grouped[record["id"]].append(validate_answer(record["assessment"]))
     if len(identities) > 1:
         raise ValueError("Compare different assessor/rubric runs separately")
@@ -277,6 +383,7 @@ def summarize(cases, results, references):
                             "matrixReferenceRowsAssessorColumns": matrix}
     return {"cases": len(cases), "successfulCalls": sum(map(len, grouped.values())),
             "failedCalls": failures, "assessedCases": len(grouped),
+            "unassessableCases": sum(bool(unassessable_reason(c)) for c in cases),
             "repeatedCases": len(repeats), "stableRepeatedCases": stable,
             "confidenceBins": bins, "referenceAgreement": agreement,
             "note": "Ordinal exploratory assessments, not calibrated probabilities. Blank references establish no accuracy.",
@@ -300,6 +407,18 @@ def report(cases, results, references, out):
             changed = original[:start] + case["to"] + original[end:]
             cells = [case["id"], case["kind"], canonical(case["context"]), original, changed,
                      f"{case['from']!r} → {case['to']!r} (span {start}:{end})"]
+            if case["kind"] == "natural":
+                basis = case.get("assessmentInput")
+                if basis is None:
+                    assessment_context = "NOT ASSESSABLE: " + unassessable_reason(case)
+                else:
+                    after = basis["baseline"][:basis["start"]] + basis["to"] + basis["baseline"][basis["end"]:]
+                    assessment_context = ("Corrected baseline: " + basis["baseline"] + "\nOnly this natural decision applied: " + after +
+                                          f"\nExact natural decision: {basis['from']!r} → {basis['to']!r} (span {basis['start']}:{basis['end']})" +
+                                          "\nAssess only additional benefit beyond necessary fixes.")
+            else:
+                assessment_context = "Assess the original adjustment above."
+            cells.append(assessment_context)
             if not blind:
                 assessments = grouped[case["id"]]
                 cells.append("\n".join(f"Repeat {r['repeat'] + 1}: " + (
@@ -308,7 +427,7 @@ def report(cases, results, references, out):
                     + r['assessment']['evidence'] if r.get('assessment') else "UNASSESSED / failed")
                     for r in assessments) or "UNASSESSED / pending")
             rows.append("<tr>" + "".join(f"<td>{escaped(c)}</td>" for c in cells) + "</tr>")
-        headings = ["ID", "Kind", "Available context", "Original", "Only this adjustment applied", "Exact adjustment"]
+        headings = ["ID", "Kind", "Available context", "Original evidence", "Original anchored replacement applied", "Recorded adjustment", "Assessment context"]
         if not blind:
             headings.append("Model assessments")
         title = "Blind reference review" if blind else "Exploratory suggestion assessments"
@@ -320,7 +439,7 @@ def report(cases, results, references, out):
         page += '<details><summary>Assessment rubric and scale definitions</summary><pre style="white-space:pre-wrap">' + escaped(RUBRIC.read_text(encoding="utf-8")) + '</pre></details>'
         if not blind:
             page += '<p>Assessor identity (provider, model, rubric version/hash): ' + escaped(summary['runIdentity']) + '</p>'
-            page += '<p>Assessed cases: ' + str(summary['assessedCases']) + '; failed calls: ' + str(summary['failedCalls']) + '; cases with at least two successful assessments: ' + str(summary['repeatedCases']) + '.</p>'
+            page += '<p>Assessed cases: ' + str(summary['assessedCases']) + '; unassessable cases: ' + str(summary['unassessableCases']) + '; failed calls: ' + str(summary['failedCalls']) + '; cases with at least two successful assessments: ' + str(summary['repeatedCases']) + '.</p>'
             if not any(ref.get('reviewer') for ref in references.values()):
                 page += '<p><strong>No independent reference judgments supplied. These scores do not establish correctness or calibration.</strong></p>'
         page += '<table><thead><tr>'

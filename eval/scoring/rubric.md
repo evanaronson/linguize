@@ -1,11 +1,21 @@
-# Suggestion assessment rubric v1
+# Suggestion assessment rubric v2
 
 Assess ONE EXISTING adjustment. Do not generate, repair, expand or replace it.
 Evaluate whether this EXACT replacement is justified at this EXACT location in the
-original message, considering the supplied language variety, punctuation setting,
-register and the writer's settled answers. Other suggestions are not assumed applied.
+original message for fixes, considering the supplied language variety, punctuation
+setting, register and the writer's settled answers. Other suggestions are not assumed applied.
 A fix can concern correctness; a natural rewording must offer a useful improvement
 in the intended register, not merely another grammatical phrasing.
+
+For kind `natural`, the top-level original/span/replacement are historical evidence
+and may include necessary fixes. Assess ONLY the exact change in `assessmentInput`,
+whose `baseline` is the complete corrected text. Its start/end/from/to describe one
+natural decision against that baseline. Confidence must establish that this
+already-corrected expression warrants improvement. Impact measures only additional
+benefit beyond necessary fixes; never credit this rewording for correcting errors
+in the original evidence. No other natural rewordings are assumed applied. If that
+baseline or exact decision is unavailable, the case is not assessable; do not infer
+one or rate the combined original replacement.
 
 Confidence means strength of support for making this exact adjustment: that it is
 warranted, its replacement works in context, and intended meaning is preserved.

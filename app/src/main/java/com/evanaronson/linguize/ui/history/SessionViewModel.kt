@@ -13,6 +13,7 @@ import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Replayed
 import com.evanaronson.linguize.history.SessionDetail
 import com.evanaronson.linguize.history.SessionRecord
+import com.evanaronson.linguize.history.SuggestionRecord
 import com.evanaronson.linguize.history.replay
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Prompt
@@ -33,10 +34,11 @@ sealed interface SessionPage {
     data class Shown(
         val session: SessionRecord,
         val appLabel: String?,
-        /** The last successful answer, rebuilt as the card showed it; null when none can be shown. */
+        /** Optional read-only Meaning, from the same revision as [suggestions]. */
         val card: CardState.Done?,
         /** Why the last attempt failed, if it did. */
         val failure: CheckFailure.Reason?,
+        val suggestions: List<SuggestionRecord> = emptyList(),
     ) : SessionPage
 }
 
@@ -81,8 +83,12 @@ class SessionViewModel internal constructor(
                 SessionPage.Missing
             } else {
                 withContext(Dispatchers.IO) {
-                    val read = prompt()
-                    shown(detail, replay(detail, read::parseVerdict))
+                    val rows = savedSuggestions(detail)
+                    // Replay is optional Meaning only. Never attach a different revision
+                    // when saved rows survive a missing raw answer.
+                    val sameAttempt = rows.isEmpty() || detail.decidedAttempt() == rows.first().attempt
+                    val replayed = if (sameAttempt) replay(detail, prompt()::parseVerdict) else null
+                    shown(detail, rows, replayed)
                 }
             }
         }
@@ -110,10 +116,10 @@ class SessionViewModel internal constructor(
     }
 
     /** [replayed] is the card the session ended with ([replay]); null when there's none to show. */
-    private fun shown(detail: SessionDetail, replayed: Replayed?): SessionPage.Shown {
+    private fun shown(detail: SessionDetail, rows: List<SuggestionRecord>, replayed: Replayed?): SessionPage.Shown {
         val session = detail.session
         val failure = CheckFailure.Reason.tokens.decode(session.attempts.lastOrNull()?.failure)
-        return SessionPage.Shown(session, labels.of(session.hostApp), replayed?.let(::readOnlyCard), failure)
+        return SessionPage.Shown(session, labels.of(session.hostApp), replayed?.let(::readOnlyCard), failure, rows)
     }
 
     companion object {

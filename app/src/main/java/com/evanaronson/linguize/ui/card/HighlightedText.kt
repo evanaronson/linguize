@@ -332,7 +332,7 @@ private fun Explanation(
 }
 
 @Composable
-private fun String.visibleValue(): String = when {
+internal fun String.visibleValue(): String = when {
     isEmpty() -> ""
     !isSpacing() -> trim()
     any { it.isLineBreak() } -> stringResource(R.string.change_line_break)

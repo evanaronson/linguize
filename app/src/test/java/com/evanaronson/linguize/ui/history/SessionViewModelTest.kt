@@ -3,11 +3,15 @@ package com.evanaronson.linguize.ui.history
 import android.app.Application
 import android.os.Looper
 import com.evanaronson.linguize.data.Exports
+import com.evanaronson.linguize.core.EditKind
+import com.evanaronson.linguize.history.Attempt
+import com.evanaronson.linguize.history.Decision
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.SessionDetail
 import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.history.SqliteHistoryStore
+import com.evanaronson.linguize.history.SuggestionRecord
 import com.evanaronson.linguize.llm.Prompt
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +24,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -36,6 +41,50 @@ import java.util.concurrent.atomic.AtomicInteger
 @Config(sdk = [35], application = Application::class)
 class SessionViewModelTest {
     @get:Rule val cache = TemporaryFolder()
+
+    @Test
+    fun loadingDamagedAnswersPreservesExactTextAndRowsWithoutWriting() {
+        val context = RuntimeEnvironment.getApplication()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val row = SuggestionRecord("suggestion", "check", "device", createdAt = 1, updatedAt = 2,
+            attempt = 0, kind = EditKind.Fix, start = -1, end = 999,
+            fromText = "estas", toText = "estàs", why = "Recorded reason",
+            decision = Decision.Accepted, decidedAt = 2)
+        val promptReads = AtomicInteger()
+        val before = "  Com estas?\n"
+        val after = "  Com estàs?\n"
+        val history = object : HistoryStore by SqliteHistoryStore(context, "unused") {
+            override suspend fun detail(id: String): SessionDetail {
+                val attempts = when (id) {
+                    "missing" -> listOf(Attempt(2))
+                    "unreadable" -> listOf(Attempt(2, raw = "not JSON"))
+                    else -> listOf(Attempt(2), Attempt(3, raw = "{}"))
+                }
+                return detailOf(id).copy(session = detailOf(id).session.copy(
+                    text = before, finalText = after, attempts = attempts), suggestions = listOf(if (id == "unreadable") row.copy(start = 6, end = 11) else row))
+            }
+            override suspend fun save(session: SessionRecord) = error("Viewing must not save")
+            override suspend fun close(session: SessionRecord, suggestions: List<SuggestionRecord>) = error("Viewing must not close")
+            override suspend fun delete(id: String): Boolean = error("Viewing must not delete")
+        }
+        val model = SessionViewModel(history, { promptReads.incrementAndGet(); Prompt("", "{}") },
+            AppLabels(context.packageManager), scope, {})
+        try {
+            listOf("missing", "unreadable", "later-answer").forEach { id ->
+                model.load(id)
+                waitFor { (model.page as? SessionPage.Shown)?.session?.id == id }
+                val shown = model.page as SessionPage.Shown
+                assertEquals(before, shown.session.text)
+                assertEquals(after, shown.session.finalText)
+                assertEquals(listOf(if (id == "unreadable") row.copy(start = 6, end = 11) else row), shown.suggestions)
+                assertEquals(if (id == "missing") 0 else 1, promptReads.get())
+                // No unrelated later Meaning, or failed replay, may hide the saved comparison.
+                assertNull(shown.card)
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
 
     @Test
     fun failedDeletionKeepsTheCheckVisibleAndCanBeRetried() {

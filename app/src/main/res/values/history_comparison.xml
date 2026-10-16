@@ -1,0 +1,18 @@
+<resources>
+    <string name="history_before">Before</string>
+    <string name="history_after">After</string>
+    <string name="history_suggestions">Suggestions</string>
+    <string name="history_applied">Applied</string>
+    <string name="history_not_applied">Not applied</string>
+    <string name="history_copied">Copied</string>
+    <string name="history_covered">Covered by a rewording</string>
+    <string name="history_application_not_recorded">Application not recorded</string>
+    <string name="history_copy_only">A suggested version was copied. No applied result was recorded.</string>
+    <string name="history_no_applied_result">No applied result was recorded.</string>
+    <string name="history_no_explanation">No explanation recorded.</string>
+    <string name="history_no_suggestions">No suggestion details available.</string>
+    <string name="history_show_explanation">Show explanation</string>
+    <string name="history_hide_explanation">Hide explanation</string>
+    <string name="history_expanded">Expanded</string>
+    <string name="history_collapsed">Collapsed</string>
+</resources>

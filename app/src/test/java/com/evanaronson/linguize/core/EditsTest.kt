@@ -7,6 +7,61 @@ import org.junit.Test
 
 /** Edge cases in turning the model's texts into edits, each one a bug that was found and fixed. */
 class EditsTest {
+    @Test
+    fun adjacentContractionAndVerbReportsBecomeOneCompleteFix() {
+        val original = "Pues... potser haurem de experimentat viure com abans"
+        val corrected = "Pues... potser haurem d'experimentar viure com abans"
+        for (apostrophe in listOf("'", "’")) {
+            val target = corrected.replace("'", apostrophe)
+            val result = interpret(original, Verdict(Verdict.Status.Ok, hasErrors = true,
+                corrected = target, assumptions = listOf(
+                    Assumption(about = "First", assumed = "First reading"),
+                    Assumption(about = "Second", assumed = "Second reading")), fixes = listOf(
+                    VerdictChange("de ", "d$apostrophe", "Elide before a vowel",
+                        confidence = 3, impact = 1, assumptionIndices = listOf(0)),
+                    VerdictChange("experimentat", "experimentar", "Use the infinitive",
+                        confidence = 3, impact = 2, assumptionIndices = listOf(1)),
+                ))) as CheckResult.Reviewed
+            val r = result.revision
+            assertTrue(result.withheld.isEmpty())
+            val edit = r.edits.single()
+            assertEquals("de experimentat", edit.from)
+            assertEquals("d${apostrophe}experimentar", edit.replacement)
+            assertEquals("Elide before a vowel; Use the infinitive", edit.why)
+            assertEquals(null, edit.assessment)
+            assertEquals(listOf(0, 1), edit.assumptionIndices)
+            assertEquals(target, r.accept(edit.id).workingText)
+            assertEquals(target, r.acceptAll(EditKind.Fix).workingText)
+            assertEquals(original, r.accept(edit.id).undo().workingText)
+        }
+    }
+
+    @Test
+    fun partialOrSequentialContractionReportsRemainWithheld() {
+        val original = "haurem de experimentat"
+        val target = "haurem d'experimentar"
+        for (reports in listOf(
+            listOf(VerdictChange("experimentat", "experimentar")),
+            listOf(VerdictChange("de experimentat", "d'experimentat"), VerdictChange("experimentat", "experimentar")),
+            listOf(VerdictChange("de ", "d'"), VerdictChange("t", "r")),
+        )) {
+            val result = Edits.fixes(original, target, reports)
+            assertTrue(result.rejected)
+            assertTrue(result.edits.isEmpty())
+        }
+    }
+
+    @Test
+    fun joinedContractionDoesNotAbsorbAnIndependentFix() {
+        val original = "potse haurem de experimentat"
+        val target = "potser haurem d'experimentar"
+        val result = Edits.fixes(original, target, listOf(VerdictChange("potse", "potser"),
+            VerdictChange("de ", "d'"), VerdictChange("experimentat", "experimentar")))
+        assertFalse(result.rejected)
+        assertEquals(listOf("potse" to "potser", "de experimentat" to "d'experimentar"),
+            result.edits.map { it.from to it.replacement })
+    }
+
     private fun revision(original: String, corrected: String = "", natural: String = "",
         naturalChanges: List<VerdictChange> = if (natural.isEmpty()) emptyList()
             else listOf(VerdictChange(corrected.ifEmpty { original }, natural)),

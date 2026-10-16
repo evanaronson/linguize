@@ -13,7 +13,8 @@ internal object Edits {
             cuts(original, span.start, span.end, part.start, part.end) ||
                 cuts(corrected, span.targetStart, span.targetEnd, part.targetStart, part.targetEnd)
         }
-        val declared = located(original, corrected, reported)?.takeIf { it.all(::ownsComponents) }
+        val declared = (located(original, corrected, reported)
+            ?: located(original, corrected, reported, joinWords = true))?.takeIf { it.all(::ownsComponents) }
             ?.map { span -> trimUnchangedContext(span).takeIf(::ownsComponents) ?: span }
             ?.takeIf { spans ->
                 val sourceSentences = Sentences.ranges(original)
@@ -285,7 +286,7 @@ internal object Edits {
      * prefix and declared replacement must match the target, including for insertions
      * and repeated source words. An ambiguous placement is withheld, never guessed.
      */
-    private fun located(base: String, target: String, reported: List<VerdictChange>): List<Span>? {
+    private fun located(base: String, target: String, reported: List<VerdictChange>, joinWords: Boolean = false): List<Span>? {
         if (reported.isEmpty()) return null
         fun indexed(text: String): Pair<String, Map<Int, Int>> {
             val positions = mutableMapOf(0 to 0)
@@ -318,7 +319,7 @@ internal object Edits {
                 val end = positions[at + from.length] ?: return@filter false
                 val targetStart = targetPositions[targetAt] ?: return@filter false
                 val targetEnd = targetPositions[targetAt + to.length] ?: return@filter false
-                ownsWords(sourceUnits, positions.getValue(at), end) && ownsWords(targetUnits, targetStart, targetEnd)
+                joinWords || (ownsWords(sourceUnits, positions.getValue(at), end) && ownsWords(targetUnits, targetStart, targetEnd))
             }
             if (matches.size != 1) return null
             val at = matches.single()
@@ -333,7 +334,28 @@ internal object Edits {
             destination = targetAt + to.length
             source = at + from.length
         }
-        return spans.takeIf { normalized.substring(source) == wanted.substring(destination) }
+        if (normalized.substring(source) != wanted.substring(destination)) return null
+        if (!joinWords) return spans
+        // Exact adjacent reports can describe parts of one contracted word, e.g.
+        // "de " -> "d'", "experimentat" -> "experimentar". Offer their complete
+        // union once, never the broken pieces. Do not extend an isolated fragment.
+        val joined = mutableListOf<Span>()
+        for (span in spans) {
+            val previous = joined.lastOrNull()
+            if (previous != null && previous.end == span.start && previous.targetEnd == span.targetStart &&
+                (!ownsWords(sourceUnits, span.start, span.start) ||
+                    !ownsWords(targetUnits, span.targetStart, span.targetStart))) {
+                joined[joined.lastIndex] = Span(previous.start, span.end,
+                    base.substring(previous.start, span.end), target.substring(previous.targetStart, span.targetEnd),
+                    why = listOfNotNull(previous.why, span.why).distinct().joinToString("; ").ifEmpty { null },
+                    targetStart = previous.targetStart, targetEnd = span.targetEnd,
+                    // Neither report's rating assesses the combined decision.
+                    assumptionIndices = (previous.assumptionIndices + span.assumptionIndices).distinct())
+            } else joined += span
+        }
+        return joined.takeIf { all -> all.all {
+            ownsWords(sourceUnits, it.start, it.end) && ownsWords(targetUnits, it.targetStart, it.targetEnd)
+        } }
     }
 
     /** Both boundaries own complete lexical units, including an insertion's location. */

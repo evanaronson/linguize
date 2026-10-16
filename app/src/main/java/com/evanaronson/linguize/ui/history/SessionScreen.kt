@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.history
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,28 +18,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionRecord
-import com.evanaronson.linguize.ui.card.CardActions
-import com.evanaronson.linguize.ui.card.CardState
-import com.evanaronson.linguize.ui.card.ResultCard
+import com.evanaronson.linguize.ui.card.UnderstandingEntry
+import com.evanaronson.linguize.ui.card.UnderstandingPage
+import com.evanaronson.linguize.ui.card.understandingEntry
 import com.evanaronson.linguize.ui.text.titleResource
 
-/**
- * One past check: when and where, the card as it was (read-only), what went back to
- * the app, and Delete.
- */
+/** Exact saved text and decisions; inspecting a past check cannot change it. */
 @Composable
 fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
     val deletion = session.deletion
@@ -69,21 +66,31 @@ private fun Shown(page: SessionPage.Shown, deletion: SessionDeletion, onDelete: 
     val session = page.session
     SessionDetails(session, page.appLabel)
 
-    val card = page.card
-    // The card shows the text itself only when it has suggestions to show in it.
-    val cardShowsText = (card?.result as? CheckResult.Reviewed)?.revision?.edits?.isNotEmpty() == true
-    if (!cardShowsText) TextBlock(stringResource(R.string.your_text), session.text)
-    if (card != null) {
-        ReadOnlyCard(card)
+    val reviewed = page.card?.result as? CheckResult.Reviewed
+    val settled = page.card?.settled.orEmpty()
+    var meaningOpen by rememberSaveable(session.id) { mutableStateOf(false) }
+    BackHandler(enabled = meaningOpen) { meaningOpen = false }
+    if (meaningOpen && reviewed != null) {
+        UnderstandingPage(reviewed.meaning, reviewed.assumptions, settled,
+            onSettle = null, onBack = { meaningOpen = false })
     } else {
-        Text(
-            page.failure?.let { stringResource(R.string.check_failed_reason, stringResource(it.titleResource)) } ?: stringResource(R.string.no_result),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.error,
-        )
+        TextBlock(stringResource(R.string.history_before), session.text)
+        WhatCameOfIt(session)
+        page.failure?.let {
+            Text(stringResource(R.string.check_failed_reason, stringResource(it.titleResource)),
+                color = MaterialTheme.colorScheme.error)
+        }
+        when (session.status) {
+            Verdict.Status.Unclear -> Faint(stringResource(R.string.meaning_unclear))
+            Verdict.Status.WrongLanguage -> Faint(stringResource(R.string.wrong_language_status))
+            else -> Unit
+        }
+        if (reviewed != null) {
+            UnderstandingEntry(understandingEntry(reviewed.meaning, reviewed.assumptions,
+                settled, readOnly = true), onOpen = { meaningOpen = true })
+        }
+        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null)
     }
-
-    WhatCameOfIt(session)
     if (deletion == SessionDeletion.Failed) {
         Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
     }
@@ -105,36 +112,19 @@ private fun SessionDetails(session: SessionRecord, appLabel: String?) {
     }
 }
 
-/**
- * The card's own content, with nothing to act on: no Accept, and assumptions can't be
- * changed. Copy only copies; no check stands behind the card, so it can't reach the
- * model or history.
- */
-@Composable
-private fun ReadOnlyCard(card: CardState.Done) {
-    val context = LocalContext.current
-    val actions = remember(context) { CardActions.readOnly(context) }
-    ResultCard(
-        state = card,
-        actions = actions,
-        modifier = Modifier.fillMaxWidth(),
-        scrollable = false,
-    )
-}
-
 @Composable
 private fun WhatCameOfIt(session: SessionRecord) {
     val finalText = session.finalText
     if (finalText != null) {
-        TextBlock(stringResource(R.string.put_back_in_app), finalText)
+        TextBlock(stringResource(R.string.history_after), finalText)
         return
     }
     when (session.outcome) {
-        Outcome.Copied -> stringResource(R.string.outcome_copied)
+        Outcome.Copied -> stringResource(R.string.history_copy_only)
         Outcome.None -> stringResource(R.string.outcome_closed)
         Outcome.Abandoned -> stringResource(R.string.outcome_abandoned)
-        Outcome.Applied, Outcome.Failed, null -> null
-    }?.let { Faint(it) }
+        Outcome.Applied, Outcome.Failed, null -> stringResource(R.string.history_no_applied_result)
+    }.let { Faint(it) }
 }
 
 @Composable

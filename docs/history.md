@@ -111,12 +111,27 @@ including the prompt hash and exact writing-profile list sent with the request. 
 settings changed later on its card. Lookup is disabled for unrecorded checks.
 Normal rechecks ask the model again.
 
-A saved page uses the *decided attempt*: the successful attempt owning the final
-non-superseded suggestions, otherwise the last successful attempt. Replay uses
-stored suggestion spans and acceptance decisions when today's edit engine would
-produce different edits. It still requires a readable answer and valid spans;
-unreadable or incompatible records may not yield a card. Replay does not rewrite
-the recorded evidence.
+A saved page always shows the exact checked text as Before, and the recorded
+`finalText` as After when a result was handed back. It never reconstructs After
+from proposals. Copy-only sessions show the known outcome without inventing a
+pasted result. Suggestions come directly from the final non-superseded revision's
+saved rows, including applied proposals. Tapping a row reveals its recorded reason
+and assessment; ignored/undone means Not applied, not rejected. Retired means
+Covered by a rewording, which may have been applied or copied.
+
+This comparison does not depend on replay, raw answers, or valid source spans.
+Its local selection preserves saved decision rows even when missing raw data
+prevents the shared decided-attempt helper from selecting that revision. Separate
+row identities are retained. Missing details are labelled as missing, never as a
+clean check. Viewing, expanding and selecting/copying text do not change records
+or make provider requests.
+
+Optional read-only Meaning still uses replay of the same decided revision. Replay
+requires a readable answer and valid spans, so incompatible records can lack
+Meaning while retaining the comparison. Its stored spans and decisions also
+support answer reuse when today's edit engine produces different edits. The
+shared replay and cache-selection rules are unchanged, and neither rewrites the
+recorded evidence.
 
 ## Storage, deletion, and export
 

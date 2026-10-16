@@ -2,6 +2,7 @@ package com.evanaronson.linguize
 
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.history.SessionSettings
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
@@ -20,6 +21,8 @@ data class CheckContext(
     val native: String,
     /** [Prompt.hash] of the instructions and schema sent. */
     val promptHash: String,
+    /** Complete request-time profiles; later edits to settings never change this snapshot. */
+    val writingProfiles: List<WritingProfile> = emptyList(),
 ) {
     /** As history keeps it, with tokens for the options and provider. */
     val stored: SessionSettings
@@ -30,5 +33,6 @@ data class CheckContext(
             provider = provider.token,
             model = model,
             promptHash = promptHash,
+            writingProfiles = writingProfiles,
         )
 }

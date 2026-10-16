@@ -2,12 +2,14 @@ package com.evanaronson.linguize.ui.history
 
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.core.interpret
 import com.evanaronson.linguize.history.Replayed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /** A past card is shown as it ended, with nothing on it that would ask the model again. */
@@ -37,5 +39,15 @@ class ReadOnlyCardTest {
         val wrong = CheckResult.WrongLanguage("Catalan", "Spanish")
         assertSame(wrong, readOnlyCard(Replayed(wrong, emptyList())).result)
         assertSame(CheckResult.Unclear, readOnlyCard(Replayed(CheckResult.Unclear, emptyList())).result)
+    }
+
+    @Test
+    fun withheldJudgmentsSurviveReadOnlyRendering() {
+        val reviewed = (interpret(text, verdict) as CheckResult.Reviewed)
+            .copy(withheld = setOf(EditKind.Natural))
+        val shown = readOnlyCard(Replayed(reviewed, emptyList())).result as CheckResult.Reviewed
+        assertEquals(setOf(EditKind.Natural), shown.withheld)
+        assertEquals(reviewed.revision, shown.revision)
+        assertFalse(shown.looksGood)
     }
 }

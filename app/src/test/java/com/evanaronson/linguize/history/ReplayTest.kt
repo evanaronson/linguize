@@ -5,8 +5,10 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
 import com.evanaronson.linguize.core.interpret
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,6 +22,7 @@ class ReplayTest {
         corrected = "Com estàs amb la pluja?",
         moreNatural = true,
         natural = "Com portes la pluja?",
+        naturalChanges = listOf(VerdictChange("estàs amb", "portes")),
         meaning = "How are you finding the rain?",
     )
 
@@ -109,6 +112,46 @@ class ReplayTest {
         val unreadable = SessionRecording(rain, context, 100)
         unreadable.attempt(200, emptyList(), "not an answer we know", null, null, null, null, Verdict.Status.Ok)
         assertNull(replay(unreadable.close(300, null), parse))
+    }
+
+    @Test
+    fun aSavedUnusableAnswerDoesNotTurnIntoLooksGood() {
+        answers["unusable"] = Verdict(status = Verdict.Status.Ok, language = "Catalan", moreNatural = true)
+        val recording = SessionRecording(rain, context, 100)
+        recording.attempt(200, emptyList(), "unusable", null, null, Revision(rain, emptyList()), null, Verdict.Status.Ok)
+        val shown = replay(recording.close(300, null), parse)!!.result as CheckResult.Reviewed
+        assertTrue(shown.revision.edits.isEmpty())
+        assertEquals(setOf(EditKind.Natural), shown.withheld)
+        assertFalse(shown.looksGood)
+    }
+
+    @Test
+    fun anEmptySavedSuggestionSetStaysEmptyWhenTheEngineChanges() {
+        answers["unoffered"] = Verdict(status = Verdict.Status.Ok, language = "Catalan",
+            hasErrors = true, corrected = "Com estàs amb la pluja?")
+        val recording = SessionRecording(rain, context, 100)
+        recording.attempt(200, emptyList(), "unoffered", null, null,
+            Revision(rain, emptyList()), null, Verdict.Status.Ok)
+
+        val shown = replay(recording.close(300, null), parse)!!.result as CheckResult.Reviewed
+        assertTrue(shown.revision.edits.isEmpty())
+        assertEquals(rain, shown.revision.workingText)
+        assertEquals(setOf(EditKind.Fix), shown.withheld)
+        assertFalse(shown.looksGood)
+        assertFalse(shown.isResolved)
+    }
+
+    @Test
+    fun aSavedCleanCheckStillLooksGood() {
+        answers["clean"] = Verdict(status = Verdict.Status.Ok, language = "Catalan")
+        val recording = SessionRecording("Bon dia", context, 100)
+        recording.attempt(200, emptyList(), "clean", null, null,
+            Revision("Bon dia", emptyList()), null, Verdict.Status.Ok)
+
+        val shown = replay(recording.close(300, null), parse)!!.result as CheckResult.Reviewed
+        assertTrue(shown.revision.edits.isEmpty())
+        assertTrue(shown.withheld.isEmpty())
+        assertTrue(shown.looksGood)
     }
 
     @Test

@@ -25,7 +25,7 @@ class InputStringsTest {
             val selection = Selection.of("Before " + original + " after", 7, 7 + original.length)
             assertEquals("Before Bon dia after", selection.with(accepted.workingText))
             for (edit in r.edits) {
-                assertTrue("A spacing fix needs a visible highlight", edit.replacement.any { !it.isWhitespace() })
+                // Visibility is supplied by the card; the edit itself replaces only the whitespace.
                 assertTrue(r.preview(EditKind.Fix).ranges.containsKey(edit.id))
                 assertEquals(edit.from, original.substring(edit.start, edit.end))
             }
@@ -58,21 +58,15 @@ class InputStringsTest {
         }
     }
 
-    @Test fun oneReportedRewriteOfTwoSentencesBecomesIndependentEdits() {
+    @Test fun oneReportedRewriteOfTwoSentencesIsWithheld() {
         val original = "Voy a tomar una ducha. Voy a hacer una llamada."
         val natural = "Me voy a duchar. Voy a llamar."
-        val r = revision(original, natural = natural,
-            changes = listOf(VerdictChange(original, natural, "More usual")))
-        val firstSentenceEnd = original.indexOf(". ") + 2
-        val first = r.edits(EditKind.Natural).filter { it.start < firstSentenceEnd }
-        val second = r.edits(EditKind.Natural).filter { it.start >= firstSentenceEnd }
-        assertTrue(first.isNotEmpty())
-        assertTrue(second.isNotEmpty())
-        assertTrue(r.edits.all { it.end <= firstSentenceEnd || it.start >= firstSentenceEnd })
-        val firstOnly = first.fold(r) { current, edit -> current.accept(edit.id) }
-        assertEquals("Me voy a duchar. Voy a hacer una llamada.", firstOnly.workingText)
-        assertEquals(natural, firstOnly.acceptAll(EditKind.Natural).workingText)
-        assertEquals(original, r.acceptAll(EditKind.Natural).undo().workingText)
+        val result = interpret(original, Verdict(status = Verdict.Status.Ok, moreNatural = true,
+            natural = natural, naturalChanges = listOf(VerdictChange(original, natural, "More usual")))) as CheckResult.Reviewed
+        assertTrue(result.revision.edits(EditKind.Natural).isEmpty())
+        assertTrue(EditKind.Natural in result.withheld)
+        assertFalse(result.looksGood)
+        assertEquals(original, result.revision.acceptAll(EditKind.Natural).workingText)
     }
 
     @Test fun mergingTwoSentencesIsRejectedWithOrWithoutReportedChanges() {
@@ -101,13 +95,13 @@ class InputStringsTest {
     @Test fun aRewordingAndLineBreakFixCanBeAcceptedInEitherOrder() {
         val original = "Voy a tomar\r\nuna ducha. Te llamo despues."
         val corrected = "Voy a tomar una ducha. Te llamo después."
-        val natural = "Me voy a duchar. Te llamo después."
+        val natural = "Voy a ducharme. Te llamo después."
         val r = revision(original, corrected, natural,
-            listOf(VerdictChange("Voy a tomar una ducha", "Me voy a duchar")))
+            listOf(VerdictChange("tomar una ducha", "ducharme")))
         for (kinds in listOf(listOf(EditKind.Fix, EditKind.Natural), listOf(EditKind.Natural, EditKind.Fix))) {
             assertEquals(natural, kinds.fold(r) { current, kind -> current.acceptAll(kind) }.workingText)
         }
-        assertEquals("Me voy a duchar. Te llamo despues.", r.acceptAll(EditKind.Natural).workingText)
+        assertEquals("Voy a ducharme. Te llamo despues.", r.acceptAll(EditKind.Natural).workingText)
     }
 
     @Test fun singleCrlfAbbreviationsAndDecimalsDoNotInventSentenceBoundaries() {

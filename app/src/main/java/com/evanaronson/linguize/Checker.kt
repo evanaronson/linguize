@@ -10,6 +10,7 @@ import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.data.ProviderKeys
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.CheckRequest
+import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -48,20 +49,40 @@ class Checker(
         if (text.length > MAX_CHARS) throw CheckFailure(CheckFailure.Reason.TooLong, userMessage = CheckFailure.Message.InputTooLong)
         return failingAsCheckFailure {
             val used = context ?: readContext()
-            val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native)
-            val answer = clients.getValue(used.provider).check(key(used.provider), used.model, request)
-            val result = try {
-                prompt.validateSize(answer.verdict)
-                interpret(text, answer.verdict, used.judgments, expectedLanguage = language?.name)
-            } catch (e: CheckFailure) {
-                throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = answer.raw, userMessage = e.userMessage)
+            val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native,
+                writingProfiles = used.writingProfiles)
+            val client = clients.getValue(used.provider)
+            val key = key(used.provider)
+            val first = checked(text, language, client.check(key, used.model, request), used)
+            val partial = first.result as? CheckResult.Reviewed
+            if (partial == null || partial.withheld.isEmpty()) return@failingAsCheckFailure first
+            val second = try {
+                checked(text, language, client.check(key, used.model, request.copy(repair = true)), used)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: RuntimeException) {
-                throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, raw = answer.raw, userMessage = CheckFailure.Message.InvalidReply)
+            } catch (_: Exception) {
+                return@failingAsCheckFailure first
             }
-            Checked(result, answer.raw, used)
+            val revised = second.result as? CheckResult.Reviewed ?: return@failingAsCheckFailure first
+            // Never splice answers or rank their linguistic quality by edit count.
+            // Replace usable evidence only when the retry resolves known incompleteness.
+            if (revised.withheld.size < partial.withheld.size && partial.withheld.containsAll(revised.withheld)
+            ) second else first
         }
+    }
+
+    private fun checked(text: String, language: Language?, answer: ModelAnswer, context: CheckContext): Checked {
+        val result = try {
+            prompt.validateSize(answer.verdict)
+            interpret(text, answer.verdict, context.judgments, expectedLanguage = language?.name)
+        } catch (e: CheckFailure) {
+            throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = answer.raw, userMessage = e.userMessage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RuntimeException) {
+            throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, raw = answer.raw, userMessage = CheckFailure.Message.InvalidReply)
+        }
+        return Checked(result, answer.raw, context)
     }
 
     /**
@@ -102,6 +123,7 @@ class Checker(
             judgments = settings.judgments,
             native = settings.nativeLanguage,
             promptHash = prompt.hash,
+            writingProfiles = settings.writingProfiles.distinctBy { it.language }.sortedBy { it.language }.toList(),
         )
     }
 

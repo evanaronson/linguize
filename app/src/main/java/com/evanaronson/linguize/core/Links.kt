@@ -19,16 +19,25 @@ internal object Links {
      * their own, nor all together, may still add one when only some of them are accepted
      * ("ab 1" → "a!.cd": the "." and "cd" without the "!"), so every combination of the
      * edits that can end up in one run of text without spaces is tried, and if any adds
-     * a link, none of those edits is offered.
+     * a link, the edits in that combination are withheld. If the complete run introduces
+     * an address, discard that proposal together so no partial address is left as a fix.
      */
     fun withoutNew(original: String, edits: List<Edit>): List<Edit> {
         val known = links(original)
-        val linking = runs(original, edits).filterNot { run ->
-            run.size <= MOST_TOGETHER && (1 until (1 shl run.size)).none { mask ->
-                linking(original, known, shown(run.filterIndexed { k, _ -> mask shr k and 1 == 1 }))
+        val dropped = mutableSetOf<Int>()
+        for (run in runs(original, edits)) {
+            if (run.size > MOST_TOGETHER || linking(original, known, shown(run))) {
+                dropped += run.map { it.id }
+                continue
+            }
+            for (mask in 1 until (1 shl run.size)) {
+                val subset = run.filterIndexed { k, _ -> mask shr k and 1 == 1 }
+                // A subset containing a withheld edit can no longer be accepted.
+                if (subset.none { it.id in dropped } && linking(original, known, shown(subset))) {
+                    dropped += subset.map { it.id }
+                }
             }
         }
-        val dropped = linking.flatten().map { it.id }.toSet()
         return edits.filterNot { it.id in dropped }
     }
 

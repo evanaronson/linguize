@@ -1,82 +1,198 @@
 package com.evanaronson.linguize.core
 
-import com.evanaronson.linguize.core.Alignment.Op
 import com.evanaronson.linguize.core.Alignment.Type
-import java.text.BreakIterator
+import java.text.Normalizer
 
-/**
- * Turns the model's full corrected and natural texts into edits of the
- * original, so positions never depend on the model reporting them; its change
- * lists only supply reasons.
- */
+/** Constructs complete repairs, then validates and maps explicitly reported rewordings. */
 internal object Edits {
-    /** One edit per changed word and one per punctuation mark. */
-    fun fixes(original: String, corrected: String, reported: List<VerdictChange>): List<Edit> {
-        val spans = tidy(original, spans(original, corrected, atomic = true))
-        val fixes = toEdits(spans, reported, EditKind.Fix, firstId = 0)
+    data class Result(val edits: List<Edit>, val rejected: Boolean)
+
+    fun fixes(original: String, corrected: String, reported: List<VerdictChange>): Result {
+        val components = repairs(original, corrected)
+        fun ownsComponents(span: Span) = components.none { part ->
+            cuts(original, span.start, span.end, part.start, part.end) ||
+                cuts(corrected, span.targetStart, span.targetEnd, part.targetStart, part.targetEnd)
+        }
+        val declared = located(original, corrected, reported)?.takeIf { it.all(::ownsComponents) }
+            ?.map { span -> trimUnchangedContext(span).takeIf(::ownsComponents) ?: span }
+            ?.takeIf { spans ->
+                val sourceSentences = Sentences.ranges(original)
+                val targetSentences = Sentences.ranges(corrected)
+                // Structural scope policy across retained sentence stops, not a
+                // classifier of grammatical dependence within a sentence.
+                spans.none { span -> wording(span.from, span.replacement) &&
+                    sentenceStops(span.from) == sentenceStops(span.replacement) &&
+                    Sentences.crosses(sourceSentences, span.start, span.end) &&
+                    Sentences.crosses(targetSentences, span.targetStart, span.targetEnd)
+                }
+            }
+        val spans = if (declared != null) {
+            declared.flatMap { span ->
+                // The model supplies linguistic decisions. Only mechanically equivalent
+                // orthography/formatting can be divided without inventing new decisions.
+                if (wording(span.from, span.replacement)) listOf(span)
+                else {
+                    val parts = mechanicalRepairs(span.from, span.replacement)
+                    parts.map { part ->
+                        part.copy(start = span.start + part.start, end = span.start + part.end,
+                            // A rating of the whole report does not assess each independent
+                            // repair produced by splitting it. Keep the raw report as evidence.
+                            assessment = span.assessment.takeIf { parts.size == 1 }, reportId = span.reportId,
+                            assumptionIndices = span.assumptionIndices.takeIf { parts.size == 1 }.orEmpty(),
+                            why = span.why.takeIf { Alignment.same(part.from, span.from) &&
+                                Alignment.same(part.replacement, span.replacement) })
+                    }
+                }
+            }
+        } else if (!wording(original, corrected)) {
+            groupBoundaryCase(original, components)
+        } else {
+            // An inconsistent answer cannot authorize inferred grammar or word choice.
+            // Keep complete accent/word-spacing repairs whose case and letters agree;
+            // isolated punctuation/case fragments may depend on the rejected rewrite.
+            components.filter {
+                wordCount(it.from) > 0 && wordCount(it.replacement) > 0 &&
+                    letters(it.from, ignoreCase = false) == letters(it.replacement, ignoreCase = false)
+            }
+        }
+        val fixes = toEdits(groupBoundaryCase(original, spans.sortedBy { it.start }), reported, EditKind.Fix, 0)
         val placed = place(fixes).associateBy { it.fix.id }
-        return fixes.map { it.copy(order = 2 * placed.getValue(it.id).baseStart + 1) }
+        val ordered = fixes.map { it.copy(order = 2 * placed.getValue(it.id).baseStart + 1) }
+        return Result(ordered, !Alignment.same(render(original, ordered).text, corrected))
     }
 
     /**
-     * Phrase-level rewordings. The natural text is written on top of the
-     * corrected one, so rewordings are found against the corrected text (where
-     * the fixes cancel out), tidied there and then mapped back onto the original.
-     * A rewording that covers a fixed word takes in that word's original form.
+     * A reported decision may contain components, but cannot divide their ownership.
+     * Outer separators belong to mechanical repair ranges, not lexical ownership:
+     * a complete inserted word can be reported with either adjacent separator.
+     * Internal separators still belong to a broken/joined word's component.
      */
-    fun naturals(
+    private fun cuts(text: String, start: Int, end: Int, componentStart: Int, componentEnd: Int): Boolean {
+        var left = componentStart
+        var right = componentEnd
+        while (left < right && text[left].isWhitespace()) left++
+        while (right > left && text[right - 1].isWhitespace()) right--
+        return left < start && start < right || left < end && end < right
+    }
+
+    /** Split mechanical repairs, keeping a sentence stop with its required initial case. */
+    private fun mechanicalRepairs(original: String, corrected: String) =
+        groupBoundaryCase(original, repairs(original, corrected))
+
+    private fun groupBoundaryCase(original: String, parts: List<Span>): List<Span> {
+        val result = mutableListOf<Span>()
+        for (part in parts) {
+            val boundary = result.indices.lastOrNull { index ->
+                boundaryCase(result[index], part) &&
+                    Alignment.units(original.substring(result[index].end, part.start)).none { it.type == Type.Word }
+            }
+            if (boundary == null) {
+                result += part
+                continue
+            }
+            val dependent = result.subList(boundary, result.size).toList() + part
+            val start = dependent.first().start
+            val end = part.end
+            val from = original.substring(start, end)
+            val local = dependent.map { it.copy(start = it.start - start, end = it.end - start) }
+            val replacement = render(from, toEdits(local, emptyList(), EditKind.Fix, 0)).text
+            result.subList(boundary, result.size).clear()
+            val commonReport = dependent.first().reportId?.takeIf { report -> dependent.all { it.reportId == report } }
+            result += Span(start, end, from, replacement,
+                assessment = dependent.first().assessment.takeIf { commonReport != null }, reportId = commonReport,
+                assumptionIndices = dependent.first().assumptionIndices.takeIf { commonReport != null }.orEmpty())
+        }
+        return result
+    }
+
+    /** Adding/removing a sentence stop requires the following word's corresponding case. */
+    private fun boundaryCase(mark: Span, word: Span): Boolean {
+        val before = mark.from.any { it in ".!?…" }
+        val after = mark.replacement.any { it in ".!?…" }
+        if (before == after || wordCount(mark.from) != 0 || wordCount(mark.replacement) != 0 ||
+            wordCount(word.from) != 1 || wordCount(word.replacement) != 1 || wording(word.from, word.replacement)) return false
+        val a = word.from.codePointAt(0)
+        val b = word.replacement.codePointAt(0)
+        return if (before) Character.isUpperCase(a) && Character.isLowerCase(b)
+        else Character.isLowerCase(a) && Character.isUpperCase(b)
+    }
+
+    private fun wordCount(text: String) = Alignment.units(text).count { it.type == Type.Word }
+
+    fun naturalResult(
         original: String,
         fixes: List<Edit>,
         natural: String,
         reported: List<VerdictChange>,
         firstId: Int = 0,
-    ): List<Edit> {
+    ): Result {
         val base = render(original, fixes).text
-        val placed = place(fixes)
-        if (Links.hasNewLink(base, natural)) return emptyList()
+        if (!wording(base, natural)) return Result(emptyList(), !Alignment.same(base, natural))
+        if (Links.hasNewLink(base, natural)) return Result(emptyList(), true)
         val sentences = Sentences.ranges(base)
+        val originalSentences = Sentences.ranges(original)
         val targetSentences = Sentences.ranges(natural)
-        // Never offer an answer that joins existing sentences or paragraphs.
-        if (targetSentences.size < sentences.size) return emptyList()
-        val located = located(base, natural, reported)
-            ?.takeUnless { spans -> spans.any { Sentences.crosses(sentences, it.start, it.end) } }
-        val suggested = located ?: if (sentences.size == targetSentences.size) {
-            sentences.zip(targetSentences).flatMap { (from, to) ->
-                spans(base.substring(from), natural.substring(to), atomic = false).map {
-                    it.copy(start = it.start + from.first, end = it.end + from.first)
-                }
-            }
-        } else {
-            spans(base, natural, atomic = false)
+        if (targetSentences.size != sentences.size) return Result(emptyList(), true)
+        val candidates = located(base, natural, reported) ?: return Result(emptyList(), true)
+        val placed = place(fixes)
+        fun touchesDeletedWord(start: Int, end: Int) = placed.any { p ->
+            wordCount(p.fix.replacement) == 0 && wordCount(p.fix.from) > 0 &&
+                Alignment.units(base.substring(minOf(p.baseStart, end), maxOf(p.baseStart, start))).all { it.type == Type.Space }
         }
-        // Reported spans are not trusted as atomic. Re-align each phrase so formatting
-        // and separate changed regions cannot hide behind one reported reason.
-        val wording = suggested.flatMap { span ->
-            // Adding an entire new sentence is not a phrase rewording.
-            if (span.from.isEmpty() && PUNCTUATION.containsMatchIn(span.replacement)) return@flatMap emptyList()
-            spans(span.from, span.replacement, atomic = false, wordingOnly = true).map {
-                it.copy(start = it.start + span.start, end = it.end + span.start, why = span.why)
+        var rejected = false
+        val accepted = mutableListOf<Span>()
+        for (candidate in candidates) {
+            if (!wording(candidate.from, candidate.replacement)) {
+                rejected = true
+                continue
             }
-        }.filterNot {
-            greetingPreference(it.from, it.replacement) ||
-                (it.start == it.end && it.replacement.lastOrNull()?.isLetter() == true &&
-                    (base.getOrNull(it.end)?.isLetter() == true || base.getOrNull(it.end) in listOf('¿', '¡')))
-        }
-        // Tidied in the corrected text, so moving an insertion past a space never jumps
-        // over a fix's text, or into it.
-        val inBase = tidy(base, wording) { at ->
-            placed.any { it.baseStart <= at && at < it.baseEnd }
-        }
-        val spans = mergeWithinFixes(inBase, base, placed)
-            .filterNot {
-                val (start, end) = widened(it.start, it.end, placed)
-                Sentences.crosses(sentences, start, end)
+            if (Sentences.crosses(sentences, candidate.start, candidate.end) ||
+                Sentences.crosses(targetSentences, candidate.targetStart, candidate.targetEnd) ||
+                digits(candidate.from) != digits(candidate.replacement)) {
+                rejected = true
+                continue
             }
-            .map { toOriginal(it, base, original, placed) }
-            // Changes that only restate a fix, or undo one, don't change the original.
-            .filterNot { Alignment.same(it.from, it.replacement) ||
-                Sentences.crosses(Sentences.ranges(original), it.start, it.end) }
-        return toEdits(spans, reported, EditKind.Natural, firstId)
+            val change = trimUnchangedContext(candidate)
+            // Preserve the reported decision as a whole. Character-diff fragments do
+            // not establish which parts of a construction can be accepted separately.
+            if (hasSeparateOrthographicChange(change.from, change.replacement) ||
+                sentenceStops(change.from) != sentenceStops(change.replacement)) {
+                rejected = true
+                continue
+            }
+            if (change.replacement.isNotEmpty() &&
+                (!wholeWordEdge(base, change.start, change.replacement.codePointAt(0)) ||
+                    !wholeWordEdge(base, change.end, change.replacement.codePointBefore(change.replacement.length), after = true))) {
+                rejected = true
+                continue
+            }
+            // Unchanged report context does not establish ownership of a removed
+            // word, including when a space separates its deletion from this change.
+            if (touchesDeletedWord(change.start, change.end) || change.start == change.end && placed.any {
+                    change.start in it.baseStart..it.baseEnd &&
+                        (wordCount(it.fix.from) > 0 || wordCount(it.fix.replacement) > 0) && wording(it.fix.from, it.fix.replacement)
+                }) {
+                rejected = true
+                continue
+            }
+            val (start, end) = widened(change.start, change.end, placed)
+            if (touchesDeletedWord(start, end) || Sentences.crosses(sentences, start, end)) {
+                rejected = true
+                continue
+            }
+            val mapped = toOriginal(change, base, original, placed)
+            if (Sentences.crosses(originalSentences, mapped.start, mapped.end)) {
+                rejected = true
+                continue
+            }
+            if (!Alignment.same(mapped.from, mapped.replacement)) accepted += mapped
+        }
+        val edits = toEdits(accepted, emptyList(), EditKind.Natural, firstId)
+        // Widening to a corrected word can make otherwise distinct candidates conflict.
+        // Withhold both; merging them would change what either Accept action means.
+        val conflicts = edits.filter { edit -> edits.any { it.id != edit.id &&
+            (edit.overlaps(it) || (edit.includes intersect it.includes).isNotEmpty()) } }.map { it.id }.toSet()
+        return Result(edits.filterNot { it.id in conflicts }, rejected || conflicts.isNotEmpty())
     }
 
     private data class Span(
@@ -85,79 +201,234 @@ internal object Edits {
         val from: String,
         val replacement: String,
         val why: String? = null,
-        /** Ids of the fixes this span's replacement includes. */
         val includes: Set<Int> = emptySet(),
-        /** See [Edit.order]; only set for rewordings here, fixes get theirs once placed. */
         val order: Int = 0,
+        val targetStart: Int = -1,
+        val targetEnd: Int = -1,
+        val assessment: SuggestionAssessment? = null,
+        val reportId: Int? = null,
+        val assumptionIndices: List<Int> = emptyList(),
     )
 
     private fun toEdits(spans: List<Span>, reported: List<VerdictChange>, kind: EditKind, firstId: Int): List<Edit> {
-        val reasons = reasons(spans, reported)
+        val unused = reported.toMutableList()
         return spans.mapIndexed { index, span ->
-            Edit(firstId + index, kind, span.start, span.end, span.from, span.replacement, reasons[index], span.includes, span.order)
+            val match = unused.indexOfFirst {
+                Alignment.same(it.from, span.from) && Alignment.same(it.to, span.replacement)
+            }
+            val why = span.why ?: if (match >= 0) unused.removeAt(match).why.trim().ifEmpty { null } else null
+            Edit(firstId + index, kind, span.start, span.end, span.from, span.replacement, why, span.includes, span.order,
+                span.assessment, span.assumptionIndices)
         }
+    }
+
+    /** Remove only complete, unchanged lexical context; never trim letters out of a changed word. */
+    private fun trimUnchangedContext(span: Span): Span {
+        val from = Alignment.units(span.from)
+        val to = Alignment.units(span.replacement)
+        var prefix = 0
+        while (prefix < minOf(from.size, to.size) && from[prefix].normal == to[prefix].normal) prefix++
+        var suffix = 0
+        while (suffix < minOf(from.size, to.size) - prefix &&
+            from[from.lastIndex - suffix].normal == to[to.lastIndex - suffix].normal) suffix++
+        val fromStart = from.getOrNull(prefix - 1)?.end ?: 0
+        val toStart = to.getOrNull(prefix - 1)?.end ?: 0
+        val fromEnd = if (suffix == 0) span.from.length else from[from.size - suffix].start
+        val toEnd = if (suffix == 0) span.replacement.length else to[to.size - suffix].start
+        return span.copy(start = span.start + fromStart, end = span.start + fromEnd,
+            from = span.from.substring(fromStart, fromEnd), replacement = span.replacement.substring(toStart, toEnd),
+            targetStart = if (span.targetStart < 0) -1 else span.targetStart + toStart,
+            targetEnd = if (span.targetStart < 0) -1 else span.targetStart + toEnd)
+    }
+
+    /** Changes count as wording only when something beyond case, accents or formatting differs. */
+    private fun wording(from: String, to: String) = letters(from) != letters(to)
+
+    private fun letters(text: String, ignoreCase: Boolean = true) = buildString {
+        Normalizer.normalize(if (ignoreCase) text.lowercase() else text, Normalizer.Form.NFD).codePoints().forEach { codePoint ->
+            val type = Character.getType(codePoint)
+            if (Character.isLetterOrDigit(codePoint) || type in Character.MATH_SYMBOL.toInt()..Character.OTHER_SYMBOL.toInt())
+                appendCodePoint(codePoint)
+        }
+    }
+
+    private fun digits(text: String) = buildString {
+        text.codePoints().filter(Character::isDigit).forEach { appendCodePoint(it) }
     }
 
     /**
-     * Each span's reason: its own, or the one of the model's changes that matches it best.
-     * Closer kinds of match are settled for every span before looser ones, so a change
-     * goes to the span it describes exactly ("si" → "sí") rather than to an earlier one
-     * that merely contains its text ("asi" → "así").
+     * Unchanged words can separate an unrelated formatting repair from a rewording.
+     * They cannot establish whether lexical changes form one grammatical decision.
      */
-    private fun reasons(spans: List<Span>, reported: List<VerdictChange>): List<String?> {
-        val unused = reported.toMutableList()
-        val found = arrayOfNulls<VerdictChange>(spans.size)
-        for (level in matches) {
-            spans.forEachIndexed { index, span ->
-                if (span.why != null || found[index] != null) return@forEachIndexed
-                val to = span.replacement.trim()
-                val from = span.from.trim()
-                found[index] = unused.firstOrNull { level(from, to, it.from.trim(), it.to.trim()) }?.also { unused.remove(it) }
-            }
+    private fun hasSeparateOrthographicChange(from: String, to: String): Boolean {
+        val anchors = Alignment.wordAnchors(Alignment.units(from), Alignment.units(to)).ordered
+        var source = 0
+        var target = 0
+        fun orthographic(before: String, after: String) =
+            !Alignment.same(before, after) && !wording(before, after)
+        for ((left, right) in anchors) {
+            if (orthographic(from.substring(source, left.start), to.substring(target, right.start))) return true
+            source = left.end
+            target = right.end
         }
-        return spans.mapIndexed { index, span -> span.why ?: found[index]?.let(::reason) }
+        return orthographic(from.substring(source), to.substring(target))
     }
 
-    /** Ways a span (its from and to) can match a reported change (its from and to), closest first. */
-    private val matches: List<(String, String, String, String) -> Boolean> = listOf(
-        { from, to, otherFrom, otherTo -> Alignment.same(otherTo, to) && Alignment.same(otherFrom, from) },
-        { _, to, _, otherTo -> Alignment.same(otherTo, to) },
-        { from, _, otherFrom, _ -> from.isNotEmpty() && Alignment.same(otherFrom, from) },
-        { _, to, _, otherTo -> otherTo.isNotEmpty() && to.isNotEmpty() && (otherTo in to || to in otherTo) },
-    )
+    /** Rewording may need commas or other internal punctuation, but cannot move sentence stops. */
+    private fun sentenceStops(text: String) = text.filter { it in ".!?…" }
 
-    /** The model's rewordings found in [base], or null unless applying them produces [target]. */
+    /**
+     * Place each report against both complete texts, in source order. The unchanged
+     * prefix and declared replacement must match the target, including for insertions
+     * and repeated source words. An ambiguous placement is withheld, never guessed.
+     */
     private fun located(base: String, target: String, reported: List<VerdictChange>): List<Span>? {
         if (reported.isEmpty()) return null
+        fun indexed(text: String): Pair<String, Map<Int, Int>> {
+            val positions = mutableMapOf(0 to 0)
+            val normalized = buildString {
+                for (range in Alignment.characters(text)) {
+                    append(Normalizer.normalize(text.substring(range), Normalizer.Form.NFC))
+                    positions[length] = range.last + 1
+                }
+            }
+            return normalized to positions
+        }
+        val (normalized, positions) = indexed(base)
+        val (wanted, targetPositions) = indexed(target)
+        val sourceUnits = Alignment.units(base)
+        val targetUnits = Alignment.units(target)
         val spans = mutableListOf<Span>()
-        var searchFrom = 0
-        for (change in reported) {
-            val from = change.from.trim()
-            val to = change.to.trim()
-            // An empty side can't be placed or shown; let the alignment work it out instead.
-            if (from.isEmpty() || to.isEmpty()) return null
-            if (Alignment.same(from, to)) continue
-            val at = find(base, from, searchFrom) ?: find(base, from, 0) ?: return null
-            if (spans.any { at < it.end && it.start < at + from.length }) return null
-            spans += Span(at, at + from.length, from, to, reason(change))
-            searchFrom = at + from.length
+        var source = 0
+        var destination = 0
+        for ((reportId, change) in reported.withIndex()) {
+            if (Alignment.same(change.from, change.to)) continue
+            val from = Normalizer.normalize(change.from, Normalizer.Form.NFC)
+            val to = Normalizer.normalize(change.to, Normalizer.Form.NFC)
+            var shared = 0
+            while (source + shared < normalized.length && destination + shared < wanted.length &&
+                normalized[source + shared] == wanted[destination + shared]) shared++
+            val matches = positions.keys.filter { at ->
+                if (at !in source..source + shared || !normalized.startsWith(from, at)) return@filter false
+                val targetAt = destination + at - source
+                if (!wanted.startsWith(to, targetAt)) return@filter false
+                val end = positions[at + from.length] ?: return@filter false
+                val targetStart = targetPositions[targetAt] ?: return@filter false
+                val targetEnd = targetPositions[targetAt + to.length] ?: return@filter false
+                ownsWords(sourceUnits, positions.getValue(at), end) && ownsWords(targetUnits, targetStart, targetEnd)
+            }
+            if (matches.size != 1) return null
+            val at = matches.single()
+            val start = positions.getValue(at)
+            val end = positions.getValue(at + from.length)
+            val targetAt = destination + at - source
+            val targetStart = targetPositions.getValue(targetAt)
+            val targetEnd = targetPositions.getValue(targetAt + to.length)
+            spans += Span(start, end, base.substring(start, end), target.substring(targetStart, targetEnd),
+                change.why.trim().ifEmpty { null }, targetStart = targetStart, targetEnd = targetEnd,
+                assessment = change.assessment, reportId = reportId, assumptionIndices = change.assumptionIndices)
+            destination = targetAt + to.length
+            source = at + from.length
         }
-        spans.sortBy { it.start }
-        val applied = StringBuilder()
-        var pos = 0
-        for (span in spans) {
-            applied.append(base, pos, span.start).append(span.replacement)
-            pos = span.end
-        }
-        applied.append(base, pos, base.length)
-        return spans.takeIf { Alignment.same(applied.toString().trim(), target.trim()) }
+        return spans.takeIf { normalized.substring(source) == wanted.substring(destination) }
     }
 
-    private fun reason(change: VerdictChange) = change.why.trim().ifEmpty { null }
+    /** Both boundaries own complete lexical units, including an insertion's location. */
+    private fun ownsWords(units: List<Alignment.Token>, start: Int, end: Int): Boolean =
+        units.none { it.type == Type.Word &&
+            (it.start < start && start < it.end || it.start < end && end < it.end) }
 
-    // --- Mapping corrected-text positions back to the original -------------
+    private fun wholeWordEdge(text: String, at: Int, edge: Int, after: Boolean = false): Boolean {
+        fun word(codePoint: Int) = Character.isLetterOrDigit(codePoint) ||
+            Character.getType(codePoint) == Character.NON_SPACING_MARK.toInt()
+        if (!word(edge)) return true
+        val adjacent = if (after) {
+            if (at == text.length) return true
+            text.codePointAt(at)
+        } else {
+            if (at == 0) return true
+            text.codePointBefore(at)
+        }
+        return !word(adjacent)
+    }
 
-    /** A fix and where its replacement sits in the corrected text. */
+    /**
+     * Character alignment reveals word splits/joins. Project changes onto complete
+     * lexical units in BOTH texts: all fragments of a joined or broken word are one
+     * repair. Kept spaces separate independent word repairs. Nothing grows merely to
+     * provide a visible highlight; whitespace and deletions remain honest edits.
+     */
+    private fun repairs(base: String, target: String): List<Span> {
+        val ops = Alignment.align(base, target)
+        if (ops.isEmpty()) return emptyList()
+        val parent = IntArray(ops.size) { it }
+        fun root(index: Int): Int {
+            var at = index
+            while (parent[at] != at) {
+                parent[at] = parent[parent[at]]
+                at = parent[at]
+            }
+            return at
+        }
+        fun join(start: Int, end: Int) {
+            val owner = root(start)
+            for (at in start + 1..end) parent[root(at)] = owner
+        }
+        fun project(text: String, original: Boolean) {
+            val at = IntArray(text.length)
+            for ((index, op) in ops.withIndex()) {
+                val token = if (original) op.a else op.b
+                if (token != null) for (position in token.start until token.end) at[position] = index
+            }
+            val units = Alignment.units(text)
+            for ((index, unit) in units.withIndex()) {
+                join(at[unit.start], at[unit.end - 1])
+                // Adjacent sentence stops are one repair; quotes and symbols stay separate.
+                // Splitting "!." -> "!" could otherwise offer "." -> "!" alone.
+                val previous = units.getOrNull(index - 1)
+                if (unit.type == Type.Punct && previous?.type == Type.Punct &&
+                    sentenceStops(unit.text).isNotEmpty() && sentenceStops(previous.text).isNotEmpty())
+                    join(at[previous.start], at[unit.end - 1])
+            }
+        }
+        project(base, true)
+        project(target, false)
+        // An inserted/deleted word owns the inserted/deleted separating space. This
+        // connects only actual additions/removals, never an unchanged neighbouring word.
+        for (index in 1 until ops.size) {
+            val left = ops[index - 1]
+            val right = ops[index]
+            if (!left.isPunct && !right.isPunct &&
+                (left.a == null && right.a == null || left.b == null && right.b == null)) join(index - 1, index)
+        }
+        val before = IntArray(ops.size)
+        val targetBefore = IntArray(ops.size)
+        var position = 0
+        var targetPosition = 0
+        for ((index, op) in ops.withIndex()) {
+            before[index] = position
+            targetBefore[index] = targetPosition
+            op.a?.let { position = it.end }
+            op.b?.let { targetPosition = it.end }
+        }
+        return ops.indices.groupBy(::root).values.mapNotNull { group ->
+            if (group.all { ops[it].isMatch }) return@mapNotNull null
+            val removed = group.mapNotNull { ops[it].a }
+            val start = removed.firstOrNull()?.start ?: before[group.first()]
+            val end = removed.lastOrNull()?.end ?: start
+            val added = group.mapNotNull { ops[it].b }
+            val targetStart = added.firstOrNull()?.start ?: targetBefore[group.first()]
+            val targetEnd = added.lastOrNull()?.end ?: targetStart
+            val replacement = group.mapNotNull { index ->
+                val op = ops[index]
+                if (op.isMatch) op.a?.text else op.b?.text
+            }.joinToString("")
+            Span(start, end, base.substring(start, end), replacement,
+                targetStart = targetStart, targetEnd = targetEnd)
+        }
+    }
+
+    // Corrected positions map back once, after scope validation.
     private data class Placed(val fix: Edit, val baseStart: Int, val baseEnd: Int)
 
     private fun place(fixes: List<Edit>): List<Placed> {
@@ -169,7 +440,6 @@ internal object Edits {
         }
     }
 
-    /** [start] and [end] in the corrected text, moved out to the edges of any fix's text they fall strictly inside. */
     private fun widened(start: Int, end: Int, placed: List<Placed>): Pair<Int, Int> {
         var from = start
         var to = end
@@ -180,49 +450,18 @@ internal object Edits {
         return from to to
     }
 
-    /**
-     * Joins rewordings that would overlap once widened to take in whole fixes, like two
-     * that end and start inside the same fix. Afterwards no two rewordings share a fix.
-     */
-    private fun mergeWithinFixes(spans: List<Span>, base: String, placed: List<Placed>): List<Span> {
-        val merged = mutableListOf<Span>()
-        for (span in spans.sortedBy { it.start }) {
-            val last = merged.lastOrNull()
-            merged += if (last != null && widened(span.start, span.end, placed).first < widened(last.start, last.end, placed).second) {
-                merged.removeAt(merged.lastIndex)
-                Span(
-                    start = last.start,
-                    end = span.end,
-                    from = base.substring(last.start, span.end),
-                    replacement = last.replacement + base.substring(last.end, span.start) + span.replacement,
-                    why = last.why ?: span.why,
-                )
-            } else {
-                span
-            }
-        }
-        return merged
-    }
-
-    /** [span] is in corrected-text positions; the result is in original positions. */
     private fun toOriginal(span: Span, base: String, original: String, placed: List<Placed>): Span {
-        // A span edge inside a fix's replacement widens to take in the whole fix.
         val (start, end) = widened(span.start, span.end, placed)
-        val prefix = base.substring(start, span.start)
-        val suffix = base.substring(span.end, end)
         val from = originalPosition(start, placed)
         val to = originalPosition(end, placed)
-        // Fixes whose corrected text lies inside the span are part of the rewording,
-        // including insertions at its edges, which share no original characters with it.
-        val includes = placed
-            .filter { it.baseStart < it.baseEnd && start <= it.baseStart && it.baseEnd <= end }
-            .map { it.fix.id }
-            .toSet()
-        val order = 2 * start + if (start < end) 1 else 0
-        return Span(from, to, original.substring(from, to), prefix + span.replacement + suffix, span.why, includes, order)
+        val includes = placed.filter { it.baseStart < it.baseEnd && start <= it.baseStart && it.baseEnd <= end }
+            .map { it.fix.id }.toSet()
+        return Span(from, to, original.substring(from, to),
+            base.substring(start, span.start) + span.replacement + base.substring(span.end, end),
+            span.why, includes, 2 * start + if (start < end) 1 else 0,
+            assessment = span.assessment, reportId = span.reportId, assumptionIndices = span.assumptionIndices)
     }
 
-    /** Maps a corrected-text position that isn't inside any fix to the original. */
     private fun originalPosition(position: Int, placed: List<Placed>): Int {
         var delta = 0
         for (p in placed) {
@@ -230,253 +469,5 @@ internal object Edits {
             delta = p.baseEnd - p.fix.end
         }
         return position - delta
-    }
-
-    // --- Grouping the alignment into spans ---------------------------------
-
-    /** Spans of [base] that change to reach [target]: atomic for fixes, whole phrases for rewordings. */
-    private fun spans(base: String, target: String, atomic: Boolean, wordingOnly: Boolean = false): List<Span> {
-        val ops = Alignment.align(base, target).toMutableList()
-        // A deleted phrase between changed words has two equivalent space alignments.
-        // Keep the first space, so the deletion joins the following word change rather
-        // than swallowing the preceding verb ("pensés de aquest" -> "pensis d'aquest").
-        for (k in 1 until ops.lastIndex) {
-            val first = ops[k]
-            val prior = ops[k - 1]
-            if (first.a?.type != Type.Space || first.b != null ||
-                prior.a?.type != Type.Word || prior.b?.type != Type.Word) continue
-            var end = k + 1
-            while (end < ops.size && ops[end].b == null) end++
-            if (end >= ops.lastIndex) continue
-            val kept = ops[end]
-            val next = ops[end + 1]
-            if (kept.isMatch && kept.a?.type == Type.Space && first.a.normal == kept.a.normal &&
-                next.a?.type == Type.Word && next.b?.type == Type.Word &&
-                !prior.isMatch && !next.isMatch) {
-                ops[k] = Op(first.a, kept.b)
-                ops[end] = Op(kept.a, null)
-            }
-        }
-        if (ops.isEmpty()) return emptyList()
-
-        // Position in the base text before each op, for placing insertions.
-        val before = IntArray(ops.size)
-        var pos = 0
-        ops.forEachIndexed { k, op ->
-            before[k] = pos
-            op.a?.let { pos = it.end }
-        }
-
-        return group(ops, atomic, wordingOnly).map { group ->
-            val removed = (group[0]..group[1]).mapNotNull { ops[it].a }
-            val start = removed.firstOrNull()?.start ?: before[group[0]]
-            val end = removed.lastOrNull()?.end ?: start
-            Span(start, end, base.substring(start, end), replacement(ops, group))
-        }
-    }
-
-    /** Op-index ranges, each one edit. */
-    private fun group(ops: List<Op>, atomic: Boolean, wordingOnly: Boolean): List<IntArray> {
-        // Consecutive changes form a group; for fixes, every punctuation mark stands alone.
-        val groups = mutableListOf<IntArray>()
-        val blocked = BooleanArray(ops.size)
-        var current: IntArray? = null
-        for ((k, op) in ops.withIndex()) {
-            val open = current
-            if (wordingOnly && (formatting(op) || orthographyOnly(op))) {
-                // Lowercasing the old first word after an inserted phrase prefix
-                // belongs to that phrase ("Voy ..." -> "Me voy ...").
-                val partOfPrefix = orthographyOnly(op) && open != null &&
-                    op.a?.start == 0 && op.b!!.start > 0 &&
-                    op.a!!.text.first().isUpperCase() && op.b.text.first().isLowerCase()
-                if (!partOfPrefix) {
-                    blocked[k] = true
-                    current = null
-                    continue
-                }
-            }
-            if (op.isMatch) {
-                // In a rewording, a single kept space between two changes doesn't end the phrase.
-                val bridges = !atomic && open != null && op.token.type == Type.Space &&
-                    k + 1 < ops.size && !ops[k + 1].isMatch
-                val phraseBridge = wordingOnly && open != null && bridgeWords(ops, k)
-                if (bridges || phraseBridge) open!![1] = k else current = null
-            } else if (atomic && op.isPunct) {
-                groups += intArrayOf(k, k)
-                current = null
-            } else if (open == null) {
-                current = intArrayOf(k, k).also { groups += it }
-            } else {
-                open[1] = k
-            }
-        }
-
-        // A group that only changes spacing joins the group before it.
-        val joined = mutableListOf<IntArray>()
-        for (group in groups) {
-            val onlySpace = (group[0]..group[1]).all { ops[it].token.type == Type.Space }
-            val previous = joined.lastOrNull()
-            if (onlySpace && previous != null && previous[1] == group[0] - 1) previous[1] = group[1] else joined += group
-        }
-
-        // A deletion that leaves at most a space has nothing to show, so it joins the word change
-        // next to it ("y neo" → "Neo"), or else grows to include the nearest unchanged word.
-        // Spacing-only changes also take in a kept word so the highlight is visible.
-        fun isKeptSpace(k: Int) = ops[k].isMatch && ops[k].token.type == Type.Space
-        fun isKeptWord(k: Int) = ops[k].isMatch && ops[k].token.type == Type.Word
-        fun wordGroupAt(k: Int) = joined.firstOrNull { k in it[0]..it[1] }
-            ?.takeIf { group -> (group[0]..group[1]).none { ops[it].isPunct } }
-        for (group in joined) {
-            val onlySpacing = (group[0]..group[1]).all { ops[it].token.type == Type.Space }
-            if (!onlySpacing && replacement(ops, group).isNotBlank()) continue
-            var after = group[1] + 1
-            while (after < ops.size && isKeptSpace(after)) after++
-            var before = group[0] - 1
-            while (before >= 0 && isKeptSpace(before)) before--
-            val next = if (after < ops.size && !ops[after].isMatch) wordGroupAt(after) else null
-            val previous = if (before >= 0 && !ops[before].isMatch) wordGroupAt(before) else null
-            when {
-                next != null -> group[1] = next[1]
-                previous != null -> group[0] = previous[0]
-                else -> {
-                    val kept = (group[1] + 1 until ops.size).firstOrNull(::isKeptWord)
-                    if (kept != null) {
-                        group[1] = kept
-                    } else {
-                        (group[0] - 1 downTo 0).firstOrNull(::isKeptWord)?.let { group[0] = it }
-                    }
-                }
-            }
-        }
-
-        val merged = mutableListOf<IntArray>()
-        for (group in joined.sortedBy { it[0] }) {
-            val previous = merged.lastOrNull()
-            if (previous != null && group[0] <= previous[1]) previous[1] = maxOf(previous[1], group[1]) else merged += group
-        }
-        return if (wordingOnly) merged.filter { group ->
-            replacement(ops, group).isNotBlank() && (group[0]..group[1]).none { blocked[it] } && (group[0]..group[1]).any { index ->
-                val op = ops[index]
-                !op.isMatch && !formatting(op) && op.token.type != Type.Space && !orthographyOnly(op)
-            }
-        } else merged
-    }
-
-    /** Punctuation is a boundary; emoji and other content symbols are not punctuation. */
-    private fun formatting(op: Op): Boolean =
-        op.isPunct && PUNCTUATION.containsMatchIn(op.token.text)
-
-    private val PUNCTUATION = Regex("""\p{P}""")
-
-    /** Case/accent changes to the same word belong to correctness, not naturalness. */
-    private fun orthographyOnly(op: Op): Boolean =
-        !op.isMatch && op.a?.type == Type.Word && op.b?.type == Type.Word && op.a.folded == op.b.folded
-
-    /** Kept function words can bind one phrase; kept content words separate changes. */
-    private fun bridgeWords(ops: List<Op>, from: Int): Boolean {
-        for (index in from until ops.size) {
-            val op = ops[index]
-            if (!op.isMatch) return !op.isPunct && op.token.type == Type.Word && !orthographyOnly(op)
-            if (op.token.type != Type.Space &&
-                (op.token.type != Type.Word || op.token.text.lowercase() !in PHRASE_WORDS)) return false
-        }
-        return false
-    }
-
-    private val PHRASE_WORDS = setOf("a", "de", "del", "el", "la", "els", "les", "un", "una", "que", "to", "the", "of")
-
-    /** Known valid greeting: this alternative is preference, not an improvement. */
-    private fun greetingPreference(from: String, to: String): Boolean =
-        from.trim().lowercase() in setOf("què tal", "que tal") && to.trim().lowercase() in setOf("com vas", "com va", "com et va")
-
-    private fun replacement(ops: List<Op>, group: IntArray) =
-        (group[0]..group[1]).mapNotNull { ops[it].b?.text }.joinToString("")
-
-    /**
-     * Keeps spaces out of highlights ("␣estas amb" → "␣portes" becomes "estas amb" →
-     * "portes"). Spacing changes retain a neighbouring word so they can be shown.
-     * [fixed] tells which characters of [text] a fix put there.
-     */
-    private fun tidy(text: String, spans: List<Span>, fixed: (Int) -> Boolean = { false }): List<Span> {
-        val trimmed = spans.map(::trimSpaces)
-            .filterNot { Alignment.same(it.from, it.replacement) }
-        val characters by lazy { BreakIterator.getCharacterInstance().apply { setText(text) } }
-        return trimmed.map { span ->
-            // An inserted "␣al" before a space is the same as "al␣" after it, unless something
-            // else is inserted at the same place, which the move would jump over, or the space
-            // belongs to another change ([fixed], or another span), which it would land inside.
-            // The space moves whole, so a line break ("\r\n") is never split.
-            val replacement = span.replacement
-            val space = firstSpace(replacement)
-            val length = space.length
-            val alone = trimmed.none { it !== span && it.start < span.start + length && span.start < maxOf(it.end, it.start + 1) }
-            if (alone && span.start == span.end && replacement.length > length && length > 0 &&
-                firstSpace(text, span.start) == space && (span.start until span.start + length).none(fixed) &&
-                characters.isBoundary(span.start + length)
-            ) {
-                span.copy(start = span.start + length, end = span.end + length, replacement = replacement.drop(length) + space)
-            } else {
-                span
-            }
-        }
-    }
-
-    private fun trimSpaces(span: Span): Span {
-        var (start, end, from, replacement) = span
-        while (true) {
-            val space = firstSpace(from)
-            if (space.isEmpty() || firstSpace(replacement) != space) break
-            from = from.drop(space.length)
-            replacement = replacement.drop(space.length)
-            start += space.length
-        }
-        while (true) {
-            val space = lastSpace(from)
-            if (space.isEmpty() || lastSpace(replacement) != space) break
-            from = from.dropLast(space.length)
-            replacement = replacement.dropLast(space.length)
-            end -= space.length
-        }
-        return span.copy(start = start, end = end, from = from, replacement = replacement)
-    }
-
-    /** The space character [text] has at [at], taking "\r\n" as one; empty if something else is there. */
-    private fun firstSpace(text: String, at: Int = 0) = when {
-        text.startsWith("\r\n", at) -> "\r\n"
-        text.getOrNull(at)?.isWhitespace() == true -> text.substring(at, at + 1)
-        else -> ""
-    }
-
-    /** The space character [text] ends with, taking "\r\n" as one; empty if it ends with something else. */
-    private fun lastSpace(text: String) = when {
-        text.endsWith("\r\n") -> "\r\n"
-        text.lastOrNull()?.isWhitespace() == true -> text.substring(text.length - 1)
-        else -> ""
-    }
-
-    /**
-     * Index of [target] in [text] at or after [from], preferring a match that isn't
-     * inside a longer word, so "bien" doesn't land in "también". A match that would cut
-     * a character in two (part of an emoji, or a letter without its accent mark) doesn't
-     * count: an edit there would break the character.
-     */
-    private fun find(text: String, target: String, from: Int): Int? {
-        val characters = BreakIterator.getCharacterInstance().apply { setText(text) }
-        var fallback: Int? = null
-        var index = text.indexOf(target, from)
-        while (index >= 0) {
-            if (!characters.isBoundary(index) || !characters.isBoundary(index + target.length)) {
-                index = text.indexOf(target, index + 1)
-                continue
-            }
-            val before = text.getOrNull(index - 1)
-            val after = text.getOrNull(index + target.length)
-            val wholeWord = (before == null || !before.isLetter() || !target.first().isLetter()) &&
-                (after == null || !after.isLetter() || !target.last().isLetter())
-            if (wholeWord) return index
-            if (fallback == null) fallback = index
-            index = text.indexOf(target, index + 1)
-        }
-        return fallback
     }
 }

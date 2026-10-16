@@ -24,6 +24,11 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.Assumption
+import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.fakeChecker
@@ -79,6 +84,26 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class CheckViewModelTest {
+    @Test fun clarifyingALinkedSuggestionRechecksTheWholeOriginalAndMayRemoveIt() {
+        val original = "I saw her duck."
+        client.answer = { request ->
+            val verdict = if (request.settled.isEmpty()) {
+                Verdict(Verdict.Status.Ok, language = "English", assumptions = listOf(
+                    Assumption("Meaning of duck", "She lowered her head", alternatives = listOf("Her bird"))),
+                    moreNatural = true, natural = "I saw her lower her head.", naturalChanges = listOf(
+                        VerdictChange("her duck", "her lower her head", confidence = 1, impact = 3, assumptionIndices = listOf(0))))
+            } else Verdict(Verdict.Status.Ok, language = "English")
+            ModelAnswer(verdict, Json.encodeToString(verdict))
+        }
+        check.check(original, null, Origin.Menu)
+        assertEquals(listOf(0), reviewed().revision.edits.single().assumptionIndices)
+        check.settle("Meaning of duck", "Her bird")
+        assertTrue(reviewed().revision.edits.isEmpty())
+        assertTrue(reviewed().assumptions.isEmpty())
+        assertEquals(2, client.checks.size)
+        assertEquals(original, client.checks.last().third.text)
+        assertEquals(listOf(Settled("Meaning of duck", "Her bird")), client.checks.last().third.settled)
+    }
     private val preferences = FakePreferences()
     private val client = FakeClient { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
     private val checker = fakeChecker(preferences, client)
@@ -133,14 +158,83 @@ class CheckViewModelTest {
 
 
     @Test
-    fun acceptAllHandsBackTextWithoutTouchingTheClipboard() {
+    fun switchingToUnderstandDiscardsTheProvisionalCheckWithoutApplying() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        assertFalse(check.suspendForUnderstand())
+        runBlocking { history.flush() }
+        assertNull(check.state)
+        assertNull(check.workingText)
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+        // Closing the Understand popup or clearing the host cannot recreate that evidence.
+        check.dismiss(applied = false)
+        viewModels.clear()
+        runBlocking { history.flush() }
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+    }
+
+    @Test
+    fun switchingDuringLoadingCancelsAndDiscardsTheCheck() {
+        client.answer = { awaitCancellation() }
+        check.check(QUESTION, null, Origin.Button)
+        waitFor("a provisional record") { store.saves.get() > 0 }
+        assertFalse(check.suspendForUnderstand())
+        runBlocking { history.flush() }
+        settle()
+        assertNull(check.state)
+        assertTrue(closed().isEmpty())
+        assertEquals(1, store.deleted.size)
+    }
+
+    @Test
+    fun switchingToUnderstandKeepsAcceptedWorkAndClosingDoesNotApplyIt() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val retained = check.state
+        assertTrue(check.suspendForUnderstand())
+        assertEquals(retained, check.state)
+        assertEquals("Com estàs?", check.workingText)
+        assertTrue(store.deleted.isEmpty())
+        // Even if clipboard capture fails, returning uses this same state and Undo stack.
+        check.undo()
+        assertNull(check.workingText)
+        assertTrue(check.suspendForUnderstand())
+        check.dismiss(applied = false)
+        assertNull(closed().single().finalText)
+        assertTrue(store.deleted.isEmpty())
+    }
+
+    @Test
+    fun copiedAndClarifiedChecksAreRetainedWithoutAcceptedEdits() {
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.copied(EditKind.Fix)
+        assertTrue(check.suspendForUnderstand())
+        assertNull(check.workingText)
+        check.dismiss(applied = false)
+        assertEquals(Outcome.Copied, closed().single().outcome)
+
+        check.check(QUESTION, null, Origin.Button)
+        reviewed()
+        check.settle("tu", "informal")
+        val answered = done()
+        assertTrue(check.suspendForUnderstand())
+        assertEquals(answered, check.state)
+        assertEquals(listOf(Settled("tu", "informal")), answered.settled)
+        assertTrue(store.deleted.isEmpty())
+    }
+
+    @Test
+    fun acceptAllKeepsTheFinalTextUntilApplyWithoutTouchingTheClipboard() {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         clipboard.setPrimaryClip(ClipData.newPlainText("existing", "leave this alone"))
         check.check(QUESTION, null, Origin.Button)
         reviewed()
         var putBack: String? = null
-        var copies = 0
         val actions = CardActions.of(
             check, context,
             onClose = {
@@ -148,40 +242,64 @@ class CheckViewModelTest {
                 check.dismiss(applied = true)
             },
             onOpenSettings = null,
-            onCopyClose = { copies++ },
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
+        assertNull(putBack)
+        assertTrue(reviewed().isResolved)
+        assertEquals("Com estàs?", reviewed().revision.preview(EditKind.Fix).text)
+        assertTrue(closed().isEmpty())
+        actions.review!!.onApply()
         assertEquals("Com estàs?", putBack)
-        assertEquals(0, copies)
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
         assertEquals(Outcome.Applied, closed().single().outcome)
     }
 
     @Test
-    fun copyDoesNotReplaceTextEvenAfterAnIndividualAccept() {
+    fun copyAfterIndividualAcceptanceKeepsTheCardOpenUntilApply() = assertCompletedReviewCanBeCopied(acceptAll = false)
+
+    @Test
+    fun copyAfterAcceptAllKeepsTheCardOpenUntilApply() = assertCompletedReviewCanBeCopied(acceptAll = true)
+
+    private fun assertCompletedReviewCanBeCopied(acceptAll: Boolean) {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         check.check(QUESTION, null, Origin.Button)
         val fix = reviewed().revision.edits.single { it.kind == EditKind.Fix }
         var replacements = 0
-        var copies = 0
         val actions = CardActions.of(
             check, context,
-            onClose = { replacements++ },
-            onOpenSettings = null,
-            onCopyClose = {
-                copies++
-                check.dismiss(applied = false)
+            onClose = {
+                replacements++
+                check.dismiss(applied = true)
             },
+            onOpenSettings = null,
         )
-        actions.review!!.onAccept(fix.id)
-        actions.onCopy("the version I chose to copy", EditKind.Fix)
+        if (acceptAll) actions.review!!.onAcceptAll(EditKind.Fix) else actions.review!!.onAccept(fix.id)
+        assertTrue(reviewed().isResolved)
+        val preview = reviewed().revision.preview(EditKind.Fix).text
+        assertEquals("Com estàs?", preview)
         assertEquals(0, replacements)
-        assertEquals(1, copies)
-        assertEquals("the version I chose to copy", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertTrue(closed().isEmpty())
+        // The same Undo remains available after either route to a completed review.
+        actions.review!!.onUndo()
+        assertFalse(reviewed().isResolved)
+        assertNull(check.workingText)
+        if (acceptAll) actions.review!!.onAcceptAll(EditKind.Fix) else actions.review!!.onAccept(fix.id)
+        actions.onCopy(reviewed().revision.preview(EditKind.Fix).text, EditKind.Fix)
+        assertEquals(0, replacements)
+        assertEquals(preview, clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertTrue(reviewed().isResolved)
+        assertEquals(preview, check.workingText)
+        assertTrue(closed().isEmpty())
+        // Copy must leave review actions alive, including Undo and a later Apply.
+        actions.review!!.onUndo()
+        assertFalse(reviewed().isResolved)
+        actions.review!!.onAcceptAll(EditKind.Fix)
+        actions.review!!.onApply()
+        assertEquals(1, replacements)
         val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.Copied, session.outcome)
+        assertEquals(preview, session.finalText)
+        assertEquals(Outcome.Applied, session.outcome)
     }
 
     @Test
@@ -211,9 +329,10 @@ class CheckViewModelTest {
             check, context,
             onClose = { check.dismiss(applied = false) },
             onOpenSettings = null,
-            onCopyClose = { throw AssertionError("Accept must not call Copy") },
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
+        assertTrue(closed().isEmpty())
+        actions.review!!.onApply()
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
         assertEquals(Outcome.None, closed().single().outcome)
     }
@@ -286,6 +405,36 @@ class CheckViewModelTest {
         assertEquals("earlier", session.attempts.first().reusedFrom)
         assertEquals(settled, session.attempts.first().settled)
         assertNull(session.attempts.last().reusedFrom)
+    }
+
+    @Test
+    fun reusedUnusableSuggestionsRemainIncomplete() {
+        store.kept = keptSession(emptyList(), """{"status":"ok","language":"Catalan","more_natural":true}""")
+        client.answer = { awaitCancellation() }
+        check.check(QUESTION, null, Origin.Menu)
+
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+        assertFalse(reviewed().looksGood)
+        assertFalse(reviewed().isResolved)
+        assertTrue(reviewed().revision.edits.isEmpty())
+    }
+
+    @Test
+    fun acceptingAndUndoingSafeFixesKeepsTheIncompleteJudgment() {
+        client.answer = {
+            ModelAnswer(QUESTION_VERDICT.copy(moreNatural = true, natural = ""),
+                """{"status":"ok","has_errors":true,"corrected":"Com estàs?","more_natural":true}""")
+        }
+        check.check(QUESTION, null, Origin.Button)
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+
+        assertFalse(check.acceptAll(EditKind.Fix))
+        assertEquals("Com estàs?", check.workingText)
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+        check.undo()
+        assertNull(check.workingText)
+        assertEquals(setOf(EditKind.Natural), reviewed().withheld)
+        assertFalse(reviewed().looksGood)
     }
 
     @Test
@@ -573,17 +722,18 @@ class CheckViewModelTest {
     }
 
     /** A session on [QUESTION] closed earlier, whose one attempt the model answered with [QUESTION_JSON]. */
-    private fun keptSession(settled: List<Settled>): SessionDetail {
+    private fun keptSession(settled: List<Settled>, raw: String = QUESTION_JSON): SessionDetail {
         // Made with the settings the check runs with: a kept answer is only shown for those.
         val settings = runBlocking { checker.context().stored }
         val context = SessionContext(Opening(Origin.Menu, null, null, settings), appVersion = "1.0", deviceId = "device")
         val recording = SessionRecording(QUESTION, context, 500, newId = { "earlier" })
-        recording.attempt(600, settled, QUESTION_JSON, null, null, null, null)
+        recording.attempt(600, settled, raw, null, null, null, null)
         return recording.close(700, null)
     }
 
     /** Remembers the sessions it was asked to close, and counts saves and lookups; [kept] is what every reuse lookup finds. */
     private class RecordingStore : HistoryStore {
+        val deleted: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val closed: MutableList<SessionRecord> = Collections.synchronizedList(mutableListOf())
         val saves = AtomicInteger()
         val lookups = AtomicInteger()
@@ -608,7 +758,7 @@ class CheckViewModelTest {
         override suspend fun page(before: com.evanaronson.linguize.history.HistoryCursor?, limit: Int) =
             com.evanaronson.linguize.history.HistoryPage(emptyList(), null)
         override suspend fun detail(id: String): SessionDetail? = null
-        override suspend fun delete(id: String) = true
+        override suspend fun delete(id: String): Boolean { deleted += id; return true }
         override suspend fun clear() = Unit
         override suspend fun export(out: OutputStream) = true
     }

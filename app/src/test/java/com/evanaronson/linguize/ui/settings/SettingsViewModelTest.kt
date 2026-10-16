@@ -2,8 +2,11 @@ package com.evanaronson.linguize.ui.settings
 
 import android.os.Looper
 import androidx.lifecycle.ViewModelStore
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.llm.Provider
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -16,6 +19,50 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = App::class)
 class SettingsViewModelTest {
+    @Test
+    fun writingPreferencesEditOnlySelectedLanguageAndRefreshPreservesSelection() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val settings = SettingsViewModel(app)
+        val store = ViewModelStore().apply { put("settings", settings) }
+        try {
+            waitFor { settings.state != null }
+            val spanish = app.settings.writingProfiles.single { it.language == "es" }
+            settings.setWritingRegister(WritingRegister.Casual)
+            settings.setWritingPunctuation(Punctuation.Strict)
+            assertEquals(WritingRegister.Casual, settings.state!!.writingProfile.register)
+            assertEquals(Punctuation.Strict, settings.state!!.writingProfile.punctuation)
+            settings.selectWritingLanguage(Language.Spanish)
+            assertEquals(spanish, settings.state!!.writingProfile)
+            settings.setWritingRegister(WritingRegister.Formal)
+            settings.refresh()
+            waitFor { settings.state?.writingLanguage == "es" && settings.state?.writingProfile?.register == WritingRegister.Formal }
+            assertEquals("es", settings.state!!.writingLanguage)
+            assertEquals(Punctuation.Strict, app.settings.writingProfiles.single { it.language == "ca" }.punctuation)
+            assertEquals(WritingRegister.Casual, app.settings.writingProfiles.single { it.language == "ca" }.register)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun popupPositionSavesAndRefreshesFromAnotherHost() {
+        val app = RuntimeEnvironment.getApplication() as App
+        val settings = SettingsViewModel(app)
+        val store = ViewModelStore().apply { put("settings", settings) }
+        try {
+            waitFor { settings.state != null }
+            assertEquals(PopupPosition.Bottom, settings.state!!.popupPosition)
+            settings.setPopupPosition(PopupPosition.Top)
+            assertEquals(PopupPosition.Top, settings.state!!.popupPosition)
+            assertEquals(PopupPosition.Top, app.settings.popupPosition)
+            app.settings.popupPosition = PopupPosition.Middle
+            settings.refresh()
+            waitFor { settings.state?.popupPosition == PopupPosition.Middle }
+        } finally {
+            store.clear()
+        }
+    }
+
     @Test
     fun completingAKeyWriteReconcilesChangesMadeByAnotherSettingsHost() {
         val app = RuntimeEnvironment.getApplication() as App

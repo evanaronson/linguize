@@ -15,7 +15,7 @@ Each damaged text is checked once in its named language and once in Auto Detect:
 
 `FuzzReplayTest` feeds saved replies through the production Checker, parsing, interpretation, history reuse and edit engine. It records all offered edits and each individual Accept result, both previews and Accept all. It checks original span mappings, sentence boundaries, overlaps, previews, Undo, acceptance order and link safety. Ordinary app test runs skip this opt-in replay.
 
-The workflow defaults to offline replay of committed evidence when dispatched. Enable its `live` input explicitly to make billed calls, select a provider/model, and optionally supply ordered fallback targets. A change to `request.json` on `feature/fuzz-100` selects its recorded mode; ordinary pushes and pull requests make no provider requests. Results are uploaded as `fuzz-100-evidence`.
+The workflow defaults to offline replay of committed evidence when dispatched. Enable its `live` input explicitly to make billed calls, select a provider/model, and optionally supply ordered fallback targets. Pull requests replay committed evidence without provider requests. An optional `reuse_run` input retains successful answers from an earlier evidence run; live mode retries only its failures. Results are uploaded as `fuzz-100-evidence`.
 
 Every provider and rendered result must also be reviewed for linguistic quality and independent phrasing. The original clean text is context, not a mandatory exact output: random word substitutions can change the meaning without making the new text incorrect. A valid alternative correction is not automatically a failure. Synthetic inputs contain no user history or API keys.
 
@@ -32,9 +32,9 @@ python3 eval/fuzz.py --live --provider openai --model MODEL_ID --replies eval/fu
 
 Only failed requests trigger fallback. A valid answer with bad suggestions stays in the audit; selecting a more favorable judgment would hide bugs. Credentials for every selected provider must be configured before any call. Failed attempts are preserved without error response bodies or credentials.
 
-`--timeout` defaults to 30 seconds. The live audit uses 90 seconds to collect diagnostic answers; records and reports distinguish answers beyond the app's 30-second call limit. Retries and fallback do not simulate the app's actual waiting behavior.
+`--timeout` defaults to 30 seconds. The original diagnostic audit used 90 seconds; the [repair evaluation](REPAIR.md) uses 30 seconds. Records and reports distinguish answers beyond the app's 30-second call limit. Retries and fallback do not simulate the app's actual waiting behavior.
 
-The replay continues after recording invariant violations. Its successful completion means all evidence was captured, not that suggestions passed. The diagnostic flags and manual review ledger expose both structural failures and linguistic concerns.
+The replay continues after recording invariant violations. A successful replay enforces its deterministic safety gates and captures evidence; it does not establish linguistic quality. The diagnostic flags and manual review ledger expose both structural failures and linguistic concerns.
 
 Frozen evidence and the completed findings are described in [REPORT.md](REPORT.md). To review or replay it without API access:
 

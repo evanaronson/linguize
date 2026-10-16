@@ -158,6 +158,8 @@ def main(argv=None):
     parser.add_argument("--workers", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--interval", type=float, default=5.0, help="minimum seconds between request starts")
     parser.add_argument("--retry-errors", action="store_true", help="retry saved failures without repeating successful checks")
+    parser.add_argument("--repair-from", type=Path,
+                        help="after a complete first replay, collect one same-model repair for withheld results")
     args = parser.parse_args(argv)
     if args.interval < 0 or args.timeout <= 0:
         parser.error("Interval must be nonnegative and timeout must be positive")
@@ -182,7 +184,7 @@ def main(argv=None):
         if (provider, fallback_model) not in targets:
             targets.append((provider, fallback_model))
     credentials = {}
-    for provider, _ in targets:
+    for provider, _ in ([] if args.repair_from else targets):
         variable = runner.PROVIDERS[provider][2]
         credentials[provider] = os.environ.get(variable)
         if not credentials[provider]:
@@ -204,13 +206,34 @@ def main(argv=None):
             if not line:
                 continue
             item = json.loads(line)
-            if (item.get("requested_provider", item["provider"]),
-                    item.get("requested_model", item["model"]), item["prompt_sha256"], item["corpus_sha256"]) != (
-                    args.provider, model, prompt_hash, digest(corpus)):
+            if (item["prompt_sha256"], item["corpus_sha256"]) != (prompt_hash, digest(corpus)) or \
+                    (not args.repair_from and
+                     (item.get("requested_provider", item["provider"]), item.get("requested_model", item["model"])) !=
+                     (args.provider, model)):
                 parser.error("Resume file belongs to a different provider, model, prompt or corpus")
-            existing[item["case"]["request_id"]] = item
+            identity = item["case"]["request_id"]
+            if identity in existing:
+                parser.error(f"Duplicate reply request ID: {identity}")
+            existing[identity] = item
+    def save():
+        saved = "".join(json.dumps(existing[k], ensure_ascii=False) + "\n" for k in sorted(existing))
+        temporary = args.replies.with_suffix(".tmp")
+        temporary.write_text(saved)
+        temporary.replace(args.replies)
+
     pending = [case for case in requests(records) if case["request_id"] not in existing or
                (args.retry_errors and "error" in existing[case["request_id"]])]
+    if args.repair_from:
+        from fuzz_report import complete_evidence
+        engines = complete_evidence(list(existing.values()),
+                                    [json.loads(line) for line in args.repair_from.read_text().split("\n") if line], records)
+        pending = [item["case"] for identity, item in existing.items()
+                   if engines[identity].get("withheld") and "repair" not in item]
+        for provider in {existing[case["request_id"]]["provider"] for case in pending}:
+            variable = runner.PROVIDERS[provider][2]
+            credentials[provider] = os.environ.get(variable)
+            if not credentials[provider]:
+                parser.error(f"Missing repository secret {variable}; no repair requests made")
     pace_lock = threading.Lock()
     next_start = [0.0]
 
@@ -222,6 +245,22 @@ def main(argv=None):
             next_start[0] = time.monotonic() + args.interval
 
     def execute(case):
+        if args.repair_from:
+            entry = dict(existing[case["request_id"]])
+            provider, target_model = entry["provider"], entry["model"]
+            repair = {"provider": provider, "model": target_model, "attempts": 1}
+            paced_start()
+            started = time.monotonic()
+            try:
+                verdict, _ = runner.PROVIDERS[provider][0](target_model, credentials[provider], system, schema,
+                                                        runner.user_message({**case, "repair": True}))
+                repair["verdict"] = verdict
+            except Exception as error:
+                repair["error"] = type(error).__name__
+                if isinstance(error, urllib.error.HTTPError):
+                    repair["http_status"] = error.code
+            repair["latency_seconds"] = time.monotonic() - started
+            return {**entry, "repair": repair}
         entry = {"case": case, "provider": args.provider, "model": model,
                  "requested_provider": args.provider, "requested_model": model,
                  "timeout_seconds": args.timeout,
@@ -247,7 +286,9 @@ def main(argv=None):
                     retryable = isinstance(error, (TimeoutError, urllib.error.URLError))
                     status = error.code if isinstance(error, urllib.error.HTTPError) else None
                     if status is not None:
-                        retryable = status in (429, 500, 502, 503, 504)
+                        # A rate-limited target cannot benefit from immediate retries;
+                        # move to the configured fallback and keep the failure evidence.
+                        retryable = status in (500, 502, 503, 504)
                     failure = {"provider": provider, "model": target_model, "error": type(error).__name__}
                     if status is not None:
                         failure["http_status"] = status
@@ -259,21 +300,29 @@ def main(argv=None):
         return entry
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = [pool.submit(execute, case) for case in pending]
+        futures = []
+        for case in pending:
+            if args.repair_from:
+                # Reserve before sending: an interrupted run must not issue the semantic
+                # retry again, even if the provider returned before evidence was saved.
+                item = existing[case["request_id"]]
+                item["repair"] = {"provider": item["provider"], "model": item["model"], "attempts": 1,
+                                  "error": "InterruptedBeforeResult"}
+                save()
+            futures.append(pool.submit(execute, case))
         for number, future in enumerate(concurrent.futures.as_completed(futures), 1):
             item = future.result()
             existing[item["case"]["request_id"]] = item
             # Keep one latest record per request, even if a resumed run is interrupted.
-            saved = "".join(json.dumps(existing[k], ensure_ascii=False) + "\n" for k in sorted(existing))
-            temporary = args.replies.with_suffix(".tmp")
-            temporary.write_text(saved)
-            temporary.replace(args.replies)
+            save()
             print(f"pending {number}/{len(pending)} {item['case']['request_id']} {'ERROR' if 'error' in item else 'answered'}", flush=True)
     summary = {
         "provider": args.provider, "model": model, "prompt_sha256": prompt_hash,
         "corpus_sha256": digest(corpus), "requests": len(existing),
         "answered": sum("verdict" in item for item in existing.values()),
         "errors": sum("error" in item for item in existing.values()),
+        "repair_attempts": sum("repair" in item for item in existing.values()),
+        "repair_errors": sum("error" in item.get("repair", {}) for item in existing.values()),
         "answer_models": dict(collections.Counter(item["provider"] + ":" + item["model"]
                                                    for item in existing.values() if "verdict" in item)),
         "over_app_timeout": sum(item.get("latency_seconds", 0) > 30 for item in existing.values()),

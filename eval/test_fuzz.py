@@ -98,7 +98,7 @@ class FuzzCorpusTest(unittest.TestCase):
 
         def unavailable(model, *args):
             calls.append(model)
-            raise TimeoutError("a provider failed")
+            raise fuzz.urllib.error.HTTPError("https://fixture.invalid", 429, "rate limited", {}, None)
 
         def answer(model, *args):
             calls.append(model)
@@ -107,7 +107,7 @@ class FuzzCorpusTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             replies = Path(folder) / "replies.jsonl"
             argv = ["--live", "--model", "primary-fixture", "--fallback", "openai:secondary-fixture",
-                    "--tries", "1", "--workers", "1", "--interval", "0",
+                    "--tries", "3", "--workers", "1", "--interval", "0",
                     "--output", str(Path(folder) / "corpus.jsonl"), "--replies", str(replies)]
             providers = {"gemini": (unavailable, "primary-fixture", "FUZZ_A_KEY"),
                          "openai": (answer, "secondary-fixture", "FUZZ_B_KEY")}
@@ -152,6 +152,63 @@ class FuzzCorpusTest(unittest.TestCase):
                                          "--output", str(Path(folder) / "corpus.jsonl"),
                                          "--replies", str(Path(folder) / "replies.jsonl")]))
         self.assertEqual(["primary-fixture"] * 200, calls)
+
+
+    def test_repairs_use_actual_responder_once_preserve_first_answer_and_resume(self):
+        import contextlib
+        import io
+        import json
+        import os
+        import tempfile
+        from unittest.mock import patch
+        runner = fuzz.load_runner()
+        repair_calls = []
+        with tempfile.TemporaryDirectory() as folder:
+            replies = Path(folder) / "replies.jsonl"
+            engine = Path(folder) / "engine.jsonl"
+            argv = ["--live", "--workers", "1", "--interval", "0", "--output", str(Path(folder) / "corpus.jsonl"),
+                    "--replies", str(replies)]
+
+            def first(*args):
+                self.assertNotIn("\nRepair: true\n", args[-1])
+                return {"status": "ok", "meaning": "first answer"}, 0.01
+
+            def repair(model, key, system, schema, message):
+                repair_calls.append((model, key, message))
+                # The attempt is reserved before the provider sees the request.
+                saved = [json.loads(line) for line in replies.read_text().split("\n") if line]
+                self.assertTrue(any(row.get("repair", {}).get("error") == "InterruptedBeforeResult" for row in saved))
+                self.assertIn("\nRepair: true\nText: ", message)
+                if len(repair_calls) == 2:
+                    raise TimeoutError("do not retry this semantic call")
+                return {"status": "ok", "meaning": "repair answer"}, 0.01
+
+            with patch.object(fuzz, "load_runner", return_value=runner), \
+                    patch.dict(runner.PROVIDERS, {"gemini": (first, "requested-model", "FIRST_KEY"),
+                                                 "openai": (repair, "unused-default", "ACTUAL_KEY")}), \
+                    patch.dict(os.environ, {"FIRST_KEY": "first", "ACTUAL_KEY": "actual"}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, fuzz.main(argv + ["--model", "original-requested-model"]))
+                rows = [json.loads(line) for line in replies.read_text().split("\n") if line]
+                for row in rows[:3]:
+                    row.update(provider="openai", model="actual-responder")
+                # A previously interrupted repair is evidence, not permission to repeat it.
+                rows[2]["repair"] = {"provider": "openai", "model": "actual-responder", "attempts": 1,
+                                     "error": "InterruptedBeforeResult"}
+                replies.write_text("".join(json.dumps(row) + "\n" for row in rows))
+                engine.write_text("".join(json.dumps({"request_id": row["case"]["request_id"], "result": "reviewed",
+                                                      "withheld": ["fix"] if i < 3 else []}) + "\n"
+                                          for i, row in enumerate(rows)))
+                self.assertEqual(0, fuzz.main(argv + ["--repair-from", str(engine)]))
+                self.assertEqual(0, fuzz.main(argv + ["--repair-from", str(engine), "--retry-errors"]))
+                saved = [json.loads(line) for line in replies.read_text().split("\n") if line]
+            self.assertEqual(2, len(repair_calls))
+            self.assertTrue(all(call[:2] == ("actual-responder", "actual") for call in repair_calls))
+            self.assertEqual([row["verdict"] for row in rows], [row["verdict"] for row in saved])
+            self.assertEqual("repair answer", saved[0]["repair"]["verdict"]["meaning"])
+            self.assertEqual("TimeoutError", saved[1]["repair"]["error"])
+            self.assertEqual("InterruptedBeforeResult", saved[2]["repair"]["error"])
+            self.assertTrue(all("repair" not in row for row in saved[3:]))
 
 
 if __name__ == "__main__":

@@ -26,7 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -34,6 +33,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.data.PopupPosition
 
 /**
  * The card floating over a dimmed view of the app the text came from. Tapping
@@ -49,14 +49,29 @@ fun FloatingCard(
     actions: CardActions,
     onDismiss: () -> Unit,
     onOpenApp: () -> Unit,
+    position: PopupPosition = PopupPosition.Bottom,
     header: @Composable RowScope.() -> Unit = {},
+) {
+    FloatingPopup(onDismiss, onOpenApp, position, header) { modifier ->
+        ResultCard(state, actions, modifier)
+    }
+}
+
+/** Shared window presentation; the content decides its job and actions. */
+@Composable
+fun FloatingPopup(
+    onDismiss: () -> Unit,
+    onOpenApp: () -> Unit,
+    position: PopupPosition = PopupPosition.Bottom,
+    header: @Composable RowScope.() -> Unit = {},
+    content: @Composable (Modifier) -> Unit,
 ) {
     val appName = stringResource(R.string.app_name)
     Box(Modifier.fillMaxSize().semantics { paneTitle = appName }) {
         Box(
             Modifier
                 .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.32f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -69,7 +84,11 @@ fun FloatingCard(
                 .fillMaxSize()
                 .safeDrawingPadding()
                 .padding(16.dp),
-            contentAlignment = Alignment.BottomCenter,
+            contentAlignment = when (position) {
+                PopupPosition.Bottom -> Alignment.BottomCenter
+                PopupPosition.Middle -> Alignment.Center
+                PopupPosition.Top -> Alignment.TopCenter
+            },
         ) {
             // Long text scrolls inside the card; keep some of the app visible to tap away.
             val cardMaxHeight = maxHeight * 0.8f
@@ -100,7 +119,7 @@ fun FloatingCard(
                     header()
                 }
                 val cardModifier = Modifier.fillMaxWidth().heightIn(max = cardMaxHeight)
-                ResultCard(state, actions, cardModifier)
+                content(cardModifier)
             }
         }
     }

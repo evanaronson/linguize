@@ -14,7 +14,11 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingProfile
+import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.data.KeyStatus
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.data.MenuEntry
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
@@ -37,8 +41,11 @@ import java.time.LocalDate
 data class SettingsState(
     /** The entries shown in the text-selection menu; never empty. */
     val menu: Set<MenuEntry> = setOf(MenuEntry.Auto),
+    val popupPosition: PopupPosition = PopupPosition.Bottom,
     val punctuation: Punctuation = Punctuation.Moderate,
     val judgments: Judgments = Judgments.Both,
+    val writingProfiles: List<WritingProfile> = Language.all.map { WritingProfile.defaultFor(it) },
+    val writingLanguage: String = Language.Catalan.code,
     val provider: Provider = Provider.Gemini,
     val keys: Map<Provider, KeyStatus> = emptyMap(),
     /** The chosen model, or null for the provider's recommended one. */
@@ -51,6 +58,7 @@ data class SettingsState(
     val keySaveFailed: Boolean = false,
 ) {
     val hasKey get() = keys[provider] is KeyStatus.Saved
+    val writingProfile: WritingProfile get() = writingProfiles.first { it.language == writingLanguage }
 }
 
 /** The provider's models: loading, loaded, or failed to load. */
@@ -136,19 +144,23 @@ class SettingsViewModel(private val app: App) : ViewModel() {
                 SettingsState(
                     menu = app.menu.enabled().ifEmpty { setOf(MenuEntry.Auto) },
                     punctuation = settings.punctuation,
+                    writingProfiles = settings.writingProfiles,
                     judgments = settings.judgments,
                     provider = provider,
                     keys = Provider.entries.associateWith { app.keys.status(it) },
                     model = settings.model(provider),
                     historyEnabled = settings.historyEnabled,
+                    popupPosition = settings.popupPosition,
                 )
             }
             val previous = state
+            val selectedLanguage = previous?.writingLanguage ?: Language.Catalan.code
+            val refreshed = fresh.copy(writingLanguage = selectedLanguage)
             val sameService = previous != null && previous.provider == fresh.provider &&
                 previous.model == fresh.model && previous.keys == fresh.keys
             val reloadModels = modelsRequested && !sameService
-            state = if (sameService) fresh.copy(models = previous!!.models,
-                modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else fresh
+            state = if (sameService) refreshed.copy(models = previous!!.models,
+                modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else refreshed
             refreshJob = null
             if (!sameService) {
                 modelsRequested = false
@@ -186,9 +198,27 @@ class SettingsViewModel(private val app: App) : ViewModel() {
         }
     }
 
+    fun setPopupPosition(position: PopupPosition) = change { state ->
+        app.settings.popupPosition = position
+        state.copy(popupPosition = position)
+    }
+
     fun setPunctuation(punctuation: Punctuation) = change { state ->
         app.settings.punctuation = punctuation
         state.copy(punctuation = punctuation)
+    }
+
+    fun selectWritingLanguage(language: Language) = change { it.copy(writingLanguage = language.code) }
+
+    fun setWritingRegister(register: WritingRegister) = updateWritingProfile { it.copy(register = register) }
+
+    fun setWritingPunctuation(punctuation: Punctuation) = updateWritingProfile { it.copy(punctuation = punctuation) }
+
+    private fun updateWritingProfile(update: (WritingProfile) -> WritingProfile) = change { state ->
+        // Read the latest complete profile so another host's unrelated fields are preserved.
+        val profile = app.settings.writingProfiles.first { it.language == state.writingLanguage }
+        app.settings.updateWritingProfile(update(profile))
+        state.copy(writingProfiles = app.settings.writingProfiles)
     }
 
     fun setJudgments(judgments: Judgments) = change { state ->

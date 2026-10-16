@@ -13,7 +13,10 @@ its `language` field; empty for unclear), "fix" (a correction is expected or not
 natural alternative is expected or not) and "max_fixes" (more fixes than this
 means style is being counted as errors) "min_sentences" (fewer means
 run-ons were left alone), "assumption" (whether any assumption should be listed)
-and "settled" ([about, answer] pairs sent as Settled lines). Omitted fields aren't checked. "natural": false cases are the important ones: they catch the
+and "settled" ([about, answer] pairs sent as Settled lines). Focused regressions may
+also set "expected_corrected" / "expected_natural" for exact result text and
+"expected_fixes" / "expected_natural_changes" for ordered {from, to} pairs
+(reason wording is not compared). Omitted fields aren't checked. "natural": false cases are the important ones: they catch the
 app nagging about language that is already fine.
 """
 import argparse
@@ -45,7 +48,17 @@ def one_line(text):
 
 def user_message(case):
     language = case.get("language", "auto")
-    if language != "auto":
+    profiles = case.get("writing_profiles", [])
+    if not isinstance(profiles, list):
+        raise ValueError("writing_profiles must be a list of complete profiles")
+    for profile in profiles:
+        if not isinstance(profile, dict) or set(profile) != {"id", "name", "language", "variety", "register", "punctuation"}:
+            raise ValueError("Each writing profile must supply all six fields")
+        if profile["register"] not in ("casual", "everyday", "formal") or profile["punctuation"] not in ("casual", "moderate", "strict"):
+            raise ValueError("Unknown writing profile register or punctuation")
+    if len({p["language"] for p in profiles}) != len(profiles):
+        raise ValueError("Only one active writing profile per language is allowed")
+    if language != "auto" and not profiles:
         language = f"{language} ({LANGUAGES[language]})"
     native = case.get("native", "English")
     settled = "".join(
@@ -53,11 +66,14 @@ def user_message(case):
                                  ensure_ascii=False, separators=(",", ":")) + "\n"
         for about, answer in case.get("settled", [])
     )
+    profile_line = ("Writing profiles: " + json.dumps(profiles, ensure_ascii=False, separators=(",", ":"))
+                    .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029") + "\n") if profiles else ""
     return (f"Language: {language}\n"
             f"Punctuation: {case.get('punctuation', 'moderate')}\n"
-            f"Checks: {case.get('checks', 'both')}\n"
+            + profile_line + f"Checks: {case.get('checks', 'both')}\n"
             f"Native: {native} (write meaning, assumptions and reasons in {native})\n"
-            + settled + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
+            + settled + ("Repair: true\n" if case.get("repair") else "")
+            + f"Text: {TEXT_OPEN}{case['text']}{TEXT_CLOSE}")
 
 
 def json_object(value, label):
@@ -175,6 +191,13 @@ def summarize_answer(case, verdict, elapsed):
     """Finish validation and formatting before printing a successful case report."""
     verdict = json_object(verdict, "Model answer")
     problems = []
+    for kind in ("fixes", "natural_changes"):
+        for change in json_array(verdict.get(kind, []), kind):
+            change = json_object(change, "adjustment")
+            for dimension in ("confidence", "impact"):
+                score = change.get(dimension)
+                if type(score) is not int or score not in range(4):
+                    raise ValueError(f"Every adjustment needs integer {dimension} in 0..3")
     if "status" in case and verdict["status"] != case["status"]:
         problems.append(f"status {verdict['status']} != {case['status']}")
     if "answer_language" in case and verdict.get("language", "") != case["answer_language"]:
@@ -191,6 +214,16 @@ def summarize_answer(case, verdict, elapsed):
         problems.append(f"assumptions {verdict.get('assumptions')} (expected {'some' if case['assumption'] else 'none'})")
     if "max_fixes" in case and len(verdict["fixes"]) > case["max_fixes"]:
         problems.append(f"{len(verdict['fixes'])} fixes > {case['max_fixes']} (style counted as errors?)")
+    for field in ("corrected", "natural"):
+        expected = "expected_" + field
+        if expected in case and verdict[field] != case[expected]:
+            problems.append(f"{field} {verdict[field]!r} != {case[expected]!r}")
+    for field in ("fixes", "natural_changes"):
+        expected = "expected_" + field
+        if expected in case:
+            changes = [{"from": change["from"], "to": change["to"]} for change in verdict[field]]
+            if changes != case[expected]:
+                problems.append(f"{field} {changes!r} != {case[expected]!r}")
     mark = "MISS " if problems else "ok   "
     lines = [f"{mark}{elapsed:4.1f}s  {case['text']}  [{verdict.get('language', '')}]"]
     for a in verdict.get("assumptions", []):
@@ -198,11 +231,11 @@ def summarize_answer(case, verdict, elapsed):
     if verdict.get("corrected"):
         lines.append(f"            fix: {verdict['corrected']}")
         for change in verdict.get("fixes", []):
-            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/3; impact {change['impact']}/3)")
     if verdict.get("natural"):
         lines.append(f"        natural: {verdict['natural']}")
         for change in verdict.get("natural_changes", []):
-            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']})")
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/3; impact {change['impact']}/3)")
     lines.extend(f"        !! {problem}" for problem in problems)
     return problems, "\n".join(lines)
 

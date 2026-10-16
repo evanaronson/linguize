@@ -15,13 +15,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 /** OpenAI's Responses API over plain REST. */
 class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
     private val http = http.forProviderRequests()
-    /** Strict structured output rejects Gemini's non-standard propertyOrdering. */
-    private val schema = JsonObject(prompt.schema - "propertyOrdering")
 
     /** Minimal supported reasoning; models that reject the option get their default instead. */
     private val reasoningNone = DroppableOption(refusal = "reasoning")
 
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
+    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
+        prompt.read(generate(key, model, prompt.generation(request)))
+
+    override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
         // One time limit for the whole check, the retry without reasoning control included.
         val deadline = Deadline(http)
         val (code, payload) = reasoningNone.send(model) { withNoReasoning ->
@@ -33,7 +34,7 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
             deadline.send(call)
         }
         if (code != 200) throw failure(code, payload)
-        return prompt.read(answer(payload))
+        return answer(payload)
     }
 
     override suspend fun models(key: String): List<String> {
@@ -46,12 +47,12 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
         return textModels(ids.filter { it == "chat-latest" || it.startsWith("gpt-") || Regex("^o\\d").containsMatchIn(it) })
     }
 
-    private fun body(model: String, request: CheckRequest, noReasoning: Boolean): JsonObject = buildJsonObject {
+    private fun body(model: String, request: GenerationRequest, noReasoning: Boolean): JsonObject = buildJsonObject {
         put("model", model)
-        put("instructions", prompt.system)
-        put("input", prompt.userMessage(request))
+        put("instructions", request.system)
+        put("input", request.user)
         put("store", false)
-        put("max_output_tokens", Prompt.MAX_OUTPUT_TOKENS)
+        put("max_output_tokens", request.maxTokens)
         // Use the least reasoning supported by the current family. Unknown models
         // retain the existing retry without this option if they reject it.
         if (noReasoning) putJsonObject("reasoning") {
@@ -61,9 +62,9 @@ class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderCli
         putJsonObject("text") {
             putJsonObject("format") {
                 put("type", "json_schema")
-                put("name", "check")
+                put("name", request.name)
                 put("strict", true)
-                put("schema", schema)
+                put("schema", JsonObject(request.schema - "propertyOrdering"))
             }
         }
     }

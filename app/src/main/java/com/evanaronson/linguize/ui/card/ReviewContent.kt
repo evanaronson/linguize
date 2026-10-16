@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -38,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
-import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
 
 /** The way into the meaning and assumptions, one section per judgment, then Undo and Done once something has been accepted. */
@@ -66,17 +61,17 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
                     onBack = { showingUnderstanding = false },
                 )
             } else {
-                val count = settled.size + result.assumptions.count { a -> settled.none { it.about == a.about } }
-                UnderstandingEntry(result.meaning, count, onOpen = { showingUnderstanding = true })
-                if (count > 0 || result.meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
-                Suggestions(result, actions)
+                val entry = understandingEntry(result.meaning, result.assumptions, settled, actions.readOnly)
+                UnderstandingEntry(entry, onOpen = { showingUnderstanding = true })
+                if (entry.visible) Spacer(Modifier.height(8.dp))
+                Suggestions(result, settled, actions)
             }
         }
     }
 }
 
 @Composable
-private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
+private fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     if (result.looksGood) {
         val checked = result.kinds.map { if (it == EditKind.Fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural) }
         Outcome(Mark.Good, stringResource(R.string.looks_good), checked.joinToString(stringResource(R.string.status_separator)))
@@ -86,7 +81,7 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
     val review = actions.review
     result.kinds.forEachIndexed { index, kind ->
         if (index > 0) SectionDivider()
-        EditSection(kind, result.revision, actions.onCopy, review)
+        EditSection(kind, result, settled, actions)
     }
 
     if (review != null && result.revision.canUndo) {
@@ -101,53 +96,58 @@ private fun Suggestions(result: CheckResult.Reviewed, actions: CardActions) {
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = review.onUndo) { Text(stringResource(R.string.undo)) }
-            FilledTonalButton(onClick = review.onDone) { Text(stringResource(R.string.done)) }
+            FilledTonalButton(onClick = review.onApply) { Text(stringResource(R.string.apply)) }
         }
     }
 }
 
 @Composable
-private fun EditSection(kind: EditKind, revision: Revision, onCopy: (String, EditKind) -> Unit, review: ReviewActions?) {
+private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
+    val revision = result.revision
+    val withheld = kind in result.withheld
+    val review = actions.review
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
-    when {
-        revision.edits(kind).isEmpty() -> StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
-        remaining.isEmpty() -> StatusLine(Mark.Good, if (fix) stringResource(R.string.fixes_accepted) else stringResource(R.string.rewordings_accepted))
-        else -> {
-            val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            val label = pluralStringResource(
-                if (fix) R.plurals.fix_count else R.plurals.rewording_count,
-                remaining.size, remaining.size,
-            )
-            val preview = revision.preview(kind)
-            val highlights = remaining.mapNotNull { edit ->
-                preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why) }
-            }
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = accent,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            Spacer(Modifier.height(6.dp))
-            HighlightedText(preview.text, highlights, accent, review?.onAccept)
-            Spacer(Modifier.height(10.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (review != null) {
-                    FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text(stringResource(R.string.accept_all)) }
-                }
-                IconButton(onClick = { onCopy(preview.text, kind) }) {
-                    Icon(
-                        painterResource(R.drawable.ic_copy),
-                        contentDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+    if (withheld) {
+        StatusLine(Mark.Unsure, stringResource(if (fix) R.string.fixes_withheld else R.string.rewordings_withheld))
+        if (revision.edits(kind).isEmpty()) return
+        Spacer(Modifier.height(10.dp))
+    }
+    if (revision.edits(kind).isEmpty()) {
+        StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
+        return
+    }
+
+    val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val count = remaining.size.takeIf { it > 0 } ?: revision.edits(kind).size
+    val label = pluralStringResource(
+        if (fix) R.plurals.fix_count else R.plurals.rewording_count,
+        count, count,
+    )
+    val preview = revision.preview(kind)
+    val highlights = remaining.mapNotNull { edit ->
+        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why, edit.assessment,
+            linkedAssumptions(edit.assumptionIndices, result.assumptions, settled)) }
+    }
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = accent,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
+    Spacer(Modifier.height(6.dp))
+    HighlightedText(
+        preview.text, highlights, accent, review?.onAccept,
+        onCopy = { actions.onCopy(preview.text, kind) },
+        copyDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
+        onSettle = actions.onSettle.takeUnless { actions.readOnly },
+    )
+    if (remaining.isEmpty()) {
+        Spacer(Modifier.height(10.dp))
+        StatusLine(Mark.Good, if (fix) stringResource(R.string.fixes_accepted) else stringResource(R.string.rewordings_accepted))
+    } else if (review != null) {
+        Spacer(Modifier.height(10.dp))
+        FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text(stringResource(R.string.accept_all)) }
     }
 }
 

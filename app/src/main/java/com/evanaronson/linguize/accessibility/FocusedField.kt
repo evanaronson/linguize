@@ -14,6 +14,34 @@ internal object FocusedField {
     fun isPrivate(node: AccessibilityNodeInfo): Boolean =
         node.isPassword || PrivateField.matches(node.inputType, node.hintText, node.viewIdResourceName)
 
+    /** Privacy is checked before reading text. Empty/hint fields do not outrank copied text. */
+    fun selection(node: AccessibilityNodeInfo?): com.evanaronson.linguize.core.Selection? {
+        if (node == null || !node.isVisibleToUser || !node.isEnabled ||
+            !supportsEditing(node) || isPrivate(node) || node.isShowingHintText) return null
+        val text = node.text?.toString() ?: return null
+        val trimmed = text.trim()
+        // A selection action describes a capability, not the presence of actual input.
+        val hint = node.hintText?.toString()?.trim()
+        val hasTextOffset = node.textSelectionStart > 0 || node.textSelectionEnd > 0
+        if (!hint.isNullOrEmpty() && trimmed == hint && !hasTextOffset) return null
+        // WhatsApp can expose "Message" as editable text with neither hint signal.
+        // Resolve this ambiguity toward reading copied text, before creating any history.
+        if (isWhatsAppComposerPlaceholder(node, trimmed)) return null
+        return text
+            .let { com.evanaronson.linguize.core.Selection.of(it, node.textSelectionStart, node.textSelectionEnd) }
+            .takeIf { it.text.isNotEmpty() }
+    }
+
+    private fun isWhatsAppComposerPlaceholder(node: AccessibilityNodeInfo, text: String): Boolean {
+        val app = node.packageName?.toString()
+        if (app != "com.whatsapp" && app != "com.whatsapp.w4b") return false
+        val id = node.viewIdResourceName
+        // Some nodes omit ids. With an id, only the message composer qualifies, not search.
+        if (!id.isNullOrEmpty() && id != "com.whatsapp:id/entry" &&
+            id != "com.whatsapp.w4b:id/entry") return false
+        return text == "Message"
+    }
+
     fun sameWindow(node: AccessibilityNodeInfo, source: AccessibilityNodeInfo): Boolean =
         !source.packageName.isNullOrEmpty() &&
             node.packageName?.toString() == source.packageName?.toString() &&

@@ -18,6 +18,18 @@ import org.robolectric.shadows.ShadowToast
 @Config(sdk = [32, 35], application = Application::class)
 class ClipboardTest {
     @Test
+    fun readingCopiedTextNeverCoercesUrisOrIntents() {
+        val context = RuntimeEnvironment.getApplication()
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("text", " Bon dia "))
+        assertEquals(ClipboardText.Text("Bon dia"), context.readCopiedText())
+        clipboard.setPrimaryClip(android.content.ClipData.newIntent("intent", android.content.Intent("hidden")))
+        assertEquals(ClipboardText.NoText, context.readCopiedText())
+        clipboard.clearPrimaryClip()
+        assertEquals(ClipboardText.NoText, context.readCopiedText())
+    }
+
+    @Test
     fun copiedWritingIsSensitiveOnAndroid12AndNewer() {
         val context = RuntimeEnvironment.getApplication()
         context.copyToClipboard("A private message")

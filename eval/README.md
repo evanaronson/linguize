@@ -37,6 +37,12 @@ changes to `llm/` and validate live results before drawing quality conclusions.
 They use the initial request options, without Android's retry that removes an
 unsupported reasoning/thinking option.
 
+The live corruption workflow first replays the collected answers, then asks the same
+actual model once to repair structurally incomplete results (`Repair: true`). It
+retains both answers and replays the production checker to select the result. The
+final report requires recorded retry evidence; frozen replay alone cannot measure
+whether a model improves its answer.
+
 For future learning, start from a reproducible failure, inspect the stored evidence,
 then write a small reviewed example with explicit expectations. Do not automatically
 copy private messages, raw exports or uncertain model suggestions into this repo.
@@ -44,3 +50,10 @@ Keep a held-out set separate from examples used to tune a prompt or learner, rec
 the baseline, and compare fixes, unwanted rewrites and latency by language. Passing
 this dataset is evidence about its cases, not proof that a learner improves every
 writer. The learning and evidence design is in [architecture](../docs/architecture.md).
+
+## Retrospective confidence and impact experiment
+
+[Suggestion assessment](scoring/README.md) evaluates exact existing adjustments
+outside the app using separate 0–3 confidence and impact ratings. It supports
+phone History exports, repeated provider calls, blind reference review and local
+HTML/JSON reports. Production checking behavior remains unchanged.

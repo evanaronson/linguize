@@ -29,6 +29,8 @@ class HistorySchemaTest {
         origin = Origin.Button,
         hostApp = "org.telegram.messenger",
         requestedLanguage = "ca",
+        targetLanguage = "ca",
+        detectedLanguage = "es",
         nativeLanguage = "English",
         text = "Com estas?\nBé.",
         textHash = "abc123",
@@ -121,7 +123,7 @@ class HistorySchemaTest {
 
     @Test
     fun version2UpgradesTheRequestedLanguageToItsCode() {
-        val statements = HistorySchema.upgrade(2, HistorySchema.SESSION_COLUMNS.toSet())!!
+        val statements = HistorySchema.upgrade(2, HistorySchema.SESSION_COLUMNS.toSet(), HistorySchema.SUGGESTION_COLUMNS.toSet())!!
         assertTrue(statements.any { it.contains("SET \"requestedLanguage\" = CASE") && it.contains("WHEN 'Catalan' THEN 'ca'") && it.contains("WHEN 'Spanish' THEN 'es'") })
         // Nothing of version 1's renames: version 2 already stores tokens.
         assertFalse(statements.any { it.contains("SET \"origin\"") || it.contains("ADD COLUMN") })
@@ -174,6 +176,7 @@ class HistorySchemaTest {
 
         val summary = sessionSummary(MapRow(mapOf<String, Any?>(
             "id" to "s1", "startedAt" to 1L, "origin" to "widget", "hostApp" to null, "text" to "t",
+            "requestedLanguage" to null, "targetLanguage" to null, "detectedLanguage" to null,
             "outcome" to "snoozed", "status" to "unclear", "fixes" to 1L, "rewordings" to 0L, "taken" to 0L,
         )))
         assertNull(summary.origin)
@@ -193,11 +196,11 @@ class HistorySchemaTest {
     fun theReuseKeyBindsInOrder() {
         val key = session.reuseKey
         assertEquals(
-            listOf("abc123", "ca", "English", "moderate", "both", "gemini", "gemini-x", "p1", "5"),
+            listOf("abc123", "ca", "English", "moderate", "both", "gemini", "gemini-x", "p1", "[]", "5"),
             HistorySchema.reusableArgs(key, 5),
         )
-        assertEquals(8, HistorySchema.reusableArgs(key.copy(requestedLanguage = null), 5).size)
-        assertEquals(7, HistorySchema.reusableArgs(key.copy(requestedLanguage = null, settings = key.settings.copy(nativeLanguage = null)), 5).size)
+        assertEquals(9, HistorySchema.reusableArgs(key.copy(requestedLanguage = null), 5).size)
+        assertEquals(8, HistorySchema.reusableArgs(key.copy(requestedLanguage = null, settings = key.settings.copy(nativeLanguage = null)), 5).size)
     }
 
     @Test
@@ -299,7 +302,7 @@ class HistorySchemaTest {
 
     @Test
     fun everyVersionUpgradesByDeletingTheTestersSessions() {
-        assertEquals(5, HistorySchema.VERSION)
+        assertEquals(7, HistorySchema.VERSION)
         for (from in 1..3) {
             val statements = HistorySchema.upgrade(from, HistorySchema.SESSION_COLUMNS.toSet())!!
             val deletes = statements.filter { it.startsWith("DELETE") }

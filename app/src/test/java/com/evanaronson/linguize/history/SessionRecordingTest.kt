@@ -5,6 +5,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
 import com.evanaronson.linguize.core.interpret
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -38,7 +39,8 @@ class SessionRecordingTest {
     /** A fix (despues → después) and a rewording elsewhere that doesn't touch it. */
     private val shower = "Voy a tomar una ducha y te llamo despues"
 
-    private fun revision(original: String, corrected: String = "", natural: String = ""): Revision =
+    private fun revision(original: String, corrected: String = "", natural: String = "",
+        changes: List<VerdictChange> = emptyList()): Revision =
         (
             interpret(
                 original,
@@ -48,14 +50,17 @@ class SessionRecordingTest {
                     corrected = corrected,
                     moreNatural = natural.isNotEmpty(),
                     natural = natural,
+                    naturalChanges = changes,
                 ),
             ) as CheckResult.Reviewed
             ).revision
 
-    private fun rainRevision() = revision(rain, corrected = "Com estàs amb la pluja?", natural = "Com portes la pluja?")
+    private fun rainRevision() = revision(rain, corrected = "Com estàs amb la pluja?", natural = "Com portes la pluja?",
+        changes = listOf(VerdictChange("estàs amb", "portes")))
 
     private fun showerRevision() =
-        revision(shower, corrected = "Voy a tomar una ducha y te llamo después", natural = "Me voy a duchar y te llamo después")
+        revision(shower, corrected = "Voy a tomar una ducha y te llamo después", natural = "Voy a ducharme y te llamo después",
+            changes = listOf(VerdictChange("tomar una ducha", "ducharme")))
 
     private var ids = 0
     private fun recording(text: String) = SessionRecording(text, context, now = 100, newId = { "id${ids++}" })
@@ -69,6 +74,40 @@ class SessionRecordingTest {
         suggestions.filter { it.kind == kind }.map { it.decision }.toSet()
 
     private fun SessionDetail.only(kind: EditKind) = suggestions.single { it.kind == kind }
+
+    @Test
+    fun autoDetectionAndExplicitTargetsStayDistinctAcrossAttempts() {
+        val auto = context.copy(opening = context.opening.copy(requestedLanguage = null))
+        val recording = SessionRecording(rain, auto, now = 100)
+        assertNull(recording.session.targetLanguage)
+        fun answer(raw: String, failure: String? = null, reused: String? = null) =
+            recording.attempt(101, emptyList(), raw, failure, null, null, null, reusedFrom = reused)
+
+        val detected = answer("""{"status":"ok","language":"Catalan (Central)"}""", reused = "earlier")
+        assertEquals("ca", detected.targetLanguage)
+        assertEquals("ca", detected.detectedLanguage)
+        assertEquals("ca", detected.attempts.single().targetLanguage)
+        assertEquals("earlier", detected.attempts.single().reusedFrom)
+
+        recording.changeLanguage("es", auto.opening.settings, 102)
+        val wrong = answer("""{"status":"wrong_language","language":"Catalan"}""")
+        assertEquals("es", wrong.targetLanguage)
+        assertEquals("ca", wrong.detectedLanguage)
+        assertEquals(listOf("ca", "es"), wrong.attempts.map { it.targetLanguage })
+
+        val failed = answer("""{"status":"ok","language":"Spanish"}""", "bad_response")
+        assertEquals("es", failed.targetLanguage)
+        assertNull(failed.detectedLanguage)
+        assertNull(failed.attempts.last().detectedLanguage)
+
+        recording.changeLanguage(null, auto.opening.settings, 103)
+        val unclear = answer("""{"status":"unclear","language":"Spanish"}""")
+        assertNull(unclear.targetLanguage)
+        assertNull(unclear.detectedLanguage)
+        val offline = answer("", "offline")
+        assertNull(offline.targetLanguage)
+        assertNull(offline.detectedLanguage)
+    }
 
     @Test
     fun theSessionStartsOpenWithItsContext() {

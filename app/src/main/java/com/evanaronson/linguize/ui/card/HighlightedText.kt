@@ -2,16 +2,22 @@ package com.evanaronson.linguize.ui.card
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,6 +35,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -36,17 +43,43 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.Assumption
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
-data class Highlight(val id: Int, val range: IntRange, val from: String, val why: String?)
+data class Highlight(
+    val id: Int,
+    val range: IntRange,
+    val from: String,
+    val why: String?,
+    val assessment: SuggestionAssessment? = null,
+    val assumptions: List<Assumption> = emptyList(),
+)
+
+/** Deletions and spacing cannot offer a visible text target; show their controls separately. */
+internal fun Highlight.needsPanel(text: String) = text.substring(range).isSpacing()
+
+private fun Char.isLineBreak() = this in "\r\n\u0085\u2028\u2029"
+private fun String.isSpacing() = all { it.isWhitespace() || it.isLineBreak() }
+
+/** Nearby words locate a spacing/deletion control without changing its actual replacement span. */
+internal fun Highlight.context(text: String): String {
+    val before = Regex("""\S+\s*$""").find(text.substring(0, range.first))?.value.orEmpty()
+    val after = Regex("""^\s*\S+""").find(text.substring(range.last + 1))?.value.orEmpty()
+    return before + text.substring(range) + after
+}
 
 /**
  * Suggested text with a separate rounded highlight behind each change, so
@@ -57,31 +90,50 @@ data class Highlight(val id: Int, val range: IntRange, val from: String, val why
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onReplace: ((Int) -> Unit)?) {
+fun HighlightedText(
+    text: String,
+    changes: List<Highlight>,
+    accent: Color,
+    onReplace: ((Int) -> Unit)?,
+    onCopy: () -> Unit,
+    copyDescription: String,
+    onSettle: ((String, String) -> Unit)? = null,
+) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
-    val selected = changes.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
+    val explanation = remember { BringIntoViewRequester() }
+    val (panels, visible) = remember(text, changes) { changes.partition { it.needsPanel(text) } }
+    val selected = visible.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
     // Drawing runs every frame. Index neighboring edges once instead of rescanning
     // every highlight for every other highlight as a longer check is scrolled.
-    val starts = remember(changes) { changes.mapTo(HashSet()) { it.range.first } }
-    val ends = remember(changes) { changes.mapTo(HashSet()) { it.range.last + 1 } }
+    val starts = remember(visible) { visible.mapTo(HashSet()) { it.range.first } }
+    val ends = remember(visible) { visible.mapTo(HashSet()) { it.range.last + 1 } }
 
     val annotated = remember(text, changes) {
         buildAnnotatedString {
             append(text)
-            for (change in changes) {
+            for (change in visible) {
                 addStyle(SpanStyle(fontWeight = FontWeight.SemiBold), change.range.first, change.range.last + 1)
             }
+            append(" ")
+            appendInlineContent("copy", "\uFFFC")
         }
     }
 
     // Resolve labels during composition so screen-reader actions also follow locale changes.
     val actions = changes.flatMap { change ->
-        val to = text.substring(change.range)
-        val whyLabel = if (change.from.isEmpty()) stringResource(R.string.change_why_add, to)
-            else stringResource(R.string.change_why_replace, change.from, to)
-        val replaceLabel = if (change.from.isEmpty()) stringResource(R.string.change_add, to)
-            else stringResource(R.string.change_replace, change.from, to)
+        val to = text.substring(change.range).visibleValue()
+        val from = change.from.visibleValue()
+        val whyLabel = when {
+            change.from.isEmpty() -> stringResource(R.string.change_why_add, to)
+            change.range.isEmpty() -> stringResource(R.string.change_why_remove, from)
+            else -> stringResource(R.string.change_why_replace, from, to)
+        }
+        val replaceLabel = when {
+            change.from.isEmpty() -> stringResource(R.string.change_add, to)
+            change.range.isEmpty() -> stringResource(R.string.change_remove, from)
+            else -> stringResource(R.string.change_replace, from, to)
+        }
         listOfNotNull(
             CustomAccessibilityAction(whyLabel) {
                 selectedId = change.id
@@ -102,8 +154,25 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
             annotated,
             style = MaterialTheme.typography.bodyLarge,
             onTextLayout = { layout = it },
+            inlineContent = mapOf("copy" to InlineTextContent(
+                Placeholder(width = 2.em, height = 1.5.em, placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter),
+            ) {
+                IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        painterResource(R.drawable.ic_copy),
+                        contentDescription = copyDescription,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }),
             modifier = Modifier
-                .semantics { customActions = actions }
+                .semantics {
+                    customActions = actions + CustomAccessibilityAction(copyDescription) {
+                        onCopy()
+                        true
+                    }
+                }
                 .drawBehind {
                     val result = layout ?: return@drawBehind
                     // Highlights grow a little past their text, except where two changes touch,
@@ -112,7 +181,7 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
                     val gap = 1.dp.toPx()
                     val padY = 1.dp.toPx()
                     val radius = CornerRadius(5.dp.toPx())
-                    changes.forEachIndexed { index, change ->
+                    visible.forEachIndexed { index, change ->
                         val touchesBefore = change.range.first in ends
                         val touchesAfter = change.range.last + 1 in starts
                         val padLeft = if (touchesBefore) -gap else grow
@@ -128,19 +197,30 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
                         }
                     }
                 }
-                .pointerInput(changes) {
+                .pointerInput(visible) {
                     detectTapGestures { position ->
                         val result = layout ?: return@detectTapGestures
-                        val hit = nearest(result, changes, position, maxDistance = TOUCH_RADIUS.toPx())
+                        val hit = nearest(result, visible, position, maxDistance = TOUCH_RADIUS.toPx())
                         selectedId = if (hit == null || hit.id == selectedId) null else hit.id
                     }
                 },
         )
 
-        val shown = selected?.let { changes.getOrNull(it) }
+        panels.forEach { change ->
+            Spacer(Modifier.height(8.dp))
+            Explanation(change, text.substring(change.range), accent,
+                onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
+                context = change.context(text),
+                expanded = selectedId == change.id,
+                onToggle = { selectedId = if (selectedId == change.id) null else change.id },
+                modifier = if (selectedId == change.id) Modifier.bringIntoViewRequester(explanation) else Modifier,
+                onSettle = onSettle,
+            )
+        }
+
+        val shown = selected?.let { visible.getOrNull(it) }
         // Whenever a highlight is tapped, scroll (the card, or the screen around it) so its
         // explanation and Replace button are fully visible, once the panel has opened.
-        val explanation = remember { BringIntoViewRequester() }
         LaunchedEffect(selectedId) {
             if (selectedId != null) {
                 delay(EXPAND_MILLIS)
@@ -161,6 +241,7 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
                     replacement,
                     accent,
                     onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
+                    onSettle = onSettle,
                 )
             }
         }
@@ -168,47 +249,95 @@ fun HighlightedText(text: String, changes: List<Highlight>, accent: Color, onRep
 }
 
 @Composable
-private fun Explanation(change: Highlight, replacement: String, accent: Color, onReplace: (() -> Unit)?) {
-    val description = if (change.from.isEmpty()) stringResource(R.string.change_add, replacement)
-        else stringResource(R.string.change_becomes, change.from, replacement)
-    val display = if (change.from.isEmpty()) description
-        else stringResource(R.string.change_replacement, change.from, replacement)
+private fun Explanation(
+    change: Highlight,
+    replacement: String,
+    accent: Color,
+    onReplace: (() -> Unit)?,
+    context: String? = null,
+    expanded: Boolean = true,
+    onToggle: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    onSettle: ((String, String) -> Unit)? = null,
+) {
+    val from = change.from.visibleValue()
+    val to = replacement.visibleValue()
+    val description = when {
+        change.from.isEmpty() -> stringResource(R.string.change_add, to)
+        replacement.isEmpty() -> stringResource(R.string.change_remove, from)
+        else -> stringResource(R.string.change_becomes, from, to)
+    }
+    val display = if (change.from.isEmpty() || replacement.isEmpty()) description
+        else stringResource(R.string.change_replacement, from, to)
+    val whyLabel = when {
+        change.from.isEmpty() -> stringResource(R.string.change_why_add, to)
+        replacement.isEmpty() -> stringResource(R.string.change_why_remove, from)
+        else -> stringResource(R.string.change_why_replace, from, to)
+    }
     // Read out as it opens, which matters when it was opened by a screen reader's "Why" action.
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = accent.copy(alpha = 0.12f),
-        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        modifier = modifier
+            .then(if (onToggle != null) Modifier.clickable(onClickLabel = whyLabel, onClick = onToggle) else Modifier)
+            .semantics { liveRegion = LiveRegionMode.Polite },
     ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    buildAnnotatedString {
-                        append(display)
-                        if (change.from.isNotEmpty()) {
-                            val fromStart = display.indexOf(change.from)
-                            if (fromStart >= 0) addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough),
-                                fromStart, fromStart + change.from.length)
+        Column {
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        buildAnnotatedString {
+                            append(display)
+                            if (from.isNotEmpty()) {
+                                val fromStart = display.indexOf(from)
+                                if (fromStart >= 0) addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough),
+                                    fromStart, fromStart + from.length)
+                            }
+                            val replacementStart = display.lastIndexOf(to)
+                            if (to.isNotEmpty() && replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
+                                replacementStart, replacementStart + to.length)
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        // In words: the arrow would be read out as "right arrow".
+                        modifier = Modifier.semantics {
+                            contentDescription = description
+                        },
+                    )
+                    if (!context.isNullOrBlank()) {
+                        Text(context, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (expanded) {
+                        change.why?.let {
+                            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        val replacementStart = display.lastIndexOf(replacement)
-                        if (replacementStart >= 0) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold),
-                            replacementStart, replacementStart + replacement.length)
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    // In words: the arrow would be read out as "right arrow".
-                    modifier = Modifier.semantics {
-                        contentDescription = description
-                    },
-                )
-                change.why?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AssessmentDetails(change.assessment)
+                    }
+                }
+                if (onReplace != null) {
+                    Spacer(Modifier.width(8.dp))
+                    FilledTonalButton(onClick = onReplace) { Text(stringResource(R.string.accept)) }
                 }
             }
-            if (onReplace != null) {
-                Spacer(Modifier.width(8.dp))
-                FilledTonalButton(onClick = onReplace) { Text(stringResource(R.string.accept)) }
+            if (expanded && change.assumptions.isNotEmpty()) {
+                Column(Modifier.padding(horizontal = 12.dp)) {
+                    Text(stringResource(R.string.depends_on), style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    change.assumptions.forEach { AssumptionItem(it, onSettle) }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun String.visibleValue(): String = when {
+    isEmpty() -> ""
+    !isSpacing() -> trim()
+    any { it.isLineBreak() } -> stringResource(R.string.change_line_break)
+    length == 1 && this[0] == ' ' -> stringResource(R.string.change_space)
+    else -> stringResource(R.string.change_spacing)
 }
 
 private data class LineBox(val left: Float, val top: Float, val right: Float, val bottom: Float)

@@ -57,6 +57,25 @@ class HistoryJsonTest {
     }
 
     @Test
+    fun languageBackfillPreservesRawAndUnknownEvidenceWithoutGuessing() {
+        val raw = """{"status":"ok","language":"Catalan"}"""
+        val stored = """[{"at":1,"raw":${kotlinx.serialization.json.JsonPrimitive(raw)},"future":42},
+            {"at":2,"requestedLanguage":"es","raw":${kotlinx.serialization.json.JsonPrimitive(raw)}},
+            {"at":3,"raw":${kotlinx.serialization.json.JsonPrimitive(raw)},"failure":"bad_response"},
+            {"at":4,"raw":"broken"}]"""
+        val upgraded = upgradeLanguageAttempts(stored)
+        val attempts = decodeAttempts(upgraded)
+        assertEquals(listOf("ca", "es", null, null), attempts.map { it.targetLanguage })
+        assertEquals(listOf("ca", "ca", null, null), attempts.map { it.detectedLanguage })
+        assertEquals(raw, attempts.first().raw)
+        assertTrue(upgraded.contains("\"future\":42"))
+        assertEquals(upgraded, upgradeLanguageAttempts(upgraded))
+        assertEquals("broken", upgradeLanguageAttempts("broken"))
+        assertEquals("en", detectedLanguage("""{"status":"wrong_language","language":"English"}""", null))
+        assertEquals(null, detectedLanguage("""{"status":"ok","language":"made up"}""", null))
+    }
+
+    @Test
     fun attemptsReadBackOrAsNone() {
         assertEquals(session.attempts, decodeAttempts(encodeAttempts(session.attempts)))
         assertEquals(emptyList<Attempt>(), decodeAttempts("{broken"))

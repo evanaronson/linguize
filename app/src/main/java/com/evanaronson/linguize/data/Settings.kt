@@ -5,6 +5,14 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.codec.Tokens
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingProfile
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import com.evanaronson.linguize.llm.Provider
 
 /**
@@ -28,9 +36,65 @@ class Settings(private val context: Context) : CheckPreferences {
         get() = read(PUNCTUATION, Punctuation.tokens, Punctuation.Moderate)
         set(value) = write(PUNCTUATION, value.token)
 
+    /** Migrates the former global punctuation once, then reads independent complete profiles. */
+    override val writingProfiles: List<WritingProfile>
+        get() = synchronized(writingProfilesLock) {
+            if (!prefs.contains(WRITING_PROFILES)) {
+                val migrated = Language.all.map { WritingProfile.defaultFor(it, punctuation) }
+                prefs.edit().putString(WRITING_PROFILES, profileJson.encodeToString(migrated)).apply()
+                migrated
+            } else readStoredWritingProfiles().take(Language.all.size)
+        }
+
+    /** V1 edits one profile per supported language; identity and name survive every edit. */
+    fun updateWritingProfile(profile: WritingProfile) = synchronized(writingProfilesLock) {
+        require(Language.forCode(profile.language) != null) { "Unsupported writing language" }
+        writingProfiles // Complete first-use migration before editing the stored records.
+        val existing = readStoredWritingProfiles()
+        require(existing.any { it.id == profile.id && it.language == profile.language }) { "Unknown writing profile" }
+        val records = readStoredWritingProfileRecords().orEmpty().toMutableList()
+        // Change only the selected record. Opaque records must retain their order and
+        // identity so a newer build can still select them without a default shadowing them.
+        val index = records.indexOfFirst { entry ->
+            val decoded = runCatching { profileJson.decodeFromJsonElement<WritingProfile>(entry) }.getOrNull()
+            decoded != null && decoded.id == profile.id && decoded.language == profile.language
+        }
+        val updated = profileJson.encodeToJsonElement(profile) as JsonObject
+        if (index >= 0) {
+            records[index] = JsonObject((records[index] as JsonObject) + updated)
+        } else {
+            records += updated
+        }
+        prefs.edit().putString(WRITING_PROFILES, JsonArray(records).toString()).apply()
+    }
+
+    private fun readStoredWritingProfileRecords(): JsonArray? {
+        val raw = runCatching { prefs.getString(WRITING_PROFILES, null) }.getOrNull()
+        return raw?.takeIf { it.length <= 65_536 }?.let {
+            runCatching { profileJson.parseToJsonElement(it) as? JsonArray }.getOrNull()
+        }
+    }
+
+    private fun readStoredWritingProfiles(): List<WritingProfile> {
+        // A malformed entry cannot erase another language's usable profile.
+        val decoded = readStoredWritingProfileRecords().orEmpty().mapNotNull { entry ->
+            runCatching { profileJson.decodeFromJsonElement<WritingProfile>(entry) }.getOrNull()
+        }.distinctBy { it.id }
+        val supported = Language.all.map { language ->
+            decoded.firstOrNull { it.language == language.code } ?: WritingProfile.defaultFor(language)
+        }
+        val selectedIds = supported.map { it.id }.toSet()
+        return supported + decoded.filter { it.id !in selectedIds }.sortedWith(compareBy({ it.language }, { it.id }))
+    }
+
     override var judgments: Judgments
         get() = read(JUDGMENTS, Judgments.tokens, Judgments.Both)
         set(value) = write(JUDGMENTS, value.token)
+
+    /** Placement shared by loading and result popups. */
+    var popupPosition: PopupPosition
+        get() = read(POPUP_POSITION, PopupPosition.tokens, PopupPosition.Bottom)
+        set(value) = write(POPUP_POSITION, value.token)
 
     /** Whether checks are kept in history. Turning it off keeps what's already there. */
     var historyEnabled: Boolean
@@ -79,7 +143,12 @@ class Settings(private val context: Context) : CheckPreferences {
         fun modelKey(token: String) = "model.$token"
 
         const val PROVIDER = "provider"
+        const val POPUP_POSITION = "popupPosition"
         const val PUNCTUATION = "punctuation"
+        const val WRITING_PROFILES = "writingProfiles.v1"
+        val profileJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+        val writingProfilesLock = Any()
+
         const val JUDGMENTS = "judgments"
         const val HISTORY = "history"
         const val HISTORY_EPOCH = "historyEpoch"

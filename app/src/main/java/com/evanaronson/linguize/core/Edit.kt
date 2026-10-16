@@ -45,6 +45,10 @@ data class Edit(
      * text starts goes before it.
      */
     val order: Int = 0,
+    /** Null means unassessed, including unmatched mechanically inferred repairs. */
+    val assessment: SuggestionAssessment? = null,
+    /** References into the same Reviewed result's assumptions, never into another attempt. */
+    val assumptionIndices: List<Int> = emptyList(),
 ) {
     val isInsertion get() = start == end
 
@@ -83,7 +87,7 @@ internal fun render(original: String, edits: List<Edit>): Rendered {
         out.append(original, pos, edit.start)
         val start = out.length
         out.append(edit.replacement)
-        if (edit.replacement.isNotEmpty()) ranges[edit.id] = start until out.length
+        ranges[edit.id] = start until out.length
         pos = edit.end
     }
     out.append(original, pos, original.length)

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="writing_preferences">Writing preferences</string>
+    <string name="writing_language">Language</string>
+    <string name="writing_register">Register</string>
+    <string name="writing_register_casual">Casual</string>
+    <string name="writing_register_everyday">Everyday</string>
+    <string name="writing_register_formal">Formal</string>
+</resources>

@@ -25,3 +25,18 @@ fun Context.copyToClipboard(text: String) {
         Toast.makeText(this, R.string.clipboard_copied, Toast.LENGTH_SHORT).show()
     }
 }
+
+sealed interface ClipboardText {
+    data class Text(val value: String) : ClipboardText
+    data object NoText : ClipboardText
+    data object Unavailable : ClipboardText
+}
+
+/** Caller must own a visible focused window; called once per explicit request, never observed. */
+fun Context.readCopiedText(): ClipboardText = try {
+    val clip = getSystemService(ClipboardManager::class.java).primaryClip
+    val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()?.trim()
+    if (text.isNullOrEmpty()) ClipboardText.NoText else ClipboardText.Text(text)
+} catch (_: RuntimeException) {
+    ClipboardText.Unavailable
+}

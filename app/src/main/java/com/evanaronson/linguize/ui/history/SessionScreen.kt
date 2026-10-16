@@ -71,7 +71,7 @@ private fun Shown(page: SessionPage.Shown, deletion: SessionDeletion, onDelete: 
 
     val card = page.card
     // The card shows the text itself only when it has suggestions to show in it.
-    val cardShowsText = (card?.result as? CheckResult.Reviewed)?.looksGood == false
+    val cardShowsText = (card?.result as? CheckResult.Reviewed)?.revision?.edits?.isNotEmpty() == true
     if (!cardShowsText) TextBlock(stringResource(R.string.your_text), session.text)
     if (card != null) {
         ReadOnlyCard(card)
@@ -97,6 +97,11 @@ private fun SessionDetails(session: SessionRecord, appLabel: String?) {
     Column {
         Text(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true), style = MaterialTheme.typography.titleLarge)
         appLabel?.let { Faint(it) }
+        Faint(stringResource(R.string.history_target_language,
+            targetLanguageLabel(resources, session.targetLanguage, session.requestedLanguage)))
+        session.detectedLanguage?.takeIf { it != session.targetLanguage }?.let {
+            Faint(stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it)))
+        }
     }
 }
 

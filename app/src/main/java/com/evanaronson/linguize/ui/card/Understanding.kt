@@ -39,22 +39,35 @@ import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.ui.components.BackButton
 
-/**
- * The quiet line at the top of the card that leads to how the text was
- * understood: its meaning and any assumptions. Nothing when there's neither.
- */
+/** Presentation keeps historical assumptions readable without promising a re-check. */
+internal data class UnderstandingEntryState(val visible: Boolean, val unresolved: Int, val canClarify: Boolean)
+
+internal fun understandingEntry(
+    meaning: String,
+    assumptions: List<Assumption>,
+    settled: List<Settled>,
+    readOnly: Boolean,
+): UnderstandingEntryState {
+    val unresolved = assumptions.count { a -> a.alternatives.any { it.isNotBlank() } && settled.none { it.about == a.about } }
+    return UnderstandingEntryState(
+        visible = meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
+        unresolved = unresolved,
+        canClarify = !readOnly && unresolved > 0,
+    )
+}
+
+/** The existing secondary page, with an explicit invitation when clarification is available. */
 @Composable
-internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () -> Unit) {
-    val parts = buildList {
-        if (meaning.isNotBlank()) add(stringResource(R.string.meaning))
-        if (assumptions > 0) add(pluralStringResource(R.plurals.assumption_count, assumptions, assumptions))
-    }
-    if (parts.isEmpty()) return
+internal fun UnderstandingEntry(entry: UnderstandingEntryState, onOpen: () -> Unit) {
+    if (!entry.visible) return
+    val label = if (entry.canClarify) {
+        pluralStringResource(R.plurals.review_assumptions, entry.unresolved, entry.unresolved)
+    } else stringResource(R.string.meaning)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClickLabel = stringResource(R.string.show_understanding), onClick = onOpen)
+            .clickable(onClickLabel = if (entry.canClarify) label else stringResource(R.string.show_understanding), onClick = onOpen)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -66,7 +79,7 @@ internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () ->
             modifier = Modifier.clearAndSetSemantics {},
         )
         Text(
-            parts.joinToString(stringResource(R.string.status_separator)),
+            label,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -84,7 +97,7 @@ internal fun UnderstandingEntry(meaning: String, assumptions: Int, onOpen: () ->
  * How the text was understood, shown in place of the suggestions: what it means,
  * in the writer's own language, then what was assumed where it was ambiguous.
  * Each assumption is presented as right; alternatives appear only after
- * "Not right", and picking one checks again with that answer.
+ * "Clarify", and picking one checks again with that answer.
  *
  * Both are the AI's reading, and text written by someone else can steer it (a
  * message can ask to be "understood" as something it isn't), so a quiet line at the
@@ -108,17 +121,7 @@ internal fun UnderstandingPage(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
-        SelectionContainer {
-            Text(
-                meaning,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .padding(12.dp),
-            )
-        }
+        MeaningText(meaning)
     }
     if (assumptions.isNotEmpty() || settled.isNotEmpty()) {
         if (meaning.isNotBlank()) Spacer(Modifier.height(20.dp))
@@ -132,11 +135,9 @@ internal fun UnderstandingPage(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, onSettle: ((String, String) -> Unit)?) {
     val open = assumptions.filterNot { a -> settled.any { it.about == a.about } }
-    var changing by remember { mutableStateOf<String?>(null) }
     Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.titleMedium)
     Text(
         stringResource(R.string.assumptions_description),
@@ -157,42 +158,75 @@ private fun Assumptions(assumptions: List<Assumption>, settled: List<Settled>, o
     }
     open.forEachIndexed { index, assumption ->
         if (index > 0 || settled.isNotEmpty()) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(Modifier.padding(vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Label(assumption.about)
-                    Text(assumption.assumed, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    if (assumption.words.isNotBlank()) {
-                        Text(
-                            stringResource(R.string.quoted_text, assumption.words),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (onSettle != null && assumption.alternatives.isNotEmpty() && changing != assumption.about) {
-                    val notRight = stringResource(R.string.not_right_about, assumption.about)
-                    TextButton(
-                        onClick = { changing = assumption.about },
-                        modifier = Modifier.semantics { contentDescription = notRight },
-                    ) { Text(stringResource(R.string.not_right)) }
+        AssumptionItem(assumption, onSettle)
+    }
+}
+
+/** The same question and answer action, whether shown on Meaning or beside a suggestion. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AssumptionItem(assumption: Assumption, onSettle: ((String, String) -> Unit)?) {
+    var changing by remember(assumption) { mutableStateOf(false) }
+    Column(Modifier.padding(vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Label(assumption.about)
+                Text(assumption.assumed, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                if (assumption.words.isNotBlank()) {
+                    Text(
+                        stringResource(R.string.quoted_text, assumption.words),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            if (onSettle != null && changing == assumption.about) {
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.what_did_you_mean), style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(4.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    assumption.alternatives.forEach { alternative ->
-                        SuggestionChip(onClick = { onSettle(assumption.about, alternative) }, label = { Text(alternative) })
-                    }
+            if (onSettle != null && assumption.alternatives.any { it.isNotBlank() } && !changing) {
+                val clarify = stringResource(R.string.clarify_about, assumption.about)
+                TextButton(
+                    onClick = { changing = true },
+                    modifier = Modifier.semantics { contentDescription = clarify },
+                ) { Text(stringResource(R.string.clarify)) }
+            }
+        }
+        if (onSettle != null && changing) {
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.what_did_you_mean), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(4.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                assumptionChoices(assumption).forEach { alternative ->
+                    SuggestionChip(onClick = { onSettle(assumption.about, alternative) }, label = { Text(alternative) })
                 }
             }
         }
     }
 }
 
+/** Include the current reading so clarification can confirm it as well as correct it. */
+internal fun assumptionChoices(assumption: Assumption): List<String> =
+    (listOf(assumption.assumed) + assumption.alternatives).filter { it.isNotBlank() }.distinct()
+
+internal fun linkedAssumptions(indices: List<Int>, assumptions: List<Assumption>, settled: List<Settled>): List<Assumption> =
+    indices.distinct().mapNotNull(assumptions::getOrNull).filter { a ->
+        assumptions.count { it.about == a.about } == 1 && settled.none { it.about == a.about }
+    }
+
 @Composable
 private fun Label(text: String) {
     Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Meaning presentation shared by the reading job and a check's secondary page. */
+@Composable
+internal fun MeaningText(meaning: String) {
+    SelectionContainer {
+        Text(
+            meaning,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .padding(12.dp),
+        )
+    }
 }

@@ -5,6 +5,7 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.WritingProfile
 import java.util.concurrent.ConcurrentHashMap
 
 /** What a check asks of the model; [Prompt] turns it into the user message. */
@@ -18,13 +19,32 @@ data class CheckRequest(
     val settled: List<Settled> = emptyList(),
     /** The writer's own language, for everything they read: the meaning, assumptions and reasons. */
     val native: String = "English",
+    /** One retry after the engine withheld structurally unsupported proposals. */
+    val repair: Boolean = false,
+    /** Complete profiles, selected by pinned or detected language without inheritance. */
+    val writingProfiles: List<WritingProfile> = emptyList(),
 )
 
 /** The model's answer: [raw], the text exactly as it came back, and the [verdict] read from it. */
 data class ModelAnswer(val verdict: Verdict, val raw: String)
 
 /** One provider's API. Every client sends the same [Prompt] and returns the same [ModelAnswer]. */
+data class GenerationRequest(
+    val system: String,
+    val user: String,
+    val schema: kotlinx.serialization.json.JsonObject,
+    val name: String,
+    val maxTokens: Int,
+)
+
+internal fun Prompt.generation(request: CheckRequest) =
+    GenerationRequest(system, userMessage(request), schema, "check", Prompt.MAX_OUTPUT_TOKENS)
+
 interface ProviderClient {
+    /** Raw structured answer; shared transport, with no correction interpretation or history. */
+    suspend fun generate(key: String, model: String, request: GenerationRequest): String =
+        throw UnsupportedOperationException("This client does not support generation")
+
     /** Throws [CheckFailure]; one about an answer that couldn't be read carries it as [CheckFailure.raw]. */
     suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer
 
@@ -34,7 +54,7 @@ interface ProviderClient {
 
 /** [raw] read as a verdict, kept alongside it; a failure to read it keeps it too. */
 internal fun Prompt.read(raw: String): ModelAnswer = try {
-    ModelAnswer(parseVerdict(raw), raw)
+    ModelAnswer(parseVerdict(raw, requireScores = true), raw)
 } catch (e: CheckFailure) {
     throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw, userMessage = e.userMessage)
 }

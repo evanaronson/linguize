@@ -5,6 +5,7 @@ import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.SessionSettings
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.CheckFailure.Reason
@@ -13,6 +14,8 @@ import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
@@ -53,9 +56,9 @@ class CheckerTest {
         preferences.judgments = Judgments.FixOnly
         preferences.nativeLanguage = "Spanish"
         val context = checker.context()
-        assertEquals(CheckContext(Provider.Gemini, Provider.Gemini.recommendedModel, Punctuation.Strict, Judgments.FixOnly, "Spanish", prompt.hash), context)
+        assertEquals(CheckContext(Provider.Gemini, Provider.Gemini.recommendedModel, Punctuation.Strict, Judgments.FixOnly, "Spanish", prompt.hash, preferences.writingProfiles), context)
         assertEquals(
-            SessionSettings("Spanish", "strict", "fix", "gemini", Provider.Gemini.recommendedModel, prompt.hash),
+            SessionSettings("Spanish", "strict", "fix", "gemini", Provider.Gemini.recommendedModel, prompt.hash, preferences.writingProfiles),
             context.stored,
         )
     }
@@ -169,5 +172,107 @@ class CheckerTest {
         assertEquals(Reason.BadResponse, failure.reason)
         assertEquals("{", failure.raw)
         assertEquals(CheckFailure.Message.InvalidReply, failure.userMessage)
+    }
+
+    private val partial = QUESTION_VERDICT.copy(moreNatural = true)
+    private fun answer(verdict: Verdict) = ModelAnswer(verdict, Json.encodeToString(verdict))
+
+    @Test
+    fun anIncompleteAnswerRetriesOnceWithTheSameProviderModelAndSettings() = runBlocking<Unit> {
+        for (provider in Provider.entries) {
+            client.checks.clear()
+            preferences.provider = provider
+            val context = checker.context()
+            val originalKey = keys.getValue(provider)
+            client.answer = { request ->
+                if (!request.repair) {
+                    preferences.provider = Provider.entries.first { it != provider }
+                    preferences.nativeLanguage = "Spanish"
+                    keys[provider] = "changed-key"
+                    answer(partial)
+                } else answer(QUESTION_VERDICT)
+            }
+            val checked = checker.check(QUESTION, null, listOf(Settled("Who", "Me")), context)
+            assertEquals(2, client.checks.size)
+            val first = client.checks[0]
+            val second = client.checks[1]
+            assertEquals(originalKey to context.model, second.first to second.second)
+            assertEquals(first.third.copy(repair = true), second.third)
+            assertTrue(!first.third.repair)
+            assertSame(context, checked.context)
+            assertEquals(answer(QUESTION_VERDICT).raw, checked.raw)
+            assertTrue((checked.result as CheckResult.Reviewed).withheld.isEmpty())
+        }
+    }
+
+    @Test
+    fun aRepeatedPartialAnswerStopsAfterTwoCallsAndKeepsItsRawEvidence() = runBlocking<Unit> {
+        client.answer = { answer(partial).copy(raw = if (it.repair) "second" else "first") }
+        val checked = checker.check(QUESTION, null)
+        assertEquals(2, client.checks.size)
+        assertEquals("first", checked.raw)
+        assertTrue((checked.result as CheckResult.Reviewed).withheld.isNotEmpty())
+    }
+
+    @Test
+    fun retryOnlyReplacesPartialEvidenceWhenItResolvesKnownIncompleteness() = runBlocking<Unit> {
+        val bothMissing = partial.copy(corrected = "")
+        val fixesMissing = QUESTION_VERDICT.copy(corrected = "")
+        for ((first, second, chosen) in listOf(
+            Triple(bothMissing, partial, partial),
+            Triple(partial, bothMissing, partial),
+            Triple(partial, fixesMissing, partial),
+            Triple(partial, Verdict(Verdict.Status.Unclear), partial),
+            Triple(partial, Verdict(Verdict.Status.WrongLanguage), partial),
+        )) {
+            client.checks.clear()
+            client.answer = { answer(if (it.repair) second else first) }
+            val checked = checker.check(QUESTION, null)
+            assertEquals(2, client.checks.size)
+            assertEquals(answer(chosen).raw, checked.raw)
+        }
+    }
+
+    @Test
+    fun aFailedRetryKeepsTheUsableFirstAnswer() = runBlocking<Unit> {
+        for (error in listOf(CheckFailure(Reason.Offline), IllegalStateException("bad retry"))) {
+            client.checks.clear()
+            client.answer = { if (it.repair) throw error else answer(partial) }
+            assertEquals(answer(partial).raw, checker.check(QUESTION, null).raw)
+            assertEquals(2, client.checks.size)
+        }
+        client.answer = { answer(if (it.repair) partial.copy(corrected = "x".repeat(Prompt.MAX_REWRITE_CHARS + 1)) else partial) }
+        assertEquals(answer(partial).raw, checker.check(QUESTION, null).raw)
+    }
+
+    @Test
+    fun cancellingTheRetryStillCancelsTheCheck() {
+        client.answer = { if (it.repair) throw CancellationException("retry cancelled") else answer(partial) }
+        assertThrows(CancellationException::class.java) { runBlocking { checker.check(QUESTION, null) } }
+        assertEquals(2, client.checks.size)
+    }
+
+    @Test
+    fun completeUnclearWrongLanguageAndFailedFirstChecksDoNotRetry() = runBlocking<Unit> {
+        for (verdict in listOf(QUESTION_VERDICT, Verdict(Verdict.Status.Ok),
+            Verdict(Verdict.Status.Unclear), Verdict(Verdict.Status.WrongLanguage))) {
+            client.checks.clear()
+            client.answer = { answer(verdict) }
+            checker.check(QUESTION, Language.Catalan)
+            assertEquals(1, client.checks.size)
+        }
+        client.checks.clear()
+        client.answer = { throw CheckFailure(Reason.Offline) }
+        failure { checker.check(QUESTION, null) }
+        assertEquals(1, client.checks.size)
+    }
+
+    @Test
+    fun reusingAnIncompleteAnswerNeverRetries() = runBlocking<Unit> {
+        val saved = answer(partial)
+        val checked = checker.reuse(QUESTION, null, saved.raw, checker.context())
+        assertEquals(saved.raw, checked.raw)
+        assertTrue((checked.result as CheckResult.Reviewed).withheld.isNotEmpty())
+        assertTrue(client.checks.isEmpty())
     }
 }

@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.history
 
+import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.WritingProfile
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -94,7 +96,7 @@ internal fun rowJson(row: Row, columns: List<String>): JsonObject = JsonObject(
     columns.associateWith { column ->
         when (column) {
             in INTEGER_COLUMNS -> row.longOrNull(column)?.let(::JsonPrimitive) ?: JsonNull
-            "attempts" -> row.stringOrNull(column)?.let(::storedJson) ?: JsonNull
+            "attempts", "writingProfiles", "assessment" -> row.stringOrNull(column)?.let(::storedJson) ?: JsonNull
             else -> row.stringOrNull(column)?.let(::JsonPrimitive) ?: JsonNull
         }
     },
@@ -113,3 +115,38 @@ private fun storedJson(stored: String): JsonElement = try {
  */
 internal fun exportLine(session: JsonObject, suggestions: List<JsonObject>): String =
     JsonObject(mapOf("session" to session, "suggestions" to JsonArray(suggestions))).toString()
+
+/** Backfill only language metadata; keep raw answers and unknown evidence fields unchanged. */
+internal fun upgradeLanguageAttempts(stored: String): String {
+    val attempts = try {
+        historyJson.parseToJsonElement(stored) as? JsonArray ?: return stored
+    } catch (_: SerializationException) {
+        return stored
+    }
+    fun JsonObject.text(key: String) = (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content
+    return JsonArray(attempts.map { element ->
+        val attempt = element as? JsonObject ?: return@map element
+        val detected = detectedLanguage(attempt.text("raw"), attempt.text("failure"))
+        val target = languageCode(attempt.text("requestedLanguage")) ?: detected
+        JsonObject(attempt + mapOf(
+            "targetLanguage" to (target?.let(::JsonPrimitive) ?: JsonNull),
+            "detectedLanguage" to (detected?.let(::JsonPrimitive) ?: JsonNull),
+        ))
+    }).toString()
+}
+
+/** Structured metadata is nullable/empty on corruption; it must never become invented scores. */
+internal fun encodeProfiles(profiles: List<WritingProfile>): String =
+    historyJson.encodeToString(ListSerializer(WritingProfile.serializer()), profiles)
+
+internal fun decodeProfiles(stored: String?): List<WritingProfile> = try {
+    stored?.let { historyJson.decodeFromString(ListSerializer(WritingProfile.serializer()), it) }.orEmpty()
+} catch (_: Exception) { emptyList() }
+
+internal fun encodeAssessment(assessment: SuggestionAssessment?): String? =
+    assessment?.let { historyJson.encodeToString(SuggestionAssessment.serializer(), it) }
+
+internal fun decodeAssessment(stored: String?): SuggestionAssessment? = try {
+    stored?.let { historyJson.decodeFromString(SuggestionAssessment.serializer(), it) }
+        ?.takeIf { it.confidence in 0..3 && it.impact in 0..3 && it.rubricVersion.isNotBlank() && it.origin.isNotBlank() }
+} catch (_: Exception) { null }

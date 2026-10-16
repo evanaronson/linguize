@@ -4,6 +4,10 @@ import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
+import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.WritingProfile
+import com.evanaronson.linguize.core.WritingRegister
+import com.evanaronson.linguize.core.SuggestionAssessment
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Verdict
 import kotlinx.coroutines.flow.first
@@ -65,6 +69,7 @@ class SqliteHistoryStoreTest {
         attempts = attempts + Attempt(
             at, raw = verdict, failure = failure, requestedLanguage = requestedLanguage, nativeLanguage = nativeLanguage,
             punctuation = punctuation, judgments = judgments, provider = provider, model = model, promptHash = promptHash,
+            writingProfiles = writingProfiles,
         ),
         status = Verdict.Status.Ok.takeIf { failure == null },
     )
@@ -87,6 +92,71 @@ class SqliteHistoryStoreTest {
         decision = decision,
         decidedAt = session.updatedAt,
     )
+
+    /** The actual pre-v5 column layout: positional suggestion inserts have 16 columns. */
+    private fun prePagingSchema(): List<String> = HistorySchema.CREATE
+        .filterNot { it == HistorySchema.PAGE_INDEX }
+        .map { statement ->
+            statement.replace(",\n    \"writingProfiles\" TEXT NOT NULL DEFAULT '[]'", "")
+                .replace(",\n    \"targetLanguage\" TEXT,\n    \"detectedLanguage\" TEXT", "")
+                .replace(",\n    \"assessment\" TEXT", "")
+        }
+
+    @Test
+    fun versionSixAddsUnknownMetadataWithoutReinterpretingOriginalLanguageOrAnswer() = runBlocking<Unit> {
+        val old = open("legacy", 10).answered(11, """{"status":"ok","language":"Catalan","future":42}""")
+            .closed(12).copy(schema = 5, targetLanguage = "ca", detectedLanguage = "es")
+        val row = suggestion(old, "legacy-fix", EditKind.Fix, Decision.Accepted).copy(schema = 5)
+        val file = context.getDatabasePath(NAME)
+        file.parentFile!!.mkdirs()
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            HistorySchema.CREATE.map {
+                it.replace(",\n    \"writingProfiles\" TEXT NOT NULL DEFAULT '[]'", "")
+                    .replace(",\n    \"assessment\" TEXT", "")
+            }.forEach(db::execSQL)
+            fun insert(table: String, values: Map<String, Any?>) {
+                val columns = values.keys.joinToString { "\"$it\"" }
+                db.execSQL("INSERT INTO $table ($columns) VALUES (${values.keys.joinToString { "?" }})", values.values.toTypedArray())
+            }
+            insert("sessions", old.values() - "writingProfiles")
+            insert("suggestions", row.values() - "assessment")
+            db.version = 6
+        }
+        val restored = store.detail("legacy")!!
+        assertEquals(old.copy(schema = SessionRecord.SCHEMA), restored.session)
+        assertEquals(row.copy(schema = SessionRecord.SCHEMA), restored.suggestions.single())
+        assertTrue(restored.session.writingProfiles.isEmpty())
+        assertTrue(restored.session.attempts.single().writingProfiles.isEmpty())
+        assertNull(restored.suggestions.single().assessment)
+        val out = ByteArrayOutputStream()
+        assertTrue(store.export(out))
+        assertTrue(out.toString().contains("\"assessment\":null"))
+        assertTrue(out.toString().contains("\"writingProfiles\":[]"))
+    }
+
+    @Test
+    fun cacheAndStoredScoresAreIsolatedByExactRequestTimePreferences() = runBlocking<Unit> {
+        val casual = WritingProfile.defaultFor(Language.Catalan).copy(register = WritingRegister.Casual)
+        val formal = casual.copy(register = WritingRegister.Formal)
+        val first = open("casual", 10).copy(writingProfiles = listOf(casual)).answered(11).closed(12)
+        val row = suggestion(first, "scored", EditKind.Fix, Decision.Accepted).copy(assessment = SuggestionAssessment(0, 3))
+        store.close(first, listOf(row))
+        assertEquals("casual", store.reusable(first.reuseKey, 0)!!.session.id)
+        assertNull(store.reusable(first.reuseKey.copy(settings = first.settings.copy(writingProfiles = listOf(formal))), 0))
+        // A legacy/no-profile request cannot win a profile-aware lookup, or vice versa.
+        assertNull(store.reusable(first.reuseKey.copy(settings = first.settings.copy(writingProfiles = emptyList())), 0))
+        val second = open("formal", 20).copy(writingProfiles = listOf(formal)).answered(21).closed(22)
+        store.close(second, emptyList())
+        assertEquals("casual", store.reusable(first.reuseKey, 0)!!.session.id)
+        assertEquals("formal", store.reusable(second.reuseKey, 0)!!.session.id)
+        assertEquals(row, store.detail("casual")!!.suggestions.single())
+        val out = ByteArrayOutputStream()
+        assertTrue(store.export(out))
+        val exported = out.toString().lineSequence().filter { it.isNotBlank() }
+            .map { historyJson.decodeFromString(SessionDetail.serializer(), it) }.first()
+        assertEquals(SuggestionAssessment(0, 3), exported.suggestions.single().assessment)
+        assertEquals(listOf(casual), exported.session.attempts.single().writingProfiles)
+    }
 
     @Test
     fun pagesReachAllChecksBeyondTheOldLimitWithDeterministicTimestampTies() = runBlocking<Unit> {
@@ -127,23 +197,57 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    fun versionFiveBackfillsLanguageIntoRowsAttemptsListsAndExport() = runBlocking<Unit> {
+        val old = open("auto", 10).copy(schema = 4, requestedLanguage = null, targetLanguage = null)
+            .answered(11, """{"status":"ok","language":"Catalan"}""").closed(12)
+        val file = context.getDatabasePath(NAME)
+        file.parentFile!!.mkdirs()
+        val languageColumns = setOf("targetLanguage", "detectedLanguage")
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            HistorySchema.CREATE.map {
+                it.replace(",\n    \"targetLanguage\" TEXT,\n    \"detectedLanguage\" TEXT", "")
+            }.forEach(db::execSQL)
+            val values = old.values().filterKeys { it !in languageColumns }
+            val columns = values.keys.joinToString { "\"$it\"" }
+            db.execSQL("INSERT INTO sessions ($columns) VALUES (${values.keys.joinToString { "?" }})",
+                values.values.toTypedArray())
+            db.version = 5
+        }
+        val restored = store.detail("auto")!!.session
+        assertEquals("ca", restored.targetLanguage)
+        assertEquals("ca", restored.detectedLanguage)
+        assertNull(restored.requestedLanguage)
+        assertEquals("ca", restored.attempts.single().targetLanguage)
+        assertEquals(old.attempts.single().raw, restored.attempts.single().raw)
+        assertEquals(SessionRecord.SCHEMA, restored.schema)
+        assertEquals("ca", store.recent(10).first().single().targetLanguage)
+        assertEquals("ca", store.page(null, 10)!!.rows.single().detectedLanguage)
+        val bytes = ByteArrayOutputStream()
+        assertTrue(store.export(bytes))
+        val exported = historyJson.decodeFromString(SessionDetail.serializer(), bytes.toString().trim())
+        assertEquals(restored, exported.session)
+    }
+
+    @Test
     fun versionFourGainsThePagingIndexWithoutChangingSavedRecords() = runBlocking<Unit> {
         val kept = open("kept", 10).answered(11).closed(12)
         val file = context.getDatabasePath(NAME)
         file.parentFile!!.mkdirs()
         SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
-            HistorySchema.CREATE.filterNot { it == HistorySchema.PAGE_INDEX }.forEach(db::execSQL)
-            db.execSQL(HistorySchema.CLOSE_SESSION, kept.values().values.toTypedArray())
+            prePagingSchema().forEach(db::execSQL)
+            val values = kept.copy(schema = 4).values() - setOf("targetLanguage", "detectedLanguage", "writingProfiles")
+            val columns = values.keys.joinToString { "\"$it\"" }
+            db.execSQL("INSERT INTO sessions ($columns) VALUES (${values.keys.joinToString { "?" }})", values.values.toTypedArray())
             db.version = 4
         }
         assertEquals(listOf("kept"), store.page(null, 25)!!.rows.map { it.id })
         assertEquals(kept, store.detail("kept")!!.session)
-        assertEquals(listOf(HistorySchema.PAGE_INDEX), HistorySchema.upgrade(4, HistorySchema.SESSION_COLUMNS.toSet()))
+        assertTrue(HistorySchema.upgrade(4, HistorySchema.SESSION_COLUMNS.toSet())!!.contains(HistorySchema.PAGE_INDEX))
         SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
             db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'sessions_page'", null).use {
                 assertTrue(it.moveToFirst())
             }
-            assertEquals(5, db.version)
+            assertEquals(HistorySchema.VERSION, db.version)
         }
     }
 
@@ -465,9 +569,10 @@ class SqliteHistoryStoreTest {
 
     @Test
     fun aVersion3DatabaseLosesTheTestersSessionsAndKeepsEachAttemptsLanguage() = runBlocking<Unit> {
-        // Version 3 had this version's tables, and recorded the "Try it" card as origin 'tester'.
+        // Versions 3/4 predate paging, language metadata, profiles, and assessments.
+        // Version 3 also recorded the "Try it" card as origin 'tester'.
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(NAME), null).use { db ->
-            HistorySchema.CREATE.forEach(db::execSQL)
+            prePagingSchema().forEach(db::execSQL)
             val attempts = """[{"at":1500,"settled":[],"raw":"{\"status\":\"ok\"}","failure":null,"failureDetail":null,"reusedFrom":null}]"""
             for ((id, origin, language) in listOf(Triple("menu", "menu", "'ca'"), Triple("tester", "tester", "'es'"), Triple("auto", "button", "NULL"))) {
                 db.execSQL(

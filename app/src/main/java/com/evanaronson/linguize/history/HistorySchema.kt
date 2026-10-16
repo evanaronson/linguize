@@ -22,7 +22,9 @@ import com.evanaronson.linguize.core.Verdict
  * tokens and `raw`; 3 stores the requested language as a code and an attempt's failure
  * as a token; 4 records no checks from the app's own "Try it" card, and an attempt keeps
  * the language and settings it ran with (a card is one session, whatever changes).
- * Version 5 adds the paging index, leaving row schemas at 4. [upgrade] gives each step.
+ * Version 5 adds the paging index. Version 6 adds target/detected language columns
+ * and backfills attempts from saved answers (row schema 5). Version 7 adds request-time
+ * writing profiles and nullable suggestion assessments (row schema 6). [upgrade] gives each step.
  */
 internal object HistorySchema {
     const val NAME = "history.db"
@@ -31,7 +33,7 @@ internal object HistorySchema {
      * The database's version, for SQLiteOpenHelper. Separate from [SessionRecord.SCHEMA],
      * which is the shape of a row as it would travel to a server.
      */
-    const val VERSION = 5
+    const val VERSION = 7
 
     const val SESSIONS = "sessions"
     const val SUGGESTIONS = "suggestions"
@@ -43,13 +45,13 @@ internal object HistorySchema {
     val SESSION_COLUMNS = listOf(
         "id", "deviceId", "schema", "createdAt", "updatedAt", "deletedAt", "startedAt", "closedAt",
         "origin", "hostApp", "requestedLanguage", "nativeLanguage", "text", "textHash", "finalText", "outcome",
-        "punctuation", "judgments", "provider", "model", "promptHash", "appVersion", "attempts", "meaning", "status",
+        "punctuation", "judgments", "provider", "model", "promptHash", "appVersion", "attempts", "meaning", "status", "targetLanguage", "detectedLanguage", "writingProfiles",
     )
 
     /** In [SuggestionRecord]'s field order; a test holds the two together. */
     val SUGGESTION_COLUMNS = listOf(
         "id", "sessionId", "deviceId", "schema", "createdAt", "updatedAt", "deletedAt", "attempt",
-        "kind", "start", "end", "fromText", "toText", "why", "decision", "decidedAt",
+        "kind", "start", "end", "fromText", "toText", "why", "decision", "decidedAt", "assessment",
     )
 
     val CREATE = listOf(
@@ -79,7 +81,10 @@ internal object HistorySchema {
             "appVersion" TEXT NOT NULL,
             "attempts" TEXT NOT NULL,
             "meaning" TEXT,
-            "status" TEXT
+            "status" TEXT,
+            "targetLanguage" TEXT,
+            "detectedLanguage" TEXT,
+            "writingProfiles" TEXT NOT NULL DEFAULT '[]'
         )
         """,
         """
@@ -99,7 +104,8 @@ internal object HistorySchema {
             "toText" TEXT NOT NULL,
             "why" TEXT,
             "decision" TEXT NOT NULL,
-            "decidedAt" INTEGER NOT NULL
+            "decidedAt" INTEGER NOT NULL,
+            "assessment" TEXT
         )
         """,
         // Recent, the count and the oldest date: kept rows, by start.
@@ -149,12 +155,12 @@ internal object HistorySchema {
      * read: a row shows one line of it.
      */
     fun recent(limit: Int, before: Boolean = false) = """
-        SELECT s."id", s."startedAt", s."origin", s."hostApp", s."text", s."outcome", s."status",
+        SELECT s."id", s."startedAt", s."origin", s."hostApp", s."text", s."outcome", s."status", s."requestedLanguage", s."targetLanguage", s."detectedLanguage",
             COALESCE(SUM(g."kind" = '$FIX'), 0) AS "fixes",
             COALESCE(SUM(g."kind" = '$NATURAL'), 0) AS "rewordings",
             COALESCE(SUM(g."decision" = '$ACCEPTED'), 0) AS "taken"
         FROM (
-            SELECT "id", "startedAt", "origin", "hostApp", substr("text", 1, ${SessionSummary.TEXT_PREFIX}) AS "text", "outcome", "status"
+            SELECT "id", "startedAt", "origin", "hostApp", substr("text", 1, ${SessionSummary.TEXT_PREFIX}) AS "text", "outcome", "status", "requestedLanguage", "targetLanguage", "detectedLanguage"
             FROM $SESSIONS
             WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL
                 ${if (before) """AND ("startedAt", "id") < (?, ?)""" else ""}
@@ -194,6 +200,7 @@ internal object HistorySchema {
         WHERE "textHash" = ?
             AND ${same("requestedLanguage", key.requestedLanguage)} AND ${same("nativeLanguage", key.settings.nativeLanguage)}
             AND "punctuation" = ? AND "judgments" = ? AND "provider" = ? AND "model" = ? AND "promptHash" = ?
+            AND "writingProfiles" = ?
             AND "startedAt" >= ?
             AND "closedAt" IS NOT NULL AND "deletedAt" IS NULL AND "outcome" != '${Outcome.Failed.token}'
         ORDER BY "startedAt" DESC
@@ -202,7 +209,7 @@ internal object HistorySchema {
 
     /** The values [reusable] binds, in order. */
     fun reusableArgs(key: ReuseKey, since: Long): List<String> = with(key.settings) {
-        listOfNotNull(key.textHash, key.requestedLanguage, nativeLanguage, punctuation, judgments, provider, model, promptHash) + since.toString()
+        listOfNotNull(key.textHash, key.requestedLanguage, nativeLanguage, punctuation, judgments, provider, model, promptHash, encodeProfiles(writingProfiles)) + since.toString()
     }
 
     const val DELETE_SESSION = """DELETE FROM $SESSIONS WHERE "id" = ?"""
@@ -238,11 +245,15 @@ internal object HistorySchema {
      * sessions are deleted, with their suggestions (explicitly, though the foreign key
      * cascades too: the delete must not depend on the connection's foreign-key setting).
      */
-    fun upgrade(from: Int, sessionColumns: Set<String>): List<String>? {
+    fun upgrade(from: Int, sessionColumns: Set<String>, suggestionColumns: Set<String> = emptySet()): List<String>? {
         if (from !in 1 until VERSION) return null
-        if (from == 4) return listOf(PAGE_INDEX)
         return buildList {
             add(PAGE_INDEX)
+            if ("writingProfiles" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "writingProfiles" TEXT NOT NULL DEFAULT '[]'""")
+            if ("assessment" !in suggestionColumns) add("""ALTER TABLE $SUGGESTIONS ADD COLUMN "assessment" TEXT""")
+            for (column in listOf("targetLanguage", "detectedLanguage")) {
+                if (column !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "$column" TEXT""")
+            }
             if (from == 1) {
                 if ("status" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "status" TEXT""")
                 if ("nativeLanguage" !in sessionColumns) add("""ALTER TABLE $SESSIONS ADD COLUMN "nativeLanguage" TEXT""")
@@ -255,8 +266,10 @@ internal object HistorySchema {
                 add(renaming(SUGGESTIONS, "kind", EditKind.tokens.renames()))
                 add(renaming(SUGGESTIONS, "decision", Decision.tokens.renames()))
             }
-            add(renaming(SESSIONS, "requestedLanguage", Language.all.associate { it.name to it.code }))
-            addAll(DELETE_UNRECORDED)
+            if (from < 4) {
+                add(renaming(SESSIONS, "requestedLanguage", Language.all.associate { it.name to it.code }))
+                addAll(DELETE_UNRECORDED)
+            }
             // Rows now have this build's shape.
             add("""UPDATE $SESSIONS SET "schema" = ${SessionRecord.SCHEMA}""")
             add("""UPDATE $SUGGESTIONS SET "schema" = ${SessionRecord.SCHEMA}""")
@@ -338,6 +351,9 @@ internal fun SessionRecord.values(): Map<String, Any?> = linkedMapOf(
     "attempts" to encodeAttempts(attempts),
     "meaning" to meaning,
     "status" to status?.let(Verdict.Status::token),
+    "targetLanguage" to targetLanguage,
+    "detectedLanguage" to detectedLanguage,
+    "writingProfiles" to encodeProfiles(writingProfiles),
 )
 
 /** The values to bind for [HistorySchema.SUGGESTION_COLUMNS], by column. */
@@ -358,6 +374,7 @@ internal fun SuggestionRecord.values(): Map<String, Any?> = linkedMapOf(
     "why" to why,
     "decision" to decision.token,
     "decidedAt" to decidedAt,
+    "assessment" to encodeAssessment(assessment),
 )
 
 /**
@@ -391,6 +408,9 @@ internal fun sessionRecord(row: Row) = SessionRecord(
     attempts = decodeAttempts(row.string("attempts")),
     meaning = row.stringOrNull("meaning"),
     status = Verdict.Status.tokens.decode(row.stringOrNull("status")),
+    targetLanguage = row.stringOrNull("targetLanguage"),
+    detectedLanguage = row.stringOrNull("detectedLanguage"),
+    writingProfiles = decodeProfiles(row.stringOrNull("writingProfiles")),
 )
 
 /**
@@ -417,11 +437,13 @@ internal fun suggestionRecord(row: Row): SuggestionRecord? {
         why = row.stringOrNull("why"),
         decision = decision,
         decidedAt = row.long("decidedAt"),
+        assessment = decodeAssessment(row.stringOrNull("assessment")),
     )
 }
 
 /** A row of [HistorySchema.recent]. */
 internal fun sessionSummary(row: Row) = SessionSummary(
+    requestedLanguage = row.stringOrNull("requestedLanguage"),
     id = row.string("id"),
     startedAt = row.long("startedAt"),
     origin = Origin.tokens.decode(row.string("origin")),
@@ -432,6 +454,8 @@ internal fun sessionSummary(row: Row) = SessionSummary(
     rewordings = row.long("rewordings").toInt(),
     taken = row.long("taken").toInt(),
     status = Verdict.Status.tokens.decode(row.stringOrNull("status")),
+    targetLanguage = row.stringOrNull("targetLanguage"),
+    detectedLanguage = row.stringOrNull("detectedLanguage"),
 )
 
 /** Whether a session's answer can be shown again: its last attempt came back with one. */

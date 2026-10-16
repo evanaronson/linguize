@@ -11,7 +11,7 @@ class CardActions(
     /** Null when the selected text can't be replaced; the card then offers only Copy. */
     val review: ReviewActions?,
     val onRetry: () -> Unit,
-    /** In-app recovery for missing credentials; popups use their branded app button. */
+    /** Opens settings for configuration recovery; hosts own navigation and popup return. */
     val onOpenSettings: (() -> Unit)?,
     /** Overrides an assumption (by its "about") with the writer's answer and checks again. */
     val onSettle: (about: String, answer: String) -> Unit,
@@ -21,7 +21,8 @@ class CardActions(
     companion object {
         /**
          * The same behaviour wherever the card is shown: Copy copies the version on
-         * screen and closes without replacement. Accept all, Done and dismissal
+         * screen and keeps the card open. Accept and Accept all keep the card
+         * open too; Apply and dismissal
          * ([onClose]) hand back accepted changes.
          */
         fun of(
@@ -30,20 +31,17 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
-            /** Closes after Copy without putting accepted changes back into the source. */
-            onCopyClose: () -> Unit,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
                 check.copied(kind)
-                onCopyClose()
             },
             review = if (canReplace) {
                 ReviewActions(
                     onAccept = check::accept,
-                    onAcceptAll = { if (check.acceptAll(it)) onClose() },
+                    onAcceptAll = { check.acceptAll(it) },
                     onUndo = check::undo,
-                    onDone = onClose,
+                    onApply = onClose,
                 )
             } else {
                 null
@@ -73,5 +71,5 @@ class ReviewActions(
     val onAcceptAll: (EditKind) -> Unit,
     val onUndo: () -> Unit,
     /** Closes the card, handing back the accepted changes. */
-    val onDone: () -> Unit,
+    val onApply: () -> Unit,
 )

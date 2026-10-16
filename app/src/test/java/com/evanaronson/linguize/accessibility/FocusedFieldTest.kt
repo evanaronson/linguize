@@ -95,6 +95,82 @@ class FocusedFieldTest {
         assertNull(FocusedField.resolve(root, null) { editor }.field)
     }
 
+    @Test fun onlyUsableNonPrivateWritingTakesPriority() {
+        assertNull(FocusedField.selection(null))
+        val editor = node(focused = true, editable = true)
+        editor.text = "   "
+        assertNull(FocusedField.selection(editor))
+        editor.text = "Com estas?"
+        assertEquals("Com estas?", FocusedField.selection(editor)!!.text)
+        editor.isShowingHintText = true
+        assertNull(FocusedField.selection(editor))
+        editor.isShowingHintText = false
+        editor.isPassword = true
+        assertNull(FocusedField.selection(editor))
+    }
+
+    @Test fun hintExposedAsTextWithoutTheHintFlagDoesNotBecomeWriting() {
+        val editor = node(focused = true, editable = true).apply {
+            text = "Message"
+            hintText = "Message"
+            isShowingHintText = false
+        }
+        assertNull(FocusedField.selection(editor))
+        // Native empty editors can expose a 0,0 cursor alongside their hint.
+        editor.setTextSelection(0, 0)
+        assertNull(FocusedField.selection(editor))
+        editor.text = "  Message  "
+        assertNull(FocusedField.selection(editor))
+        editor.text = "Escribe un mensaje"
+        editor.hintText = "Escribe un mensaje"
+        assertNull(FocusedField.selection(editor))
+        // Valid text/cursor metadata means the user really typed the same word as the hint.
+        editor.text = "Message"
+        editor.hintText = "Message"
+        editor.setTextSelection(7, 7)
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+        // Selection actions can be exposed on an empty editor too; they prove no input.
+        editor.setTextSelection(0, 0)
+        editor.addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
+        assertNull(FocusedField.selection(editor))
+        editor.hintText = "Write a message"
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+    }
+
+    @Test fun whatsappComposerPlaceholderFallsThroughEvenWithoutAnyHintMetadata() {
+        for (app in listOf("com.whatsapp", "com.whatsapp.w4b")) {
+            for (id in listOf(null, "$app:id/entry")) {
+                val editor = node(focused = true, editable = true, app = app).apply {
+                    text = "Message"
+                    hintText = null
+                    isShowingHintText = false
+                    viewIdResourceName = id
+                    // Even misleading cursor/action metadata must not start a correction.
+                    setTextSelection(7, 7)
+                    addAction(AccessibilityNodeInfo.ACTION_SET_SELECTION)
+                }
+                assertNull(FocusedField.selection(editor))
+                editor.text = "Message me when you arrive"
+                assertEquals("Message me when you arrive", FocusedField.selection(editor)!!.text)
+                editor.text = "Bon dia!"
+                assertEquals("Bon dia!", FocusedField.selection(editor)!!.text)
+                editor.text = "  "
+                assertNull(FocusedField.selection(editor))
+            }
+        }
+    }
+
+    @Test fun messageIsNotGloballyBlacklistedOrIgnoredInWhatsappSearch() {
+        val editor = node(focused = true, editable = true).apply {
+            text = "Message"
+            setTextSelection(7, 7)
+        }
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+        editor.packageName = "com.whatsapp"
+        editor.viewIdResourceName = "com.whatsapp:id/search_src_text"
+        assertEquals("Message", FocusedField.selection(editor)!!.text)
+    }
+
     @Test fun resolvesFocusedChildOfNonEditableSource() {
         val root = node()
         val source = node()

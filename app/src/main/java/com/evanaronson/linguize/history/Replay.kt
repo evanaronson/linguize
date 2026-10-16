@@ -45,7 +45,12 @@ fun replay(detail: SessionDetail, parse: (String) -> Verdict): Replayed? {
     } catch (_: Exception) {
         return null
     }
-    val shown = if (result is CheckResult.Reviewed && rows.isNotEmpty()) result.copy(revision = recorded(result.revision, rows)) else result
+    val shown = if (result is CheckResult.Reviewed) {
+        // An empty recorded set is evidence too: a later engine must not invent
+        // suggestions on a past card or call the discarded proposals a clean check.
+        val unrecorded = if (rows.isEmpty()) result.revision.edits.map { it.kind } else emptyList()
+        result.copy(revision = recorded(result.revision, rows), withheld = result.withheld + unrecorded)
+    } else result
     return Replayed(shown, attempt.settled)
 }
 
@@ -64,7 +69,10 @@ internal fun recorded(interpreted: Revision, rows: List<SuggestionRecord>): Revi
     }
     if (unpaired.isEmpty() && paired.all { it != null }) {
         val taken = paired.filterNotNull().filter { (row, _) -> row.decision == Decision.Accepted }.map { (_, edit) -> edit.id }
-        return Revision(interpreted.original, interpreted.edits, if (taken.isEmpty()) emptyList() else listOf(taken))
+        // Stored rows are authoritative even when a modern parser would supply different scores.
+        val assessments = paired.filterNotNull().associate { (row, edit) -> edit.id to row.assessment }
+        val edits = interpreted.edits.map { it.copy(assessment = assessments[it.id]) }
+        return Revision(interpreted.original, edits, if (taken.isEmpty()) emptyList() else listOf(taken))
     }
     return fromRows(interpreted.original, rows)
 }
@@ -75,7 +83,7 @@ internal fun recorded(interpreted: Revision, rows: List<SuggestionRecord>): Revi
  */
 private fun fromRows(original: String, rows: List<SuggestionRecord>): Revision {
     val plain = rows.mapIndexed { id, row ->
-        Edit(id = id, kind = row.kind, start = row.start, end = row.end, from = row.fromText, replacement = row.toText, why = row.why)
+        Edit(id = id, kind = row.kind, start = row.start, end = row.end, from = row.fromText, replacement = row.toText, why = row.why, assessment = row.assessment)
     }
     val edits = plain.map { edit ->
         if (edit.kind != EditKind.Natural) return@map edit

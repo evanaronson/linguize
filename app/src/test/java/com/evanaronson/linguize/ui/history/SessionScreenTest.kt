@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsActions
@@ -27,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -73,8 +76,35 @@ class SessionScreenTest {
         }
         val model = SessionViewModel(history, { Prompt("", "{}") }, AppLabels(activity.packageManager), scope, {})
         var navigatedBack = false
+        // Own frame delivery: Robolectric resets Choreographer between tests, while
+        // Compose's default Android frame dispatcher can outlive an earlier window.
+        val frames = BroadcastFrameClock()
+        val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + frames)
+        val recomposer = Recomposer(uiScope.coroutineContext)
+        uiScope.launch { recomposer.runRecomposeAndApplyChanges() }
         val root = ComposeView(activity).apply {
+            setParentCompositionContext(recomposer)
             setContent { MaterialTheme { SessionScreen(model, onDeleted = { navigatedBack = true }) } }
+        }
+        var frameTime = 0L
+        fun settle(view: View) {
+            fun flush() {
+                Snapshot.sendApplyNotifications()
+                shadowOf(Looper.getMainLooper()).idle()
+                var delivered = 0
+                while (recomposer.hasPendingWork || frames.hasAwaiters) {
+                    check(delivered++ < 120) { "Detail composition did not become idle" }
+                    frameTime += 16_666_667L
+                    frames.sendFrame(frameTime)
+                    Snapshot.sendApplyNotifications()
+                    shadowOf(Looper.getMainLooper()).idle()
+                }
+            }
+            flush()
+            view.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
+            view.layout(0, 0, 1080, 1920)
+            flush()
         }
         try {
             model.load(detail.session.id)
@@ -106,6 +136,9 @@ class SessionScreenTest {
             assertFalse(hasText(root, "Saved before"))
         } finally {
             scope.cancel()
+            root.disposeComposition()
+            recomposer.cancel()
+            uiScope.cancel()
             controller.pause().stop().destroy()
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
         }
@@ -132,15 +165,6 @@ class SessionScreenTest {
         }
         fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
         return flatten(requireNotNull(owner(root)).rootSemanticsNode)
-    }
-
-    private fun settle(root: View) {
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-        root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, 1080, 1920)
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
     }
 
     private fun waitFor(condition: () -> Boolean) {

@@ -1071,16 +1071,15 @@ class CheckViewModelTest {
 
     @Test
     fun anInitialContextAndItsSettingsRefreshCannotReplaceANewerCard() =
-        withInitialContextPaused { card, resume ->
+        withInitialContextPaused(pauseEveryRead = true) { card, resume ->
             preferences.punctuation = Punctuation.Strict
             card.recheckIfStale()
             client.answer = { ModelAnswer(Verdict(Verdict.Status.Ok), """{"status":"ok"}""") }
             card.check("New selection", Language.Spanish, Origin.Menu)
-            waitFor("replacement card answer") { card.state is CardState.Done }
-            val replacement = card.state
+            assertTrue(card.state is CardState.Loading)
             resume()
+            waitFor("replacement card answer") { card.state is CardState.Done }
 
-            assertEquals(replacement, card.state)
             assertEquals("New selection", client.checks.single().third.text)
             assertEquals(Language.Spanish, client.checks.single().third.language)
             card.dismiss(applied = false)

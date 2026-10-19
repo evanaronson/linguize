@@ -64,9 +64,6 @@ fun UnderstandCard(
                         SelectionContainer { Text(note.explanation, style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.meaning_caution), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             is UnderstandState.Failed -> Failure(
                 state.failure.reason, state.failure.userMessage, state.failure.detail, onRetry, onOpenSettings,

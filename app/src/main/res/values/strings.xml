@@ -45,7 +45,6 @@
     <string name="meaning">Meaning</string>
     <string name="assumptions">Assumptions</string>
     <string name="meaning_description">What your text says, as the AI understood it.</string>
-    <string name="meaning_caution">The AI can be wrong, and text from someone else can mislead it.</string>
     <string name="assumptions_description">Where your text could mean two things, the AI picked one.</string>
     <string name="your_choice">Your choice</string>
     <string name="remove_choice">Remove choice</string>

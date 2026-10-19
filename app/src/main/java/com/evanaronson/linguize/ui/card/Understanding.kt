@@ -99,10 +99,6 @@ internal fun UnderstandingEntry(entry: UnderstandingEntryState, onOpen: () -> Un
  * in the writer's own language, then what was assumed where it was ambiguous.
  * Each assumption is presented as right; alternatives appear only after
  * "Clarify", and picking one checks again with that answer.
- *
- * Both are the AI's reading, and text written by someone else can steer it (a
- * message can ask to be "understood" as something it isn't), so a quiet line at the
- * end says so.
  */
 @Composable
 internal fun UnderstandingPage(
@@ -130,12 +126,6 @@ internal fun UnderstandingPage(
         if (meaning.isNotBlank()) Spacer(Modifier.height(20.dp))
         Assumptions(assumptions, settled, onSettle, onRemoveChoice)
     }
-    Spacer(Modifier.height(16.dp))
-    Text(
-        stringResource(R.string.meaning_caution),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 @Composable

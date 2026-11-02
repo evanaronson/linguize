@@ -67,12 +67,17 @@ fun ResultCard(
             }
             is CardState.Done -> when (val result = state.result) {
                 is CheckResult.Reviewed -> ReviewContent(result, state.settled, actions)
-                CheckResult.Unclear ->
+                CheckResult.Unclear -> {
                     Outcome(
                         Mark.Unsure,
                         stringResource(R.string.ai_could_not_understand),
                         stringResource(R.string.check_full_sentence),
                     )
+                    if (actions.onClarify != null || state.settled.any { it.isMeaning }) {
+                        Spacer(Modifier.height(12.dp))
+                        MeaningSection("", state.settled, actions.onClarify, actions.onRemoveClarification)
+                    }
+                }
                 is CheckResult.WrongLanguage ->
                     Outcome(
                         Mark.Unsure,

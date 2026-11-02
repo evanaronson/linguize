@@ -104,6 +104,26 @@ class ReplayTest {
     }
 
     @Test
+    fun aFailedMeaningChangeRetainsItsEvidenceWithoutRelabelingTheLastSuccessfulReview() {
+        val confirmed = listOf(Settled("tu", "informal"), Settled.meaning("Ask how the rain is affecting them."))
+        val failed = listOf(Settled("tu", "informal"), Settled.meaning("Ask whether it will rain tomorrow."))
+        val recording = SessionRecording(rain, context, 100)
+        recording.attempt(200, confirmed, "rain", null, null, revision(), verdict.meaning, Verdict.Status.Ok)
+        recording.attempt(250, failed, null, "offline", null, null, null)
+        val detail = recording.close(300, null)
+        val restored = historyJson.decodeFromString(
+            SessionDetail.serializer(), historyJson.encodeToString(SessionDetail.serializer(), detail),
+        )
+
+        val replayed = replay(restored, parse)!!
+        assertEquals(confirmed, replayed.settled)
+        assertEquals(verdict.meaning, (replayed.result as CheckResult.Reviewed).meaning)
+        assertEquals(failed, restored.session.attempts.last().settled)
+        assertEquals("offline", restored.session.attempts.last().failure)
+        assertEquals(0, restored.decidedAttempt())
+    }
+
+    @Test
     fun languageChangesNeverReplayTheDiscardedReviewAfterFailureOrDismissal() {
         answers["clean"] = Verdict(status = Verdict.Status.Ok, language = "Catalan", meaning = "Clean review")
         for (edits in listOf(true, false)) {

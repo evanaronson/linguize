@@ -11,12 +11,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReviewPresentationTest {
-    @Test fun duplicateQuestionLabelsStayReadableButCannotPromiseAClarificationAction() {
+    @Test fun duplicateQuestionLabelsBlockScopedAnswersButStillAllowMeaningClarification() {
         val assumptions = listOf(Assumption("Who?", "I", alternatives = listOf("You")),
             Assumption("Who?", "Someone else", alternatives = listOf("A friend")))
         val entry = understandingEntry("Meaning", assumptions, emptyList(), false)
         assertTrue(entry.visible)
-        assertFalse(entry.canClarify)
+        assertTrue(entry.canClarify)
         assertEquals(0, entry.unresolved)
         assertTrue(linkedAssumptions(listOf(0, 1), assumptions, emptyList()).isEmpty())
     }
@@ -72,10 +72,10 @@ class ReviewPresentationTest {
     }
 
     @Test
-    fun settledAssumptionsRemainReadableWithoutAskingForMoreClarification() {
+    fun settledAssumptionsRemainReadableAndMeaningCanStillBeClarified() {
         val entry = understandingEntry("", listOf(Assumption("Who?", "I")), listOf(Settled("Who?", "You")), false)
         assertTrue(entry.visible)
-        assertFalse(entry.canClarify)
+        assertTrue(entry.canClarify)
         assertEquals(0, entry.unresolved)
     }
 
@@ -88,15 +88,15 @@ class ReviewPresentationTest {
     }
 
     @Test
-    fun assumptionsWithoutAlternativesRemainReadableWithoutOfferingClarification() {
+    fun assumptionsWithoutAlternativesCanAcceptTheWritersOwnAnswer() {
         val entry = understandingEntry("", listOf(Assumption("Who?", "I")), emptyList(), false)
         assertTrue(entry.visible)
-        assertFalse(entry.canClarify)
-        assertEquals(0, entry.unresolved)
+        assertTrue(entry.canClarify)
+        assertEquals(1, entry.unresolved)
     }
 
     @Test
-    fun clarificationCountExcludesNonActionableAndAlreadySettledAssumptions() {
+    fun clarificationCountIncludesWritableQuestionsAndExcludesAlreadySettledAssumptions() {
         val assumptions = listOf(
             Assumption("Who?", "I", alternatives = listOf("You")),
             Assumption("Activity?", "Driving", alternatives = listOf("Walking")),
@@ -104,13 +104,36 @@ class ReviewPresentationTest {
         )
         val entry = understandingEntry("", assumptions, listOf(Settled("Who?", "You")), false)
         assertTrue(entry.canClarify)
-        assertEquals(1, entry.unresolved)
+        assertEquals(2, entry.unresolved)
     }
 
     @Test
-    fun meaningAloneRemainsReadableAndEmptyEntryStaysHidden() {
-        assertTrue(understandingEntry("Meaning", emptyList(), emptyList(), false).visible)
-        assertFalse(understandingEntry("Meaning", emptyList(), emptyList(), false).canClarify)
-        assertFalse(understandingEntry("", emptyList(), emptyList(), false).visible)
+    fun liveMeaningEntryAlwaysOffersClarificationEvenWhenMeaningIsEmpty() {
+        val meaningOnly = understandingEntry("Meaning", emptyList(), emptyList(), false)
+        assertTrue(meaningOnly.visible)
+        assertTrue(meaningOnly.canClarify)
+        assertEquals(0, meaningOnly.unresolved)
+        val empty = understandingEntry("", emptyList(), emptyList(), false)
+        assertTrue(empty.visible)
+        assertTrue(empty.canClarify)
+        assertEquals(0, empty.unresolved)
+    }
+
+    @Test
+    fun emptyHistoricalEntryStaysHiddenAndSavedMeaningStaysReadOnly() {
+        assertFalse(understandingEntry("", emptyList(), emptyList(), true).visible)
+        val saved = understandingEntry("", emptyList(), listOf(Settled.meaning("A friend")), true)
+        assertTrue(saved.visible)
+        assertFalse(saved.canClarify)
+        assertEquals(0, saved.unresolved)
+    }
+
+    @Test
+    fun aMeaningClarificationDoesNotAnswerAnAssumptionWithTheSameLabel() {
+        val assumptions = listOf(Assumption("Who?", "I", alternatives = listOf("You")))
+        val meaning = Settled("Who?", "A friend", Settled.Scope.Meaning)
+        val entry = understandingEntry("", assumptions, listOf(meaning), false)
+        assertEquals(1, entry.unresolved)
+        assertEquals(assumptions, linkedAssumptions(listOf(0), assumptions, listOf(meaning)))
     }
 }

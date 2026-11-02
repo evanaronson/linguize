@@ -13,7 +13,8 @@ its `language` field; empty for unclear), "fix" (a correction is expected or not
 natural alternative is expected or not) and "max_fixes" (more fixes than this
 means style is being counted as errors) "min_sentences" (fewer means
 run-ons were left alone), "assumption" (whether any assumption should be listed)
-and "settled" ([about, answer] pairs sent as Settled lines). Focused regressions may
+and "settled" ([about, answer] pairs or objects with "answer" and either "about"
+or "scope": "meaning", sent as Settled lines in order). Focused regressions may
 also set "expected_corrected" / "expected_natural" for exact result text and
 "expected_fixes" / "expected_natural_changes" for ordered {from, to} pairs
 (reason wording is not compared). Omitted fields aren't checked. "natural": false cases are the important ones: they catch the
@@ -46,6 +47,22 @@ def one_line(text):
     return "".join(" " if ord(c) < 32 or 127 <= ord(c) <= 159 or c in "\u2028\u2029" else c for c in text)
 
 
+def settled_json(item):
+    """Prompt.settledJson, with legacy [about, answer] pairs kept byte-compatible."""
+    if isinstance(item, dict):
+        scope = item.get("scope", "assumption")
+        if scope == "meaning":
+            fields = {"scope": "meaning", "answer": one_line(item["answer"])}
+        elif scope == "assumption":
+            fields = {"about": one_line(item["about"]), "answer": one_line(item["answer"])}
+        else:
+            raise ValueError(f"Unknown clarification scope: {scope!r}")
+    else:
+        about, answer = item
+        fields = {"about": one_line(about), "answer": one_line(answer)}
+    return json.dumps(fields, ensure_ascii=False, separators=(",", ":"))
+
+
 def user_message(case):
     language = case.get("language", "auto")
     profiles = case.get("writing_profiles", [])
@@ -61,11 +78,7 @@ def user_message(case):
     if language != "auto" and not profiles:
         language = f"{language} ({LANGUAGES[language]})"
     native = case.get("native", "English")
-    settled = "".join(
-        "Settled: " + json.dumps({"about": one_line(about), "answer": one_line(answer)},
-                                 ensure_ascii=False, separators=(",", ":")) + "\n"
-        for about, answer in case.get("settled", [])
-    )
+    settled = "".join("Settled: " + settled_json(item) + "\n" for item in case.get("settled", []))
     profile_line = ("Writing profiles: " + json.dumps(profiles, ensure_ascii=False, separators=(",", ":"))
                     .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029") + "\n") if profiles else ""
     return (f"Language: {language}\n"

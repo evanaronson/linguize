@@ -52,9 +52,29 @@ data class Assumption(
     val alternatives: List<String> = emptyList(),
 )
 
-/** The writer's own answer to an assumption, sent with a re-check so the model follows it. Kept in history as is. */
+/** The writer's clarification, sent with a re-check and kept with that attempt in history. */
 @Serializable
-data class Settled(val about: String, val answer: String)
+data class Settled(
+    val about: String,
+    val answer: String,
+    /** Older saved answers always refer to a model assumption. */
+    val scope: Scope = Scope.Assumption,
+) {
+    @Serializable
+    enum class Scope {
+        @SerialName("assumption") Assumption,
+        @SerialName("meaning") Meaning,
+    }
+
+    val isMeaning: Boolean get() = scope == Scope.Meaning
+
+    /** A model's topic label can never collide with a whole-message clarification. */
+    fun answers(about: String): Boolean = scope == Scope.Assumption && this.about == about
+
+    companion object {
+        fun meaning(answer: String) = Settled(about = "", answer = answer, scope = Scope.Meaning)
+    }
+}
 
 /** One change as the model describes it; used for its reason, not its position. */
 @Serializable

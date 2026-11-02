@@ -17,6 +17,10 @@ class CardActions(
     val onSettle: (about: String, answer: String) -> Unit,
     /** Retracts one live answer and checks again; null for a past check. */
     val onRemoveChoice: ((about: String) -> Unit)? = null,
+    /** Supplies the writer's intended meaning and runs the full check again. */
+    val onClarify: ((answer: String) -> Unit)? = null,
+    /** Retracts the writer's meaning clarification; null for a past check. */
+    val onRemoveClarification: (() -> Unit)? = null,
 ) {
     companion object {
         /**
@@ -50,6 +54,8 @@ class CardActions(
             onOpenSettings = onOpenSettings,
             onSettle = check::settle,
             onRemoveChoice = check::removeChoice,
+            onClarify = check::clarifyMeaning,
+            onRemoveClarification = check::removeMeaning,
         )
     }
 }

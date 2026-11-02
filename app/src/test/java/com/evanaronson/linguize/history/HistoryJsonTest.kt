@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.history
 
+import com.evanaronson.linguize.core.Settled
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.descriptors.SerialDescriptor
 import org.junit.Assert.assertEquals
@@ -112,6 +113,35 @@ class HistoryJsonTest {
     fun attemptsReadBackOrAsNone() {
         assertEquals(session.attempts, decodeAttempts(encodeAttempts(session.attempts)))
         assertEquals(emptyList<Attempt>(), decodeAttempts("{broken"))
+    }
+
+    @Test
+    fun meaningClarificationsRoundTripThroughStoredAttemptsAndExport() {
+        val assumption = Settled("Meaning", "A visit")
+        val meaning = Settled.meaning("I am coming tomorrow.\nI will stay for lunch.").copy(about = "Meaning")
+        val attempts = listOf(Attempt(at = 1, settled = listOf(assumption, meaning), raw = "kept answer"))
+        val stored = encodeAttempts(attempts)
+        val restored = decodeAttempts(stored)
+        assertEquals(attempts, restored)
+        assertFalse(restored.single().settled.first().isMeaning)
+        assertTrue(restored.single().settled.last().isMeaning)
+        assertTrue(restored.single().settled.first().answers("Meaning"))
+        assertFalse(restored.single().settled.last().answers("Meaning"))
+        val detail = SessionDetail(session.copy(attempts = attempts), emptyList())
+        val line = exported(detail)
+        assertFalse(line.contains('\n'))
+        assertEquals(detail, historyJson.decodeFromString(SessionDetail.serializer(), line))
+    }
+
+    @Test
+    fun olderSettledAnswersDefaultToAssumptionsEvenWhenTheirLabelIsMeaning() {
+        val stored = """[{"at":1,"settled":[{"about":"Meaning","answer":"The bird"}],"raw":"kept answer"}]"""
+        val attempt = decodeAttempts(stored).single()
+        assertEquals(listOf(Settled("Meaning", "The bird")), attempt.settled)
+        val answer = attempt.settled.single()
+        assertEquals(Settled.Scope.Assumption, answer.scope)
+        assertFalse(answer.isMeaning)
+        assertTrue(answer.answers("Meaning"))
     }
 
     @Test

@@ -11,20 +11,29 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -32,8 +41,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.Settled
@@ -48,12 +59,13 @@ internal fun understandingEntry(
     settled: List<Settled>,
     readOnly: Boolean,
 ): UnderstandingEntryState {
-    val unresolved = assumptions.count { a -> hasUniqueLabel(a, assumptions) &&
-        a.alternatives.any { it.isNotBlank() } && settled.none { it.about == a.about } }
+    val unresolved = assumptions.count { a ->
+        hasUniqueLabel(a, assumptions) && settled.none { it.answers(a.about) }
+    }
     return UnderstandingEntryState(
-        visible = meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
+        visible = !readOnly || meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
         unresolved = unresolved,
-        canClarify = !readOnly && unresolved > 0,
+        canClarify = !readOnly,
     )
 }
 
@@ -61,14 +73,14 @@ internal fun understandingEntry(
 @Composable
 internal fun UnderstandingEntry(entry: UnderstandingEntryState, onOpen: () -> Unit) {
     if (!entry.visible) return
-    val label = if (entry.canClarify) {
+    val label = if (entry.canClarify && entry.unresolved > 0) {
         pluralStringResource(R.plurals.review_assumptions, entry.unresolved, entry.unresolved)
     } else stringResource(R.string.meaning)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClickLabel = if (entry.canClarify) label else stringResource(R.string.show_understanding), onClick = onOpen)
+            .clickable(onClickLabel = if (entry.canClarify && entry.unresolved > 0) label else stringResource(R.string.show_understanding), onClick = onOpen)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -95,10 +107,8 @@ internal fun UnderstandingEntry(entry: UnderstandingEntryState, onOpen: () -> Un
 }
 
 /**
- * How the text was understood, shown in place of the suggestions: what it means,
- * in the writer's own language, then what was assumed where it was ambiguous.
- * Each assumption is presented as right; alternatives appear only after
- * "Clarify", and picking one checks again with that answer.
+ * How the text was understood, followed by the writer's clarification and any
+ * assumptions. Live checks can always be clarified, even without a supplied meaning.
  */
 @Composable
 internal fun UnderstandingPage(
@@ -110,10 +120,49 @@ internal fun UnderstandingPage(
     /** Null on a past check, whose answers remain evidence of that request. */
     onRemoveChoice: ((String) -> Unit)?,
     onBack: () -> Unit,
+    onClarify: ((String) -> Unit)? = null,
+    onRemoveClarification: (() -> Unit)? = null,
 ) {
-    BackButton(onBack)
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    BackButton {
+        focus.clearFocus()
+        keyboard?.hide()
+        onBack()
+    }
+    MeaningSection(meaning, settled, onClarify, onRemoveClarification)
+    val assumptionAnswers = settled.filterNot { it.isMeaning }
+    if (assumptions.isNotEmpty() || assumptionAnswers.isNotEmpty()) {
+        if (meaning.isNotBlank() || settled.any { it.isMeaning } || onClarify != null) {
+            Spacer(Modifier.height(20.dp))
+        }
+        Assumptions(assumptions, assumptionAnswers, onSettle, onRemoveChoice)
+    }
+}
+
+/** Shared by Meaning and an unclear result, so either can accept the writer's intent. */
+@Composable
+internal fun MeaningSection(
+    meaning: String,
+    settled: List<Settled>,
+    onClarify: ((String) -> Unit)?,
+    onRemoveClarification: (() -> Unit)?,
+) {
+    val clarification = settled.firstOrNull { it.isMeaning }
+    if (meaning.isBlank() && clarification == null && onClarify == null) return
+    var changing by rememberSaveable(meaning, clarification?.answer) { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.meaning), style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f))
+        if (onClarify != null && !changing) {
+            val clarify = stringResource(R.string.clarify_meaning)
+            TextButton(
+                onClick = { changing = true },
+                modifier = Modifier.semantics { contentDescription = clarify },
+            ) { Text(stringResource(R.string.clarify)) }
+        }
+    }
     if (meaning.isNotBlank()) {
-        Text(stringResource(R.string.meaning), style = MaterialTheme.typography.titleMedium)
         Text(
             stringResource(R.string.meaning_description),
             style = MaterialTheme.typography.bodySmall,
@@ -122,9 +171,25 @@ internal fun UnderstandingPage(
         Spacer(Modifier.height(8.dp))
         MeaningText(meaning)
     }
-    if (assumptions.isNotEmpty() || settled.isNotEmpty()) {
-        if (meaning.isNotBlank()) Spacer(Modifier.height(20.dp))
-        Assumptions(assumptions, settled, onSettle, onRemoveChoice)
+    if (clarification != null) {
+        Spacer(Modifier.height(12.dp))
+        Label(stringResource(R.string.your_clarification))
+        Text(clarification.answer, style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold)
+        if (onRemoveClarification != null && !changing) {
+            TextButton(onClick = onRemoveClarification) { Text(stringResource(R.string.remove_clarification)) }
+        }
+    }
+    if (onClarify != null && changing) {
+        Spacer(Modifier.height(8.dp))
+        ClarificationEditor(
+            initialAnswer = clarification?.answer.orEmpty(),
+            onSubmit = { answer ->
+                changing = false
+                onClarify(answer)
+            },
+            onCancel = { changing = false },
+        )
     }
 }
 
@@ -135,7 +200,7 @@ private fun Assumptions(
     onSettle: ((String, String) -> Unit)?,
     onRemoveChoice: ((String) -> Unit)?,
 ) {
-    val open = assumptions.filterNot { a -> settled.any { it.about == a.about } }
+    val open = assumptions.filterNot { a -> settled.any { it.answers(a.about) } }
     Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.titleMedium)
     Text(
         stringResource(R.string.assumptions_description),
@@ -173,7 +238,20 @@ private fun Assumptions(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AssumptionItem(assumption: Assumption, onSettle: ((String, String) -> Unit)?) {
-    var changing by remember(assumption) { mutableStateOf(false) }
+    var changing by rememberSaveable(assumption) { mutableStateOf(false) }
+    var enteringAnswer by rememberSaveable(assumption) { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    fun cancel() {
+        focus.clearFocus()
+        keyboard?.hide()
+        changing = false
+        enteringAnswer = false
+    }
+    fun submit(answer: String) {
+        cancel()
+        onSettle?.invoke(assumption.about, answer)
+    }
     Column(Modifier.padding(vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -187,10 +265,13 @@ internal fun AssumptionItem(assumption: Assumption, onSettle: ((String, String) 
                     )
                 }
             }
-            if (onSettle != null && assumption.alternatives.any { it.isNotBlank() } && !changing) {
+            if (onSettle != null && !changing) {
                 val clarify = stringResource(R.string.clarify_about, assumption.about)
                 TextButton(
-                    onClick = { changing = true },
+                    onClick = {
+                        changing = true
+                        enteringAnswer = assumption.alternatives.none { it.isNotBlank() }
+                    },
                     modifier = Modifier.semantics { contentDescription = clarify },
                 ) { Text(stringResource(R.string.clarify)) }
             }
@@ -201,10 +282,56 @@ internal fun AssumptionItem(assumption: Assumption, onSettle: ((String, String) 
             Spacer(Modifier.height(4.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 assumptionChoices(assumption).forEach { alternative ->
-                    SuggestionChip(onClick = { onSettle(assumption.about, alternative) }, label = { Text(alternative) })
+                    SuggestionChip(onClick = { submit(alternative) }, label = { Text(alternative) })
+                }
+            }
+            if (enteringAnswer) {
+                ClarificationEditor(initialAnswer = "", onSubmit = ::submit, onCancel = ::cancel)
+            } else {
+                Row {
+                    TextButton(onClick = { enteringAnswer = true }) { Text(stringResource(R.string.something_else)) }
+                    TextButton(onClick = ::cancel) { Text(stringResource(R.string.cancel)) }
                 }
             }
         }
+    }
+}
+
+/** An unsent draft belongs to this editor; only the explicit submission changes a check. */
+@Composable
+private fun ClarificationEditor(initialAnswer: String, onSubmit: (String) -> Unit, onCancel: () -> Unit) {
+    var answer by rememberSaveable(initialAnswer) { mutableStateOf(initialAnswer) }
+    val focusRequester = remember { FocusRequester() }
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val trimmed = answer.trim()
+    val tooLong = trimmed.length > Checker.MAX_CHARS
+    fun finish(action: () -> Unit) {
+        focus.clearFocus()
+        keyboard?.hide()
+        action()
+    }
+    // The editor enters composition only after the writer explicitly opens it.
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    OutlinedTextField(
+        value = answer,
+        onValueChange = { answer = it },
+        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+        label = { Text(stringResource(R.string.what_i_meant)) },
+        minLines = 2,
+        maxLines = 4,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        isError = tooLong,
+        supportingText = if (tooLong) {
+            { Text(stringResource(R.string.clarification_too_long, Checker.MAX_CHARS)) }
+        } else null,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilledTonalButton(
+            enabled = trimmed.isNotEmpty() && !tooLong,
+            onClick = { if (trimmed.isNotEmpty() && !tooLong) finish { onSubmit(trimmed) } },
+        ) { Text(stringResource(R.string.check_again)) }
+        TextButton(onClick = { finish(onCancel) }) { Text(stringResource(R.string.cancel)) }
     }
 }
 
@@ -214,7 +341,7 @@ internal fun assumptionChoices(assumption: Assumption): List<String> =
 
 internal fun linkedAssumptions(indices: List<Int>, assumptions: List<Assumption>, settled: List<Settled>): List<Assumption> =
     indices.distinct().mapNotNull(assumptions::getOrNull).filter { a ->
-        hasUniqueLabel(a, assumptions) && settled.none { it.about == a.about }
+        hasUniqueLabel(a, assumptions) && settled.none { it.answers(a.about) }
     }
 
 /** Settling identifies questions by their label; never offer an action that could answer two. */

@@ -60,6 +60,8 @@ internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>,
                     actions.onSettle,
                     actions.onRemoveChoice,
                     onBack = { showingUnderstanding = false },
+                    onClarify = actions.onClarify,
+                    onRemoveClarification = actions.onRemoveClarification,
                 )
             } else {
                 val entry = understandingEntry(result.meaning, result.assumptions, settled, readOnly = false)

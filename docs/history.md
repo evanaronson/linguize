@@ -35,9 +35,17 @@ not resume that card. Saved records stay until deleted.
 One card is one session, including retries, language changes, and settings changes.
 A session keeps the original text, source package when known, timestamps, app
 version, and a random installation ID. Each completed attempt keeps its raw answer
-when available, settled assumptions, failure tokens, and the language, provider,
+when available, the writer's clarifications (`settled`), failure tokens, and the language, provider,
 model, options, native language, prompt hash, and complete writing-profile snapshot it ran with. A reused answer also
 records its source session as `reusedFrom`.
+
+A `settled` item keeps `about`, `answer`, and `scope`. Scope defaults to
+`assumption` when absent from older records; `meaning` identifies a whole-message
+clarification independently of assumption labels. Submitting, replacing, or removing
+a clarification checks the original text again within the same session. A replacement
+removes the previous answer for that identity and appends the new one: answers are
+sent oldest first, and newer clarifications take precedence where they conflict.
+Each attempt preserves the exact clarification list it used, including failed attempts.
 
 The session is queued for saving when recording opens, then updated after each
 completed attempt. Accept, undo, and copy activity stays in memory until closure.
@@ -130,8 +138,10 @@ row identities are retained. Missing details are labelled as missing, never as a
 clean check. Viewing, expanding and selecting/copying text do not change records
 or make provider requests.
 
-Optional read-only Meaning still uses replay of the same decided revision. Replay
-requires a readable answer and valid spans, so incompatible records can lack
+Optional read-only Meaning still uses replay of the same decided revision, including
+that attempt's clarifications. Saved intent has no edit or removal controls; a later
+failed request's clarification does not replace the intent behind the replayed meaning.
+Replay requires a readable answer and valid spans, so incompatible records can lack
 Meaning while retaining the comparison. Its stored spans and decisions also
 support answer reuse when today's edit engine produces different edits. The
 shared decided-attempt helper excludes answers invalidated by a language change,

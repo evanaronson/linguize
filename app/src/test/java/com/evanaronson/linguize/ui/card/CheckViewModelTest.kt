@@ -437,6 +437,158 @@ class CheckViewModelTest {
     }
 
     @Test
+    fun clarifyingMeaningWithoutAssumptionsRechecksTheOriginalAndUpdatesEveryJudgment() {
+        val original = "Manana ella viene."
+        val intent = Settled.meaning("I am coming tomorrow.")
+        client.answer = { request ->
+            val clarified = request.settled.any { it.isMeaning }
+            val verdict = Verdict(
+                status = Verdict.Status.Ok,
+                language = "Spanish",
+                meaning = if (clarified) intent.answer else "She is coming tomorrow.",
+                hasErrors = true,
+                corrected = if (clarified) "Mañana yo vengo." else "Mañana ella viene.",
+                fixes = listOf(VerdictChange("Manana", "Mañana", confidence = 3, impact = 1)) +
+                    if (clarified) listOf(VerdictChange("ella viene", "yo vengo", confidence = 3, impact = 3))
+                    else emptyList(),
+                moreNatural = clarified,
+                natural = if (clarified) "Mañana vengo." else "",
+                naturalChanges = if (clarified) listOf(VerdictChange("yo vengo", "vengo", confidence = 2, impact = 1))
+                    else emptyList(),
+            )
+            ModelAnswer(verdict, Json.encodeToString(verdict))
+        }
+        check.check(original, null, Origin.Menu)
+        val first = reviewed()
+        assertTrue(first.assumptions.isEmpty())
+        assertEquals("She is coming tomorrow.", first.meaning)
+        check.acceptAll(EditKind.Fix)
+        val lookups = store.lookups.get()
+
+        check.clarifyMeaning(intent.answer)
+        val clarified = reviewed()
+        assertEquals(2, client.checks.size)
+        assertEquals(lookups, store.lookups.get())
+        assertEquals(original, client.checks.last().third.text)
+        assertEquals(listOf(intent), client.checks.last().third.settled)
+        assertEquals(listOf(intent), done().settled)
+        assertEquals(intent.answer, clarified.meaning)
+        assertTrue(clarified.assumptions.isEmpty())
+        assertTrue(clarified.withheld.isEmpty())
+        assertEquals("Mañana yo vengo.", clarified.revision.preview(EditKind.Fix).text)
+        assertEquals("Mañana vengo.", clarified.revision.preview(EditKind.Natural).text)
+        assertEquals(1, clarified.revision.acceptedCount)
+        check.dismiss(applied = false)
+        assertEquals(listOf(emptyList(), listOf(intent)), closed().single().attempts.map { it.settled })
+    }
+
+    @Test
+    fun replacingAndRemovingMeaningKeepsOtherAnswersAndTheEarlierAttemptEvidence() {
+        val assumption = Settled("Who is coming", "The writer")
+        val first = Settled.meaning("I am coming tomorrow.")
+        val revised = Settled.meaning("I am coming next week.")
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.settle(assumption.about, assumption.answer)
+        reviewed()
+        check.clarifyMeaning("  ${first.answer}  ")
+        assertEquals(listOf(assumption, first), done().settled)
+        check.clarifyMeaning(revised.answer)
+        assertEquals(listOf(assumption, revised), done().settled)
+        assertEquals(listOf(assumption, revised), client.checks.last().third.settled)
+
+        val requests = client.checks.size
+        check.clarifyMeaning(" \n\t ")
+        check.settle(assumption.about, " \n\t ")
+        check.clarifyMeaning("x".repeat(Checker.MAX_CHARS + 1))
+        check.settle(assumption.about, "x".repeat(Checker.MAX_CHARS + 1))
+        settle()
+        assertEquals(requests, client.checks.size)
+        assertEquals(listOf(assumption, revised), done().settled)
+
+        check.removeMeaning()
+        assertEquals(listOf(assumption), done().settled)
+        assertEquals(listOf(assumption), client.checks.last().third.settled)
+        assertTrue(client.checks.all { it.third.text == QUESTION })
+        check.dismiss(applied = false)
+        assertEquals(
+            listOf(emptyList(), listOf(assumption), listOf(assumption, first),
+                listOf(assumption, revised), listOf(assumption)),
+            closed().single().attempts.map { it.settled },
+        )
+    }
+
+    @Test
+    fun globalAndAssumptionAnswersWithTheSameLabelStayIndependent() {
+        // A saved global label must not become the identity of an assumption with the same label.
+        val global = Settled.meaning("I am coming tomorrow.").copy(about = "Meaning")
+        val assumption = Settled("Meaning", "A visit")
+        store.kept = keptSession(listOf(global, assumption))
+        client.answer = { awaitCancellation() }
+        check.check(QUESTION, null, Origin.Menu)
+        assertEquals(listOf(global, assumption), done().settled)
+
+        client.answer = { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
+        val changed = assumption.copy(answer = "A return visit")
+        check.settle(changed.about, changed.answer)
+        assertEquals(listOf(global, changed), done().settled)
+        check.removeChoice(changed.about)
+        assertEquals(listOf(global), done().settled)
+        check.settle(assumption.about, assumption.answer)
+        assertEquals(listOf(global, assumption), done().settled)
+
+        val replacement = Settled.meaning("I am coming next week.")
+        check.clarifyMeaning(replacement.answer)
+        assertEquals(listOf(assumption, replacement), done().settled)
+        check.removeMeaning()
+        assertEquals(listOf(assumption), done().settled)
+        assertEquals(listOf(assumption), client.checks.last().third.settled)
+    }
+
+    @Test
+    fun aFailedMeaningClarificationKeepsItsIntentForRetryAndRecordsBothAttempts() {
+        val intent = Settled.meaning("I meant tomorrow, not today.")
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        client.answer = { throw CheckFailure(CheckFailure.Reason.Offline) }
+        check.clarifyMeaning(intent.answer)
+        waitFor("failed meaning clarification") { check.state is CardState.Failed }
+        assertEquals(listOf(intent), client.checks.last().third.settled)
+        assertEquals("Com estàs?", check.workingText)
+
+        client.answer = { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
+        check.recheck()
+        assertEquals(1, reviewed().revision.acceptedCount)
+        assertEquals(listOf(intent), done().settled)
+        assertEquals(listOf(intent), client.checks.last().third.settled)
+        check.dismiss(applied = false)
+        val attempts = closed().single().attempts
+        assertEquals(listOf(emptyList(), listOf(intent), listOf(intent)), attempts.map { it.settled })
+        assertEquals(CheckFailure.Reason.Offline.token, attempts[1].failure)
+        assertNull(attempts[2].failure)
+    }
+
+    @Test
+    fun globalMeaningStartsAfreshForAnotherLanguageOrANewCheck() {
+        val intent = Settled.meaning("I am coming tomorrow.")
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.clarifyMeaning(intent.answer)
+        assertEquals(listOf(intent), done().settled)
+
+        check.changeLanguage(Language.Catalan)
+        assertTrue(done().settled.isEmpty())
+        assertTrue(client.checks.last().third.settled.isEmpty())
+        check.clarifyMeaning(intent.answer)
+        assertEquals(listOf(intent), done().settled)
+
+        check.check(QUESTION, Language.Catalan, Origin.Menu)
+        assertTrue(done().settled.isEmpty())
+        assertTrue(client.checks.last().third.settled.isEmpty())
+    }
+
+    @Test
     fun removingOneChoiceRetractsOnlyThatFactAndPreservesEarlierAttemptEvidence() {
         val first = Settled("tu", "informal")
         val other = Settled("When?", "Tomorrow")
@@ -659,7 +811,7 @@ class CheckViewModelTest {
 
     @Test
     fun aReusedVerdictBringsTheAnswersItWasMadeWith() {
-        val settled = listOf(Settled("tu", "informal"))
+        val settled = listOf(Settled("tu", "informal"), Settled.meaning("I am asking how you feel."))
         store.kept = keptSession(settled)
         // The model never answers, so the kept verdict wins the race.
         client.answer = { awaitCancellation() }
@@ -1395,6 +1547,8 @@ class CheckViewModelTest {
         check.recheck()
         check.settle("tu", "informal")
         check.removeChoice("tu")
+        check.clarifyMeaning("I meant tomorrow.")
+        check.removeMeaning()
         settle()
         assertNull(check.state)
         assertEquals(1, client.checks.size)

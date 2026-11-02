@@ -22,4 +22,11 @@
     </plurals>
     <string name="clarify">Clarify</string>
     <string name="clarify_about">Clarify: %1$s</string>
+    <string name="clarify_meaning">Clarify meaning</string>
+    <string name="what_i_meant">What I meant was…</string>
+    <string name="something_else">Something else…</string>
+    <string name="check_again">Check again</string>
+    <string name="your_clarification">Your clarification</string>
+    <string name="remove_clarification">Remove clarification</string>
+    <string name="clarification_too_long">Use %1$,d characters or fewer.</string>
 </resources>

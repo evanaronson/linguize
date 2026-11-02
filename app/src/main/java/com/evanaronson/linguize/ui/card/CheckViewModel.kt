@@ -43,7 +43,7 @@ sealed interface CardState {
     ) : CardState
     data class Done(
         val result: CheckResult,
-        /** The writer's answers to assumptions, kept until the card closes. */
+        /** The writer's clarifications, kept until the card closes. */
         val settled: List<Settled> = emptyList(),
         /** A non-reviewed answer leaves the previous accepted text available to the host. */
         override val retainedRevision: Revision? = null,
@@ -159,19 +159,33 @@ class CheckViewModel(
         }
     }
 
-    /** Overrides an assumption with the writer's [answer] and checks again. */
-    fun settle(about: String, answer: String) {
-        if (state == null) return
+    /** Answers one assumption, using a suggested reading or the writer's own words. */
+    fun settle(about: String, answer: String) = clarify(Settled(about, answer))
+
+    /** Clarifies intended meaning even when the model found no ambiguity. */
+    fun clarifyMeaning(answer: String) = clarify(Settled.meaning(answer))
+
+    private fun clarify(clarification: Settled) {
+        val answer = clarification.answer.trim()
+        if (state == null || answer.isBlank() || answer.length > Checker.MAX_CHARS) return
         hasReviewed = true
-        settled = settled.filterNot { it.about == about } + Settled(about, answer)
+        // Replacing a clarification moves it to the end: newest context resolves conflicts.
+        settled = settled.filterNot {
+            if (clarification.isMeaning) it.isMeaning else it.answers(clarification.about)
+        } + clarification.copy(answer = answer)
         run(Run.Again)
     }
 
     /** Retracts the writer's answer about one assumption and checks again. */
-    fun removeChoice(about: String) {
-        if (state == null || settled.none { it.about == about }) return
+    fun removeChoice(about: String) = removeClarification { it.answers(about) }
+
+    /** Retracts the whole-message clarification without dropping specific answers. */
+    fun removeMeaning() = removeClarification { it.isMeaning }
+
+    private fun removeClarification(matches: (Settled) -> Boolean) {
+        if (state == null || settled.none(matches)) return
         hasReviewed = true
-        settled = settled.filterNot { it.about == about }
+        settled = settled.filterNot(matches)
         run(Run.Again)
     }
 

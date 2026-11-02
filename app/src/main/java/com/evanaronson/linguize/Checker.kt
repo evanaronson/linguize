@@ -37,7 +37,7 @@ class Checker(
 
     /**
      * Checks [text] as [language], or lets the model detect the language when it's null.
-     * [settled] are the writer's answers to assumptions from an earlier check of the same text.
+     * [settled] are the writer's meaning clarifications and answers from this check of the same text.
      * Runs with [context] when given, else with the settings as they are now.
      */
     suspend fun check(

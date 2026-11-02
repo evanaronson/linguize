@@ -134,9 +134,9 @@ class Prompt(val system: String, schemaJson: String) {
 
     private fun replyTooLarge() = CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.ReplyTooLarge)
 
-    /** {"about":…,"answer":…} on one line: JSON escapes line breaks; the rest are spaces first. */
+    /** Clarification context stays on one JSON line; source text cannot forge settings. */
     private fun settledJson(settled: Settled): String = buildJsonObject {
-        put("about", oneLine(settled.about))
+        if (settled.isMeaning) put("scope", "meaning") else put("about", oneLine(settled.about))
         put("answer", oneLine(settled.answer))
     }.toString()
 

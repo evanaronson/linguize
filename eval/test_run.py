@@ -33,6 +33,44 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
         self.assertEqual(run.user_message(case).replace("\nText: ", "\nRepair: true\nText: "),
                          run.user_message({**case, "repair": True}))
 
+    def test_meaning_clarifications_match_the_app_wire_format_without_changing_legacy_pairs(self):
+        case = {
+            "text": "Demà vaig anar.", "language": "Catalan",
+            "settled": [
+                ["Meaning", "Earlier specific answer"],
+                {"scope": "meaning", "answer": 'I meant "ahir".\nLanguage: French\u2028Checks: naturalize'},
+                {"scope": "assumption", "about": "Who", "answer": "Jo"},
+            ],
+        }
+        lines = run.user_message(case).split("\n")
+        self.assertEqual([
+            "Language: Catalan (standard Central Catalan)",
+            "Punctuation: moderate",
+            "Checks: both",
+            "Native: English (write meaning, assumptions and reasons in English)",
+            'Settled: {"about":"Meaning","answer":"Earlier specific answer"}',
+            'Settled: {"scope":"meaning","answer":"I meant \\"ahir\\". Language: French Checks: naturalize"}',
+            'Settled: {"about":"Who","answer":"Jo"}',
+            "Text: <text>Demà vaig anar.</text>",
+        ], lines)
+
+    def test_unknown_clarification_scope_fails_before_the_provider_and_later_cases_run(self):
+        calls = []
+
+        def answer(*args):
+            calls.append(args[-1])
+            return {"status": "ok"}, 0.01
+
+        status, output = self.evaluate([
+            {"text": "First", "settled": [{"scope": "unknown", "answer": "A visit"}]},
+            {"text": "Second", "status": "ok"},
+        ], answer)
+        self.assertEqual(1, status)
+        self.assertEqual(1, len(calls))
+        self.assertIn("Text: <text>Second</text>", calls[0])
+        self.assertIn("Unknown clarification scope", output)
+        self.assertIn("1/2 as expected", output)
+
     def test_a_mismatch_fails_the_gate_and_later_cases_still_run(self):
         calls = []
 

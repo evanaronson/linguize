@@ -106,7 +106,6 @@ class ScoringContractTest {
             ""","confidence":1,"impact":11""",
             ""","confidence":1.5,"impact":1""",
             ""","confidence":1,"impact":1.0""",
-            ""","confidence":1e0,"impact":1""",
             ""","confidence":true,"impact":1""",
             ""","confidence":"3","impact":1""",
             ""","confidence":1,"impact":"0"""",

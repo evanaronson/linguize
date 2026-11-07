@@ -5,6 +5,10 @@ ratings 0..3. They are ordinal, not probabilities or a combined ranking. Confide
 is support for the exact adjustment; impact is benefit assuming it is justified.
 Rewording impact excludes the benefit of fixes it already includes. The production
 prompt defines anchors, meaning-preservation checks and register/variety guidance.
+The current `confidence-impact-v2` rubric distinguishes minor polish from noticeable
+fluency or register improvement. It retains the 0–3 scale and confidence anchors;
+stored v1 ratings keep their original version. The prompt hash identifies the exact
+instructions and schema used for each attempt.
 
 Ratings and temporary labels appear only when a suggestion explanation is opened.
 No score filters, reordering, automatic acceptance or clipboard/write-back changes

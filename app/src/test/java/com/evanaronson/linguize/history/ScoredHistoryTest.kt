@@ -21,7 +21,8 @@ import org.junit.Test
 class ScoredHistoryTest {
     private val fixture = HistorySchemaTest()
     private val profile = WritingProfile.defaultFor(Language.Catalan)
-    private val rated = SuggestionAssessment(0, 3)
+    // Saved evidence must keep its rubric when the current prompt's anchors change.
+    private val rated = SuggestionAssessment(0, 3, rubricVersion = "confidence-impact-v1")
 
     @Test fun historyReadsLinksOnlyFromItsOwnRecordedAttemptAndDropsThemWhenEditsNoLongerMatch() {
         val raw = """{"status":"ok","language":"Catalan","has_errors":true,"corrected":"Com estàs?\nBé.",

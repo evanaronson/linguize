@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="open_linguize_failed">Couldn\'t open Linguize. Try again.</string>
-    <string name="menu_check_not_sent">This one wasn\'t sent to the AI.</string>
+    <string name="menu_check_not_sent">This check wasn\'t started.</string>
     <string name="shortcut_open_failed">Couldn\'t open the check. Tap your writing field and try again.</string>
     <string name="shortcut_no_text">No text to check. Tap the field you wrote in, then try again.</string>
     <string name="shortcut_private_field">This field looks private, so Linguize didn\'t read it.</string>

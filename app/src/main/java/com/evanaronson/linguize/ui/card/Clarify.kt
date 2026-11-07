@@ -34,7 +34,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.Checker
@@ -93,7 +92,6 @@ internal fun ClarifyBlock(
         Text(
             stringResource(R.string.what_did_you_mean),
             style = MaterialTheme.typography.bodyMedium,
-            fontStyle = FontStyle.Italic,
         )
         if (choices.isNotEmpty()) {
             Column(Modifier.padding(top = 2.dp).selectableGroup()) {
@@ -167,7 +165,7 @@ private fun ClarifyOption(text: String, selected: Boolean, onClick: () -> Unit) 
 }
 
 /**
- * An assumption on Meaning: its subject, the reading in italic, and the words it rests on,
+ * An assumption on Meaning: its subject, the reading, and the words it rests on,
  * on a grey inset. When [onSettle] is set the inset is the way in: tap it and the
  * [ClarifyBlock] opens inside it.
  */
@@ -222,11 +220,11 @@ internal fun AssumptionInset(assumption: Assumption, onSettle: ((String, String)
     }
 }
 
-/** A subject over a reading in italic: how an assumption or an answer is written. */
+/** A subject over a reading; the surrounding row supplies any clarification action. */
 @Composable
 internal fun Reading(about: String, reading: String) {
     Text(about, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Text(reading, style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Italic)
+    Text(reading, style = MaterialTheme.typography.bodyLarge)
 }
 
 /** Include the current reading so clarification can confirm it as well as correct it. */

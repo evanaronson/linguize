@@ -173,12 +173,16 @@ class MeaningClarificationTest {
         settle()
         assertTrue(hasText("Your clarification"))
         assertTrue(hasText("I meant several friends."))
-        assertTrue(hasText("Your choice"))
+        assertFalse(hasText("Your choice"))
         assertTrue(hasText("A group"))
+        assertEquals("Both scopes identify the writer's answer the same way", 2, nodes().count {
+            it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text == "Your clarification" } == true
+        })
         assertFalse(hasText("Clarify"))
         assertFalse(hasText("Remove choice"))
         assertFalse(hasText("Remove clarification"))
-                assertTrue(fields().isEmpty())
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label?.startsWith("Clarify") == true })
+        assertTrue(fields().isEmpty())
     }
 
     @Test fun suggestionAssumptionsAndWriterAnswersKeepTheirOriginalCapitalization() {
@@ -238,6 +242,114 @@ class MeaningClarificationTest {
         clickText(activity.getString(R.string.remove_clarification))
         assertFalse(hasText(original))
         assertTrue(hasText(activity.getString(R.string.say_what_you_meant)))
+    }
+
+    @Test fun savedAssumptionUsesTheSamePrefilledEditorAndRemovalKeepsTheMeaningClarification() {
+        val original = "A group of friends"
+        val meaning = Settled.meaning("I meant an invitation.")
+        val settled = mutableStateOf(listOf(meaning, Settled("Who?", original)))
+        val answers = mutableListOf<Pair<String, String>>()
+        val removed = mutableListOf<String>()
+        activity.setContent {
+            MaterialTheme {
+                Column {
+                    UnderstandingPage(
+                        "", listOf(Assumption("Who?", "One person")), settled.value,
+                        onSettle = { about, answer ->
+                            answers += about to answer
+                            settled.value = settled.value.filterNot { it.answers(about) } + Settled(about, answer)
+                        },
+                        onRemoveChoice = { about ->
+                            removed += about
+                            settled.value = settled.value.filterNot { it.answers(about) }
+                        },
+                        onBack = {},
+                        onClarify = { fail("An assumption edit must keep its scope") },
+                        onRemoveClarification = { fail("Removing an assumption must keep the meaning clarification") },
+                    )
+                }
+            }
+        }
+        settle()
+        assertTrue(hasText("Who?"))
+        assertFalse(hasText("Your choice"))
+        val edit = button(original)
+        assertTrue("The writer's answer is part of its edit target", containsText(edit, "Your clarification"))
+        val remove = nodes().first {
+            it.config.getOrNull(SemanticsProperties.ContentDescription)?.contains("Remove clarification: Who?") == true
+        }
+        assertEquals("Removal shares the clarification's left edge", edit.boundsInRoot.left,
+            remove.boundsInRoot.left, 1f)
+
+        clickDescription("Clarify: Who?")
+        assertEquals(original, fieldText())
+        assertTrue("Opening the saved answer focuses its field",
+            field().config.getOrNull(SemanticsProperties.Focused) == true)
+        type("An unsaved change")
+        clickText("Cancel")
+        assertTrue(answers.isEmpty())
+        assertTrue(fields().isEmpty())
+        assertTrue(hasText(original))
+
+        clickDescription("Clarify: Who?")
+        assertEquals("Cancel preserves the saved clarification", original, fieldText())
+        type("  Several colleagues  ")
+        clickText("Clarify")
+        assertEquals(listOf("Who?" to "Several colleagues"), answers)
+        assertTrue(hasText("Several colleagues"))
+        assertTrue(fields().isEmpty())
+        clickDescription("Clarify: Who?")
+        assertEquals("Editing again starts with the latest answer", "Several colleagues", fieldText())
+        clickText("Cancel")
+        clickDescription("Remove clarification: Who?")
+        assertEquals(listOf("Who?"), removed)
+        assertEquals(listOf(meaning), settled.value)
+        assertTrue("Removing the answer restores the open model reading", hasText("One person"))
+        assertTrue(hasText(meaning.answer))
+    }
+
+    @Test fun savedAssumptionRemainsEditableWhenARecheckOmitsTheOriginalQuestion() {
+        val answers = mutableListOf<Pair<String, String>>()
+        activity.setContent {
+            MaterialTheme {
+                AssumptionList(
+                    assumptions = emptyList(), open = emptyList(),
+                    settled = listOf(Settled("When?", "Tomorrow")),
+                    onSettle = { about, answer -> answers += about to answer },
+                    onRemoveChoice = null,
+                )
+            }
+        }
+        settle()
+        assertTrue(hasText("When?"))
+        clickDescription("Clarify: When?")
+        assertEquals("Tomorrow", fieldText())
+        type("Next week")
+        clickText("Clarify")
+        assertEquals(listOf("When?" to "Next week"), answers)
+    }
+
+    @Test fun savedAssumptionCannotBeEditedThroughAnAmbiguousLabel() {
+        val assumptions = mutableStateOf(listOf(Assumption("Place", "Here"), Assumption("Place", "There")))
+        val settled = mutableStateOf(listOf(Settled("Place", "At home")))
+        activity.setContent {
+            MaterialTheme {
+                AssumptionList(assumptions.value, open = emptyList(), settled = settled.value,
+                    onSettle = { _, _ -> fail("An ambiguous label must not offer an edit") },
+                    onRemoveChoice = null)
+            }
+        }
+        settle()
+        assertTrue(hasText("At home"))
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label == "Clarify: Place" })
+
+        assumptions.value = emptyList()
+        settled.value = listOf(Settled("Place", "At home"), Settled("Place", "At work"))
+        settle()
+        assertTrue(hasText("At home"))
+        assertTrue(hasText("At work"))
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label == "Clarify: Place" })
+        assertTrue(fields().isEmpty())
     }
 
     @Test fun unclearResultCanReviseItsSavedMeaningButWrongLanguageDoesNotOfferTheFlow() {

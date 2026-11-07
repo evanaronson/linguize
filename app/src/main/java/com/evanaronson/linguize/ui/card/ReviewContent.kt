@@ -36,17 +36,26 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         return
     }
 
-    // Naturalness was judged on the model's corrected text. It cannot reassure
-    // the writer about the original when required corrections were withheld.
-    result.kinds.filterNot { it == EditKind.Natural && EditKind.Fix in result.withheld &&
-        it !in result.withheld && result.revision.edits(it).isEmpty()
-    }.forEachIndexed { index, kind ->
-        if (index > 0) SectionDivider()
-        EditSection(kind, result, settled, actions)
+    val incomplete = result.withheld.isNotEmpty()
+    if (incomplete) {
+        val title = when {
+            result.withheld.size > 1 -> R.string.changes_withheld
+            EditKind.Fix in result.withheld -> R.string.fixes_withheld
+            else -> R.string.rewordings_withheld
+        }
+        Outcome(stringResource(title), stringResource(R.string.withheld_detail))
+        LinguizeButton(stringResource(R.string.check_again), actions.onRetry, ButtonKind.Text)
     }
 
-    if (result.withheld.isNotEmpty()) {
-        LinguizeButton(stringResource(R.string.retry), actions.onRetry, ButtonKind.Text)
+    // Empty withheld sections are covered by the notice. Naturalness was judged on
+    // the model's corrected text, so it cannot reassure the writer about the original
+    // when required corrections were withheld.
+    result.kinds.filterNot { kind ->
+        result.revision.edits(kind).isEmpty() &&
+            (kind in result.withheld || kind == EditKind.Natural && EditKind.Fix in result.withheld)
+    }.forEachIndexed { index, kind ->
+        if (incomplete || index > 0) SectionDivider()
+        EditSection(kind, result, settled, actions)
     }
 
     val review = actions.review
@@ -80,15 +89,9 @@ internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?)
 @Composable
 private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     val revision = result.revision
-    val withheld = kind in result.withheld
     val review = actions.review
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
-    if (withheld) {
-        StatusLine(stringResource(if (fix) R.string.fixes_withheld else R.string.rewordings_withheld))
-        if (revision.edits(kind).isEmpty()) return
-        Spacer(Modifier.height(10.dp))
-    }
     if (revision.edits(kind).isEmpty()) {
         SuccessLine(if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
         return

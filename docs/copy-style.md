@@ -32,13 +32,15 @@ One word per idea, everywhere.
 | Text kept on the phone | **saved**; the feature and the Home list are **History** | kept, remembered, recorded |
 | Removing it | **delete** | clear, remove |
 | The user's credential | **API key** in titles and field labels, then **key** | token, secret |
-| The thing that checks | **AI** in prose; **Model** for the settings section | model, provider, LLM |
+| The app doing the work | **Linguize**, or simply describe what happened | AI, LLM |
 | The exact model a user picks | **model**, only in Settings next to the model picker | |
 | Named services | **Gemini**, **OpenAI**, when the person needs to know which | |
 | Languages | **Catalan**, **Spanish** | Castilian, castellano |
 | Where Linguize appears in other apps | **selection menu** | text menu, context menu, PROCESS_TEXT |
 
 **Linguize**, **Catalanize** and **Castilianize** are selection-menu names. The language picker uses **Auto Detect** for automatic detection and keeps **Catalanize** and **Castilianize** for those named choices. The popup app button uses the Linguize wordmark image.
+
+Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Name the model or service only when it helps someone configure the app or understand where their text goes. Preserve necessary proper names such as OpenAI and Google AI Studio.
 
 ## Patterns
 
@@ -54,28 +56,28 @@ One word per idea, everywhere.
 
 **True in every state.** A label must be true in every state it can show in, including loading, off, empty and failed. If one line can't be true in all of them, write one line per state. Before "Apply", changes are *accepted*, not put back.
 
-**No blame.** When the AI fails, say the AI failed: "The AI couldn't tell what this means", not "Can't tell what this means". "No text to check", not "Type something first".
+**No blame.** Describe what Linguize could not do, without blaming the writer or deflecting to the model: "Linguize couldn't tell what this means". "No text to check", not "Type something first".
 
 **No promises.** Describe what the app does today. History lists past checks. It does not analyse mistakes, so don't say it will.
 
 **History pages speak in the past.** Don't tell people to do things they can't do on that page.
 
-**Screen readers.** Labels name the object and the effect: "Open check", "Delete check", "Show how the AI read it", never a bare "Open" or "Close". Glyphs that only decorate (✓ ✗ ‹ › ▾) are hidden from screen readers, or replaced by words. Write changes in words ("cami becomes camí"), not arrows.
+**Screen readers.** Labels name the object and the effect: "Open check", "Delete check", "Show how your message was read", never a bare "Open" or "Close". Glyphs that only decorate (✓ ✗ ‹ › ▾) are hidden from screen readers, or replaced by words. Write changes in words ("cami becomes camí"), not arrows.
 
 **Platform limits.**
 - Selection-menu labels: one short line, often cut off at around 18 characters. Keep the three names.
 - Toasts: about 3 seconds. About 45 characters for a short toast, about 80 for a long one. Say what happened and the next step.
-- Accessibility-service description (Android's settings page, shown before a frightening system warning): say what it reads, when it reads it, and where the text goes (the AI service the user set up). Say what it skips as "looks like", because it guesses. Never claim "never".
+- Accessibility-service description (Android's settings page, shown before a frightening system warning): say what it reads, when it reads it, and where the text goes (the service the user set up). Say what it skips as "looks like", because it guesses. Never claim "never".
 
 ## Before and after
 
 | Before | After | Why |
 |---|---|---|
-| Can't tell what this means | The AI couldn't tell what this means / Check a full sentence in Catalan or Spanish | Blamed the text. Gave no next step. |
+| Can't tell what this means | Linguize couldn't tell what this means / Check a full sentence in Catalan or Spanish | Own the limitation and give a next step. |
 | 2 changes applied | 2 changes accepted | Nothing is put back until Apply. |
 | 1 way to sound more natural | 1 rewording | Same name as in Settings and History. |
 | Add an API key | No API key / Add one in settings | A title is a state, and History shows it too. |
-| Rate limited / Try again in a moment | AI usage limit reached / Wait a minute, then retry | Jargon, and too close to "Too many checks". |
+| Rate limited / Try again in a moment | Service usage limit reached / Wait a minute, then retry | Jargon, and too close to "Too many checks". |
 | Checks you make will show up here. | Changes you apply in other apps will appear here. | Analysis and Copy alone are not saved; Try it remains excluded. |
 | 3 fixes, 1 rewording, 2 taken | 3 fixes, 1 rewording, 2 accepted | One verb for accepting. |
 | Sent | Put back in the app | "Sent" reads as "message sent". |
@@ -84,6 +86,8 @@ One word per idea, everywhere.
 
 ## Visual language
 
-Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. A full-width row with a chevron opens clarification ("Not what you mean ›", "Assumes the meeting is tomorrow ›"). Interactive readings use the same upright label treatment as other drill-down rows; italic readings without a chevron are read-only. Plain muted text is information. Proofmark red also identifies destructive actions: the swipe-to-delete background and every Delete or Remove action, including confirmation buttons. The swipe background uses the theme's contrasting foreground.
+Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. A full-width row with a chevron opens clarification ("Not what you mean ›", "Assumed you meant: The meeting is tomorrow ›"). Readings use upright text; the chevron and tap target distinguish interactive rows from read-only information. A colon separates UI framing from the model's reading, preserving its capitalization and tense in live results and History. Proofmark red also identifies destructive actions: the swipe-to-delete background and every Delete or Remove action, including confirmation buttons. The swipe background uses the theme's contrasting foreground.
 
 A checkmark with text identifies a completed review: "Sounds natural" or "All changes accepted". Accepted changes are still waiting for Apply; the checkmark does not imply they were put back in the source app. Clarification updates the result directly without a separate confirmation banner.
+
+An incomplete check groups its explanation and Check again action above the available suggestions. This describes unusable parts of the model's reply, not failure to apply the writer's accepted changes. Keep the notice neutral and usable suggestions available.

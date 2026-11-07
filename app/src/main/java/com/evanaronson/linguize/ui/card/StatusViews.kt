@@ -31,12 +31,6 @@ internal fun Outcome(title: String, detail: String? = null, success: Boolean = f
     }
 }
 
-/** One line for a section: what it found, when there is nothing to show. */
-@Composable
-internal fun StatusLine(text: String) {
-    Text(text, style = MaterialTheme.typography.titleSmall)
-}
-
 /** A checkmark accompanies successful judgments and accepted changes; the words carry the state. */
 @Composable
 internal fun SuccessLine(

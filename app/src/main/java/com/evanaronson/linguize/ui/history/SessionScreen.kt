@@ -125,7 +125,7 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
 fun SessionAssumptionsScreen(session: SessionViewModel) {
     val page = session.page as? SessionPage.Shown ?: return
     val reviewed = page.card?.result as? CheckResult.Reviewed ?: return
-    val settled = page.card?.settled.orEmpty().filterNot { it.isMeaning }
+    val settled = page.card.settled.filterNot { it.isMeaning }
     val open = reviewed.assumptions.filterNot { a -> settled.any { it.answers(a.about) } }
     ScreenColumn {
         SectionHeader(stringResource(R.string.assumptions))

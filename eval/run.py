@@ -211,8 +211,8 @@ def summarize_answer(case, verdict, elapsed):
             change = json_object(change, "adjustment")
             for dimension in ("confidence", "impact"):
                 score = change.get(dimension)
-                if type(score) is not int or score not in range(4):
-                    raise ValueError(f"Every adjustment needs integer {dimension} in 0..3")
+                if type(score) is not int or score not in range(11):
+                    raise ValueError(f"Every adjustment needs integer {dimension} in 0..10")
     if "status" in case and verdict["status"] != case["status"]:
         problems.append(f"status {verdict['status']} != {case['status']}")
     if "answer_language" in case and verdict.get("language", "") != case["answer_language"]:
@@ -246,11 +246,11 @@ def summarize_answer(case, verdict, elapsed):
     if verdict.get("corrected"):
         lines.append(f"            fix: {verdict['corrected']}")
         for change in verdict.get("fixes", []):
-            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/3; impact {change['impact']}/3)")
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/10; impact {change['impact']}/10)")
     if verdict.get("natural"):
         lines.append(f"        natural: {verdict['natural']}")
         for change in verdict.get("natural_changes", []):
-            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/3; impact {change['impact']}/3)")
+            lines.append(f"                 {change['from'] or '+'} -> {change['to']}  ({change['why']}; confidence {change['confidence']}/10; impact {change['impact']}/10)")
     lines.extend(f"        !! {problem}" for problem in problems)
     return problems, "\n".join(lines)
 

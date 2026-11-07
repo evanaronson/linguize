@@ -257,7 +257,16 @@ class SqliteHistoryStore(
                 return
             }
             statements.forEach(db::execSQL)
-            // DB 6 already captured language evidence. Scoring adds unknown metadata only.
+            if (oldVersion < 8) {
+                val assessments = db.select("""SELECT "id", "assessment" FROM suggestions WHERE "assessment" IS NOT NULL""") {
+                    it.string("id") to it.string("assessment")
+                }
+                for ((id, stored) in assessments) {
+                    val upgraded = upgradeAssessment(stored)
+                    if (upgraded != stored) db.execute("""UPDATE suggestions SET "assessment" = ? WHERE "id" = ?""", listOf(upgraded, id))
+                }
+            }
+            // DB 6 already captured language evidence; later upgrades keep its raw answers.
             if (oldVersion >= 6) return
             val rewritten = buildList {
                 db.eachRow(HistorySchema.ALL_ATTEMPTS) { row ->

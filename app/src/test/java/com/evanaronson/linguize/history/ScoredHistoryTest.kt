@@ -21,8 +21,8 @@ import org.junit.Test
 class ScoredHistoryTest {
     private val fixture = HistorySchemaTest()
     private val profile = WritingProfile.defaultFor(Language.Catalan)
-    // Saved evidence must keep its rubric when the current prompt's anchors change.
-    private val rated = SuggestionAssessment(0, 3, rubricVersion = "confidence-impact-v1")
+    // Current raw scores survive history and export unchanged.
+    private val rated = SuggestionAssessment(0, 10)
 
     @Test fun historyReadsLinksOnlyFromItsOwnRecordedAttemptAndDropsThemWhenEditsNoLongerMatch() {
         val raw = """{"status":"ok","language":"Catalan","has_errors":true,"corrected":"Com estàs?\nBé.",
@@ -51,7 +51,7 @@ class ScoredHistoryTest {
         assertEquals(scored, suggestionRecord(MapRow(scored.values())))
         val json = rowJson(MapRow(scored.values()), HistorySchema.SUGGESTION_COLUMNS)
         assertEquals("0", json["assessment"]!!.jsonObject["confidence"].toString())
-        assertEquals("3", json["assessment"]!!.jsonObject["impact"].toString())
+        assertEquals("10", json["assessment"]!!.jsonObject["impact"].toString())
         assertEquals("generated", decodeAssessment(encodeAssessment(rated))!!.origin)
         assertEquals("null", rowJson(MapRow(fixture.suggestion.values()), HistorySchema.SUGGESTION_COLUMNS)["assessment"].toString())
         assertEquals(profile.language, decodeProfiles(rowJson(MapRow(session.values()), HistorySchema.SESSION_COLUMNS)["writingProfiles"].toString()).single().language)
@@ -60,7 +60,7 @@ class ScoredHistoryTest {
 
     @Test
     fun corruptOrMissingAssessmentNeverBecomesAScore() {
-        for (value in listOf(null, "broken", "{}", """{"confidence":4,"impact":1}""", """{"confidence":1}""")) {
+        for (value in listOf(null, "broken", "{}", """{"confidence":11,"impact":1}""", """{"confidence":1}""")) {
             assertNull(value, decodeAssessment(value))
             assertNull(suggestionRecord(MapRow(fixture.suggestion.values() + ("assessment" to value)))!!.assessment)
         }

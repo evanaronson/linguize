@@ -33,25 +33,30 @@ class ReviewPresentationTest {
     @Test
     fun missingAssessmentIsUnassessedWhileZeroIsAnActualRating() {
         val missing = assessmentPresentation(null)
-        assertNull(missing.confidence.score)
-        assertNull(missing.impact.score)
+        assertNull(missing.confidence.level)
+        assertNull(missing.impact.level)
         assertEquals(R.string.assessment_unassessed, missing.confidence.label)
         assertEquals(R.string.assessment_unassessed, missing.impact.label)
 
         val zero = assessmentPresentation(SuggestionAssessment(0, 0))
-        assertEquals(0, zero.confidence.score)
-        assertEquals(0, zero.impact.score)
-        assertEquals(R.string.confidence_unsupported, zero.confidence.label)
-        assertEquals(R.string.impact_none, zero.impact.label)
+        assertEquals(1, zero.confidence.level)
+        assertEquals(1, zero.impact.level)
+        assertEquals(R.string.assessment_low, zero.confidence.label)
+        assertEquals(R.string.assessment_low, zero.impact.label)
     }
 
     @Test
-    fun confidenceAndImpactKeepTheirIndependentLabels() {
-        val scored = assessmentPresentation(SuggestionAssessment(3, 1))
-        assertEquals(3, scored.confidence.score)
-        assertEquals(R.string.confidence_strong, scored.confidence.label)
-        assertEquals(1, scored.impact.score)
-        assertEquals(R.string.impact_minor, scored.impact.label)
+    fun bothDimensionsUseTheSameDisplayBuckets() {
+        val expectedLevels = listOf(1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3)
+        val labels = listOf(R.string.assessment_low, R.string.assessment_medium, R.string.assessment_high)
+        for (score in 0..10) {
+            val impact = 10 - score
+            val scored = assessmentPresentation(SuggestionAssessment(score, impact))
+            assertEquals(expectedLevels[score], scored.confidence.level)
+            assertEquals(expectedLevels[impact], scored.impact.level)
+            assertEquals(labels[expectedLevels[score] - 1], scored.confidence.label)
+            assertEquals(labels[expectedLevels[impact] - 1], scored.impact.label)
+        }
     }
 
     @Test

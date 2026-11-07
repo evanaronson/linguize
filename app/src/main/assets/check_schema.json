@@ -75,14 +75,14 @@
           "confidence": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 3,
-            "description": "Support for making this exact change: 0 none, 1 weak, 2 moderate, 3 strong. Ordinal, not probability."
+            "maximum": 10,
+            "description": "Support for making this exact change: 0 none, 3 weak, 7 moderate, 10 strong; intermediate integers allowed. Ordinal, not probability."
           },
           "impact": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 3,
-            "description": "Benefit assuming justified: 0 none, 1 minor polish, 2 noticeable fluency or register improvement, 3 prevents significant misunderstanding. Independent of confidence."
+            "maximum": 10,
+            "description": "Benefit assuming justified: 0 none, 3 minor polish, 7 noticeable fluency or register improvement, 10 prevents significant misunderstanding; intermediate integers allowed. Independent of confidence."
           },
           "assumption_indices": {
             "type": "array",
@@ -129,14 +129,14 @@
           "confidence": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 3,
-            "description": "Support for making this exact change: 0 none, 1 weak, 2 moderate, 3 strong. Ordinal, not probability."
+            "maximum": 10,
+            "description": "Support for making this exact change: 0 none, 3 weak, 7 moderate, 10 strong; intermediate integers allowed. Ordinal, not probability."
           },
           "impact": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 3,
-            "description": "Benefit assuming justified: 0 none, 1 minor polish, 2 noticeable fluency or register improvement, 3 prevents significant misunderstanding. Independent of confidence."
+            "maximum": 10,
+            "description": "Benefit assuming justified: 0 none, 3 minor polish, 7 noticeable fluency or register improvement, 10 prevents significant misunderstanding; intermediate integers allowed. Independent of confidence."
           },
           "assumption_indices": {
             "type": "array",

@@ -1,19 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="change_why_remove">Why remove %1$s</string>
-    <!-- Temporary labels for the display-only, ordinal 0–3 scoring experiment. -->
+    <!-- Shared display levels for confidence and impact. -->
     <string name="assessment_confidence">Confidence</string>
     <string name="assessment_impact">Impact</string>
     <string name="assessment_dimension">%1$s: %2$s</string>
     <string name="assessment_unassessed">Unassessed</string>
-    <string name="confidence_unsupported">Unsupported</string>
-    <string name="confidence_weak">Weak</string>
-    <string name="confidence_moderate">Moderate</string>
-    <string name="confidence_strong">Strong</string>
-    <string name="impact_none">No clear benefit</string>
-    <string name="impact_minor">Minor</string>
-    <string name="impact_substantial">Substantial</string>
-    <string name="impact_critical">Meaning-critical</string>
+    <string name="assessment_low">Low</string>
+    <string name="assessment_medium">Medium</string>
+    <string name="assessment_high">High</string>
     <string name="clarify">Clarify</string>
     <string name="clarify_about">Clarify: %1$s</string>
     <string name="clarify_meaning">Clarify meaning</string>

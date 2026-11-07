@@ -258,7 +258,7 @@ class FuzzReplayTest {
 
     @Test fun freshReplayAcceptsEveryNumericScoreAndLegacyReplayRemainsExplicit() {
         val prompt = Prompt("", "{}")
-        for (kind in listOf("fixes", "natural_changes")) for (score in 0..3) {
+        for (kind in listOf("fixes", "natural_changes")) for (score in 0..10) {
             val raw = scoredAnswer(kind, ""","confidence":$score,"impact":$score""").toString()
             val answer = ReplayParser.from(null).read(prompt, raw)
             assertEquals(raw, answer.raw)

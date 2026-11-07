@@ -90,8 +90,8 @@ data class VerdictChange(
 ) {
     init {
         require((confidence == null) == (impact == null)) { "Both suggestion scores are required together" }
-        require(confidence == null || confidence in 0..3) { "Confidence must be from 0 to 3" }
-        require(impact == null || impact in 0..3) { "Impact must be from 0 to 3" }
+        require(confidence == null || confidence in 0..10) { "Confidence must be from 0 to 10" }
+        require(impact == null || impact in 0..10) { "Impact must be from 0 to 10" }
     }
 
     val assessment: SuggestionAssessment?

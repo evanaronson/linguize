@@ -171,6 +171,69 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    fun versionSevenConvertsStoredScoresOnceAndKeepsOriginalRepliesAndOrigins() = runBlocking<Unit> {
+        val original = "estas estas estas estas estas"
+        val corrected = "estàs estàs estàs estàs estàs"
+        val replies = (0..3).joinToString(",") { score ->
+            """{"from":"estas","to":"estàs","why":"Accent","confidence":$score,"impact":${3 - score}}"""
+        }
+        val answer = """{"status":"ok","language":"Catalan","has_errors":true,"corrected":"$corrected","fixes":[$replies]}"""
+        val session = open("legacy-scores", 10, original).answered(11, answer).closed(12).copy(finalText = corrected)
+        val rows = (0..4).map { index ->
+            suggestion(session, "score-$index", EditKind.Fix, Decision.Accepted).copy(
+                start = index * 6, end = index * 6 + 5,
+            )
+        }
+        val origins = listOf("generated", "retrospective", "generated", "retrospective")
+        val file = context.getDatabasePath(NAME)
+        file.parentFile!!.mkdirs()
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            // Version 8 changes stored score values, not the version 7 table layout.
+            HistorySchema.CREATE.forEach(db::execSQL)
+            fun insert(table: String, values: Map<String, Any?>) {
+                val columns = values.keys.joinToString { "\"$it\"" }
+                db.execSQL("INSERT INTO $table ($columns) VALUES (${values.keys.joinToString { "?" }})", values.values.toTypedArray())
+            }
+            insert("sessions", session.values())
+            rows.forEachIndexed { index, row ->
+                val assessment = if (index < 4) {
+                    val version = if (index % 2 == 0) "confidence-impact-v1" else "confidence-impact-v2"
+                    """{"confidence":$index,"impact":${3 - index},"rubricVersion":"$version","origin":"${origins[index]}"}"""
+                } else null
+                insert("suggestions", row.values() + ("assessment" to assessment))
+            }
+            db.version = 7
+        }
+
+        val converted = listOf(0, 3, 7, 10)
+        val expected = rows.mapIndexed { index, row ->
+            row.copy(assessment = if (index < 4) {
+                SuggestionAssessment(converted[index], converted[3 - index], origin = origins[index])
+            } else null)
+        }
+        val restored = found(session.id)
+        assertEquals(session, restored.session)
+        assertEquals(expected, restored.suggestions)
+        assertEquals(answer, restored.session.attempts.single().raw)
+        assertEquals(6, restored.session.schema)
+        assertTrue(restored.suggestions.all { it.schema == 6 })
+        raw { db -> assertEquals(8, db.version) }
+
+        val out = ByteArrayOutputStream()
+        assertTrue(store.export(out))
+        val exported = historyJson.decodeFromString(SessionDetail.serializer(), out.toString().trim())
+        assertEquals(restored, exported)
+        assertEquals(answer, exported.session.attempts.single().raw)
+
+        // In particular, an old 1 becomes 3 once; a second conversion would incorrectly make it 10.
+        val reopened = SqliteHistoryStore(context, NAME)
+        assertEquals(restored, (reopened.detail(session.id) as SessionDetailResult.Found).detail)
+        val again = ByteArrayOutputStream()
+        assertTrue(reopened.export(again))
+        assertEquals(out.toString(), again.toString())
+    }
+
+    @Test
     fun cacheAndStoredScoresAreIsolatedByExactRequestTimePreferences() = runBlocking<Unit> {
         val casual = WritingProfile.defaultFor(Language.Catalan).copy(register = WritingRegister.Casual)
         val formal = casual.copy(register = WritingRegister.Formal)

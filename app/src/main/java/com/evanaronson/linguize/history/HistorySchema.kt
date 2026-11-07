@@ -24,7 +24,8 @@ import com.evanaronson.linguize.core.Verdict
  * the language and settings it ran with (a card is one session, whatever changes).
  * Version 5 adds the paging index. Version 6 adds target/detected language columns
  * and backfills attempts from saved answers (row schema 5). Version 7 adds request-time
- * writing profiles and nullable suggestion assessments (row schema 6). [upgrade] gives each step.
+ * writing profiles and nullable suggestion assessments (row schema 6). Version 8 scales
+ * existing suggestion assessments to 0–10. [upgrade] gives each step.
  */
 internal object HistorySchema {
     const val NAME = "history.db"
@@ -33,7 +34,7 @@ internal object HistorySchema {
      * The database's version, for SQLiteOpenHelper. Separate from [SessionRecord.SCHEMA],
      * which is the shape of a row as it would travel to a server.
      */
-    const val VERSION = 7
+    const val VERSION = 8
 
     const val SESSIONS = "sessions"
     const val SUGGESTIONS = "suggestions"

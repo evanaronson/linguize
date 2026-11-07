@@ -26,14 +26,29 @@ class WritingChecksTest(unittest.TestCase):
                 run.user_message({"text": "Bon dia", "writing_profiles": profiles})
 
     def test_every_live_adjustment_requires_integer_pair_including_explicit_zero(self):
-        for value in [None, True, 1.5, "1", -1, 4]:
-            verdict = {"fixes": [{"from": "a", "to": "b", "confidence": value, "impact": 1}]}
-            with self.subTest(value=value), self.assertRaises(ValueError):
-                run.summarize_answer({"text": "a"}, verdict, .1)
-        verdict = {"corrected": "b", "fixes": [{"from": "a", "to": "b", "why": "Example", "confidence": 0, "impact": 3}]}
-        failures, output = run.summarize_answer({"text": "a"}, verdict, .1)
-        self.assertEqual([], failures)
-        self.assertIn("confidence 0/3; impact 3/3", output)
+        for kind in ("fixes", "natural_changes"):
+            for dimension in ("confidence", "impact"):
+                for value in [None, True, False, 1.5, 10.0, "1", "10", -1, 11]:
+                    change = {"from": "a", "to": "b", "confidence": 10, "impact": 3, dimension: value}
+                    with self.subTest(kind=kind, dimension=dimension, value=value), self.assertRaisesRegex(
+                            ValueError, f"integer {dimension} in 0..10"):
+                        run.summarize_answer({"text": "a"}, {kind: [change]}, .1)
+                change = {"from": "a", "to": "b", "confidence": 10, "impact": 3}
+                del change[dimension]
+                with self.subTest(kind=kind, dimension=dimension, missing=True), self.assertRaises(ValueError):
+                    run.summarize_answer({"text": "a"}, {kind: [change]}, .1)
+
+    def test_every_raw_integer_is_accepted_and_printed_for_fixes_and_rewordings(self):
+        for value in range(11):
+            verdict = {"corrected": "b", "fixes": [{"from": "a", "to": "b", "why": "Fix",
+                       "confidence": value, "impact": 10 - value}],
+                       "natural": "c", "natural_changes": [{"from": "b", "to": "c", "why": "Reword",
+                       "confidence": 10 - value, "impact": value}]}
+            with self.subTest(value=value):
+                failures, output = run.summarize_answer({"text": "a"}, verdict, .1)
+                self.assertEqual([], failures)
+                self.assertIn(f"Fix; confidence {value}/10; impact {10 - value}/10", output)
+                self.assertIn(f"Reword; confidence {10 - value}/10; impact {value}/10", output)
 
     def test_history_uses_own_profile_not_later_session_preferences(self):
         row = {"session": {"id": "s", "schema": 6, "text": "estas", "writingProfiles": [self.profile("ca", "formal", "strict")],

@@ -1,21 +1,24 @@
 # Scoring and writing preferences V1
 
 Every newly reported fix/rewording has independent integer confidence and impact
-ratings 0..3. They are ordinal, not probabilities or a combined ranking. Confidence
+ratings 0..10. They are ordinal, not probabilities or a combined ranking. Confidence
 is support for the exact adjustment; impact is benefit assuming it is justified.
 Rewording impact excludes the benefit of fixes it already includes. The production
 prompt defines anchors, meaning-preservation checks and register/variety guidance.
-The current `confidence-impact-v2` rubric distinguishes minor polish from noticeable
-fluency or register improvement. It retains the 0–3 scale and confidence anchors;
-stored v1 ratings keep their original version. The prompt hash identifies the exact
-instructions and schema used for each attempt.
+The current `confidence-impact-v3` rubric uses anchors 0 (none), 3 (weak support or
+minor polish), 7 (moderate support or noticeable fluency/register improvement), and
+10 (strong support or prevention of significant misunderstanding), allowing every
+intermediate integer. Raw scores are retained for history, replay and analysis.
+The database upgrade rescales existing ratings once: 0→0, 1→3, 2→7, 3→10.
+All assessments then use the same scale and display mapping. The prompt hash
+identifies the exact instructions and schema used for each attempt.
 
 Ratings and temporary labels appear only when a suggestion explanation is opened.
 No score filters, reordering, automatic acceptance or clipboard/write-back changes
 are introduced. A validated report's assessment follows that linguistic decision
 through mapping. A report split into independent repairs, a grouping of
 unrelated reports or an inferred fallback repair remains Unassessed rather than
-inventing a model rating. Legacy records similarly remain unassessed. Model wire
+inventing a model rating. Records without an assessment remain unassessed. Model wire
 responses require paired JSON integers; invalid, missing, quoted, boolean or
 out-of-range fresh scores fail rather than becoming zero.
 
@@ -41,7 +44,10 @@ historical scoring job: the separate offline experiment can assess old suggestio
 without modifying their original evidence.
 
 The card shows scores without words: under each change's reason, Impact then
-Confidence as three bars each (screen readers hear the labels). Under a hairline
+Confidence as three bars each (screen readers hear the labels). Current raw scores
+map to Low at 0–5, Medium at 6–8 and High at 9–10, using the same mapping for both
+dimensions, including rescaled historical assessments. These display
+bands do not filter, reorder or automatically accept suggestions. Under a hairline
 the explanation names the reading the change rests on ("Assumed you meant: …"), which opens
 the alternatives in place; Clarify settles one and checks again, and an answered
 reading reads "You clarified: …". Meaning, the card's footer row, lists every assumption
@@ -79,6 +85,7 @@ when interpreted edits exactly match the recorded rows. Otherwise links remain
 unknown/empty. Historical cards render the same information without actions.
 
 The existing offline evaluator supports explicit complete writing_profiles and
-validates/prints both fresh scores. The retrospective importer resolves only the
-profiles recorded on the suggestion's own attempt. No conversation import, memory,
+validates/prints both fresh scores on the 0–10 scale. The separate retrospective
+experiment retains its original 0–3 rubric and artifacts; its importer resolves only
+the profiles recorded on the suggestion's own attempt. No conversation import, memory,
 free-form style instructions or profile manager is part of V1.

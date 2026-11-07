@@ -99,8 +99,11 @@ are different observations.
 
 ## Suggestion assessments and writing preferences
 
-Each suggestion may carry an `assessment` object: integer `confidence` and `impact`
-from 0 to 3, a `rubricVersion`, and an `origin` (`generated` or `retrospective`).
+Each suggestion may carry an `assessment` object: integer `confidence` and `impact`,
+a `rubricVersion`, and an `origin` (`generated` or `retrospective`). Assessments use
+0–10. Database version 8 rescales existing 0–3 assessments once using 0→0, 1→3,
+2→7, 3→10 and records `confidence-impact-v3`. This is a numerical conversion,
+not a new model judgment. Every result then uses one display mapping.
 Null means unassessed or unreadable; it must never be converted to zero. Generation
 requires both scores for every explicitly reported adjustment. Mechanically inferred
 or ambiguously mapped edits can remain unassessed. This metadata does not control
@@ -112,11 +115,11 @@ were not captured, not today's defaults. Profiles do not inherit, and editing a
 profile never rewrites old attempts. Auto Detect requests retain every profile
 sent to the provider. Cache matching includes these exact request-time values.
 
-Database upgrades leave old assessment columns null and profile lists empty.
+Unassessed historical rows remain null and missing profile lists remain empty.
 Retrospective offline assessments remain separate from original historical evidence;
 this migration does not generate or attach retrospective scores. Replay takes
 assessments from recorded suggestion rows even when today's edit engine derives
-the same spans with different scores.
+the same spans with different scores. Original raw model replies remain unchanged.
 
 ## Reuse and replay
 
@@ -168,7 +171,7 @@ the recorded evidence.
 ## Storage, deletion, and export
 
 The SQLite database has `sessions` and `suggestions` tables. The database is at
-version 7; row schemas are at version 6. Migration code preserves earlier formats,
+version 8; row schemas are at version 6. Migration code preserves earlier formats,
 including old enum names and language names, and removes old Try it sessions.
 Keep these migrations and stable tokens when reorganizing code.
 

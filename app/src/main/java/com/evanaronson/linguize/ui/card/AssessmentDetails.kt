@@ -5,16 +5,28 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.SuggestionAssessment
 
 /** An absent historical assessment must never look like an assessed zero. */
-internal data class AssessmentLine(val score: Int?, @param:StringRes val label: Int)
+internal data class AssessmentLine(val score: Int?, val level: Int?, @param:StringRes val label: Int)
 internal data class AssessmentPresentation(val confidence: AssessmentLine, val impact: AssessmentLine)
 
+/** Both meters use the same display buckets. */
+private fun assessmentLevel(score: Int): Int = when (score) {
+    in 0..5 -> 1
+    in 6..8 -> 2
+    else -> 3
+}
+
 internal fun assessmentPresentation(assessment: SuggestionAssessment?): AssessmentPresentation {
-    val confidenceLabels = listOf(R.string.confidence_unsupported, R.string.confidence_weak,
-        R.string.confidence_moderate, R.string.confidence_strong)
-    val impactLabels = listOf(R.string.impact_none, R.string.impact_minor,
-        R.string.impact_substantial, R.string.impact_critical)
+    if (assessment == null) {
+        val unassessed = AssessmentLine(null, null, R.string.assessment_unassessed)
+        return AssessmentPresentation(unassessed, unassessed)
+    }
+    val levels = listOf(R.string.assessment_low, R.string.assessment_medium, R.string.assessment_high)
+    fun line(score: Int): AssessmentLine {
+        val level = assessmentLevel(score)
+        return AssessmentLine(score, level, levels[level - 1])
+    }
     return AssessmentPresentation(
-        AssessmentLine(assessment?.confidence, assessment?.let { confidenceLabels[it.confidence] } ?: R.string.assessment_unassessed),
-        AssessmentLine(assessment?.impact, assessment?.let { impactLabels[it.impact] } ?: R.string.assessment_unassessed),
+        line(assessment.confidence),
+        line(assessment.impact),
     )
 }

@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
 /*
  * The JSON side of history: the `attempts` column and the export. Kept apart from
@@ -148,5 +149,20 @@ internal fun encodeAssessment(assessment: SuggestionAssessment?): String? =
 
 internal fun decodeAssessment(stored: String?): SuggestionAssessment? = try {
     stored?.let { historyJson.decodeFromString(SuggestionAssessment.serializer(), it) }
-        ?.takeIf { it.confidence in 0..3 && it.impact in 0..3 && it.rubricVersion.isNotBlank() && it.origin.isNotBlank() }
+        ?.takeIf { it.confidence in 0..10 && it.impact in 0..10 && it.rubricVersion.isNotBlank() && it.origin.isNotBlank() }
 } catch (_: Exception) { null }
+
+/** Database version 8 stretches existing 0–3 scores once; raw provider answers stay untouched. */
+internal fun upgradeAssessment(stored: String): String {
+    val fields = try {
+        historyJson.parseToJsonElement(stored) as? JsonObject ?: return stored
+    } catch (_: SerializationException) {
+        return stored
+    }
+    val scaled = listOf(0, 3, 7, 10)
+    val scores = listOf("confidence", "impact").associateWith { key ->
+        val score = (fields[key] as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull
+        scaled.getOrNull(score ?: -1)?.let(::JsonPrimitive) ?: return stored
+    }
+    return JsonObject(fields + scores + ("rubricVersion" to JsonPrimitive("confidence-impact-v3"))).toString()
+}

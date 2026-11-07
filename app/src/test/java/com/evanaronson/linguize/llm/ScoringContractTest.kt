@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.llm
 
+import com.evanaronson.linguize.core.SCORING_RUBRIC_VERSION
+import com.evanaronson.linguize.core.SuggestionAssessment
 import kotlinx.serialization.json.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -19,7 +21,7 @@ class ScoringContractTest {
                 val field = item.getValue("properties").jsonObject.getValue(score).jsonObject
                 assertEquals("integer", field.getValue("type").jsonPrimitive.content)
                 assertEquals(0, field.getValue("minimum").jsonPrimitive.int)
-                assertEquals(3, field.getValue("maximum").jsonPrimitive.int)
+                assertEquals(10, field.getValue("maximum").jsonPrimitive.int)
             }
         }
     }
@@ -82,14 +84,14 @@ class ScoringContractTest {
         }
     }
 
-    @Test fun freshAnswersAcceptZeroAndKeepTheExactRawAssessment() {
-        for (kind in listOf("fixes", "natural_changes")) {
-            val raw = answer(kind, ""","confidence":0,"impact":0""")
+    @Test fun freshAnswersKeepRawScoresAcrossAllDisplayBoundaries() {
+        for (kind in listOf("fixes", "natural_changes")) for (score in listOf(0, 5, 6, 8, 9, 10)) {
+            val raw = answer(kind, ""","confidence":$score,"impact":${10 - score}""")
             val result = prompt.read(raw)
             assertEquals(raw, result.raw)
             val change = (result.verdict.fixes + result.verdict.naturalChanges).single()
-            assertEquals(0, change.assessment!!.confidence)
-            assertEquals(0, change.assessment!!.impact)
+            assertEquals(SuggestionAssessment(score, 10 - score), change.assessment)
+            assertEquals(SCORING_RUBRIC_VERSION, change.assessment!!.rubricVersion)
         }
     }
 
@@ -99,8 +101,12 @@ class ScoringContractTest {
             ""","confidence":1""",
             ""","impact":1""",
             ""","confidence":-1,"impact":1""",
-            ""","confidence":1,"impact":4""",
+            ""","confidence":11,"impact":1""",
+            ""","confidence":1,"impact":-1""",
+            ""","confidence":1,"impact":11""",
             ""","confidence":1.5,"impact":1""",
+            ""","confidence":1,"impact":1.0""",
+            ""","confidence":1e0,"impact":1""",
             ""","confidence":true,"impact":1""",
             ""","confidence":"3","impact":1""",
             ""","confidence":1,"impact":"0"""",

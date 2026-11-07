@@ -15,13 +15,23 @@ class SuggestionAssessmentTest {
     }
 
     @Test fun bothScoresAreRequiredTogetherAndMustBeInRange() {
-        for ((confidence, impact) in listOf(null to 0, 0 to null, -1 to 0, 4 to 0, 0 to -1, 0 to 4)) {
+        for ((confidence, impact) in listOf(null to 0, 0 to null, -1 to 0, 11 to 0, 0 to -1, 0 to 11)) {
             assertThrows(IllegalArgumentException::class.java) {
                 VerdictChange(confidence = confidence, impact = impact)
             }
         }
-        assertThrows(IllegalArgumentException::class.java) { SuggestionAssessment(4, 0) }
+        assertThrows(IllegalArgumentException::class.java) { SuggestionAssessment(11, 0) }
         assertThrows(IllegalArgumentException::class.java) { SuggestionAssessment(0, -1) }
+    }
+
+    @Test fun currentScoresKeepTheirRawValuesAcrossAllDisplayBoundaries() {
+        for (confidence in listOf(0, 5, 6, 8, 9, 10)) for (impact in listOf(0, 5, 6, 8, 9, 10)) {
+            val assessment = SuggestionAssessment(confidence, impact)
+            assertEquals(confidence, assessment.confidence)
+            assertEquals(impact, assessment.impact)
+            assertEquals("confidence-impact-v3", assessment.rubricVersion)
+            assertEquals(assessment, VerdictChange(confidence = confidence, impact = impact).assessment)
+        }
     }
 
     @Test fun scoresFollowTrimmedAndRepeatedExactReportedDecisions() {
@@ -116,7 +126,7 @@ class SuggestionAssessmentTest {
     @Test fun scoresNeverChangeWhichEditsAreOfferedOrAccepted() {
         val original = "estas amb pluja"
         var baseline: Revision? = null
-        for (confidence in 0..3) for (impact in 0..3) {
+        for (confidence in 0..10) for (impact in 0..10) {
             val verdict = Verdict(status = Verdict.Status.Ok, hasErrors = true,
                 corrected = "estàs amb pluja",
                 fixes = listOf(VerdictChange("estas", "estàs", "Accent", confidence, impact)),

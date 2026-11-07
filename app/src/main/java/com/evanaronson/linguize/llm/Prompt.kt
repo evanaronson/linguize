@@ -92,7 +92,7 @@ class Prompt(val system: String, schemaJson: String) {
                         changes.any { change -> listOf("confidence", "impact").any { key ->
                             val score = change.jsonObject[key] as? JsonPrimitive
                             val number = score?.takeUnless { it.isString }?.intOrNull
-                            number == null || number !in 0..3
+                            number == null || number !in 0..10
                         } }) {
                         throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.InvalidReply)
                     }

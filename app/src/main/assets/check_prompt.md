@@ -71,23 +71,23 @@ Only reference assumptions in this answer, never indices from an earlier check. 
 
 ## Assess every adjustment
 
-Every item in `fixes` and `natural_changes` must have integer `confidence` and `impact` scores from 0 to 3. Never omit a score or return null. These are independent, ordinal assessments of that exact decision, not percentages, ranks within the message, instructions to accept a change, or filtering thresholds. Do not inflate a score because you generated the suggestion or because other suggestions scored higher.
+Every item in `fixes` and `natural_changes` must have integer `confidence` and `impact` scores from 0 to 10. Use intermediate integers between these anchors when the assessment falls between them. Never omit a score or return null. These are independent, ordinal assessments of that exact decision, not percentages, ranks within the message, instructions to accept a change, or filtering thresholds. Do not inflate a score because you generated the suggestion or because other suggestions scored higher.
 
 `confidence` measures support for making this exact change, including that it is warranted, that the replacement works in the selected register and variety, and that it preserves the writer's intended meaning:
 
 - `0`: no adequate support; merely a preference or an unsupported guess.
-- `1`: weak support; depends on a material unconfirmed assumption or debatable judgment.
-- `2`: moderate support; a specific rule or usage supports it, but a credible competing reading or accepted usage remains.
-- `3`: strong support; specific evidence in the available context supports both the need and the exact replacement, with no material unresolved assumption identified. This is not a guarantee of correctness.
+- `3`: weak support; depends on a material unconfirmed assumption or debatable judgment.
+- `7`: moderate support; a specific rule or usage supports it, but a credible competing reading or accepted usage remains.
+- `10`: strong support; specific evidence in the available context supports both the need and the exact replacement, with no material unresolved assumption identified. This is not a guarantee of correctness.
 
 `impact` measures benefit to the reader **assuming the change is justified**:
 
 - `0`: no clear benefit; an interchangeable alternative or preference.
-- `1`: minor polish to form or flow; reading and register already work well.
-- `2`: noticeable improvement in fluency or register fit, even when the intended meaning is already clear.
-- `3`: prevents a significant misunderstanding or resolves otherwise unclear meaning; identify a materially different plausible interpretation or a real barrier to understanding. Ordinary typos and agreement errors do not automatically meet this boundary.
+- `3`: minor polish to form or flow; reading and register already work well.
+- `7`: noticeable improvement in fluency or register fit, even when the intended meaning is already clear.
+- `10`: prevents a significant misunderstanding or resolves otherwise unclear meaning; identify a materially different plausible interpretation or a real barrier to understanding. Ordinary typos and agreement errors do not automatically meet this boundary.
 
-Before rating, identify the specific rule, established usage or contextual evidence; consider the strongest case for leaving the original unchanged (including accepted regional or informal usage); then check the exact replacement for new assumptions, changed meaning, emphasis or register. A material unresolved assumption prevents confidence 3. High impact must never raise confidence. A small correction can be confidence 3, impact 1; a meaning-dependent correction can be confidence 1, impact 2 or 3. Use the existing short `why` to explain the actual change; do not output your deliberation.
+Before rating, identify the specific rule, established usage or contextual evidence; consider the strongest case for leaving the original unchanged (including accepted regional or informal usage); then check the exact replacement for new assumptions, changed meaning, emphasis or register. A material unresolved assumption prevents confidence 10. High impact must never raise confidence. A small correction can be confidence 10, impact 3; a meaning-dependent correction can be confidence 3, impact 7 or 10. Use the existing short `why` to explain the actual change; do not output your deliberation.
 
 For rewordings, score only the **additional benefit beyond necessary fixes**. Judge support for the expression improvement in the selected register, not just grammatical validity. Do not award a rewording credit for a grammatical repair already represented in `fixes`. Change length, grammatical category, and whether an item is a fix or rewording do not determine its scores. An informed clarification can remove one uncertainty, but requires a fresh assessment rather than automatically raising confidence.
 
@@ -98,14 +98,14 @@ Punctuation: moderate
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>Bon dia! Com estas amb la pluja?</text>
-{"status":"ok","language":"Catalan","meaning":"Good morning! How are you doing with the rain?","assumptions":[],"has_errors":true,"corrected":"Bon dia! Com estàs amb la pluja?","fixes":[{"from":"estas","to":"estàs","why":"Missing accent","confidence":3,"impact":1,"assumption_indices":[]}],"more_natural":true,"natural":"Bon dia! Com portes la pluja?","natural_changes":[{"from":"estàs amb","to":"portes","why":"Idiom for coping with something","confidence":2,"impact":1,"assumption_indices":[]}]}
+{"status":"ok","language":"Catalan","meaning":"Good morning! How are you doing with the rain?","assumptions":[],"has_errors":true,"corrected":"Bon dia! Com estàs amb la pluja?","fixes":[{"from":"estas","to":"estàs","why":"Missing accent","confidence":10,"impact":3,"assumption_indices":[]}],"more_natural":true,"natural":"Bon dia! Com portes la pluja?","natural_changes":[{"from":"estàs amb","to":"portes","why":"Idiom for coping with something","confidence":7,"impact":3,"assumption_indices":[]}]}
 
 Language: Catalan
 Punctuation: moderate
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>Quan parlo català tinc que usar l'aplicació.</text>
-{"status":"ok","language":"Catalan","meaning":"When I speak Catalan I have to use the app.","assumptions":[],"has_errors":true,"corrected":"Quan parlo català he d'usar l'aplicació.","fixes":[{"from":"tinc que usar","to":"he d'usar","why":"Catalan obligation construction","confidence":3,"impact":2,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Catalan","meaning":"When I speak Catalan I have to use the app.","assumptions":[],"has_errors":true,"corrected":"Quan parlo català he d'usar l'aplicació.","fixes":[{"from":"tinc que usar","to":"he d'usar","why":"Catalan obligation construction","confidence":10,"impact":7,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: Catalan
 Punctuation: moderate
@@ -119,14 +119,14 @@ Punctuation: strict
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>que tal el finde</text>
-{"status":"ok","language":"Spanish","meaning":"How was the weekend?","assumptions":[],"has_errors":true,"corrected":"¿Qué tal el finde?","fixes":[{"from":"","to":"¿","why":"Opening question mark","confidence":3,"impact":1,"assumption_indices":[]},{"from":"que","to":"Qué","why":"Capital and accent","confidence":3,"impact":1,"assumption_indices":[]},{"from":"","to":"?","why":"Closing question mark","confidence":3,"impact":1,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Spanish","meaning":"How was the weekend?","assumptions":[],"has_errors":true,"corrected":"¿Qué tal el finde?","fixes":[{"from":"","to":"¿","why":"Opening question mark","confidence":10,"impact":3,"assumption_indices":[]},{"from":"que","to":"Qué","why":"Capital and accent","confidence":10,"impact":3,"assumption_indices":[]},{"from":"","to":"?","why":"Closing question mark","confidence":10,"impact":3,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: auto
 Punctuation: casual
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>hola q tal bb estas bien</text>
-{"status":"ok","language":"Spanish","meaning":"Hi, how's it going, babe? Are you OK?","assumptions":[],"has_errors":true,"corrected":"hola q tal bb estás bien","fixes":[{"from":"estas","to":"estás","why":"Missing accent","confidence":3,"impact":1,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Spanish","meaning":"Hi, how's it going, babe? Are you OK?","assumptions":[],"has_errors":true,"corrected":"hola q tal bb estás bien","fixes":[{"from":"estas","to":"estás","why":"Missing accent","confidence":10,"impact":3,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: auto
 Punctuation: moderate
@@ -134,7 +134,7 @@ Checks: fix
 Native: English (write meaning, assumptions and reasons in English)
 Settled: {"about":"Who brought the beers","answer":"I did (the writer)"}
 Text: <text>Charles y yo vamos a tomar las cervezas que me ha traído de Montreal</text>
-{"status":"ok","language":"Spanish","meaning":"Charles and I are going to drink the beers I brought from Montreal.","assumptions":[],"has_errors":true,"corrected":"Charles y yo vamos a tomar las cervezas que he traído de Montreal","fixes":[{"from":"me ha traído","to":"he traído","why":"The writer brought them","confidence":3,"impact":2,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Spanish","meaning":"Charles and I are going to drink the beers I brought from Montreal.","assumptions":[],"has_errors":true,"corrected":"Charles y yo vamos a tomar las cervezas que he traído de Montreal","fixes":[{"from":"me ha traído","to":"he traído","why":"The writer brought them","confidence":10,"impact":7,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: auto
 Punctuation: moderate
@@ -155,7 +155,7 @@ Punctuation: moderate
 Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Text: <text>Demà vaig anar al metge.</text>
-{"status":"ok","language":"Catalan","meaning":"I will go to the doctor tomorrow.","assumptions":[{"about":"Time of the visit","assumed":"The visit is tomorrow","words":"Demà vaig anar","alternatives":["The visit already happened"]}],"has_errors":true,"corrected":"Demà aniré al metge.","fixes":[{"from":"vaig anar","to":"aniré","why":"Future tense for tomorrow","confidence":1,"impact":3,"assumption_indices":[0]}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Catalan","meaning":"I will go to the doctor tomorrow.","assumptions":[{"about":"Time of the visit","assumed":"The visit is tomorrow","words":"Demà vaig anar","alternatives":["The visit already happened"]}],"has_errors":true,"corrected":"Demà aniré al metge.","fixes":[{"from":"vaig anar","to":"aniré","why":"Future tense for tomorrow","confidence":3,"impact":10,"assumption_indices":[0]}],"more_natural":false,"natural":"","natural_changes":[]}
 
 Language: Catalan
 Punctuation: moderate
@@ -163,4 +163,4 @@ Checks: both
 Native: English (write meaning, assumptions and reasons in English)
 Settled: {"scope":"meaning","answer":"What I meant was that I went yesterday. The visit has already happened."}
 Text: <text>Demà vaig anar al metge.</text>
-{"status":"ok","language":"Catalan","meaning":"Yesterday I went to the doctor.","assumptions":[],"has_errors":true,"corrected":"Ahir vaig anar al metge.","fixes":[{"from":"Demà","to":"Ahir","why":"The writer means yesterday","confidence":3,"impact":3,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}
+{"status":"ok","language":"Catalan","meaning":"Yesterday I went to the doctor.","assumptions":[],"has_errors":true,"corrected":"Ahir vaig anar al metge.","fixes":[{"from":"Demà","to":"Ahir","why":"The writer means yesterday","confidence":10,"impact":10,"assumption_indices":[]}],"more_natural":false,"natural":"","natural_changes":[]}

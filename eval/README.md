@@ -5,6 +5,8 @@ from `app/src/main/assets/` to the selected provider and checks the expected fie
 in each case. It rejects incomplete and refused provider replies before examining
 the answer. It does not run Android's verdict validation, edit alignment, history
 replay or replacement logic; those belong to `app/src/test/`.
+Fresh adjustments require paired integer confidence and impact scores in 0–10;
+the report prints their raw values on that scale.
 
 ```sh
 GEMINI_API_KEY=... python3 eval/run.py
@@ -56,4 +58,5 @@ writer. The learning and evidence design is in [architecture](../docs/architectu
 [Suggestion assessment](scoring/README.md) evaluates exact existing adjustments
 outside the app using separate 0–3 confidence and impact ratings. It supports
 phone History exports, repeated provider calls, blind reference review and local
-HTML/JSON reports. Production checking behavior remains unchanged.
+HTML/JSON reports. Its rubric, protocol and recorded results retain that scale
+independently of the production checker's 0–10 scores.

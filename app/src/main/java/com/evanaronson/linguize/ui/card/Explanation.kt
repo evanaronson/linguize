@@ -187,13 +187,13 @@ internal fun WeightMeters(assessment: SuggestionAssessment?, modifier: Modifier 
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Meter(stringResource(R.string.assessment_impact), assessment.impact)
-        Meter(stringResource(R.string.assessment_confidence), assessment.confidence)
+        Meter(stringResource(R.string.assessment_impact), checkNotNull(presentation.impact.level))
+        Meter(stringResource(R.string.assessment_confidence), checkNotNull(presentation.confidence.level))
     }
 }
 
 @Composable
-private fun Meter(label: String, score: Int) {
+private fun Meter(label: String, level: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f, fill = false))
@@ -203,7 +203,7 @@ private fun Meter(label: String, score: Int) {
                     Modifier
                         .size(width = 10.dp, height = 6.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(if (step < score) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant),
+                        .background(if (step < level) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant),
                 )
             }
         }

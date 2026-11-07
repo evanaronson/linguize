@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
@@ -54,6 +55,46 @@ class ExplanationLayoutTest {
     @Test fun narrowExplanationGivesTheMetersSpaceBelowAcceptAtLargeFont() = checkMeterBounds(fontScale = 2f)
 
     @Test fun widerExplanationKeepsAcceptAndScoresClearOfTheProse() = checkMeterBounds(fontScale = 1f, width = 360)
+
+    @Test fun metersSpeakMappedLevels() {
+        val cases = listOf(
+            Triple(SuggestionAssessment(0, 10), R.string.assessment_low, R.string.assessment_high),
+            Triple(SuggestionAssessment(5, 9), R.string.assessment_low, R.string.assessment_high),
+            Triple(SuggestionAssessment(6, 8), R.string.assessment_medium, R.string.assessment_medium),
+            Triple(SuggestionAssessment(8, 6), R.string.assessment_medium, R.string.assessment_medium),
+            Triple(SuggestionAssessment(9, 5), R.string.assessment_high, R.string.assessment_low),
+            Triple(SuggestionAssessment(10, 0), R.string.assessment_high, R.string.assessment_low),
+        )
+        val root = ComposeView(activity).apply {
+            setContent {
+                LinguizeTheme(dark = false) {
+                    Column {
+                        cases.forEachIndexed { index, (assessment, _, _) ->
+                            WeightMeters(assessment, Modifier.testTag("meters-$index"))
+                        }
+                        WeightMeters(null, Modifier.testTag("unassessed-meters"))
+                    }
+                }
+            }
+        }
+        activity.setContentView(root)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
+        root.measure(View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(1600, View.MeasureSpec.EXACTLY))
+        root.layout(0, 0, 600, 1600)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
+
+        val nodes = nodes(root)
+        cases.forEachIndexed { index, (_, confidenceLabel, impactLabel) ->
+            val meter = nodes.single { it.config.getOrNull(SemanticsProperties.TestTag) == "meters-$index" }
+            val expected = listOf(
+                activity.getString(R.string.assessment_dimension, activity.getString(R.string.assessment_impact), activity.getString(impactLabel)),
+                activity.getString(R.string.assessment_dimension, activity.getString(R.string.assessment_confidence), activity.getString(confidenceLabel)),
+            ).joinToString(activity.getString(R.string.list_separator))
+            assertEquals(listOf(expected), meter.config.getOrNull(SemanticsProperties.ContentDescription))
+        }
+        assertTrue(nodes.none { it.config.getOrNull(SemanticsProperties.TestTag) == "unassessed-meters" })
+    }
 
     private fun checkMeterBounds(fontScale: Float, width: Int = 180) {
         val root = ComposeView(activity).apply {

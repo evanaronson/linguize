@@ -7,9 +7,12 @@ import android.content.res.Resources
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.DISABLED_ALPHA
+import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListCard
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.SwitchRow
@@ -57,7 +62,6 @@ internal fun keptHistoryTitle(settings: SettingsViewModel): String? {
 /** Export and Delete all, as the last card of the History page. */
 @Composable
 internal fun HistoryDataCard(settings: SettingsViewModel) {
-    val context = LocalContext.current
     val kept by settings.history.collectAsState()
     val count = kept?.count ?: 0
     var confirmingClear by rememberSaveable { mutableStateOf(false) }
@@ -73,25 +77,16 @@ internal fun HistoryDataCard(settings: SettingsViewModel) {
             )
         },
         {
-            ListRow(
-                stringResource(R.string.delete_all),
-                stringResource(R.string.delete_all_summary),
-                onClick = { confirmingClear = true },
-            )
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.error) {
+                ListRow(
+                    stringResource(R.string.delete_all),
+                    stringResource(R.string.delete_all_summary),
+                    onClick = { confirmingClear = true },
+                )
+            }
         },
         modifier = Modifier.padding(top = 16.dp),
     )
-
-    // Offered from this composition, so from the activity on screen now, and only once it's
-    // in front: an export that finishes while the app is in the background waits, and is
-    // dropped if that wait was more than a moment (see SettingsViewModel.takeExport).
-    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
-    val inFront = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    val exported = settings.exported
-    LaunchedEffect(exported, inFront) {
-        if (exported == null || !inFront) return@LaunchedEffect
-        settings.takeExport()?.let { share(context, it) }
-    }
 
     if (confirmingClear) {
         AlertDialog(
@@ -99,13 +94,28 @@ internal fun HistoryDataCard(settings: SettingsViewModel) {
             title = { Text(stringResource(R.string.delete_all_question)) },
             text = { Text(stringResource(R.string.delete_all_history_description)) },
             confirmButton = {
-                TextButton(onClick = {
+                LinguizeButton(stringResource(R.string.delete), onClick = {
                     confirmingClear = false
                     settings.clearHistory()
-                }) { Text(stringResource(R.string.delete)) }
+                }, kind = ButtonKind.Destructive)
             },
             dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(stringResource(R.string.cancel)) } },
         )
+    }
+}
+
+/** Owned by History itself, so scrolling its lazy footer away cannot lose an export. */
+@Composable
+internal fun HistoryExportEffect(settings: SettingsViewModel) {
+    val context = LocalContext.current
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    val inFront = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    val exported = settings.exported
+    LaunchedEffect(settings, exported, inFront) {
+        // A short background/rotation wait is allowed; takeExport drops stale offers and
+        // claims a current one synchronously, before opening the external share sheet.
+        if (exported == null || !inFront) return@LaunchedEffect
+        settings.takeExport()?.let { share(context, it) }
     }
 }
 

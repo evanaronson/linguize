@@ -35,6 +35,7 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.cardSegment
 import com.evanaronson.linguize.ui.settings.HistoryDataCard
+import com.evanaronson.linguize.ui.settings.HistoryExportEffect
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
 import com.evanaronson.linguize.ui.settings.keptHistoryTitle
 import kotlinx.coroutines.flow.collect
@@ -53,6 +54,7 @@ fun HistoryScreen(
     val snackbar = remember { SnackbarHostState() }
     val time = rememberTimeFormat()
     HistoryDeletionFeedback(history, snackbar)
+    HistoryExportEffect(settings)
     LaunchedEffect(history) {
         history.showHistory(list.firstVisibleItemIndex + HistoryPager.PAGE_SIZE)
     }
@@ -115,7 +117,7 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun LoadingHistory() {
+internal fun LoadingHistory() {
     val label = stringResource(R.string.loading_history)
     Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(Modifier.semantics { contentDescription = label }, color = MaterialTheme.colorScheme.onSurface)

@@ -4,10 +4,13 @@ import android.net.Uri
 import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -49,6 +52,8 @@ data class SettingsState(
     val writingLanguage: String = Language.Catalan.code,
     val provider: Provider = Provider.Gemini,
     val keys: Map<Provider, KeyStatus> = emptyMap(),
+    /** Process-local key freshness, including replacements with the same visible suffix. */
+    val keyRevision: Long = 0,
     /** The chosen model, or null for the provider's recommended one. */
     val model: String? = null,
     val models: ModelList = ModelList.Loaded(emptyList()),
@@ -95,11 +100,17 @@ sealed interface ModelTest {
 class SettingsViewModel(
     private val app: App,
     private val settingsIo: CoroutineDispatcher = Dispatchers.IO,
+    private val savedState: SavedStateHandle = SavedStateHandle(),
+    private val keyStatus: (Provider) -> KeyStatus = { app.keys.status(it) },
+    private val fetchModels: suspend (Provider) -> List<String> = { provider ->
+        withContext(Dispatchers.Default) { app.checker }.models(provider)
+    },
 ) : ViewModel() {
     private var refreshJob: Job? = null
     private var modelsJob: Job? = null
     private var testJob: Job? = null
     private var modelsRequested = false
+    private var modelsRequest = 0L
     private val exports = app.exports
 
     /** Selection-menu writes, one at a time (see [toggleMenuEntry]). */
@@ -107,6 +118,15 @@ class SettingsViewModel(
     private var menuRequest = 0L
     private var completedMenuRequest = 0L
     private val keyWrites = Mutex()
+
+    /** Drafts survive child pages and rotation, but never enter a Bundle or preferences. */
+    private val keyDrafts = mutableStateMapOf<Provider, String>()
+
+    fun keyDraft(provider: Provider): String = keyDrafts[provider].orEmpty()
+
+    fun setKeyDraft(provider: Provider, value: String) {
+        keyDrafts[provider] = value
+    }
 
     /** Null until the saved settings have been read. */
     var state by mutableStateOf<SettingsState?>(null)
@@ -121,7 +141,7 @@ class SettingsViewModel(
         private set
 
     /**
-     * The export just finished, until the screen showing settings takes it with [takeExport].
+     * The export just finished, until the History screen takes it with [takeExport].
      * State rather than a callback, so the share sheet opens from the activity on screen even
      * when the one that asked was recreated meanwhile.
      */
@@ -154,29 +174,36 @@ class SettingsViewModel(
                         writingProfiles = settings.writingProfiles,
                         judgments = settings.judgments,
                         provider = provider,
-                        keys = Provider.entries.associateWith { app.keys.status(it) },
+                        keys = Provider.entries.associateWith(keyStatus),
+                        keyRevision = app.keys.revision(provider),
                         model = settings.model(provider),
                         historyEnabled = settings.historyEnabled,
                         popupPosition = settings.popupPosition,
                     )
                 }
                 val previous = state
-                val selectedLanguage = previous?.writingLanguage ?: Language.Catalan.code
+                val selectedLanguage = previous?.writingLanguage
+                    ?: Language.forCode(savedState[WRITING_LANGUAGE])?.code
+                    ?: Language.Catalan.code
                 val refreshed = fresh.copy(
                     writingLanguage = selectedLanguage,
                     // An action accepted during this read already has an ordered writer waiting.
                     menu = if (menuRequest != completedMenuRequest) previous?.menu ?: fresh.menu else fresh.menu,
                 )
-                val sameService = previous != null && previous.provider == fresh.provider &&
-                    previous.model == fresh.model && previous.keys == fresh.keys
-                val reloadModels = modelsRequested && !sameService
-                state = if (sameService) refreshed.copy(models = previous!!.models,
-                    modelTest = previous.modelTest, keySaveFailed = previous.keySaveFailed) else refreshed
+                val sameModelSource = previous != null && previous.provider == fresh.provider &&
+                    previous.keys[fresh.provider] == fresh.keys[fresh.provider] && previous.keyRevision == fresh.keyRevision
+                val sameService = sameModelSource && previous?.model == fresh.model
+                val reloadModels = modelsRequested && !sameModelSource
+                state = refreshed.copy(
+                    models = if (sameModelSource) previous!!.models else refreshed.models,
+                    modelTest = if (sameService) previous!!.modelTest else null,
+                    keySaveFailed = sameModelSource && previous!!.keySaveFailed,
+                )
                 refreshJob = null
-                if (!sameService) {
+                if (!sameService) testJob?.cancel()
+                if (!sameModelSource) {
                     modelsRequested = false
                     modelsJob?.cancel()
-                    testJob?.cancel()
                     if (reloadModels) loadModels()
                 }
                 afterRead()
@@ -185,13 +212,16 @@ class SettingsViewModel(
     }
 
     /**
-     * The settings screen is showing: refreshes the provider's model list on each visit. Not
+     * The settings screen is showing: loads this provider's model list once. Not
      * before, so that Home, which only reads a setting or two, doesn't send the key to the
      * provider on every launch.
      */
     fun showModels() {
-        if (state?.models != ModelList.Loading) loadModels()
+        if (!modelsRequested) loadModels()
     }
+
+    /** An explicit refresh or retry may replace a previously loaded list. */
+    fun refreshModels() = loadModels()
 
     /** Adds or removes a selection-menu entry; the last one can't be removed. */
     fun toggleMenuEntry(entry: MenuEntry) {
@@ -216,7 +246,10 @@ class SettingsViewModel(
         state.copy(popupPosition = position)
     }
 
-    fun selectWritingLanguage(language: Language) = change { it.copy(writingLanguage = language.code) }
+    fun selectWritingLanguage(language: Language) = change {
+        savedState[WRITING_LANGUAGE] = language.code
+        it.copy(writingLanguage = language.code)
+    }
 
     fun setWritingRegister(register: WritingRegister) = updateWritingProfile { it.copy(register = register) }
 
@@ -235,10 +268,12 @@ class SettingsViewModel(
     }
 
     fun selectProvider(provider: Provider) {
+        if (state?.provider == provider) return
         testJob?.cancel()
         change { state ->
             app.settings.provider = provider
-            state.copy(provider = provider, model = app.settings.model(provider), modelTest = null, keySaveFailed = false)
+            state.copy(provider = provider, model = app.settings.model(provider),
+                keyRevision = app.keys.revision(provider), modelTest = null, keySaveFailed = false)
         }
         loadModels()
     }
@@ -276,18 +311,25 @@ class SettingsViewModel(
      */
     fun saveKey(value: String) {
         val provider = state?.provider ?: return
+        val submittedDraft = keyDrafts[provider]
         viewModelScope.launch {
             // Enter the mutex on the main thread, before dispatching the write: rapid Save /
             // Remove actions must persist in the order the writer asked for them.
             keyWrites.withLock {
                 val (saved, status) = withContext(Dispatchers.IO) {
-                    app.keys.set(provider, value) to app.keys.status(provider)
+                    app.keys.set(provider, value) to keyStatus(provider)
+                }
+                // Keep a failed save available for retry. A later edit must not be erased by
+                // an earlier successful save that was still being encrypted.
+                if (saved && keyDrafts[provider] == submittedDraft && (value.isBlank() || submittedDraft == value)) {
+                    keyDrafts.remove(provider)
                 }
                 val stillSelected = state?.provider == provider
                 // An older provider's write must not cancel the current provider's test.
                 if (stillSelected) testJob?.cancel()
                 updateState {
-                    val updated = it.copy(keys = it.keys + (provider to status))
+                    val updated = it.copy(keys = it.keys + (provider to status),
+                        keyRevision = app.keys.revision(it.provider))
                     if (it.provider == provider) updated.copy(modelTest = null, keySaveFailed = !saved) else updated
                 }
                 // Reconcile other hosts' changes and the completed key write in one fresh
@@ -376,8 +418,8 @@ class SettingsViewModel(
     }
 
     /**
-     * Takes [exported] for the screen to offer, which it does only while settings is showing.
-     * Null when there's nothing to offer, or when the export finished a while ago: settings was
+     * Takes [exported] for the screen to offer, which it does only while History is resumed.
+     * Null when there's nothing to offer, or when the export finished a while ago: History was
      * left as it was being written, and a share sheet opening by itself later would be a
      * surprise. Such an export is dropped, and its file removed.
      */
@@ -398,6 +440,7 @@ class SettingsViewModel(
     private fun loadModels() {
         val current = state ?: return
         modelsRequested = true
+        val request = ++modelsRequest
         val provider = current.provider
         modelsJob?.cancel()
         if (!current.hasKey) {
@@ -407,11 +450,11 @@ class SettingsViewModel(
         updateState { it.copy(models = ModelList.Loading) }
         modelsJob = viewModelScope.launch {
             val models = try {
-                ModelList.Loaded(checker().models(provider))
+                ModelList.Loaded(fetchModels(provider))
             } catch (_: CheckFailure) {
                 ModelList.Failed
             }
-            updateState { if (it.provider == provider) it.copy(models = models) else it }
+            updateState { if (request == modelsRequest && it.provider == provider) it.copy(models = models) else it }
         }
     }
 
@@ -427,10 +470,18 @@ class SettingsViewModel(
         return update(current).also { state = it }
     }
 
-    companion object {
-        fun factory(app: App): ViewModelProvider.Factory = viewModelFactory { initializer { SettingsViewModel(app) } }
+    override fun onCleared() {
+        keyDrafts.clear()
+    }
 
-        /** How long a finished export may wait for settings to show again and offer it: a rotation, not a later visit. */
+    companion object {
+        fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
+            initializer { SettingsViewModel(app, savedState = createSavedStateHandle()) }
+        }
+
+        private const val WRITING_LANGUAGE = "writingLanguage"
+
+        /** How long a finished export may wait for History to show again: a rotation, not a later visit. */
         private const val OFFER_WITHIN_MILLIS = 10_000L
 
         /** So the file is past [Exports.KEEP_MILLIS] when the delayed prune looks at it. */

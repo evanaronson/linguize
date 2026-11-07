@@ -16,7 +16,8 @@ data class SessionContext(
 
 /**
  * Turns what happens on one card into history records. Pure Kotlin: it never touches
- * storage, the caller saves what it returns. One instance per session, which is one
+ * storage; the caller saves the closed record only after a changed-text handoff.
+ * One instance per session, which is one
  * per card, whatever changes while it's up (the language, the settings: see [runWith]).
  *
  * The caller reports, in order: the start (constructor), each attempt as it finishes,
@@ -40,7 +41,7 @@ class SessionRecording(
     now: Long,
     private val newId: () -> String = { java.util.UUID.randomUUID().toString() },
 ) {
-    /** The session as it stands; save it after the constructor and after each [attempt]. */
+    /** The in-memory session as it stands; persistence is decided by [CheckHistory.close]. */
     var session: SessionRecord
         private set
 
@@ -207,21 +208,20 @@ class SessionRecording(
     }
 
     /**
-     * The writer copied the version shown for [kind]: what [Revision.preview] rendered,
-     * the accepted changes and [kind]'s remaining suggestions, less the fixes a rewording
-     * among them replaced. Those left the copy inside the rewording, so they end
-     * [Decision.Retired] rather than copied.
+     * The writer copied the version shown for [kind]: what [Revision.previewOnCorrected]
+     * rendered, including pending fixes under a rewording preview. Fixes replaced by a
+     * rewording end [Decision.Retired] rather than copied.
      */
     fun copied(kind: EditKind) {
         if (closed != null) return
         copiedKinds += kind
         revision?.let { revision ->
-            val shown = revision.acceptedEdits + revision.remaining(kind)
-            val (replaced, rendered) = shown.partition { fix ->
-                fix.kind == EditKind.Fix && shown.any { it.kind == EditKind.Natural && it.touches(fix) }
-            }
-            copiedEdits += rendered.map { it.id }
-            retiredInCopy += replaced.map { it.id }
+            val rendered = revision.previewOnCorrected(kind).ranges.keys
+            val rewordings = revision.edits(EditKind.Natural).filter { it.id in rendered }
+            copiedEdits += rendered
+            retiredInCopy += revision.edits(EditKind.Fix).filter { fix ->
+                rewordings.any { it.touches(fix) }
+            }.map { it.id }
         }
     }
 
@@ -284,14 +284,10 @@ class SessionRecording(
             edit.id in copiedEdits -> Decision.Copied
             // A fix inside a rewording that was copied left with the rewording.
             edit.id in retiredInCopy -> Decision.Retired
-            revision.isRetired(edit.id) && retiredByCopied(revision, edit) -> Decision.Retired
             edit.id in everAccepted -> Decision.Undone
             else -> Decision.Ignored
         }
     }
-
-    private fun retiredByCopied(revision: Revision, fix: Edit) =
-        revision.acceptedEdits.any { it.kind == EditKind.Natural && it.id in copiedEdits && it.touches(fix) }
 
     /** A suggestion whose decision is known, waiting for the close to become a row. */
     private inner class Pending(val attempt: Int, val edit: Edit, val decision: Decision, val decidedAt: Long) {

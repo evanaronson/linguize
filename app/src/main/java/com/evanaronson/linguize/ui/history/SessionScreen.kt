@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +22,9 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionRecord
@@ -50,16 +54,7 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit, onOpenAssump
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
     ScreenColumn {
-        when (page) {
-            SessionPage.Loading -> Unit
-            SessionPage.Missing -> CardNote(stringResource(R.string.check_was_deleted))
-            SessionPage.Failed -> {
-                CardNote(stringResource(R.string.history_load_failed))
-                LinguizeButton(stringResource(R.string.retry), session::retry, ButtonKind.Text,
-                    modifier = Modifier.padding(start = 8.dp))
-            }
-            is SessionPage.Shown -> Shown(page, onOpenAssumptions)
-        }
+        SavedSessionContent(page, session::retry) { Shown(it, onOpenAssumptions) }
         if (deletion == SessionDeletion.Failed) {
             CardNote(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
         }
@@ -69,6 +64,40 @@ fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit, onOpenAssump
             DeleteRow(session::delete, deleting = deletion == SessionDeletion.Deleting)
         }
     }
+}
+
+/** Every page of a saved check keeps storage recovery visible after a refresh. */
+@Composable
+private fun SavedSessionContent(
+    page: SessionPage,
+    onRetry: () -> Unit,
+    shown: @Composable (SessionPage.Shown) -> Unit,
+) {
+    when (page) {
+        SessionPage.Loading -> LoadingHistory()
+        SessionPage.Missing -> CardNote(stringResource(R.string.check_was_deleted))
+        SessionPage.Failed -> {
+            CardNote(stringResource(R.string.history_load_failed))
+            LinguizeButton(stringResource(R.string.retry), onRetry, ButtonKind.Text,
+                modifier = Modifier.padding(start = 8.dp))
+        }
+        is SessionPage.Shown -> shown(page)
+    }
+}
+
+/** These are the rows shown in the drilldown, with an answer replacing its original reading. */
+internal data class SavedAssumptions(val open: List<Assumption>, val settled: List<Settled>) {
+    val count: Int get() = open.size + settled.size
+    val first: Pair<String, String>?
+        get() = settled.firstOrNull()?.let { it.about to it.answer }
+            ?: open.firstOrNull()?.let { it.about to it.assumed }
+}
+
+internal fun savedAssumptions(assumptions: List<Assumption>, settled: List<Settled>): SavedAssumptions {
+    val answers = settled.filterNot { it.isMeaning }
+    // Matching follows the saved answer's label, just as the read-only list does. Keep
+    // unanswered assumptions with repeated labels: each can hold different evidence.
+    return SavedAssumptions(assumptions.filterNot { a -> answers.any { it.answers(a.about) } }, answers)
 }
 
 @Composable
@@ -96,18 +125,16 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
         SectionHeader(stringResource(R.string.meaning))
         SectionCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)) {
             if (reviewed.meaning.isNotBlank()) TextBlock(reviewed.meaning, Modifier.padding(bottom = 12.dp))
-            val readings = reviewed.assumptions.size + settled.count { !it.isMeaning }
-            if (readings > 0) {
-                val first = settled.firstOrNull { !it.isMeaning }?.let { it.about to it.answer }
-                    ?: reviewed.assumptions.first().let { it.about to it.assumed }
+            val readings = savedAssumptions(reviewed.assumptions, settled)
+            readings.first?.let { first ->
                 ListRow(
-                    stringResource(R.string.assumptions_count, readings),
-                    stringResource(R.string.assumption_summary, first.first, first.second.lowercaseFirst()),
+                    stringResource(R.string.assumptions_count, readings.count),
+                    stringResource(R.string.assumption_summary, first.first, first.second),
                     onClick = onOpenAssumptions,
                 )
             }
             settled.firstOrNull { it.isMeaning }?.let {
-                if (readings > 0) RowDivider()
+                if (readings.count > 0) RowDivider()
                 ListRow(stringResource(R.string.your_clarification), it.answer)
             }
         }
@@ -123,16 +150,20 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
 /** The readings a past check's suggestions rested on, and the writer's answers, read-only. */
 @Composable
 fun SessionAssumptionsScreen(session: SessionViewModel) {
-    val page = session.page as? SessionPage.Shown ?: return
-    val reviewed = page.card?.result as? CheckResult.Reviewed ?: return
-    val settled = page.card.settled.filterNot { it.isMeaning }
-    val open = reviewed.assumptions.filterNot { a -> settled.any { it.answers(a.about) } }
     ScreenColumn {
-        SectionHeader(stringResource(R.string.assumptions))
-        SectionCard(contentPadding = BlockPadding) {
-            Quiet(stringResource(R.string.assumptions_description_past))
-            Spacer(Modifier.height(4.dp))
-            AssumptionList(reviewed.assumptions, open, settled, onSettle = null, onRemoveChoice = null)
+        SavedSessionContent(session.page, session::retry) { page ->
+            val assumptions = (page.card?.result as? CheckResult.Reviewed)?.assumptions.orEmpty()
+            val readings = savedAssumptions(assumptions, page.card?.settled.orEmpty())
+            SectionHeader(stringResource(R.string.assumptions))
+            SectionCard(contentPadding = BlockPadding) {
+                if (readings.count == 0) {
+                    Quiet(stringResource(R.string.history_no_assumptions))
+                } else {
+                    Quiet(stringResource(R.string.assumptions_description_past))
+                    Spacer(Modifier.height(4.dp))
+                    AssumptionList(assumptions, readings.open, readings.settled, onSettle = null, onRemoveChoice = null)
+                }
+            }
         }
     }
 }
@@ -170,13 +201,15 @@ private fun WhatCameOfIt(session: SessionRecord) {
 private fun DeleteRow(onDelete: () -> Unit, deleting: Boolean) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     ListCard({
-        ListRow(
-            stringResource(if (deleting) R.string.deleting_check else R.string.delete_this_check),
-            stringResource(R.string.delete_this_check_summary),
-            modifier = if (deleting) Modifier.alpha(DISABLED_ALPHA) else Modifier,
-            onClick = if (deleting) null else ({ confirming = true }),
-            onClickLabel = stringResource(R.string.delete),
-        )
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.error) {
+            ListRow(
+                stringResource(if (deleting) R.string.deleting_check else R.string.delete_this_check),
+                stringResource(R.string.delete_this_check_summary),
+                modifier = if (deleting) Modifier.alpha(DISABLED_ALPHA) else Modifier,
+                onClick = if (deleting) null else ({ confirming = true }),
+                onClickLabel = stringResource(R.string.delete),
+            )
+        }
     })
     if (confirming) {
         AlertDialog(
@@ -184,16 +217,12 @@ private fun DeleteRow(onDelete: () -> Unit, deleting: Boolean) {
             title = { Text(stringResource(R.string.delete_check_question)) },
             text = { Text(stringResource(R.string.delete_check_description)) },
             confirmButton = {
-                TextButton(onClick = {
+                LinguizeButton(stringResource(R.string.delete), onClick = {
                     confirming = false
                     onDelete()
-                }) { Text(stringResource(R.string.delete)) }
+                }, kind = ButtonKind.Destructive)
             },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
-
-/** "The meeting is tomorrow" after a colon: lower-case its first letter, unless it starts a name or acronym. */
-private fun String.lowercaseFirst(): String =
-    if (length > 1 && this[0].isUpperCase() && this[1].isLowerCase()) replaceFirstChar { it.lowercaseChar() } else this

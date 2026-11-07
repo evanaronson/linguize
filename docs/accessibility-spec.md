@@ -29,7 +29,7 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 
 ## Existing contracts
 
-Individual Accept and Accept all change the card preview and keep the card open. Once all suggestions are resolved, the final text stays visible and can be copied. Done or dismissal puts accepted changes back. Explicit Copy copies the chosen version and closes without replacing. Accept never copies, including when replacement fails.
+Individual Accept and Accept all change the card preview and keep the card open. Once all suggestions are resolved, the final text stays visible and can be copied. Apply or dismissal puts accepted changes back. Explicit Copy copies the chosen version, shows a brief toast, and keeps the popup open. Accept never copies, including when replacement fails.
 
 Replacement targets the original field after the overlay detaches. Refresh it and require its full text to match the original before Set text. Preserve surrounding text and cursor placement.
 
@@ -81,12 +81,12 @@ can also return no text on Android, so the message says unavailable rather than
 claiming the clipboard is empty.
 
 Check offers an explicit Understand copied text action because WhatsApp may retain
-editor focus after a message is copied. Switching deletes an untouched provisional
-Check, revokes its queued history writes, and cancels its request. If the writer
+editor focus after a message is copied. Switching discards an untouched in-memory
+Check and cancels its request. If the writer
 already accepted a change (even if undone), copied a result, or clarified an
-assumption, the same Check remains available through Back to check, including its
+assumption, the same Check remains available through the standard back arrow, including its
 accepted changes and Undo stack. Closing while Understand is showing never applies
-that retained Check; its existing review evidence is kept in History. No return
+that retained Check; its unapplied review is not saved to History. No return
 action appears when there was no reviewed Check. A request already sent to the
 provider cannot be retracted.
 

@@ -78,7 +78,8 @@ class ScoredHistoryTest {
         recording.attempt(2, emptyList(), "{}", null, null, null, null)
         recording.runWith("ca", after)
         recording.attempt(3, emptyList(), "{}", null, null, null, null)
-        val session = recording.session
+        // Cache eligibility still depends on the decided attempt's profile after application.
+        val session = recording.close(4, "Com estàs?").session
         assertEquals(before, session.reuseKeyOf(0)!!.settings)
         assertEquals(after, session.reuseKeyOf(1)!!.settings)
         assertEquals(after.writingProfiles, session.writingProfiles)

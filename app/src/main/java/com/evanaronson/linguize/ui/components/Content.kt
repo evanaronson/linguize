@@ -19,15 +19,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.evanaronson.linguize.ui.theme.Linguize
 
 /*
  * Pieces shared by the card and the app screens. Two visual rules hold everywhere:
- * an underline is a change you can accept, and italic text with a chevron is a reading
- * you can clarify.
+ * an underline is a change you can accept, and a row with a chevron opens more detail
+ * or a reading you can clarify.
  */
 
 val InsetShape = RoundedCornerShape(12.dp)
@@ -42,7 +42,7 @@ fun TextBlock(text: String, modifier: Modifier = Modifier) {
             modifier = modifier
                 .fillMaxWidth()
                 .clip(InsetShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(Linguize.colors.panel)
                 .padding(12.dp),
         )
     }
@@ -60,21 +60,23 @@ fun Chevron(modifier: Modifier = Modifier, size: Int = 22) {
     )
 }
 
-/** Italic muted text with a chevron: a reading the writer can clarify ("Not what you mean ›"). */
+/** A full-width drill-down row: a reading the writer can clarify ("Not what you mean ›"). */
 @Composable
-fun ClarifyLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ClarifyLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, onClickLabel: String? = null) {
     Row(
         modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .heightIn(min = 32.dp)
-            .padding(vertical = 4.dp),
+            .clickable(onClickLabel = onClickLabel, onClick = onClick)
+            .heightIn(min = 48.dp)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(text, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Chevron(size = 18)
+        Text(text, style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f))
+        Chevron()
     }
 }
 

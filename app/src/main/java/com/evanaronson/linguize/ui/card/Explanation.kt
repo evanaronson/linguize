@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -50,7 +50,7 @@ import com.evanaronson.linguize.ui.theme.Linguize
  * Why one change, in the order a writer weighs it: the change and its reason, then how
  * much it matters (two three-step meters, impact first), then, under a hairline, the
  * reading it rests on. That reading is a [ClarifyLink] that opens the [ClarifyBlock] in
- * place; while it is open, Clarify is the primary action and Accept steps back to outlined.
+ * place; while it is open, Accept steps back to outlined so Clarify takes precedence.
  * A reading the writer already answered is shown as theirs.
  *
  * Used live (with [onAccept]) and read-only for a saved check.
@@ -106,21 +106,21 @@ internal fun ExplanationPanel(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
                     }
-                    WeightMeters(assessment, Modifier.padding(top = 8.dp))
                 }
             }
             onAccept?.let {
                 LinguizeButton(
                     stringResource(R.string.accept), onClick = it,
-                    kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Filled,
+                    kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal,
                 )
             }
         }
+        if (expanded) WeightMeters(assessment, Modifier.padding(top = 8.dp))
         if (expanded && (assumptions.isNotEmpty() || answers.isNotEmpty())) {
             HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             Column(Modifier.padding(top = 4.dp)) {
                 assumptions.forEach { assumption ->
-                    val reading = stringResource(R.string.assumes, assumption.assumed.asClause())
+                    val reading = stringResource(R.string.assumes, assumption.assumed)
                     when {
                         onSettle != null && clarifying == assumption.about -> ClarifyBlock(
                             choices = assumptionChoices(assumption),
@@ -130,17 +130,18 @@ internal fun ExplanationPanel(
                             },
                             onCancel = { clarifying = null },
                             about = assumption.about,
+                            submitKind = ButtonKind.Tonal,
                             modifier = Modifier.padding(top = 4.dp),
                         )
                         onSettle != null -> {
                             val label = stringResource(R.string.clarify_about, assumption.about)
                             ClarifyLink(reading, onClick = { clarifying = assumption.about },
-                                modifier = Modifier.semantics { contentDescription = label })
+                                onClickLabel = label)
                         }
                         else -> Footnote(reading)
                     }
                 }
-                answers.forEach { Footnote(stringResource(R.string.you_said, it.asClause())) }
+                answers.forEach { Footnote(stringResource(R.string.you_said, it)) }
             }
         }
     }
@@ -185,10 +186,10 @@ internal fun WeightMeters(assessment: SuggestionAssessment?, modifier: Modifier 
         stringResource(R.string.assessment_dimension, stringResource(R.string.assessment_impact), stringResource(presentation.impact.label)),
         stringResource(R.string.assessment_dimension, stringResource(R.string.assessment_confidence), stringResource(presentation.confidence.label)),
     ).joinToString(stringResource(R.string.list_separator))
-    Row(
+    FlowRow(
         modifier.clearAndSetSemantics { contentDescription = spoken },
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Meter(stringResource(R.string.assessment_impact), assessment.impact)
         Meter(stringResource(R.string.assessment_confidence), assessment.confidence)
@@ -198,7 +199,8 @@ internal fun WeightMeters(assessment: SuggestionAssessment?, modifier: Modifier 
 @Composable
 private fun Meter(label: String, score: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f, fill = false))
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(3) { step ->
                 Box(
@@ -210,11 +212,4 @@ private fun Meter(label: String, score: Int) {
             }
         }
     }
-}
-
-/** "The meeting is tomorrow" reads on after "Assumes": lower-case its first letter, unless it starts a name or acronym. */
-@Composable
-private fun String.asClause(): String {
-    val locale = LocalConfiguration.current.locales[0]
-    return if (length > 1 && this[0].isUpperCase() && this[1].isLowerCase()) replaceFirstChar { it.lowercase(locale) } else this
 }

@@ -16,7 +16,8 @@ import com.evanaronson.linguize.ui.components.MenuState
 
 /**
  * Proofmark: ink on paper, neutral greys, and one colour, proof vermilion, used only as a
- * mark (a fix's underline, the fix count, the explanation's edge, a switch that is on).
+ * mark (a fix's underline, the fix count, the explanation's edge, a switch that is on)
+ * and for destructive actions such as deleting a saved check or API key.
  * Primary actions are ink. App screens sit on a grey ground with borderless white section
  * cards, the way Android settings screens do; the popup card is paper with a hairline.
  * Follows dark mode.
@@ -38,8 +39,10 @@ fun LinguizeTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable ()
 /** Design tokens Material's colour scheme has no role for. */
 @Immutable
 data class LinguizeColors(
-    /** The one colour: marks only, never body text. */
+    /** The one colour: correction marks and destructive actions. */
     val proof: Color,
+    /** A contrasting control or mark on proof, such as an active switch's thumb. */
+    val onProof: Color,
     /** Behind the section cards of app screens. */
     val ground: Color,
     /** Section cards on the ground. */
@@ -69,6 +72,7 @@ private val ProofLight = Color(0xFFFF8A70)
 
 private val LightTokens = LinguizeColors(
     proof = Proof,
+    onProof = Color.White,
     ground = Color(0xFFF0F0EC),
     card = Color.White,
     popup = Color(0xFFFAFAF7),
@@ -79,6 +83,7 @@ private val LightTokens = LinguizeColors(
 
 private val DarkTokens = LinguizeColors(
     proof = ProofLight,
+    onProof = Ink,
     ground = Ink,
     card = Color(0xFF1D1D1C),
     popup = Color(0xFF1D1D1C),

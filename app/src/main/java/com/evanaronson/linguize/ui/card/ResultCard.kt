@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.ui.card
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
@@ -23,15 +27,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,12 +53,15 @@ import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.CheckFailure.Reason
 import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.text.localizedText
 import com.evanaronson.linguize.ui.text.titleResource
 import com.evanaronson.linguize.ui.theme.Linguize
+import kotlinx.coroutines.CompletableDeferred
 
 /**
  * The check result: loading, what was found, or why it failed. A reviewed result has two
@@ -62,22 +75,36 @@ fun ResultCard(
     modifier: Modifier = Modifier,
     /** Scroll inside the card; false when the card already sits in a scrolling screen. */
     scrollable: Boolean = true,
-    leadingContent: @Composable ColumnScope.() -> Unit = {},
+    /** Starts the separate clipboard job when this host supports it. */
+    onUnderstandCopiedText: (() -> Unit)? = null,
 ) {
     val done = state as? CardState.Done
     val reviewed = done?.result as? CheckResult.Reviewed
     val settled = done?.settled.orEmpty()
     // How the text was read is a page of its own, kept until the result changes.
     var showingUnderstanding by rememberSaveable(reviewed, settled) { mutableStateOf(false) }
-    val entry = reviewed?.let { understandingEntry(it.meaning, it.assumptions, settled, readOnly = false) }
+    if (LocalOnBackPressedDispatcherOwner.current != null) {
+        BackHandler(enabled = showingUnderstanding) { showingUnderstanding = false }
+    }
     ResultSurface(
         modifier,
         scrollable,
-        footer = if (entry != null && entry.visible && !showingUnderstanding) {
-            { UnderstandingEntry(entry, onOpen = { showingUnderstanding = true }) }
+        navigationKey = showingUnderstanding,
+        footer = if ((reviewed != null && !showingUnderstanding) || onUnderstandCopiedText != null) {
+            {
+                if (reviewed != null && !showingUnderstanding) {
+                    UnderstandingEntry(onOpen = { showingUnderstanding = true })
+                }
+                onUnderstandCopiedText?.let { open ->
+                    FooterRow(
+                        stringResource(R.string.understand_copied_text),
+                        stringResource(R.string.understand_copied_text_subtitle),
+                        onClick = open,
+                    )
+                }
+            }
         } else null,
     ) {
-        if (!showingUnderstanding) leadingContent()
         when (state) {
             is CardState.Loading -> {
                 if (state.retainedRevision?.canUndo == true) {
@@ -100,19 +127,30 @@ fun ResultCard(
                         stringResource(R.string.ai_could_not_understand),
                         stringResource(R.string.check_full_sentence),
                     )
+                    state.sourceText?.let { text ->
+                        Spacer(Modifier.height(16.dp))
+                        Text(stringResource(R.string.original_text), style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.height(6.dp))
+                        TextBlock(text)
+                    }
                     if (actions.onClarify != null || state.settled.any { it.isMeaning }) {
                         Spacer(Modifier.height(8.dp))
                         MeaningSection("", state.settled, actions.onClarify, actions.onRemoveClarification,
                             linkText = stringResource(R.string.say_what_you_meant),
-                            editorTitle = stringResource(R.string.meaning))
+                            editorTitle = stringResource(R.string.meaning),
+                            submitKind = if (state.retainedRevision?.canUndo == true && actions.review != null)
+                                ButtonKind.Tonal else ButtonKind.Filled)
                     }
+                    RetainedChanges(state.retainedRevision, actions.review, canApply = true)
                 }
-                is CheckResult.WrongLanguage ->
+                is CheckResult.WrongLanguage -> {
                     Outcome(
                         stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
                         result.found?.let { stringResource(R.string.wrong_language_detected, languageDisplayName(it)) }
                             ?: stringResource(R.string.choose_auto_language),
                     )
+                    RetainedChanges(state.retainedRevision, actions.review, canApply = true)
+                }
             }
         }
     }
@@ -149,10 +187,6 @@ private fun ReviewPages(
                     onRemoveClarification = actions.onRemoveClarification,
                 )
             } else {
-                state.clarifiedBy?.let {
-                    StatusLine(stringResource(if (it == Clarified.Meaning) R.string.checked_with_clarification else R.string.checked_with_answer))
-                    Spacer(Modifier.height(10.dp))
-                }
                 Suggestions(result, state.settled, actions)
             }
         }
@@ -169,6 +203,8 @@ internal fun ResultSurface(
     modifier: Modifier = Modifier,
     scrollable: Boolean = true,
     footer: (@Composable () -> Unit)? = null,
+    /** A page change reveals the card header in both its own and any parent scroll container. */
+    navigationKey: Any? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val container = Linguize.colors.popup
@@ -181,8 +217,25 @@ internal fun ResultSurface(
         shadowElevation = if (scrollable) 8.dp else 0.dp,
     ) {
         val scroll = rememberScrollState()
+        val top = remember { BringIntoViewRequester() }
+        val placed = remember(navigationKey) { CompletableDeferred<Unit>() }
+        var revealedKey by remember { mutableStateOf(navigationKey) }
+        val headerHeight = with(LocalDensity.current) { 66.dp.toPx() }
+        LaunchedEffect(navigationKey) {
+            if (revealedKey != navigationKey) {
+                revealedKey = navigationKey
+                // Wait for the new anchor's placement, not an animation duration or arbitrary delay.
+                placed.await()
+                scroll.scrollTo(0)
+                top.bringIntoView(Rect(0f, 0f, 1f, headerHeight))
+            }
+        }
         Box {
             Column(Modifier.then(if (scrollable) Modifier.verticalScroll(scroll) else Modifier)) {
+                key(navigationKey) {
+                    Spacer(Modifier.fillMaxWidth().height(0.dp).bringIntoViewRequester(top)
+                        .onGloballyPositioned { placed.complete(Unit) })
+                }
                 Column(
                     Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = if (footer != null) 14.dp else 18.dp),
                     content = content,

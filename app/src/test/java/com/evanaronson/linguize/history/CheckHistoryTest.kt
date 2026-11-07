@@ -26,7 +26,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -81,7 +80,7 @@ class CheckHistoryTest {
     fun stop() = scope.cancel()
 
     @Test
-    fun aCardIsOneSessionSavedAtOpenAfterEachAttemptAndClosed() = runBlocking<Unit> {
+    fun aCardStaysInMemoryUntilAppliedThenSavesOneCompleteTransaction() = runBlocking<Unit> {
         val opened = history.open(rain, opening)!!
         assertEquals("moderate", opened.punctuation)
         assertEquals("fix", opened.judgments)
@@ -94,61 +93,84 @@ class CheckHistoryTest {
         history.succeeded(emptyList(), "{}", result)
         val fixed = result.revision.acceptAll(EditKind.Fix)
         history.changed(fixed)
+        history.flush()
+        assertTrue(store.calls.isEmpty())
+        assertEquals(setOf(opened.id), store.registered.toSet())
         now = 1_200
         history.close(fixed.workingText)
         history.flush()
 
-        assertEquals(listOf("save", "save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
         val (_, closed, suggestions) = store.calls.last()
         assertEquals(Outcome.Applied, closed.outcome)
         assertEquals(Verdict.Status.Ok, closed.status)
         assertEquals(1, closed.attempts.size)
         assertEquals(Decision.Accepted, suggestions.single { it.kind == EditKind.Fix }.decision)
+        assertEquals(fixed.workingText, closed.finalText)
+        assertEquals(1_200L, closed.closedAt)
+        assertTrue(store.registered.isEmpty())
         assertNull(history.session)
     }
 
     @Test
-    fun discardRetiresExportsEvenWhenDeletionReportsFailureOrThrows() = runBlocking<Unit> {
-        for (throws in listOf(false, true)) {
-            val deletionAttempted = CompletableDeferred<Unit>()
-            var retired = false
-            val failing = object : HistoryStore by store {
-                override suspend fun delete(id: String): Boolean {
-                    deletionAttempted.complete(Unit)
-                    if (throws) error("disk full")
-                    return false
-                }
-            }
-            val history = CheckHistory(failing, environment, scope, retireExports = {
-                assertTrue("retirement follows the deletion attempt", deletionAttempted.isCompleted)
-                retired = true
-            })
+    fun discardDropsOnlyTheInMemorySession() = runBlocking<Unit> {
+        history.open(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        history.discard()
+        history.recheck(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        closeAfterApplyingFix()
+        history.flush()
+        assertNull(history.session)
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.deleted.isEmpty())
+        assertTrue(store.registered.isEmpty())
+    }
+
+    @Test
+    fun analyzingCopyingOrAcceptingWithoutApplyingNeverWritesHistory() = runBlocking<Unit> {
+        val actions = listOf<Pair<String, () -> Unit>>(
+            "analyzed" to {},
+            "copied" to { history.copied(EditKind.Fix) },
+            "accepted but not applied" to { history.changed(result.revision.acceptAll(EditKind.Fix)) },
+        )
+        for ((name, act) in actions) {
             history.open(rain, opening)
-            history.discard()
+            history.succeeded(emptyList(), "{}", result)
+            act()
             history.flush()
-            assertTrue(retired)
+            assertTrue(name, store.calls.isEmpty())
+            history.close(null)
+            history.flush()
+            assertTrue(name, store.calls.isEmpty())
+            assertTrue(name, store.registered.isEmpty())
         }
     }
 
     @Test
-    fun discardWithoutARecordedSessionDoesNotRetireExports() = runBlocking<Unit> {
-        var retired = false
-        val history = CheckHistory(store, environment, scope, retireExports = { retired = true })
-        history.discard()
-        history.open(rain, opening.copy(origin = Origin.Tester))
-        history.discard()
+    fun undoingBackToTheOriginalTextNeverWritesHistory() = runBlocking<Unit> {
+        history.open(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        val fixed = result.revision.acceptAll(EditKind.Fix)
+        history.changed(fixed)
+        val undone = fixed.undo()
+        history.changed(undone)
+        assertEquals(rain, undone.workingText)
+        history.close(undone.workingText)
         history.flush()
-        assertFalse(retired)
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.registered.isEmpty())
     }
 
     @Test
     fun closingTwiceOrWithNothingOpenWritesNothingMore() = runBlocking<Unit> {
         history.close(null)
         history.open(rain, opening)
-        history.close(null)
+        history.succeeded(emptyList(), "{}", result)
+        closeAfterApplyingFix()
         history.close(null)
         history.flush()
-        assertEquals(listOf("save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
     }
 
     @Test
@@ -156,7 +178,7 @@ class CheckHistoryTest {
         environment.enabled = false
         assertNull(history.open(rain, opening))
         history.succeeded(emptyList(), "{}", result)
-        history.close(rain)
+        closeAfterApplyingFix()
         history.flush()
         assertTrue(store.calls.isEmpty())
     }
@@ -169,9 +191,10 @@ class CheckHistoryTest {
         history.succeeded(emptyList(), "{}", result)
         environment.enabled = true
         history.changed(result.revision.acceptAll(EditKind.Fix))
-        history.close(rain)
+        closeAfterApplyingFix()
         history.flush()
-        assertEquals(listOf("save"), store.calls.map { it.first })
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.registered.isEmpty())
         assertNull(history.session)
     }
 
@@ -184,15 +207,15 @@ class CheckHistoryTest {
         environment.enabled = true
 
         history.succeeded(emptyList(), "{}", result)
-        history.close(rain)
+        closeAfterApplyingFix()
         history.flush()
-        assertEquals(listOf("save"), store.calls.map { it.first })
+        assertTrue(store.calls.isEmpty())
 
         // A genuinely new card has the new permission and can be recorded.
         history.open("new text", opening)
-        history.close(null)
+        history.close("changed text")
         history.flush()
-        assertEquals(listOf("save", "save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
     }
 
     @Test
@@ -203,12 +226,13 @@ class CheckHistoryTest {
             val queued = CheckHistory(store, environment, writing)
             queued.open(rain, opening)
             queued.succeeded(emptyList(), "{}", result)
-            queued.close(rain)
+            closeAfterApplyingFix(queued)
 
             environment.enabled = false
             dispatcher.runAll()
             queued.flush()
             assertTrue(store.calls.isEmpty())
+            assertTrue(store.registered.isEmpty())
         } finally {
             writing.cancel()
         }
@@ -221,17 +245,73 @@ class CheckHistoryTest {
         try {
             val queued = CheckHistory(store, environment, writing)
             queued.open(rain, opening)
-            queued.close(rain)
+            queued.succeeded(emptyList(), "{}", result)
+            closeAfterApplyingFix(queued)
             environment.enabled = false
             environment.recordingEpoch++
             environment.enabled = true
             queued.open("new text", opening)
-            queued.close(null)
+            queued.close("changed text")
 
             dispatcher.runAll()
             queued.flush()
-            assertEquals(listOf("save", "close"), store.calls.map { it.first })
+            assertEquals(listOf("close"), store.calls.map { it.first })
             assertTrue(store.calls.all { it.second.text == "new text" })
+        } finally {
+            writing.cancel()
+        }
+    }
+
+    @Test
+    fun disablingAndEnablingHistoryAfterAcceptanceStillPreventsTheFinalWrite() = runBlocking<Unit> {
+        history.open(rain, opening)
+        history.succeeded(emptyList(), "{}", result)
+        val fixed = result.revision.acceptAll(EditKind.Fix)
+        history.changed(fixed)
+        environment.enabled = false
+        environment.recordingEpoch++
+        environment.enabled = true
+
+        history.close(fixed.workingText)
+        history.flush()
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.registered.isEmpty())
+    }
+
+    @Test
+    fun appliedCardsKeepTheirWriteOrderAndSurviveALaterDiscard() = runBlocking<Unit> {
+        val dispatcher = QueuedDispatcher()
+        val writing = CoroutineScope(SupervisorJob() + dispatcher)
+        val firstWrite = CompletableDeferred<Unit>()
+        val entered = mutableListOf<String>()
+        val delayed = object : HistoryStore by store {
+            override suspend fun close(session: SessionRecord, suggestions: List<SuggestionRecord>) {
+                entered += session.text
+                if (session.text == rain) firstWrite.await()
+                store.close(session, suggestions)
+            }
+        }
+        try {
+            val queued = CheckHistory(delayed, environment, writing)
+            val first = queued.open(rain, opening)!!
+            queued.succeeded(emptyList(), "{}", result)
+            closeAfterApplyingFix(queued)
+            val second = queued.open("next text", opening)!!
+            queued.close("changed text")
+            queued.open("discarded", opening)
+            queued.discard()
+
+            dispatcher.runAll()
+            assertEquals(listOf(rain), entered)
+            assertTrue(store.calls.isEmpty())
+            assertEquals(setOf(first.id, second.id), store.registered.toSet())
+            firstWrite.complete(Unit)
+            dispatcher.runAll()
+            queued.flush()
+
+            assertEquals(listOf(first.id, second.id), store.calls.map { it.second.id })
+            assertTrue(store.calls.all { it.first == "close" })
+            assertTrue(store.registered.isEmpty())
         } finally {
             writing.cancel()
         }
@@ -247,16 +327,34 @@ class CheckHistoryTest {
     }
 
     @Test
-    fun aFailedAttemptIsRecorded() = runBlocking<Unit> {
+    fun applyingAfterFailedAttemptsKeepsAllAttemptsAndClarifications() = runBlocking<Unit> {
         history.open(rain, opening)
         history.failed(listOf(Settled("tu", "informal")), "Offline", "no network", message = "empty_reply")
+        history.flush()
+        assertTrue(store.calls.isEmpty())
+        history.succeeded(listOf(Settled("tu", "informal")), "{}", result)
+        history.changed(result.revision.acceptAll(EditKind.Fix))
+        history.failed(listOf(Settled("tu", "formal")), "Offline", "no network")
+        closeAfterApplyingFix()
+        history.flush()
+        val closed = store.calls.single().second
+        assertEquals(Outcome.Applied, closed.outcome)
+        assertEquals(3, closed.attempts.size)
+        assertEquals("Offline", closed.attempts.first().failure)
+        assertEquals(listOf(Settled("tu", "informal")), closed.attempts.first().settled)
+        assertEquals("empty_reply", closed.attempts.first().failureMessage)
+        assertEquals(listOf(Settled("tu", "formal")), closed.attempts.last().settled)
+        assertEquals(Decision.Accepted, store.calls.single().third.single { it.kind == EditKind.Fix }.decision)
+    }
+
+    @Test
+    fun aFailedCheckNeverWritesHistory() = runBlocking<Unit> {
+        history.open(rain, opening)
+        history.failed(emptyList(), "Offline", "no network")
         history.close(null)
         history.flush()
-        val closed = store.calls.last().second
-        assertEquals(Outcome.Failed, closed.outcome)
-        assertEquals("Offline", closed.attempts.single().failure)
-        assertEquals(listOf(Settled("tu", "informal")), closed.attempts.single().settled)
-        assertEquals("empty_reply", closed.attempts.single().failureMessage)
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.registered.isEmpty())
     }
 
     @Test
@@ -264,9 +362,10 @@ class CheckHistoryTest {
         store.failing = true
         history.open(rain, opening)
         history.succeeded(emptyList(), "{}", result)
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
-        assertEquals(3, logged.size)
+        assertEquals(1, logged.size)
+        assertTrue(store.registered.isEmpty())
     }
 
     @Test
@@ -307,7 +406,7 @@ class CheckHistoryTest {
         assertEquals(1_000 - CheckHistory.REUSE_WITHIN_MS, since)
 
         history.succeeded(answer.reused!!.settled, answer.reused!!.raw, result, reusedFrom = answer.reused!!.sessionId)
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
         assertEquals("earlier", store.calls.last().second.attempts.single().reusedFrom)
     }
@@ -367,16 +466,20 @@ class CheckHistoryTest {
                 }
             }
             assertFalse(reuseGate.isCompleted)
-            history.close(null)
+            if (failure == null) closeAfterApplyingFix() else history.close(null)
             val next = history.open("next card", opening)!!
             reuseGate.complete(Unit)
             withTimeout(5_000) { reuseFinished.await() }
             history.flush()
             assertEquals(next.id, history.session!!.id)
             assertTrue(history.session!!.attempts.isEmpty())
-            val closed = store.calls.single { it.first == "close" }.second
-            assertEquals(1, closed.attempts.size)
-            assertNull(closed.attempts.single().reusedFrom)
+            if (failure == null) {
+                val closed = store.calls.single().second
+                assertEquals(1, closed.attempts.size)
+                assertNull(closed.attempts.single().reusedFrom)
+            } else {
+                assertTrue(store.calls.isEmpty())
+            }
         } finally {
             reuseGate.complete(Unit)
             pending.cancelAndJoin()
@@ -489,7 +592,9 @@ class CheckHistoryTest {
         val first = SessionRecording(rain, keptContext, 500, newId = { "earlier" })
         first.attempt(600, listOf(Settled("tu", "informal")), "{\"first\":1}", null, null, result.revision, null)
         first.attempt(650, emptyList(), "{\"second\":1}", null, null, null, null, Verdict.Status.Unclear)
-        store.kept = first.close(700, null)
+        val fixed = result.revision.acceptAll(EditKind.Fix)
+        first.changed(fixed)
+        store.kept = first.close(700, fixed.workingText)
         val answer = history.firstAttempt(rain, opening, ask = { delay(10_000); "model" }, reuse = { it.raw })
         assertEquals("{\"first\":1}", answer.value)
         assertEquals(listOf(Settled("tu", "informal")), answer.reused?.settled)
@@ -510,10 +615,10 @@ class CheckHistoryTest {
         history.succeeded(emptyList(), "{}", result)
         assertEquals("another-model", history.session!!.model)
         assertEquals("strict", history.session!!.punctuation)
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
 
-        assertEquals(listOf("save", "save", "save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
         val closed = store.calls.last().second
         assertEquals(first.id, closed.id)
         assertEquals(1_000, closed.startedAt)
@@ -559,14 +664,14 @@ class CheckHistoryTest {
         dispatcher.runAll()
         retry.join()
         recovering.succeeded(emptyList(), "{}", result)
-        recovering.close(null)
+        closeAfterApplyingFix(recovering)
         recovering.flush()
 
-        assertEquals(listOf("save", "save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
         val closed = store.calls.last().second
         assertEquals(1, store.calls.map { it.second.id }.distinct().size)
         assertEquals("another-model", closed.attempts.single().model)
-        assertEquals(Outcome.None, closed.outcome)
+        assertEquals(Outcome.Applied, closed.outcome)
         assertTrue(store.lookedUp.isEmpty())
     }
 
@@ -582,24 +687,24 @@ class CheckHistoryTest {
         history.recheck(rain, opening)
         history.succeeded(emptyList(), "{}", result)
         assertNull(history.session)
-        // The revoked write cleared the recorder, but its card is still decided.
+        // The revoked permission cleared the recorder, but its card is still decided.
         history.recheck(rain, opening)
         history.succeeded(emptyList(), "{}", result)
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
 
-        assertEquals(listOf("save", "save"), store.calls.map { it.first })
-        assertEquals(1, store.calls.map { it.second.id }.distinct().size)
-        assertEquals(1, store.calls.last().second.attempts.size)
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.registered.isEmpty())
     }
 
     @Test
     fun aFailedAttemptKeepsTheAnswerThatCouldntBeRead() = runBlocking<Unit> {
         history.open(rain, opening)
         history.failed(emptyList(), "BadResponse", "not in the expected format", raw = "{\"status\":")
-        history.close(null)
+        history.succeeded(emptyList(), "{}", result)
+        closeAfterApplyingFix()
         history.flush()
-        val attempt = store.calls.last().second.attempts.single()
+        val attempt = store.calls.last().second.attempts.first()
         assertEquals("{\"status\":", attempt.raw)
         assertEquals("BadResponse", attempt.failure)
     }
@@ -607,14 +712,16 @@ class CheckHistoryTest {
     @Test
     fun waitingForWritesBlocksUntilTheCloseIsWrittenButNotLonger() {
         runBlocking { history.open(rain, opening) }
-        history.close(null)
+        history.succeeded(emptyList(), "{}", result)
+        closeAfterApplyingFix()
         history.awaitWrites(5_000)
-        assertEquals(listOf("save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
 
         store.gate = CompletableDeferred()
         store.slowClose = true
         runBlocking { history.open(rain, opening) }
-        history.close(null)
+        history.succeeded(emptyList(), "{}", result)
+        closeAfterApplyingFix()
         val started = System.nanoTime()
         history.awaitWrites(100)
         assertTrue((System.nanoTime() - started) / 1_000_000 < 2_000)
@@ -635,7 +742,7 @@ class CheckHistoryTest {
         assertEquals(Answer("model", null), history.languageChanged(rain, tester.copy(requestedLanguage = "es"), ask = { delay(100); "model" }, reuse = { "kept" }))
         history.recheck(rain, tester.copy(settings = settings.copy(model = "another-model")))
         history.failed(emptyList(), "offline", null)
-        history.close(rain)
+        closeAfterApplyingFix()
         history.flush()
         assertNull(history.session)
         assertTrue(store.lookedUp.isEmpty())
@@ -674,20 +781,23 @@ class CheckHistoryTest {
         // A re-check in the language picked last is the same session too.
         history.recheck(rain, auto)
         assertEquals(id, history.session!!.id)
-        history.close(null)
+        history.flush()
+        assertTrue(store.calls.isEmpty())
+        closeAfterApplyingFix()
         history.flush()
 
-        // Saved when opened and after each attempt.
-        assertEquals(listOf("save", "save", "save", "save", "close"), store.calls.map { it.first })
+        // All attempts and decisions are saved together after applying.
+        assertEquals(listOf("close"), store.calls.map { it.first })
         val (_, closed, suggestions) = store.calls.last()
         assertEquals(id, closed.id)
         assertNull(closed.requestedLanguage)
         assertEquals(listOf("ca", "es", null), closed.attempts.map { it.requestedLanguage })
-        assertEquals(Outcome.None, closed.outcome)
+        assertEquals(Outcome.Applied, closed.outcome)
         // The first two languages' suggestions were replaced when the language changed.
         assertTrue(suggestions.filter { it.attempt < 2 }.all { it.decision == Decision.Superseded })
         assertEquals(setOf(1_200L, 1_400L), suggestions.filter { it.attempt < 2 }.map { it.decidedAt }.toSet())
-        assertTrue(suggestions.filter { it.attempt == 2 }.all { it.decision == Decision.Ignored })
+        assertEquals(Decision.Accepted, suggestions.single { it.attempt == 2 && it.kind == EditKind.Fix }.decision)
+        assertEquals(Decision.Ignored, suggestions.single { it.attempt == 2 && it.kind == EditKind.Natural }.decision)
         // Each language was looked up in its own.
         assertEquals(listOf("ca", "es", null), store.lookedUp.map { it.first.requestedLanguage })
         assertEquals(1_400 - CheckHistory.REUSE_WITHIN_MS, store.lookedUp.last().second)
@@ -703,7 +813,7 @@ class CheckHistoryTest {
         assertEquals("{\"status\":\"ok\"}", answer.value)
         assertEquals("earlier", answer.reused?.sessionId)
         history.succeeded(answer.reused!!.settled, answer.reused!!.raw, result, reusedFrom = "earlier")
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
         assertEquals(listOf(null, "earlier"), store.calls.last().second.attempts.map { it.reusedFrom })
     }
@@ -734,9 +844,9 @@ class CheckHistoryTest {
         // The lookup asked for the new language and settings.
         assertEquals(changed.settings, store.lookedUp.last().first.settings)
         assertEquals("es", store.lookedUp.last().first.requestedLanguage)
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
-        assertEquals(listOf("save", "save", "save", "close"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
     }
 
     @Test
@@ -747,7 +857,9 @@ class CheckHistoryTest {
         kept.attempt(600, emptyList(), "{\"first\":1}", null, null, result.revision, null)
         kept.runWith("ca", settings.copy(model = "another-model"))
         kept.attempt(650, emptyList(), "{\"second\":1}", null, null, null, null, Verdict.Status.Unclear)
-        store.kept = kept.close(700, null)
+        val fixed = result.revision.acceptAll(EditKind.Fix)
+        kept.changed(fixed)
+        store.kept = kept.close(700, fixed.workingText)
         assertEquals("another-model", store.kept!!.session.model)
         assertEquals(0, store.kept!!.decidedAttempt())
 
@@ -766,7 +878,7 @@ class CheckHistoryTest {
         history.languageChanged(rain, opening.copy(requestedLanguage = "es"), ask = { "model" }, reuse = { null })
         assertEquals("es", history.session?.requestedLanguage)
         history.flush()
-        assertEquals(listOf("save"), store.calls.map { it.first })
+        assertTrue(store.calls.isEmpty())
     }
 
     @Test
@@ -774,7 +886,7 @@ class CheckHistoryTest {
         history.firstAttempt(rain, opening, ask = { "model" }, reuse = { null })
         history.succeeded(emptyList(), "{}", result)
         history.flush()
-        // Turned off from Settings while the card is up: the next write stops the recording.
+        // Turned off from Settings while the card is up: the next change stops the recording.
         environment.enabled = false
         history.changeLanguage("es")
         history.languageChanged(rain, opening.copy(requestedLanguage = "es"), ask = { "model" }, reuse = { null })
@@ -785,10 +897,10 @@ class CheckHistoryTest {
         history.languageChanged(rain, opening.copy(requestedLanguage = null), ask = { "model" }, reuse = { null })
         history.succeeded(emptyList(), "{}", result)
         assertNull(history.session)
-        history.close(null)
+        closeAfterApplyingFix()
         history.flush()
-        assertEquals(listOf("save", "save"), store.calls.map { it.first })
-        assertEquals(1, store.calls.map { it.second.id }.distinct().size)
+        assertTrue(store.calls.isEmpty())
+        assertTrue(store.registered.isEmpty())
     }
 
     @Test
@@ -803,10 +915,12 @@ class CheckHistoryTest {
         history.flush()
         assertTrue(store.calls.isEmpty())
         assertTrue(store.lookedUp.isEmpty())
-        // The next card is recorded.
+        // The next card is recorded once applied.
         history.firstAttempt(rain, opening, ask = { "model" }, reuse = { null })
+        history.succeeded(emptyList(), "{}", result)
+        closeAfterApplyingFix()
         history.flush()
-        assertEquals(listOf("save"), store.calls.map { it.first })
+        assertEquals(listOf("close"), store.calls.map { it.first })
     }
 
     @Test
@@ -814,6 +928,12 @@ class CheckHistoryTest {
         assertEquals(Verdict.Status.Ok, CheckHistory.statusOf(result))
         assertEquals(Verdict.Status.Unclear, CheckHistory.statusOf(CheckResult.Unclear))
         assertEquals(Verdict.Status.WrongLanguage, CheckHistory.statusOf(CheckResult.WrongLanguage("Catalan", "Spanish")))
+    }
+
+    private fun closeAfterApplyingFix(recording: CheckHistory = history) {
+        val fixed = result.revision.acceptAll(EditKind.Fix)
+        recording.changed(fixed)
+        recording.close(fixed.workingText)
     }
 
     private suspend fun slowly(): String {
@@ -826,8 +946,10 @@ class CheckHistoryTest {
     private fun keptSession(id: String, raw: String, language: String? = "ca"): SessionDetail {
         val context = SessionContext(keptContext.opening.copy(requestedLanguage = language), "1.0", "device")
         val recording = SessionRecording(rain, context, 500, newId = { id })
-        recording.attempt(600, listOf(Settled("tu", "informal")), raw, null, null, null, null)
-        return recording.close(700, null)
+        recording.attempt(600, listOf(Settled("tu", "informal")), raw, null, null, result.revision, null)
+        val fixed = result.revision.acceptAll(EditKind.Fix)
+        recording.changed(fixed)
+        return recording.close(700, fixed.workingText)
     }
 
     private class QueuedDispatcher : CoroutineDispatcher() {
@@ -845,6 +967,12 @@ class CheckHistoryTest {
     private class FakeStore : HistoryStore {
         val calls: MutableList<Triple<String, SessionRecord, List<SuggestionRecord>>> = java.util.Collections.synchronizedList(mutableListOf())
         val lookedUp: MutableList<Pair<ReuseKey, Long>> = java.util.Collections.synchronizedList(mutableListOf())
+
+        val registered: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
+        val deleted: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
+
+        override fun registerSession(id: String) { registered += id }
+        override fun releaseSession(id: String) { registered -= id }
 
         @Volatile var failing = false
 
@@ -880,7 +1008,10 @@ class CheckHistoryTest {
         override suspend fun page(before: com.evanaronson.linguize.history.HistoryCursor?, limit: Int) =
             com.evanaronson.linguize.history.HistoryPage(emptyList(), null)
         override suspend fun detail(id: String) = SessionDetailResult.Missing
-        override suspend fun delete(id: String) = true
+        override suspend fun delete(id: String): Boolean {
+            deleted += id
+            return true
+        }
         override suspend fun clear() = Unit
         override suspend fun export(out: OutputStream) = true
     }

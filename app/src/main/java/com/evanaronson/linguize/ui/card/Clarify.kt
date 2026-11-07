@@ -34,8 +34,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -47,6 +45,7 @@ import com.evanaronson.linguize.ui.components.Chevron
 import com.evanaronson.linguize.ui.components.InsetShape
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
+import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
  * The one way to say what you meant, wherever a reading can be clarified: under a
@@ -56,7 +55,7 @@ import com.evanaronson.linguize.ui.components.LinguizeTextField
  * "What did you mean?", then the readings to pick from ([choices]: the AI's reading
  * first, then its alternatives) and Something else, which opens a field; with no
  * choices, just the field. Clarify stays disabled until there is an answer, and is the
- * card's primary action while this is open. Nothing changes the check until Clarify.
+ * primary action when this is the card's main task. Nothing changes the check until Clarify.
  */
 @Composable
 internal fun ClarifyBlock(
@@ -69,6 +68,8 @@ internal fun ClarifyBlock(
     large: Boolean = choices.isEmpty(),
     /** Labels the field for screen readers when the block stands for one assumption. */
     about: String? = null,
+    /** Inline clarification stays subordinate to the result card's Apply action. */
+    submitKind: ButtonKind = ButtonKind.Filled,
 ) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -112,9 +113,8 @@ internal fun ClarifyBlock(
                 value = answer,
                 onValueChange = { answer = it },
                 modifier = Modifier.padding(top = 6.dp),
-                fieldModifier = Modifier
-                    .focusRequester(focusRequester)
-                    .semantics { contentDescription = label },
+                fieldModifier = Modifier.focusRequester(focusRequester),
+                accessibleLabel = label,
                 placeholder = stringResource(R.string.clarify_placeholder),
                 large = large,
                 minLines = if (large) 2 else 1,
@@ -131,7 +131,7 @@ internal fun ClarifyBlock(
             LinguizeButton(
                 stringResource(R.string.clarify),
                 onClick = { result?.let { finish { onSubmit(it) } } },
-                kind = ButtonKind.Filled,
+                kind = submitKind,
                 enabled = result != null,
             )
             LinguizeButton(stringResource(R.string.cancel), onClick = { finish(onCancel) }, kind = ButtonKind.Text)
@@ -180,7 +180,7 @@ internal fun AssumptionInset(assumption: Assumption, onSettle: ((String, String)
             .fillMaxWidth()
             .padding(top = 4.dp)
             .clip(InsetShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            .background(Linguize.colors.panel),
     ) {
         Row(
             Modifier
@@ -188,7 +188,6 @@ internal fun AssumptionInset(assumption: Assumption, onSettle: ((String, String)
                 .then(
                     if (onSettle != null && !open) {
                         Modifier.clickable(onClickLabel = clarify) { open = true }
-                            .semantics { contentDescription = clarify }
                     } else Modifier,
                 )
                 .padding(12.dp),

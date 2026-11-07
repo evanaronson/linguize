@@ -17,12 +17,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 
 /**
- * The four button weights. A card has at most one [Filled] action at a time: the next
- * step (Apply, Accept, Clarify, Open settings). [Tonal] is a section's own action
- * (Accept all). [Outlined] steps back from Filled when another action takes over.
- * [Text] is everything else.
+ * Four button weights, plus a destructive text treatment. A card has at most one
+ * [Filled] action at a time: the next step (Apply, Clarify, Open settings).
+ * [Tonal] is a section's own action (Accept, Accept all). [Outlined] steps back from Filled
+ * when another action takes over.
+ * [Text] is everything else. [Destructive] uses that same weight in proof red.
  */
-enum class ButtonKind { Filled, Tonal, Outlined, Text }
+enum class ButtonKind { Filled, Tonal, Outlined, Text, Destructive }
 
 /**
  * A 40dp pill in one of the [ButtonKind] weights. Disabled buttons keep their colours
@@ -73,9 +74,11 @@ fun LinguizeButton(
             contentPadding = contentPadding ?: ButtonDefaults.ContentPadding,
             content = content,
         )
-        ButtonKind.Text -> TextButton(
+        ButtonKind.Text, ButtonKind.Destructive -> TextButton(
             onClick, sized, enabled,
-            colors = ButtonDefaults.textButtonColors(contentColor = colors.onSurface).kept(),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = if (kind == ButtonKind.Destructive) colors.error else colors.onSurface,
+            ).kept(),
             contentPadding = contentPadding ?: ButtonDefaults.TextButtonContentPadding,
             content = content,
         )

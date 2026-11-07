@@ -143,14 +143,20 @@ internal object HistorySchema {
         """.trimIndent()
     }
 
-    /** Sessions Recent can show: kept and closed. A card still open isn't counted until it closes. */
-    const val COUNT = """SELECT COUNT(*) AS "n" FROM $SESSIONS WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL"""
+    /**
+     * User-visible history is an applied change. Older unapplied checks remain stored,
+     * but are hidden from every History read, including restored details and export.
+     */
+    val VISIBLE_HISTORY = """"deletedAt" IS NULL AND "closedAt" IS NOT NULL AND "outcome" = '${Outcome.Applied.token}' AND "finalText" IS NOT NULL AND "finalText" != "text""""
+
+    /** The number of applied changes History can show. */
+    val COUNT = """SELECT COUNT(*) AS "n" FROM $SESSIONS WHERE $VISIBLE_HISTORY"""
 
     /** The oldest session Recent can show, as [COUNT] counts them. */
-    const val SINCE = """SELECT MIN("startedAt") AS "since" FROM $SESSIONS WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL"""
+    val SINCE = """SELECT MIN("startedAt") AS "since" FROM $SESSIONS WHERE $VISIBLE_HISTORY"""
 
     /**
-     * Closed, kept sessions, newest first, with counts from the suggestions that weren't
+     * Applied changes, newest first, with counts from the suggestions that weren't
      * superseded: those are the ones decided at the close. Only the start of each text is
      * read: a row shows one line of it.
      */
@@ -162,7 +168,7 @@ internal object HistorySchema {
         FROM (
             SELECT "id", "startedAt", "origin", "hostApp", substr("text", 1, ${SessionSummary.TEXT_PREFIX}) AS "text", "outcome", "status", "requestedLanguage", "targetLanguage", "detectedLanguage"
             FROM $SESSIONS
-            WHERE "deletedAt" IS NULL AND "closedAt" IS NOT NULL
+            WHERE $VISIBLE_HISTORY
                 ${if (before) """AND ("startedAt", "id") < (?, ?)""" else ""}
             ORDER BY "startedAt" DESC, "id" DESC
             LIMIT ${limit.coerceAtLeast(0)}
@@ -181,12 +187,16 @@ internal object HistorySchema {
     private val KNOWN_KINDS = EditKind.entries.joinToString { "'${it.token}'" }
     private val KNOWN_DECISIONS = Decision.entries.joinToString { "'${it.token}'" }
 
-    const val SESSION = """SELECT * FROM $SESSIONS WHERE "id" = ? AND "deletedAt" IS NULL"""
+    val SESSION = """SELECT * FROM $SESSIONS WHERE "id" = ? AND $VISIBLE_HISTORY"""
 
     const val SESSION_SUGGESTIONS =
         """SELECT * FROM $SUGGESTIONS WHERE "sessionId" = ? AND "deletedAt" IS NULL ORDER BY "attempt", "start", "end" """
 
+    /** Raw retained records for migration and internal inspection, including hidden legacy checks. */
     const val ALL_SESSIONS = """SELECT * FROM $SESSIONS WHERE "deletedAt" IS NULL ORDER BY "startedAt" """
+
+    /** The same applied changes History shows, oldest first for the user's export. */
+    val EXPORT_SESSIONS = """SELECT * FROM $SESSIONS WHERE $VISIBLE_HISTORY ORDER BY "startedAt", "id" """
 
     /**
      * Candidates for reuse of [key], newest first; binds [reusableArgs]. Whether the last

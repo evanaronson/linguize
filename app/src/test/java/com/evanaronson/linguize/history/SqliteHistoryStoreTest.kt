@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.core.Language
-import com.evanaronson.linguize.data.Exports
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.core.SuggestionAssessment
@@ -13,7 +12,6 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Verdict
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.currentCoroutineContext
@@ -31,13 +29,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.ByteArrayOutputStream
-import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
 
 /** The store on a real SQLite, as Robolectric runs it. A plain Application, so the app's own start-up doesn't touch the database. */
@@ -54,111 +49,32 @@ class SqliteHistoryStoreTest {
 
     private suspend fun found(id: String) = (store.detail(id) as SessionDetailResult.Found).detail
 
-    @get:Rule
-    val exportCache = TemporaryFolder()
-    private val exports by lazy { Exports(exportCache.root) }
-    private val exportDate = LocalDate.of(2026, 10, 16)
-
-    private fun provisionalHistory(
-        scope: CoroutineScope,
-        historyStore: HistoryStore = store,
-        retiring: () -> Unit = {},
-    ) = CheckHistory(
-        historyStore,
-        object : HistoryEnvironment {
-            override val enabled = true
-            override val deviceId = "device"
-            override val appVersion = "1.0"
-        },
-        scope,
-        retireExports = { retiring(); exports.clear() },
-    )
-
-    private suspend fun CheckHistory.openProvisional(): String {
-        val session = open("private provisional text", Opening(
+    @Test
+    fun aProvisionalCheckNeverReachesStoredHistoryOrExport() = runBlocking<Unit> {
+        val history = CheckHistory(
+            store,
+            object : HistoryEnvironment {
+                override val enabled = true
+                override val deviceId = "device"
+                override val appVersion = "1.0"
+            },
+            this,
+        )
+        val session = history.open("private provisional text", Opening(
             Origin.Button, null, "ca",
             SessionSettings("English", "moderate", "both", "gemini", "m", "p1"),
         ))!!
-        flush()
-        return session.id
-    }
+        history.flush()
+        assertEquals(SessionDetailResult.Missing, store.detail(session.id))
+        assertTrue(retainedSessions().isEmpty())
+        val out = ByteArrayOutputStream()
+        assertTrue(store.export(out))
+        assertEquals("", out.toString())
 
-    @Test
-    fun discardingAProvisionalCheckRemovesItsStoredRowAndSharedExport() = runBlocking<Unit> {
-        withTimeout(5_000) {
-            val history = provisionalHistory(this)
-            val id = history.openProvisional()
-            val file = exports.write(exportDate, store::export)!!
-            assertTrue(file.readText().contains("private provisional text"))
-            assertTrue(exports.isCurrent(file))
-
-            history.discard()
-            history.flush()
-
-            assertEquals(SessionDetailResult.Missing, store.detail(id))
-            assertFalse(file.exists())
-            assertFalse(exports.isCurrent(file))
-        }
-    }
-
-    @Test
-    fun discardRetiresAnExportCreatedWhileDeletionIsWaiting() = runBlocking<Unit> {
-        withTimeout(5_000) {
-            val deleting = CompletableDeferred<Unit>()
-            val finishDelete = CompletableDeferred<Unit>()
-            val delayed = object : HistoryStore by store {
-                override suspend fun delete(id: String): Boolean {
-                    deleting.complete(Unit)
-                    finishDelete.await()
-                    return store.delete(id)
-                }
-            }
-            val history = provisionalHistory(this, delayed)
-            val id = history.openProvisional()
-            history.discard()
-            deleting.await()
-            val file = exports.write(exportDate, store::export)!!
-            assertTrue(file.readText().contains("private provisional text"))
-
-            finishDelete.complete(Unit)
-            history.flush()
-
-            assertEquals(SessionDetailResult.Missing, store.detail(id))
-            assertFalse(file.exists())
-            assertFalse(exports.isCurrent(file))
-        }
-    }
-
-    @Test
-    fun discardWaitsForAnAlreadyRunningExportAndRetiresItsResult() = runBlocking<Unit> {
-        withTimeout(5_000) {
-            val retiring = CompletableDeferred<Unit>()
-            val history = provisionalHistory(this, retiring = { retiring.complete(Unit) })
-            val id = history.openProvisional()
-            val captured = CompletableDeferred<Unit>()
-            val finishExport = CompletableDeferred<Unit>()
-            val writing = async {
-                exports.write(exportDate) { out ->
-                    assertTrue(store.export(out))
-                    captured.complete(Unit)
-                    finishExport.await()
-                    true
-                }!!
-            }
-            captured.await()
-            history.discard()
-            retiring.await()
-            val flushing = async(start = CoroutineStart.UNDISPATCHED) { history.flush() }
-            assertFalse("discard must wait for the export writer", flushing.isCompleted)
-
-            finishExport.complete(Unit)
-            val file = writing.await()
-            flushing.await()
-
-            assertEquals(SessionDetailResult.Missing, store.detail(id))
-            assertFalse(file.exists())
-            assertFalse(exports.isCurrent(file))
-        }
+        history.discard()
+        history.flush()
+        assertTrue(retainedSessions().isEmpty())
+        assertEquals(0, store.count().first())
     }
 
     private fun open(id: String, startedAt: Long, text: String = "Com estas?", model: String = "m") = SessionRecord(
@@ -191,7 +107,10 @@ class SqliteHistoryStoreTest {
         status = Verdict.Status.Ok.takeIf { failure == null },
     )
 
-    private fun SessionRecord.closed(at: Long, outcome: Outcome = Outcome.None) = copy(updatedAt = at, closedAt = at, outcome = outcome)
+    private fun SessionRecord.closed(at: Long, outcome: Outcome = Outcome.Applied) = copy(
+        updatedAt = at, closedAt = at, outcome = outcome,
+        finalText = if (outcome == Outcome.Applied) "$text!" else null,
+    )
 
     private fun suggestion(session: SessionRecord, id: String, kind: EditKind, decision: Decision, attempt: Int = 0) = SuggestionRecord(
         id = id,
@@ -293,6 +212,88 @@ class SqliteHistoryStoreTest {
         assertEquals((62 downTo 0).map { "check-" + it.toString().padStart(3, '0') }, seen)
         assertEquals(63, seen.toSet().size)
         assertEquals(seen.take(6), store.recent(6).first().map { it.id })
+    }
+
+    @Test
+    fun historyReadsOnlyAppliedChangesAndRetainsEveryHiddenLegacyRecord() = runBlocking<Unit> {
+        val visible = listOf(
+            open("oldest", 20).closed(100),
+            open("same-time-a", 50).closed(100),
+            open("same-time-b", 50).closed(100),
+            // Whitespace changes and deletion of all text are still changes.
+            open("whitespace", 70).closed(100).copy(finalText = "Com estas? "),
+            open("empty-result", 80).closed(100).copy(finalText = ""),
+        )
+        val hidden = Outcome.entries.filter { it != Outcome.Applied }.mapIndexed { index, outcome ->
+            open("legacy-${outcome.token}", index.toLong()).closed(100, outcome).copy(finalText = "changed")
+        } + listOf(
+            open("no-outcome", 90).closed(100).copy(outcome = null),
+            open("missing-result", 60).closed(100).copy(finalText = null),
+            open("unchanged", 40).closed(100).let { it.copy(finalText = it.text) },
+            open("still-open", 100).copy(outcome = Outcome.Applied, finalText = "changed"),
+            open("deleted", 10).closed(100).copy(deletedAt = 101),
+            open("unknown-outcome", 110).closed(120),
+        )
+        for (session in visible + hidden) {
+            store.close(session, listOf(suggestion(session, "g-${session.id}", EditKind.Fix, Decision.Accepted)))
+        }
+        raw { it.execSQL("""UPDATE sessions SET "outcome" = 'future-outcome' WHERE "id" = 'unknown-outcome'""") }
+
+        // Reopening existing data changes visibility without rewriting or deleting it.
+        val reopened = SqliteHistoryStore(context, NAME)
+        val expected = listOf("empty-result", "whitespace", "same-time-b", "same-time-a", "oldest")
+        assertEquals(visible.size, reopened.count().first())
+        assertEquals(20L, reopened.since().first())
+        assertEquals(expected, reopened.recent(100).first().map { it.id })
+        val paged = mutableListOf<String>()
+        var cursor: HistoryCursor? = null
+        do {
+            val page = reopened.page(cursor, 2)!!
+            paged += page.rows.map { it.id }
+            cursor = page.next
+        } while (cursor != null)
+        assertEquals(expected, paged)
+        for (session in hidden) assertEquals(session.id, SessionDetailResult.Missing, reopened.detail(session.id))
+        for (session in visible) {
+            assertEquals(session, (reopened.detail(session.id) as SessionDetailResult.Found).detail.session)
+        }
+
+        val out = ByteArrayOutputStream()
+        assertTrue(reopened.export(out))
+        val exported = out.toString().lineSequence().filter { it.isNotBlank() }
+            .map { historyJson.decodeFromString(SessionDetail.serializer(), it) }.toList()
+        assertEquals(visible.map { it.id }, exported.map { it.session.id })
+        assertTrue(exported.all { it.suggestions.single().sessionId == it.session.id })
+
+        val retained = retainedSessions().associateBy { it.id }
+        for (session in visible + hidden) {
+            if (session.deletedAt != null) continue
+            val expectedRecord = if (session.id == "unknown-outcome") session.copy(outcome = null) else session
+            assertEquals(session.id, expectedRecord, retained[session.id])
+        }
+        raw { db ->
+            for (table in listOf("sessions", "suggestions")) {
+                db.rawQuery("SELECT COUNT(*) FROM $table", null).use {
+                    assertTrue(it.moveToFirst())
+                    assertEquals(visible.size + hidden.size, it.getInt(0))
+                }
+            }
+            db.rawQuery("""SELECT "outcome" FROM sessions WHERE "id" = 'unknown-outcome'""", null).use {
+                assertTrue(it.moveToFirst())
+                assertEquals("future-outcome", it.getString(0))
+            }
+            assertEquals(HistorySchema.VERSION, db.version)
+        }
+
+        for (session in visible) assertTrue(reopened.delete(session.id))
+        assertEquals(0, reopened.count().first())
+        assertNull(reopened.since().first())
+        assertTrue(reopened.recent(10).first().isEmpty())
+        assertTrue(reopened.page(null, 10)!!.rows.isEmpty())
+        val empty = ByteArrayOutputStream()
+        assertTrue(reopened.export(empty))
+        assertEquals("", empty.toString())
+        assertEquals(hidden.count { it.deletedAt == null }, retainedSessions().size)
     }
 
     @Test
@@ -401,7 +402,8 @@ class SqliteHistoryStoreTest {
     fun aSessionIsSavedOpenAndThenClosedWithItsSuggestions() = runBlocking<Unit> {
         val opened = open("s1", 5_000)
         store.save(opened)
-        assertEquals(opened, found("s1").session)
+        assertEquals(opened, retained("s1"))
+        assertEquals(SessionDetailResult.Missing, store.detail("s1"))
         // Open sessions aren't in Recent, nor counted: the count is what Recent can show.
         assertTrue(store.recent(10).first().isEmpty())
         assertEquals(0, store.count().first())
@@ -458,7 +460,8 @@ class SqliteHistoryStoreTest {
         // A check started after the clear is recorded as usual, even with a clock set back since.
         val later = open("s2", 1_000)
         store.save(later)
-        assertTrue(store.detail("s2") is SessionDetailResult.Found)
+        assertEquals(SessionDetailResult.Missing, store.detail("s2"))
+        assertEquals(later, retained("s2"))
         store.close(later.closed(1_500), emptyList())
         assertEquals(1, store.count().first())
     }
@@ -479,10 +482,10 @@ class SqliteHistoryStoreTest {
         val opening = Opening(Origin.Menu, null, "ca", open("template", 0).settings)
         try {
             val beforeClear = recording.open("private text", opening)!!
-            recording.close(null)
+            recording.close("changed private text")
             store.clear()
             val afterClear = recording.open("new text", opening)!!
-            recording.close(null)
+            recording.close("changed new text")
 
             withTimeout(5_000) {
                 val flushed = async { recording.flush() }
@@ -508,7 +511,8 @@ class SqliteHistoryStoreTest {
         store.delete("s1")
         store.close(opened.answered(6_000).closed(7_000), emptyList())
         assertEquals(SessionDetailResult.Missing, store.detail("s1"))
-        assertTrue(store.detail("s2") is SessionDetailResult.Found)
+        assertEquals(SessionDetailResult.Missing, store.detail("s2"))
+        assertEquals(open("s2", 5_100), retained("s2"))
     }
 
     @Test
@@ -533,12 +537,15 @@ class SqliteHistoryStoreTest {
         SqliteHistoryStore(context, NAME).save(open("old", 50_000))
         store.save(open("new", 20_000))
         store.markAbandoned(30_000)
-        val old = found("old").session
+        val old = retained("old")
         assertEquals(Outcome.Abandoned, old.outcome)
         assertEquals(30_000L, old.closedAt)
         assertEquals(50_000L, old.updatedAt)
-        assertNull(found("new").session.closedAt)
-        assertEquals(listOf("old"), store.recent(10).first().map { it.id })
+        assertNull(retained("new").closedAt)
+        assertEquals(SessionDetailResult.Missing, store.detail("old"))
+        assertEquals(SessionDetailResult.Missing, store.detail("new"))
+        assertTrue(store.recent(10).first().isEmpty())
+        assertEquals(0, store.count().first())
     }
 
     @Test
@@ -576,8 +583,10 @@ class SqliteHistoryStoreTest {
 
     @Test
     fun aRecentSuccessfulCheckOfTheSameTextCanBeReused() = runBlocking<Unit> {
-        val done = open("s1", 5_000).answered(5_500).closed(6_000)
+        val done = open("s1", 5_000).answered(5_500).closed(6_000, Outcome.None)
         store.close(done, emptyList())
+        assertEquals(SessionDetailResult.Missing, store.detail("s1"))
+        // A retained legacy answer may be reused even though it is hidden from History.
         assertEquals("s1", store.reusable(done.reuseKey, since = 4_000)?.session?.id)
         // Too old, other settings, other text, other language.
         assertNull(store.reusable(done.reuseKey, since = 5_001))
@@ -622,13 +631,20 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
-    fun exportWritesOneLinePerSessionAsStored() = runBlocking<Unit> {
+    fun exportWritesVisibleSessionsAsStoredIncludingUnknownMetadata() = runBlocking<Unit> {
         val closed = open("s1", 5_000).answered(5_500).closed(6_000)
         store.close(closed, listOf(suggestion(closed, "g1", EditKind.Fix, Decision.Ignored)))
-        store.save(open("s2", 7_000))
-        // Written by a newer build: tokens this one doesn't know.
-        raw { it.execSQL("""UPDATE sessions SET "origin" = 'widget', "outcome" = 'snoozed' WHERE "id" = 's2'""") }
+        val newer = open("s2", 7_000).closed(8_000)
+        store.close(newer, listOf(suggestion(newer, "future", EditKind.Fix, Decision.Accepted)))
+        store.save(open("still-open", 9_000))
+        // Unknown metadata still exports as stored when the session is a known applied change.
+        raw { db ->
+            db.execSQL("""UPDATE sessions SET "origin" = 'widget', "status" = 'future-status' WHERE "id" = 's2'""")
+            db.execSQL("""UPDATE suggestions SET "kind" = 'style', "decision" = 'future-decision' WHERE "id" = 'future'""")
+        }
         assertNull(found("s2").session.origin)
+        assertNull(found("s2").session.status)
+        assertTrue(found("s2").suggestions.isEmpty())
 
         val out = ByteArrayOutputStream()
         assertTrue(store.export(out))
@@ -636,7 +652,8 @@ class SqliteHistoryStoreTest {
         assertEquals(2, lines.size)
         assertTrue(lines[0], lines[0].contains("\"kind\":\"fix\"") && lines[0].contains("\"decision\":\"ignored\""))
         assertTrue(lines[0], lines[0].contains("\"raw\":\"{\\\"status\\\":\\\"ok\\\"}\""))
-        assertTrue(lines[1], lines[1].contains("\"origin\":\"widget\"") && lines[1].contains("\"outcome\":\"snoozed\""))
+        assertTrue(lines[1], lines[1].contains("\"origin\":\"widget\"") && lines[1].contains("\"status\":\"future-status\""))
+        assertTrue(lines[1], lines[1].contains("\"kind\":\"style\"") && lines[1].contains("\"decision\":\"future-decision\""))
     }
 
     @Test
@@ -674,12 +691,13 @@ class SqliteHistoryStoreTest {
 
         // An open one from the old build is abandoned; new writes work.
         store.markAbandoned(9_000)
-        assertEquals(Outcome.Abandoned, found("open").session.outcome)
+        assertEquals(Outcome.Abandoned, retained("open").outcome)
+        assertEquals(SessionDetailResult.Missing, store.detail("open"))
         val fresh = open("s1", 10_000).answered(10_500).closed(11_000)
         store.save(open("s1", 10_000))
         store.close(fresh, listOf(suggestion(fresh, "g9", EditKind.Fix, Decision.Accepted)))
         assertEquals(fresh, found("s1").session)
-        assertEquals(3, store.count().first())
+        assertEquals(2, store.count().first())
         assertTrue(store.export(ByteArrayOutputStream()))
     }
 
@@ -706,7 +724,8 @@ class SqliteHistoryStoreTest {
             )
             db.version = 2
         }
-        val session = found("v2").session
+        assertEquals(SessionDetailResult.Missing, store.detail("v2"))
+        val session = retained("v2")
         assertEquals("es", session.requestedLanguage)
         assertEquals("rate_limited", session.attempts.single().failure)
         assertEquals("slow down", session.attempts.single().failureDetail)
@@ -736,14 +755,15 @@ class SqliteHistoryStoreTest {
             db.version = 3
         }
         assertEquals(SessionDetailResult.Missing, store.detail("tester"))
-        val menu = found("menu")
-        assertEquals(SessionRecord.SCHEMA, menu.session.schema)
-        assertEquals("ca", menu.session.attempts.single().requestedLanguage)
-        assertEquals("gemini", menu.session.attempts.single().provider)
-        assertEquals(menu.session.reuseKey, menu.session.reuseKeyOf(0))
-        assertEquals(1, menu.suggestions.size)
-        assertNull(found("auto").session.attempts.single().requestedLanguage)
-        assertEquals(2, store.count().first())
+        val menu = retained("menu")
+        assertEquals(SessionRecord.SCHEMA, menu.schema)
+        assertEquals("ca", menu.attempts.single().requestedLanguage)
+        assertEquals("gemini", menu.attempts.single().provider)
+        assertEquals(menu.reuseKey, menu.reuseKeyOf(0))
+        assertNull(retained("auto").attempts.single().requestedLanguage)
+        assertEquals(SessionDetailResult.Missing, store.detail("menu"))
+        assertEquals(SessionDetailResult.Missing, store.detail("auto"))
+        assertEquals(0, store.count().first())
         // The tester's suggestions went with it.
         raw { db ->
             db.rawQuery("SELECT COUNT(*) FROM suggestions WHERE \"sessionId\" = 'tester'", null).use {
@@ -789,8 +809,30 @@ class SqliteHistoryStoreTest {
         }
         val opened = open("s1", 5_000)
         store.save(opened)
-        assertEquals(opened, found("s1").session)
+        assertEquals(opened, retained("s1"))
+        assertEquals(SessionDetailResult.Missing, store.detail("s1"))
     }
+
+    /** Reads retained records, including hidden legacy checks, without the public History filter. */
+    private fun retainedSessions(): List<SessionRecord> = buildList {
+        raw { db ->
+            db.rawQuery(HistorySchema.ALL_SESSIONS, null).use { cursor ->
+                val row = object : Row {
+                    override fun stringOrNull(column: String): String? {
+                        val index = cursor.getColumnIndexOrThrow(column)
+                        return if (cursor.isNull(index)) null else cursor.getString(index)
+                    }
+                    override fun longOrNull(column: String): Long? {
+                        val index = cursor.getColumnIndexOrThrow(column)
+                        return if (cursor.isNull(index)) null else cursor.getLong(index)
+                    }
+                }
+                while (cursor.moveToNext()) add(sessionRecord(row))
+            }
+        }
+    }
+
+    private fun retained(id: String): SessionRecord = retainedSessions().single { it.id == id }
 
     /** Runs [block] on the database file directly, as another build would. */
     private fun raw(block: (SQLiteDatabase) -> Unit) =

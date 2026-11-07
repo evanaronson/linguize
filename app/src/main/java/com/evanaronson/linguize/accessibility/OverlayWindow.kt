@@ -13,6 +13,9 @@ import android.view.WindowManager.LayoutParams
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -40,12 +43,15 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 internal class OverlayWindow(private val context: Context, private val onBack: () -> Unit) :
     LifecycleOwner,
     SavedStateRegistryOwner,
-    ViewModelStoreOwner {
+    ViewModelStoreOwner,
+    OnBackPressedDispatcherOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedState = SavedStateRegistryController.create(this)
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry get() = savedState.savedStateRegistry
     override val viewModelStore = ViewModelStore()
+    // Compose subpages and menus consume Back before the window's dismissal fallback.
+    override val onBackPressedDispatcher = OnBackPressedDispatcher { onBack() }
 
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private val params = LayoutParams(
@@ -108,10 +114,11 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
 
     fun show(content: @Composable () -> Unit) {
         unlockedScreen.start()
-        val root = BackKeyLayout(context, onBack, ::focused).apply {
+        val root = BackKeyLayout(context, onBackPressedDispatcher::onBackPressed, ::focused).apply {
             setViewTreeLifecycleOwner(this@OverlayWindow)
             setViewTreeSavedStateRegistryOwner(this@OverlayWindow)
             setViewTreeViewModelStoreOwner(this@OverlayWindow)
+            setViewTreeOnBackPressedDispatcherOwner(this@OverlayWindow)
             addView(ComposeView(context).apply { setContent(content) })
         }
         root.visibility = if (hidden || !screenAvailable) View.INVISIBLE else View.VISIBLE
@@ -120,7 +127,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         windowManager.addView(root, params)
         this.root = root
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val callback = OnBackInvokedCallback { onBack() }
+            val callback = OnBackInvokedCallback { onBackPressedDispatcher.onBackPressed() }
             root.findOnBackInvokedDispatcher()?.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
             backCallback = callback
         }

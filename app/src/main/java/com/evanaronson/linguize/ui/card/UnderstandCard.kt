@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.ui.card
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -24,9 +26,12 @@ fun UnderstandCard(
     onOpenSettings: (() -> Unit)? = null,
     onBackToCheck: (() -> Unit)? = null,
 ) {
+    if (LocalOnBackPressedDispatcherOwner.current != null) {
+        BackHandler(enabled = onBackToCheck != null) { onBackToCheck?.invoke() }
+    }
     ResultSurface(modifier) {
         onBackToCheck?.let { back ->
-            LinguizeButton(stringResource(R.string.back_to_check), back, ButtonKind.Text)
+            PageHeader(stringResource(R.string.understand_copied_text), back)
         }
         when (state) {
             UnderstandState.ReadingClipboard -> Loading("", stringResource(R.string.reading_copied_text))

@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -14,9 +13,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
@@ -31,6 +33,11 @@ import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Understood
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.ui.understand.UnderstandState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
@@ -50,11 +57,26 @@ class CardNavigationTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java)
         .setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
-    private val root get() = activity.window.decorView
+    // Own the clock and recomposer: Robolectric can replace Choreographer between tests,
+    // while Compose's default Android dispatcher still holds the previous instance.
+    private val frames = BroadcastFrameClock()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + frames)
+    private val recomposer = Recomposer(scope.coroutineContext)
+    private val root = ComposeView(activity)
+    private var frameTime = 0L
     private val actions = CardActions(onCopy = { _, _ -> }, review = null, onRetry = {},
         onOpenSettings = null, onSettle = { _, _ -> })
 
+    init {
+        scope.launch { recomposer.runRecomposeAndApplyChanges() }
+        root.setParentCompositionContext(recomposer)
+        activity.setContentView(root)
+    }
+
     @After fun tearDown() {
+        root.disposeComposition()
+        recomposer.cancel()
+        scope.cancel()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -62,7 +84,7 @@ class CardNavigationTest {
     @Test fun clipboardFooterRemainsAvailableAcrossEveryCheckOutcomeAndMeaning() {
         val state = mutableStateOf<CardState>(CardState.Loading("Bon dia"))
         var opened = 0
-        activity.setContent {
+        root.setContent {
             MaterialTheme {
                 ResultCard(state.value, actions, onUnderstandCopiedText = { opened++ })
             }
@@ -72,7 +94,7 @@ class CardNavigationTest {
             CardState.Failed(CheckFailure.Reason.Offline, null),
             CardState.Done(CheckResult.Unclear, sourceText = "Bon dia"),
             CardState.Done(CheckResult.WrongLanguage("Spanish", "Catalan")),
-            CardState.Done(reviewed()),
+            CardState.Done(reviewed(lines = 1)),
         )
         states.forEach { next ->
             state.value = next
@@ -89,7 +111,7 @@ class CardNavigationTest {
         val state = mutableStateOf<UnderstandState>(UnderstandState.ReadingClipboard)
         val retained = mutableStateOf(false)
         var returned = 0
-        activity.setContent {
+        root.setContent {
             MaterialTheme {
                 UnderstandCard(state.value, onRetry = {},
                     onBackToCheck = if (retained.value) ({ returned++ }) else null)
@@ -122,8 +144,8 @@ class CardNavigationTest {
         activity.onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { hostBack++ }
         })
-        activity.setContent {
-            MaterialTheme { ResultCard(CardState.Done(reviewed()), actions) }
+        root.setContent {
+            MaterialTheme { ResultCard(CardState.Done(reviewed(lines = 1)), actions) }
         }
         settle()
         clickText(R.string.meaning)
@@ -144,7 +166,7 @@ class CardNavigationTest {
         activity.onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { closed++ }
         })
-        activity.setContent {
+        root.setContent {
             MaterialTheme {
                 UnderstandCard(UnderstandState.Message(false), onRetry = {},
                     onBackToCheck = if (retained.value) ({ returned++ }) else null)
@@ -167,7 +189,7 @@ class CardNavigationTest {
         var applied = 0
         val review = ReviewActions(onAccept = {}, onAcceptAll = {},
             onUndo = { revision.value = revision.value?.undo() }, onApply = { applied++ })
-        activity.setContent {
+        root.setContent {
             MaterialTheme {
                 ResultCard(CardState.Done(result.value, retainedRevision = revision.value),
                     CardActions(onCopy = { _, _ -> }, review = review, onRetry = {},
@@ -195,7 +217,7 @@ class CardNavigationTest {
 
     private fun verifyNavigation(parentScrolls: Boolean) {
         val result = reviewed()
-        activity.setContent {
+        root.setContent {
             MaterialTheme {
                 if (parentScrolls) {
                     Column(Modifier.width(320.dp).height(320.dp).verticalScroll(rememberScrollState())) {
@@ -227,11 +249,11 @@ class CardNavigationTest {
         if (!parentScrolls) assertEquals(0f, scrollOffset(), 1f)
     }
 
-    private fun reviewed(): CheckResult.Reviewed {
-        val text = "Bon dia.\n".repeat(50)
+    private fun reviewed(lines: Int = 50): CheckResult.Reviewed {
+        val text = "Bon dia.\n".repeat(lines)
         return CheckResult.Reviewed(
             Revision(text, listOf(Edit(0, EditKind.Fix, 0, 3, "Bon", "Bona", null))),
-            listOf(EditKind.Fix), meaning = "The writer greets everyone.\n".repeat(50),
+            listOf(EditKind.Fix), meaning = "The writer greets everyone.\n".repeat(lines),
         )
     }
 
@@ -267,12 +289,22 @@ class CardNavigationTest {
             node.children.any { containsText(it, text) }
 
     private fun settle() {
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-        root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, 1080, 1920)
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
+        // Layout belongs to each frame: a newly placed page wakes its scroll effect, and
+        // the resulting scroll needs another layout before visibility can be asserted.
+        // Loading has an infinite progress animation, so drive a finite two seconds of
+        // frames rather than waiting for all animation awaiters to disappear.
+        repeat(120) {
+            Snapshot.sendApplyNotifications()
+            shadowOf(Looper.getMainLooper()).idle()
+            frameTime += 16_666_667L
+            frames.sendFrame(frameTime)
+            Snapshot.sendApplyNotifications()
+            shadowOf(Looper.getMainLooper()).idle()
+            root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
+            root.layout(0, 0, 1080, 1920)
+            shadowOf(Looper.getMainLooper()).idle()
+        }
     }
 
     private fun ownerView(view: View): View? {

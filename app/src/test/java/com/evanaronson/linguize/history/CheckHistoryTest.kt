@@ -4,6 +4,7 @@ import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.VerdictChange
 import com.evanaronson.linguize.core.interpret
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -41,6 +42,7 @@ class CheckHistoryTest {
         corrected = "Com estàs amb la pluja?",
         moreNatural = true,
         natural = "Com portes la pluja?",
+        naturalChanges = listOf(VerdictChange("estàs amb", "portes")),
     )
     private val result = interpret(rain, verdict) as CheckResult.Reviewed
 

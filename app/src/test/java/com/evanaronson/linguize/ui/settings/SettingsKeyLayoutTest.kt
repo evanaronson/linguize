@@ -98,9 +98,17 @@ class SettingsKeyLayoutTest {
                 val layouts = mutableListOf<TextLayoutResult>()
                 assertTrue(action.config[SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts))
                 val layout = layouts.single()
-                assertTrue("$label keeps positive text width", layout.size.width > 0)
-                assertFalse("$label does not overflow horizontally", layout.didOverflowWidth)
-                assertTrue("$label text fits its button", layout.size.width <= bounds.width + 0.5f)
+                val lines = (0 until layout.lineCount).map { layout.getLineLeft(it) to layout.getLineRight(it) }
+                val geometry = "button=$bounds, card=${card.boundsInRoot}, text=${layout.size}, " +
+                    "paragraphWidth=${layout.multiParagraph.width}, constraints=${layout.layoutInput.constraints}, lines=$lines"
+                assertTrue("$label keeps positive text width: $geometry", layout.size.width > 0)
+                // String Text's semantics rebuilds a paragraph at the parent's maximum
+                // width while retaining the text's natural measured size. Compare visible
+                // line extents, not didOverflowWidth's synthetic paragraph-container width.
+                assertTrue("$label does not overflow horizontally: $geometry",
+                    lines.isNotEmpty() && lines.all { (left, right) -> left >= 0f && right <= layout.size.width })
+                assertEquals("$label is fully laid out: $geometry", label.length, layout.getLineEnd(layout.lineCount - 1))
+                assertTrue("$label text fits its button: $geometry", layout.size.width <= bounds.width + 0.5f)
             }
         }
         actions.forEachIndexed { index, action ->

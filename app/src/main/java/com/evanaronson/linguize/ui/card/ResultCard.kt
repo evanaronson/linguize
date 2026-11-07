@@ -28,7 +28,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +39,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -218,26 +217,28 @@ internal fun ResultSurface(
     ) {
         val scroll = rememberScrollState()
         val top = remember { BringIntoViewRequester() }
-        val placed = remember(navigationKey) { CompletableDeferred<Unit>() }
+        val placed = remember(navigationKey) { CompletableDeferred<IntSize>() }
         var revealedKey by remember { mutableStateOf(navigationKey) }
-        val headerHeight = with(LocalDensity.current) { 66.dp.toPx() }
         LaunchedEffect(navigationKey) {
             if (revealedKey != navigationKey) {
                 revealedKey = navigationKey
-                // Wait for the new anchor's placement, not an animation duration or arbitrary delay.
-                placed.await()
+                // Wait for actual content placement before resolving its position in parent scrolls.
+                val size = placed.await()
                 scroll.scrollTo(0)
-                top.bringIntoView(Rect(0f, 0f, 1f, headerHeight))
+                // Navigation starts below the card's top. Reveal that top edge without asking
+                // the parent to fit the entire (potentially taller than the viewport) page.
+                top.bringIntoView(Rect(0f, 0f, size.width.toFloat(), 0f))
             }
         }
         Box {
             Column(Modifier.then(if (scrollable) Modifier.verticalScroll(scroll) else Modifier)) {
-                key(navigationKey) {
-                    Spacer(Modifier.fillMaxWidth().height(0.dp).bringIntoViewRequester(top)
-                        .onGloballyPositioned { placed.complete(Unit) })
-                }
                 Column(
-                    Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = if (footer != null) 14.dp else 18.dp),
+                    Modifier
+                        // Relocation must start from a nonempty layout: Compose maps empty
+                        // layout bounds to Rect.Zero, losing the offset into parent scrolls.
+                        .bringIntoViewRequester(top)
+                        .onGloballyPositioned { placed.complete(it.size) }
+                        .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = if (footer != null) 14.dp else 18.dp),
                     content = content,
                 )
                 footer?.invoke()

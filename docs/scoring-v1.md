@@ -5,6 +5,10 @@ ratings 0..3. They are ordinal, not probabilities or a combined ranking. Confide
 is support for the exact adjustment; impact is benefit assuming it is justified.
 Rewording impact excludes the benefit of fixes it already includes. The production
 prompt defines anchors, meaning-preservation checks and register/variety guidance.
+The current `confidence-impact-v2` rubric distinguishes minor polish from noticeable
+fluency or register improvement. It retains the 0–3 scale and confidence anchors;
+stored v1 ratings keep their original version. The prompt hash identifies the exact
+instructions and schema used for each attempt.
 
 Ratings and temporary labels appear only when a suggestion explanation is opened.
 No score filters, reordering, automatic acceptance or clipboard/write-back changes
@@ -38,9 +42,9 @@ without modifying their original evidence.
 
 The card shows scores without words: under each change's reason, Impact then
 Confidence as three bars each (screen readers hear the labels). Under a hairline
-the explanation names the reading the change rests on ("Assumes …"), which opens
+the explanation names the reading the change rests on ("Assumed you meant: …"), which opens
 the alternatives in place; Clarify settles one and checks again, and an answered
-reading reads "You said …". Meaning, the card's footer row, lists every assumption
+reading reads "You clarified: …". Meaning, the card's footer row, lists every assumption
 the same way. Read-only History shows the readings without the clarify controls,
 and supplied answers are not counted as unresolved. The
 prompt surfaces plausible meaning alternatives affecting a suggestion rather than
@@ -57,11 +61,17 @@ them. Split, grouped unrelated, and inferred repairs do not inherit dependencies
 No confidence cutoff creates a question or link.
 
 Opening a suggestion shows its linked unresolved assumptions inline, using the
-same AssumptionItem and settling callback as Meaning. Clarify offers the current
+same ClarifyBlock and settling callback as Meaning. Clarify offers the current
 reading plus distinct alternatives, so a writer can confirm or correct it. The
 whole original text is checked again; answers belong to the check, not an inline
 copy of the assumption. Duplicate question labels are not offered inline because
 the existing settling action identifies a question by its label.
+
+On Meaning, both a general clarification and an answered assumption use the same
+Your clarification row, prefilled editor, and Remove clarification action. An
+assumption keeps its topic, even when a later reply omits the resolved question.
+History shows these answers without editing controls. Scope and authorship remain
+distinct in the existing data model; no duplicate clarification state is needed.
 
 History stores the exact response already, so no new link table or database
 migration is needed. Replay reads dependencies only from that attempt and only

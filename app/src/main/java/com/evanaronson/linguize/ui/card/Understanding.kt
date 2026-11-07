@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -119,7 +119,6 @@ internal fun MeaningSection(
 ) {
     val clarification = settled.firstOrNull { it.isMeaning }
     if (meaning.isBlank() && clarification == null && onClarify == null) return
-    var changing by rememberSaveable(meaning, clarification?.answer) { mutableStateOf(false) }
     if (meaning.isNotBlank()) {
         Text(
             stringResource(R.string.meaning_subtitle),
@@ -128,15 +127,37 @@ internal fun MeaningSection(
         )
         Spacer(Modifier.height(8.dp))
         TextBlock(meaning)
+        if (clarification != null || onClarify != null) Spacer(Modifier.height(8.dp))
     }
+    key(meaning) {
+        Clarification(clarification, onClarify, onRemoveClarification, linkText, editorTitle, submitKind)
+    }
+}
+
+/** One entry, saved row, and editor for a clarification of either scope. */
+@Composable
+private fun Clarification(
+    clarification: Settled?,
+    onClarify: ((String) -> Unit)?,
+    onRemove: (() -> Unit)?,
+    linkText: String = stringResource(R.string.not_what_you_mean),
+    editorTitle: String? = null,
+    submitKind: ButtonKind = ButtonKind.Filled,
+) {
+    var changing by rememberSaveable(clarification) { mutableStateOf(false) }
+    val about = clarification?.takeUnless { it.isMeaning }?.about
+    val clarify = about?.let { stringResource(R.string.clarify_about, it) }
+        ?: stringResource(R.string.clarify_meaning)
     if (onClarify != null && changing) {
         if (editorTitle != null) {
             Text(editorTitle, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(8.dp))
         ClarifyBlock(
             choices = emptyList(),
             initialAnswer = clarification?.answer.orEmpty(),
+            large = about == null,
+            about = about,
             submitKind = submitKind,
             onSubmit = { answer ->
                 changing = false
@@ -144,26 +165,24 @@ internal fun MeaningSection(
             },
             onCancel = { changing = false },
         )
-        return
-    }
-    if (clarification != null) {
-        if (meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
+    } else if (clarification != null) {
         ListRow(
             stringResource(R.string.your_clarification), clarification.answer,
             onClick = onClarify?.let { { changing = true } },
-            onClickLabel = stringResource(R.string.clarify_meaning),
+            onClickLabel = clarify,
             trailing = if (onClarify != null) ({ Chevron() }) else null,
         )
-        if (onRemoveClarification != null) {
+        if (onRemove != null) {
+            val remove = about?.let { stringResource(R.string.remove_clarification_about, it) }
+                ?: stringResource(R.string.remove_clarification)
             LinguizeButton(
-                onClick = onRemoveClarification, kind = ButtonKind.Destructive,
+                onClick = onRemove, kind = ButtonKind.Destructive,
                 contentPadding = PaddingValues(vertical = 8.dp),
+                modifier = Modifier.semantics { contentDescription = remove },
             ) { Text(stringResource(R.string.remove_clarification)) }
         }
     } else if (onClarify != null) {
-        if (meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
-        ClarifyLink(linkText, onClick = { changing = true },
-            onClickLabel = stringResource(R.string.clarify_meaning))
+        ClarifyLink(linkText, onClick = { changing = true }, onClickLabel = clarify)
     }
 }
 
@@ -195,38 +214,41 @@ internal fun AssumptionList(
     onRemoveChoice: ((String) -> Unit)?,
 ) {
     Column {
-        settled.forEach { answer -> AnsweredInset(answer, onRemoveChoice) }
+        settled.forEach { answer ->
+            // A recheck may omit an answered assumption. Its saved answer remains editable,
+            // but duplicate labels must never turn one edit into answers to two questions.
+            val canEdit = assumptions.count { it.about == answer.about } <= 1 &&
+                settled.count { it.answers(answer.about) } == 1
+            AnsweredInset(answer, onSettle.takeIf { canEdit }, onRemoveChoice)
+        }
         open.forEach { assumption ->
             AssumptionInset(assumption, onSettle.takeIf { hasUniqueLabel(assumption, assumptions) })
         }
     }
 }
 
-/** A reading the writer chose, removable while the check is live. */
+/** The writer's clarification keeps its topic and is editable while the check is live. */
 @Composable
-private fun AnsweredInset(answer: Settled, onRemoveChoice: ((String) -> Unit)?) {
-    Row(
+private fun AnsweredInset(
+    answer: Settled,
+    onSettle: ((String, String) -> Unit)?,
+    onRemoveChoice: ((String) -> Unit)?,
+) {
+    Column(
         Modifier
             .fillMaxWidth()
             .padding(top = 4.dp)
             .clip(InsetShape)
             .background(Linguize.colors.panel)
             .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(Modifier.weight(1f)) { Reading(answer.about, answer.answer) }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(stringResource(R.string.your_choice), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (onRemoveChoice != null) {
-                val remove = stringResource(R.string.remove_choice_about, answer.about)
-                LinguizeButton(
-                    stringResource(R.string.remove_choice), { onRemoveChoice(answer.about) }, ButtonKind.Destructive,
-                    modifier = Modifier.semantics { contentDescription = remove },
-                )
-            }
-        }
+        Text(answer.about, style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Clarification(
+            answer,
+            onClarify = onSettle?.let { settle -> { text -> settle(answer.about, text) } },
+            onRemove = onRemoveChoice?.let { remove -> { remove(answer.about) } },
+        )
     }
 }
 

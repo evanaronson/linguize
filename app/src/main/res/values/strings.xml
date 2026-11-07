@@ -6,7 +6,7 @@
     <string name="menu_auto" translatable="false">Linguize</string>
     <string name="menu_catalan" translatable="false">Catalanize</string>
     <string name="menu_castilian" translatable="false">Castilianize</string>
-    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
+    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 
 
     <!-- Presentation text. Protocol values and model prompts are not translated. -->
@@ -35,8 +35,11 @@
     <string name="looks_good">Looks good</string>
     <string name="nothing_to_fix">Nothing to fix</string>
     <string name="sounds_natural">Sounds natural</string>
-    <string name="fixes_withheld">Some fixes could not be offered</string>
-    <string name="rewordings_withheld">Some rewordings could not be offered</string>
+    <string name="fixes_withheld">Some fixes are unavailable</string>
+    <string name="rewordings_withheld">Some rewordings are unavailable</string>
+    <string name="changes_withheld">Some suggestions are unavailable</string>
+    <string name="withheld_detail">Linguize couldn\'t prepare all the suggestions. Check again for a new result.</string>
+    <string name="check_again">Check again</string>
     <string name="no_changes">No changes offered</string>
     <string name="copy_with_fixes">Copy with fixes</string>
     <string name="copy_with_rewordings">Copy with rewordings</string>
@@ -44,12 +47,10 @@
     <string name="original_text">Original text</string>
     <string name="assumptions">Assumptions</string>
     <string name="assumptions_description">The suggestions rely on this reading. If it isn\'t what you meant, clarify it and Linguize checks again.</string>
-    <string name="your_choice">Your choice</string>
-    <string name="remove_choice">Remove choice</string>
-    <string name="remove_choice_about">Remove choice: %1$s</string>
+    <string name="remove_clarification_about">Remove clarification: %1$s</string>
     <string name="what_did_you_mean">What did you mean?</string>
-    <string name="show_understanding">Show how the AI read it</string>
-    <string name="ai_could_not_understand">The AI couldn\'t tell what this means</string>
+    <string name="show_understanding">Show how Linguize read it</string>
+    <string name="ai_could_not_understand">Linguize couldn\'t tell what this means</string>
     <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
     <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
     <string name="check_your_text">Check your text</string>
@@ -149,10 +150,10 @@
     <string name="failure_bad_key">API key rejected</string>
     <string name="failure_bad_model">Model not available</string>
     <string name="failure_offline">No connection</string>
-    <string name="failure_timeout">The AI took too long</string>
-    <string name="failure_rate_limited">AI usage limit reached</string>
-    <string name="failure_server">AI service unavailable</string>
-    <string name="failure_bad_response">Unusable reply from the AI</string>
+    <string name="failure_timeout">The response took too long</string>
+    <string name="failure_rate_limited">Usage limit reached</string>
+    <string name="failure_server">Service unavailable</string>
+    <string name="failure_bad_response">No usable result</string>
     <string name="failure_too_long">Text too long</string>
     <string name="failure_too_many">Too many checks in a minute</string>
     <string name="hint_no_key">Add one in settings</string>
@@ -169,10 +170,10 @@
     <string name="not_what_you_mean">Not what you mean</string>
     <string name="say_what_you_meant">Say what you meant</string>
     <string name="assumptions_description_past">The suggestions relied on this reading of your text.</string>
-    <!-- Under a change's explanation, before the reading it rests on, e.g. "Assumes the meeting is tomorrow". -->
-    <string name="assumes">Assumes %1$s</string>
-    <!-- Under a change's explanation, the writer's own answer, e.g. "You said the meeting is tomorrow". -->
-    <string name="you_said">You said %1$s</string>
+    <!-- UI framing before a standalone reading; preserve the reading's capitalization and tense. -->
+    <string name="assumes">Assumed you meant: %1$s</string>
+    <!-- UI framing before the writer's answer, preserved verbatim. -->
+    <string name="you_said">You clarified: %1$s</string>
     <string name="clarify_placeholder">Say it in your own words</string>
     <string name="all_accepted">All changes accepted</string>
     <string name="looks_good_both">Nothing to fix, sounds natural</string>
@@ -251,12 +252,12 @@
     </plurals>
     <string name="message_input_too_long">Linguize checks up to %1$,d characters at a time.</string>
     <string name="message_invalid_key">The saved key contains invalid characters. Paste the key again in settings.</string>
-    <string name="message_empty_reply">The AI returned an empty reply.</string>
-    <string name="message_reply_too_large">The AI returned too much text. Try a shorter selection.</string>
-    <string name="message_invalid_reply">The AI\'s reply could not be read. Try again.</string>
-    <string name="message_truncated_reply">The AI\'s reply was cut off. Try again.</string>
-    <string name="message_incomplete_reply">The AI did not finish its reply. Try again.</string>
-    <string name="message_declined">The AI declined to check this text.</string>
+    <string name="message_empty_reply">The result was empty. Try again.</string>
+    <string name="message_reply_too_large">The result was too long to use. Try a shorter selection.</string>
+    <string name="message_invalid_reply">The result couldn\'t be used. Try again.</string>
+    <string name="message_truncated_reply">The result was cut off. Try again.</string>
+    <string name="message_incomplete_reply">The result was incomplete. Try again.</string>
+    <string name="message_declined">Linguize couldn\'t help with this text.</string>
     <string name="popup">Popup</string>
     <string name="popup_position">Position</string>
     <string name="popup_position_bottom">Bottom</string>

@@ -60,6 +60,20 @@ class SessionAssumptionsScreenTest {
     }
 
     @Test
+    fun savedClarificationsKeepTheirTopicAndRemainReadOnly() = withScreen {
+        load(SessionDetailResult.Found(detail))
+
+        assertTrue(hasText("Person"))
+        assertTrue(hasText("Catalan speakers"))
+        assertTrue(hasText(activity.getString(R.string.your_clarification)))
+        assertFalse(hasText(activity.getString(R.string.remove_clarification)))
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.SetText) != null })
+        assertFalse(nodes().any {
+            it.config.getOrNull(SemanticsActions.OnClick)?.label == activity.getString(R.string.clarify_about, "Person")
+        })
+    }
+
+    @Test
     fun loadingAndFailedRefreshRemainVisibleAndRetryRestoresSavedReadings() = withScreen {
         assertTrue(nodes().any {
             it.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(activity.getString(R.string.loading_history)) == true

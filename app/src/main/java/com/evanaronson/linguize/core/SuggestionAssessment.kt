@@ -3,7 +3,7 @@ package com.evanaronson.linguize.core
 import kotlinx.serialization.Serializable
 
 /** Version of the anchored, ordinal 0–3 rubric; not a probability or a filter threshold. */
-const val SCORING_RUBRIC_VERSION = "confidence-impact-v1"
+const val SCORING_RUBRIC_VERSION = "confidence-impact-v2"
 
 /** Assessment of this exact linguistic decision. Missing assessments are null, never zero. */
 @Serializable

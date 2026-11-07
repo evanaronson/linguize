@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.card
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,34 +35,17 @@ import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ClarifyLink
+import com.evanaronson.linguize.ui.components.Chevron
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.InsetShape
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.TextBlock
+import com.evanaronson.linguize.ui.theme.Linguize
 
-/** Presentation keeps historical assumptions readable without promising a re-check. */
-internal data class UnderstandingEntryState(val visible: Boolean, val unresolved: Int, val canClarify: Boolean)
-
-internal fun understandingEntry(
-    meaning: String,
-    assumptions: List<Assumption>,
-    settled: List<Settled>,
-    readOnly: Boolean,
-): UnderstandingEntryState {
-    val unresolved = assumptions.count { a ->
-        hasUniqueLabel(a, assumptions) && settled.none { it.answers(a.about) }
-    }
-    return UnderstandingEntryState(
-        visible = !readOnly || meaning.isNotBlank() || assumptions.isNotEmpty() || settled.isNotEmpty(),
-        unresolved = unresolved,
-        canClarify = !readOnly,
-    )
-}
-
-/** The way into Meaning: the card's last row, edge to edge. */
+/** The way into Meaning: an edge-to-edge footer row. */
 @Composable
-internal fun UnderstandingEntry(entry: UnderstandingEntryState, onOpen: () -> Unit) {
-    if (!entry.visible) return
+internal fun UnderstandingEntry(onOpen: () -> Unit) {
     FooterRow(
         stringResource(R.string.meaning),
         stringResource(R.string.meaning_subtitle),
@@ -119,8 +103,8 @@ internal fun PageHeader(title: String, onBack: () -> Unit) {
 
 /**
  * Shared by Meaning and an unclear result, so either can take the writer's intent: the
- * reading, then "Not what you mean ›" (or [linkText]) opening the [ClarifyBlock] for the
- * whole message, and the clarification once given.
+ * reading, then [linkText] before a clarification exists. The saved clarification itself
+ * opens the same prefilled [ClarifyBlock] when it can still be edited.
  */
 @Composable
 internal fun MeaningSection(
@@ -131,6 +115,7 @@ internal fun MeaningSection(
     linkText: String = stringResource(R.string.not_what_you_mean),
     /** An unclear result titles the editor, since there is no meaning above it. */
     editorTitle: String? = null,
+    submitKind: ButtonKind = ButtonKind.Filled,
 ) {
     val clarification = settled.firstOrNull { it.isMeaning }
     if (meaning.isBlank() && clarification == null && onClarify == null) return
@@ -152,6 +137,7 @@ internal fun MeaningSection(
         ClarifyBlock(
             choices = emptyList(),
             initialAnswer = clarification?.answer.orEmpty(),
+            submitKind = submitKind,
             onSubmit = { answer ->
                 changing = false
                 onClarify(answer)
@@ -160,18 +146,24 @@ internal fun MeaningSection(
         )
         return
     }
-    if (onClarify != null) {
-        if (meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
-        val label = stringResource(R.string.clarify_meaning)
-        ClarifyLink(linkText, onClick = { changing = true },
-            modifier = Modifier.semantics { contentDescription = label })
-    }
     if (clarification != null) {
-        Spacer(Modifier.height(12.dp))
-        Reading(stringResource(R.string.your_clarification), clarification.answer)
+        if (meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
+        ListRow(
+            stringResource(R.string.your_clarification), clarification.answer,
+            onClick = onClarify?.let { { changing = true } },
+            onClickLabel = stringResource(R.string.clarify_meaning),
+            trailing = if (onClarify != null) ({ Chevron() }) else null,
+        )
         if (onRemoveClarification != null) {
-            LinguizeButton(stringResource(R.string.remove_clarification), onRemoveClarification, ButtonKind.Text)
+            LinguizeButton(
+                onClick = onRemoveClarification, kind = ButtonKind.Destructive,
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) { Text(stringResource(R.string.remove_clarification)) }
         }
+    } else if (onClarify != null) {
+        if (meaning.isNotBlank()) Spacer(Modifier.height(8.dp))
+        ClarifyLink(linkText, onClick = { changing = true },
+            onClickLabel = stringResource(R.string.clarify_meaning))
     }
 }
 
@@ -218,7 +210,7 @@ private fun AnsweredInset(answer: Settled, onRemoveChoice: ((String) -> Unit)?) 
             .fillMaxWidth()
             .padding(top = 4.dp)
             .clip(InsetShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .background(Linguize.colors.panel)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,7 +222,7 @@ private fun AnsweredInset(answer: Settled, onRemoveChoice: ((String) -> Unit)?) 
             if (onRemoveChoice != null) {
                 val remove = stringResource(R.string.remove_choice_about, answer.about)
                 LinguizeButton(
-                    stringResource(R.string.remove_choice), { onRemoveChoice(answer.about) }, ButtonKind.Text,
+                    stringResource(R.string.remove_choice), { onRemoveChoice(answer.about) }, ButtonKind.Destructive,
                     modifier = Modifier.semantics { contentDescription = remove },
                 )
             }

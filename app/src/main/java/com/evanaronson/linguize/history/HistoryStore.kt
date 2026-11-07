@@ -23,6 +23,9 @@ interface HistoryStore {
      */
     fun registerSession(id: String) = Unit
 
+    /** Releases an in-memory reservation after discard or completion of the final queued write, without I/O. */
+    fun releaseSession(id: String) = Unit
+
     /** Adds a session as it opens, or updates it while it's open. Never changes a closed session. */
     suspend fun save(session: SessionRecord)
 
@@ -35,22 +38,22 @@ interface HistoryStore {
      */
     suspend fun markAbandoned(now: Long)
 
-    /** The number of sessions Recent can show: closed and not deleted. */
+    /** The number of visible sessions: closed, not deleted, and applied with changed final text. */
     fun count(): Flow<Int>
 
     /** The date of the oldest session [count] counts, or null when there are none. */
     fun since(): Flow<Long?>
 
-    /** Newest first, closed sessions only, not counting deleted ones. */
+    /** Visible applied changes, newest first, using the same eligibility as [count]. */
     fun recent(limit: Int): Flow<List<SessionSummary>>
 
     /** Emits immediately and after writes, so a loaded history window can stay current. */
     fun revisions(): Flow<Long>
 
-    /** Older than [before], in timestamp/id order. Null means a read failed and can be retried. */
+    /** Visible applied changes older than [before], in timestamp/id order. Null means a retryable read failure. */
     suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage?
 
-    /** Distinguishes an absent session from a failed read, which callers can retry. */
+    /** Hidden or absent sessions are Missing; a failed read can be retried. */
     suspend fun detail(id: String): SessionDetailResult
 
     /**
@@ -67,7 +70,7 @@ interface HistoryStore {
     suspend fun clear()
 
     /**
-     * Writes every kept session with its suggestions as JSON Lines, one session per line in
+     * Writes every visible applied change with its suggestions as JSON Lines, one session per line in
      * [SessionDetail]'s shape, written from the rows as they are stored. Returns false when
      * it couldn't (the database or [out] failed); what was written to [out] by then is
      * incomplete and shouldn't be shared.
@@ -75,7 +78,7 @@ interface HistoryStore {
     suspend fun export(out: OutputStream): Boolean
 }
 
-/** The outcome of reading one saved check; a failure does not establish that it was deleted. */
+/** The outcome of reading one visible check; Missing also covers retained, hidden legacy records. */
 sealed interface SessionDetailResult {
     data class Found(val detail: SessionDetail) : SessionDetailResult
     data object Missing : SessionDetailResult

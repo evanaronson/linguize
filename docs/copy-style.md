@@ -52,7 +52,7 @@ One word per idea, everywhere.
 
 **Counts.** Number first, singular and plural: "1 fix", "2 fixes". The same noun in headers, status lines and History.
 
-**True in every state.** A label must be true in every state it can show in, including loading, off, empty and failed. If one line can't be true in all of them, write one line per state. Before "Done", changes are *accepted*, not put back.
+**True in every state.** A label must be true in every state it can show in, including loading, off, empty and failed. If one line can't be true in all of them, write one line per state. Before "Apply", changes are *accepted*, not put back.
 
 **No blame.** When the AI fails, say the AI failed: "The AI couldn't tell what this means", not "Can't tell what this means". "No text to check", not "Type something first".
 
@@ -72,11 +72,11 @@ One word per idea, everywhere.
 | Before | After | Why |
 |---|---|---|
 | Can't tell what this means | The AI couldn't tell what this means / Check a full sentence in Catalan or Spanish | Blamed the text. Gave no next step. |
-| 2 changes applied | 2 changes accepted | Nothing is put back until Done. |
+| 2 changes applied | 2 changes accepted | Nothing is put back until Apply. |
 | 1 way to sound more natural | 1 rewording | Same name as in Settings and History. |
 | Add an API key | No API key / Add one in settings | A title is a state, and History shows it too. |
 | Rate limited / Try again in a moment | AI usage limit reached / Wait a minute, then retry | Jargon, and too close to "Too many checks". |
-| Checks you make will show up here. | Checks from other apps will appear here. | Try it checks are never saved. |
+| Checks you make will show up here. | Changes you apply in other apps will appear here. | Analysis and Copy alone are not saved; Try it remains excluded. |
 | 3 fixes, 1 rewording, 2 taken | 3 fixes, 1 rewording, 2 accepted | One verb for accepting. |
 | Sent | Put back in the app | "Sent" reads as "message sent". |
 | Kept on this phone only, so Linguize can later show you the mistakes you tend to make. | Your text and the suggestions are saved on this phone only. | Promised a feature that doesn't exist. |
@@ -84,4 +84,6 @@ One word per idea, everywhere.
 
 ## Visual language
 
-Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. Italic text with a chevron is a reading you can clarify ("Not what you mean ›", "Assumes the meeting is tomorrow ›"). Plain muted text is information. The one colour marks things; it is never used for body text, errors in lists or Delete, which stay ink.
+Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. A full-width row with a chevron opens clarification ("Not what you mean ›", "Assumes the meeting is tomorrow ›"). Interactive readings use the same upright label treatment as other drill-down rows; italic readings without a chevron are read-only. Plain muted text is information. Proofmark red also identifies destructive actions: the swipe-to-delete background and every Delete or Remove action, including confirmation buttons. The swipe background uses the theme's contrasting foreground.
+
+A checkmark with text identifies a completed review: "Sounds natural" or "All changes accepted". Accepted changes are still waiting for Apply; the checkmark does not imply they were put back in the source app. Clarification updates the result directly without a separate confirmation banner.

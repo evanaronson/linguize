@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.text.AnnotatedString
 import com.evanaronson.linguize.Checker
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
@@ -180,6 +181,65 @@ class MeaningClarificationTest {
                 assertTrue(fields().isEmpty())
     }
 
+    @Test fun suggestionAssumptionsAndWriterAnswersKeepTheirOriginalCapitalization() {
+        val readings = listOf("Maria is arriving.", "Polish is spoken.")
+        activity.setContent {
+            MaterialTheme {
+                ExplanationPanel(
+                    from = "", to = "", description = null, why = null, assessment = null,
+                    assumptions = readings.mapIndexed { index, reading -> Assumption("Question $index", reading) },
+                    answers = readings,
+                    accent = MaterialTheme.colorScheme.primary,
+                    onSettle = { _, _ -> },
+                )
+            }
+        }
+        settle()
+
+        readings.forEach { reading ->
+            assertTrue(hasText(activity.getString(R.string.assumes, reading)))
+            assertTrue(hasText(activity.getString(R.string.you_said, reading)))
+        }
+    }
+
+    @Test fun savedClarificationItselfOpensTheEditorAndRemovalRestoresTheInitialLink() {
+        val original = "I meant several friends."
+        val settled = mutableStateOf(listOf(Settled.meaning(original)))
+        val answers = mutableListOf<String>()
+        activity.setContent {
+            MaterialTheme {
+                Column {
+                    MeaningSection("", settled.value,
+                        onClarify = { answers += it },
+                        onRemoveClarification = { settled.value = emptyList() },
+                        linkText = activity.getString(R.string.say_what_you_meant))
+                }
+            }
+        }
+        settle()
+        assertFalse(hasText(activity.getString(R.string.say_what_you_meant)))
+        assertFalse(hasText(activity.getString(R.string.not_what_you_mean)))
+        val edit = button(activity.getString(R.string.your_clarification))
+        assertTrue("The answer and its label are one edit target", containsText(edit, original))
+        val remove = button(activity.getString(R.string.remove_clarification))
+        assertEquals("Removal shares the clarification's left edge", edit.boundsInRoot.left,
+            remove.boundsInRoot.left, 1f)
+
+        clickText(activity.getString(R.string.your_clarification))
+        assertEquals(original, fieldText())
+        type("An unsaved change")
+        clickText("Cancel")
+        assertTrue(answers.isEmpty())
+        assertTrue(hasText(original))
+        assertTrue(fields().isEmpty())
+        clickText(activity.getString(R.string.your_clarification))
+        assertEquals("Cancel keeps the saved answer", original, fieldText())
+        clickText("Cancel")
+        clickText(activity.getString(R.string.remove_clarification))
+        assertFalse(hasText(original))
+        assertTrue(hasText(activity.getString(R.string.say_what_you_meant)))
+    }
+
     @Test fun unclearResultCanReviseItsSavedMeaningButWrongLanguageDoesNotOfferTheFlow() {
         val answers = mutableListOf<String>()
         val state = mutableStateOf<CardState>(CardState.Done(
@@ -213,7 +273,8 @@ class MeaningClarificationTest {
     private fun clickDescription(description: String) {
         val node = nodes().first { node ->
             node.config.getOrNull(SemanticsActions.OnClick) != null &&
-                node.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(description) == true
+                (node.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(description) == true ||
+                    node.config.getOrNull(SemanticsActions.OnClick)?.label == description)
         }
         assertTrue(node.config[SemanticsActions.OnClick].action!!.invoke())
         settle()

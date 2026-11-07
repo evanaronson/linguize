@@ -74,7 +74,8 @@ fun SectionHeader(title: String, action: (@Composable () -> Unit)? = null) {
     }
 }
 
-val SectionCardShape = RoundedCornerShape(24.dp)
+private val SectionCardRadius = 24.dp
+val SectionCardShape = RoundedCornerShape(SectionCardRadius)
 
 /** A group's card. [content] is padded 20dp at the sides, as rows expect. */
 @Composable
@@ -168,7 +169,7 @@ fun SwitchRow(title: String, summary: String?, checked: Boolean, onChange: (Bool
 fun brandSwitchColors() = SwitchDefaults.colors(
     checkedTrackColor = Linguize.colors.proof,
     checkedBorderColor = Linguize.colors.proof,
-    checkedThumbColor = Color.White,
+    checkedThumbColor = Linguize.colors.onProof,
     uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
     uncheckedBorderColor = MaterialTheme.colorScheme.outline,
     uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -244,7 +245,7 @@ fun CardNote(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVar
  */
 @Composable
 fun Modifier.cardSegment(first: Boolean, last: Boolean): Modifier {
-    val radius = 24.dp
+    val radius = SectionCardRadius
     val shape = RoundedCornerShape(
         topStart = if (first) radius else 0.dp, topEnd = if (first) radius else 0.dp,
         bottomStart = if (last) radius else 0.dp, bottomEnd = if (last) radius else 0.dp,

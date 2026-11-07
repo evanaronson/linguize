@@ -4,16 +4,15 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -24,12 +23,14 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.ui.components.ButtonKind
-import com.evanaronson.linguize.ui.components.ChoicePage
+import com.evanaronson.linguize.ui.components.CardNote
+import com.evanaronson.linguize.ui.components.ChoiceRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.SectionCard
+import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.text.labelResource
 import com.evanaronson.linguize.ui.text.localizedText
@@ -50,14 +51,15 @@ internal fun ModelCard(state: SettingsState, settings: SettingsViewModel, onOpen
     SectionCard {
         if (status is KeyStatus.Saved) {
             ListRow(stringResource(R.string.api_key), stringResource(R.string.key_saved_summary, status.lastFour)) {
-                LinguizeButton(stringResource(R.string.delete_key), settings::removeKey, ButtonKind.Text)
+                LinguizeButton(stringResource(R.string.delete_key), settings::removeKey, ButtonKind.Destructive)
             }
             RowDivider()
         }
         ListRow(stringResource(R.string.service), providerName, onClick = { onOpen(SettingsPage.Service) })
         RowDivider()
         if (status !is KeyStatus.Saved) {
-            KeyEntry(provider, unreadable = status == KeyStatus.Unreadable, saveFailed = state.keySaveFailed,
+            KeyEntry(provider, key = settings.keyDraft(provider), onKeyChange = { settings.setKeyDraft(provider, it) },
+                unreadable = status == KeyStatus.Unreadable, saveFailed = state.keySaveFailed,
                 onSave = settings::saveKey, onDelete = settings::removeKey)
         }
         ListRow(
@@ -80,18 +82,28 @@ internal fun ModelPage(state: SettingsState, settings: SettingsViewModel) {
     val providerName = stringResource(provider.labelResource)
     val recommended = stringResource(R.string.model_recommended, provider.recommendedModel)
     val available = (state.models as? ModelList.Loaded)?.models.orEmpty().filter { it != provider.recommendedModel }
-    ChoicePage(
-        options = listOf<String?>(null) + available,
-        selected = { it == state.model },
-        label = { it ?: recommended },
-        description = { null },
-        onSelect = settings::selectModel,
-        note = when (state.models) {
+    ScreenColumn {
+        Spacer(Modifier.height(8.dp))
+        SectionCard(Modifier.selectableGroup()) {
+            (listOf<String?>(null) + available).forEachIndexed { index, model ->
+                if (index > 0) RowDivider()
+                ChoiceRow(model ?: recommended, null, model == state.model, { settings.selectModel(model) })
+            }
+        }
+        CardNote(when (state.models) {
             ModelList.Loading -> stringResource(R.string.models_loading_note, providerName)
             ModelList.Failed -> stringResource(R.string.models_failed_note, providerName)
             is ModelList.Loaded -> stringResource(R.string.models_note, providerName)
-        },
-    )
+        })
+        if (state.hasKey) {
+            LinguizeButton(
+                stringResource(if (state.models == ModelList.Failed) R.string.retry else R.string.models_refresh),
+                settings::refreshModels, ButtonKind.Text,
+                enabled = state.models != ModelList.Loading,
+                modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -116,15 +128,21 @@ private fun ConnectionRow(test: ModelTest?, onTest: () -> Unit) {
 }
 
 @Composable
-private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolean, onSave: (String) -> Unit, onDelete: () -> Unit) {
+private fun KeyEntry(
+    provider: Provider,
+    key: String,
+    onKeyChange: (String) -> Unit,
+    unreadable: Boolean,
+    saveFailed: Boolean,
+    onSave: (String) -> Unit,
+    onDelete: () -> Unit,
+) {
     val context = LocalContext.current
     val name = stringResource(provider.labelResource)
-    // Not saveable: the key shouldn't end up in saved instance state.
-    var key by remember(provider) { mutableStateOf("") }
     Column(Modifier.padding(top = 12.dp, bottom = 8.dp)) {
         LinguizeTextField(
             value = key,
-            onValueChange = { key = it },
+            onValueChange = onKeyChange,
             label = stringResource(R.string.provider_api_key, name),
             placeholder = stringResource(R.string.paste_key),
             supporting = when {
@@ -137,13 +155,17 @@ private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolea
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         )
-        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             // Kept in the field until saved, so a failed save can be retried. A saved key replaces this field.
             LinguizeButton(stringResource(R.string.save), { onSave(key) }, ButtonKind.Filled, enabled = key.isNotBlank())
             LinguizeButton(stringResource(R.string.get_key), {
                 context.openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl)))
             }, ButtonKind.Text)
-            if (unreadable) LinguizeButton(stringResource(R.string.delete_key), onDelete, ButtonKind.Text)
+            if (unreadable) LinguizeButton(stringResource(R.string.delete_key), onDelete, ButtonKind.Destructive)
         }
     }
 }

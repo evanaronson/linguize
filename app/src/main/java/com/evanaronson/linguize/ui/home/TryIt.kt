@@ -1,7 +1,7 @@
 package com.evanaronson.linguize.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -64,13 +64,16 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             check.dismiss(applied = false)
         },
         placeholder = stringResource(R.string.try_it_placeholder),
+        accessibleLabel = stringResource(R.string.your_text),
         supporting = if (blank) stringResource(R.string.no_text_to_check) else null,
         isError = blank,
         large = true,
         minLines = 2,
     )
     // The button checks with the language shown; picking a language also runs the check.
-    Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(Modifier.padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LanguagePicker(Language.forCode(code), onSelect = {
             code = it?.code
             run(it)

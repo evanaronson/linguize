@@ -290,10 +290,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
                             )
                         } else {
                             check.state?.let { state ->
-                                ResultCard(state, actions, modifier, leadingContent = {
-                                    LinguizeButton(stringResource(R.string.understand_copied_text), ::switchToUnderstand,
-                                        ButtonKind.Text)
-                                })
+                                ResultCard(state, actions, modifier, onUnderstandCopiedText = ::switchToUnderstand)
                             }
                         }
                     }

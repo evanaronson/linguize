@@ -81,8 +81,8 @@ class SessionViewModel internal constructor(
         private set
 
     /**
-     * Shows session [id], read again each time: since it was last shown, its card may have
-     * closed or its first save landed. The same session stays on screen while it's reread.
+     * Shows session [id], read again each time: another host may have deleted it since
+     * it was last shown. The same session stays on screen while it's reread.
      */
     fun load(id: String) {
         // A host resume must not reread text during or after an acknowledged local delete.

@@ -70,16 +70,16 @@ data class Kept(
 data class Answer<T>(val value: T, val reused: Kept?)
 
 /**
- * The history of the card's checks: opens a session when a check starts, records each
- * attempt, the writer's changes and copies, and closes it with what went back to the app.
+ * The history of the card's checks: holds each attempt, the writer's changes and copies
+ * in memory, and saves the complete session only when changed text went back to the app.
  * Everything that decides what's recorded lives here or in [SessionRecording]; the view
  * model only forwards to it.
  *
  * - Writes never hold up the card: they're queued on [scope] (which outlives the screen)
  *   in the order they were made, and their failures are only logged.
- * - [HistoryEnvironment.enabled] is read before every write. Turned off while a card is
- *   open, the open session stops being recorded: nothing more is written for it, even
- *   when it's turned on again while the card is up.
+ * - [HistoryEnvironment.enabled] is read as the card changes and before every write.
+ *   Turned off while a card is open, the session stops being recorded: nothing is written
+ *   for it, even when it's turned on again while the card is up.
  * - Only checks of text from other apps are recorded ([Origin.recorded]): one started in
  *   the app itself ("Try it") opens no session, looks up nothing and writes nothing.
  * - A text over [maxChars] isn't recorded: the check refuses it before any request.
@@ -102,16 +102,11 @@ class CheckHistory(
     private val maxChars: Int = Int.MAX_VALUE,
     private val reuseWithin: Long = REUSE_WITHIN_MS,
     private val newId: () -> String = { java.util.UUID.randomUUID().toString() },
-    /** Where [environment] is first read and export files are retired. */
+    /** Where [environment] is first read. */
     private val io: CoroutineDispatcher = Dispatchers.IO,
-    /** Retires shared history files after a provisional deletion attempt. Runs on [io]. */
-    private val retireExports: suspend () -> Unit = {},
 ) {
     /** The open session's record; null when history is off or no card is open. */
     private var recording: SessionRecording? = null
-
-    /** Retained if recording permission is revoked, so an explicit job switch can still delete it. */
-    private var activeId: String? = null
 
     /** Permission belongs to a session, including its queued writes after the card closes. */
     private var permission: RecordingPermission? = null
@@ -148,7 +143,7 @@ class CheckHistory(
 
     /** Resets the offered review as soon as the writer selects a language, before settings are read. */
     fun changeLanguage(language: String?) {
-        recording?.let { quietly("change the language") { it.changeLanguage(language, clock()) } }
+        permittedRecording()?.let { quietly("change the language") { it.changeLanguage(language, clock()) } }
     }
 
     /**
@@ -222,7 +217,7 @@ class CheckHistory(
      * opening was interrupted, opens it now; a card already refused or revoked stays unrecorded.
      */
     suspend fun recheck(text: String, opening: Opening) {
-        val recording = recording ?: run {
+        val recording = permittedRecording() ?: run {
             if (!decided) open(text, opening)
             return
         }
@@ -230,13 +225,12 @@ class CheckHistory(
     }
 
     /**
-     * Opens a session for [text], saved right away; returns it, or null when it isn't
+     * Opens an in-memory session for [text]; returns it, or null when it isn't
      * recorded (the origin isn't [recorded][Origin.recorded], history is off, or the text
      * is over [maxChars]). The environment is read on [io].
      */
     internal suspend fun open(text: String, opening: Opening): SessionRecord? {
         recording = null
-        activeId = null
         permission = null
         decided = false
         val context = if (opening.origin.recorded && text.length <= maxChars) {
@@ -257,18 +251,15 @@ class CheckHistory(
             SessionRecording(text, context.first, clock(), newId).also { store.registerSession(it.session.id) }
         } ?: return null
         recording = started
-        activeId = started.session.id
         permission = context.second
-        val session = started.session
-        write("save a session") { store.save(session) }
-        return session.takeIf { recording != null }
+        return permittedRecording()?.session
     }
 
     /** An attempt came back with [result], from the model's answer [raw] or a kept one ([reusedFrom]). */
     fun succeeded(settled: List<Settled>, raw: String, result: CheckResult, reusedFrom: String? = null) {
-        val recording = recording ?: return
+        val recording = permittedRecording() ?: return
         val reviewed = result as? CheckResult.Reviewed
-        val session = quietly("record an attempt") {
+        quietly("record an attempt") {
             recording.attempt(
                 at = clock(),
                 settled = settled,
@@ -280,8 +271,7 @@ class CheckHistory(
                 status = statusOf(result),
                 reusedFrom = reusedFrom,
             )
-        } ?: return
-        write("save an attempt") { store.save(session) }
+        }
     }
 
     /**
@@ -289,47 +279,59 @@ class CheckHistory(
      * answer when one came but couldn't be read.
      */
     fun failed(settled: List<Settled>, reason: String, detail: String?, raw: String? = null, message: String? = null) {
-        val recording = recording ?: return
-        val session = quietly("record a failed attempt") {
+        val recording = permittedRecording() ?: return
+        quietly("record a failed attempt") {
             recording.attempt(clock(), settled, raw, reason, detail, null, null, failureMessage = message)
-        } ?: return
-        write("save an attempt") { store.save(session) }
+        }
     }
 
     /** The writer accepted or undid something; [revision] is the new state. */
     fun changed(revision: Revision) {
-        recording?.let { quietly("record a change") { it.changed(revision) } }
+        permittedRecording()?.let { quietly("record a change") { it.changed(revision) } }
     }
 
     /** The writer copied the version shown for [kind]. */
     fun copied(kind: EditKind) {
-        recording?.let { quietly("record a copy") { it.copied(kind) } }
+        permittedRecording()?.let { quietly("record a copy") { it.copied(kind) } }
     }
 
-    /** Removes an untouched provisional session and retires exports that may contain it. */
+    /** Drops the in-memory session when the writer moves to another task. */
     fun discard() {
         decided = true
-        val id = activeId
-        activeId = null
+        recording?.session?.id?.let(::releaseSession)
         recording = null
         permission?.revoke()
         permission = null
-        if (id == null) return
+    }
+
+    /** Saves the complete session only when [finalText] successfully replaced different source text. */
+    fun close(finalText: String?) {
+        decided = false
+        val recording = permittedRecording()
+        val permission = permission
+        this.recording = null
+        this.permission = null
+        recording ?: return
+        val id = recording.session.id
+        if (finalText == null || finalText == recording.session.text || permission == null) {
+            releaseSession(id)
+            return
+        }
+        val closed = quietly("close a session") { recording.close(clock(), finalText) }
+        if (closed == null) {
+            releaseSession(id)
+            return
+        }
         val previous = lastWrite
         lastWrite = scope.launch {
             previous?.join()
-            quietly("discard a provisional check") { store.delete(id) }
-            quietly("retire history exports") { withContext(io) { retireExports() } }
+            // Keep the registration until this write finishes, so Clear can revoke it
+            // while queued. Permission belongs to this card, even after another opens.
+            if (permission.allowed()) quietly("write a closed session") { store.close(closed.session, closed.suggestions) }
+        }.also { job ->
+            // Also releases a write cancelled before its coroutine starts.
+            job.invokeOnCompletion { releaseSession(id) }
         }
-    }
-
-    fun close(finalText: String?) {
-        activeId = null
-        decided = false
-        val recording = recording ?: return
-        this.recording = null
-        val closed = quietly("close a session") { recording.close(clock(), finalText) } ?: return
-        write("write a closed session") { store.close(closed.session, closed.suggestions) }
     }
 
     /**
@@ -360,23 +362,17 @@ class CheckHistory(
         Kept(kept.session.id, attempt.raw ?: return@quietly null, attempt.settled)
     }
 
-    /**
-     * Queues a write on [scope] after the ones queued before it. When history has been
-     * turned off, the open session stops being recorded and nothing is written.
-     */
-    private fun write(what: String, block: suspend () -> Unit) {
-        val permission = permission
+    /** Permission can be revoked while attempts are still only held in memory. */
+    private fun permittedRecording(): SessionRecording? {
         if (permission?.allowed() != true) {
+            recording?.session?.id?.let(::releaseSession)
             recording = null
-            return
         }
-        val previous = lastWrite
-        lastWrite = scope.launch {
-            previous?.join()
-            // A queued write may start after the toggle changed. Check again at the
-            // storage boundary; its permission cannot be revived by opening another card.
-            if (permission.allowed()) quietly(what) { block() }
-        }
+        return recording
+    }
+
+    private fun releaseSession(id: String) {
+        quietly("release a session") { store.releaseSession(id) }
     }
 
     private inner class RecordingPermission(private val epoch: Long) {

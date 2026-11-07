@@ -268,11 +268,12 @@ class SessionRecordingTest {
     }
 
     @Test
-    fun copyingOneKindCopiesItsRemainingSuggestionsAndLeavesTheOtherIgnored() {
+    fun copyingRewordingsAlsoCopiesThePendingFixesShownUnderThem() {
         val recording = recording(shower)
         val revision = showerRevision()
         assertTrue(revision.edits(EditKind.Fix).isNotEmpty())
         assertTrue(revision.edits(EditKind.Natural).isNotEmpty())
+        assertEquals("Voy a ducharme y te llamo después", revision.previewOnCorrected(EditKind.Natural).text)
         recording.succeeded(200, revision)
         recording.copied(EditKind.Natural)
 
@@ -280,7 +281,51 @@ class SessionRecordingTest {
         assertEquals(Outcome.Copied, detail.session.outcome)
         assertNull(detail.session.finalText)
         assertEquals(setOf(Decision.Copied), detail.decisions(EditKind.Natural))
-        assertEquals(setOf(Decision.Ignored), detail.decisions(EditKind.Fix))
+        assertEquals(setOf(Decision.Copied), detail.decisions(EditKind.Fix))
+    }
+
+    @Test
+    fun copyingRewordingsRetiresThePendingFixTheyReplace() {
+        val recording = recording(rain)
+        val revision = rainRevision()
+        assertEquals("Com portes la pluja?", revision.previewOnCorrected(EditKind.Natural).text)
+        recording.succeeded(200, revision)
+        recording.copied(EditKind.Natural)
+
+        val detail = recording.close(300, null)
+        assertEquals(Decision.Retired, detail.only(EditKind.Fix).decision)
+        assertEquals(Decision.Copied, detail.only(EditKind.Natural).decision)
+    }
+
+    @Test
+    fun aCopiedPreviewDoesNotAcceptItsPendingFixWhenOnlyTheRewordingIsApplied() {
+        val recording = recording(shower)
+        val revision = showerRevision()
+        recording.succeeded(200, revision)
+        recording.copied(EditKind.Natural)
+        val reworded = revision.acceptAll(EditKind.Natural)
+        recording.changed(reworded)
+
+        val detail = recording.close(300, reworded.workingText)
+        assertEquals(Outcome.Applied, detail.session.outcome)
+        assertEquals("Voy a ducharme y te llamo despues", detail.session.finalText)
+        assertEquals(Decision.Copied, detail.only(EditKind.Fix).decision)
+        assertEquals(Decision.Accepted, detail.only(EditKind.Natural).decision)
+    }
+
+    @Test
+    fun aPendingFixCopiedUnderRewordingsBecomesAcceptedOnlyWhenApplied() {
+        val recording = recording(shower)
+        val revision = showerRevision()
+        recording.succeeded(200, revision)
+        recording.copied(EditKind.Natural)
+        val fixed = revision.acceptAll(EditKind.Fix)
+        recording.changed(fixed)
+
+        val detail = recording.close(300, fixed.workingText)
+        assertEquals("Voy a tomar una ducha y te llamo después", detail.session.finalText)
+        assertEquals(Decision.Accepted, detail.only(EditKind.Fix).decision)
+        assertEquals(Decision.Copied, detail.only(EditKind.Natural).decision)
     }
 
     @Test

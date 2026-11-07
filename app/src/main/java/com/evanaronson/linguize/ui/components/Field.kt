@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +20,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
@@ -49,13 +50,15 @@ fun LinguizeTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     fieldModifier: Modifier = Modifier,
+    /** The editable node's label; defaults to the visible label when there is one. */
+    accessibleLabel: String? = label,
 ) {
     val colors = MaterialTheme.colorScheme
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val style = (if (large) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium)
         .copy(color = colors.onSurface)
-    val shape = RoundedCornerShape(12.dp)
+    val shape = InsetShape
     val borderColor = when {
         isError -> colors.error
         focused -> colors.onSurface
@@ -63,7 +66,8 @@ fun LinguizeTextField(
     }
     Column(modifier) {
         if (label != null) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant,
+                modifier = Modifier.clearAndSetSemantics {})
             Spacer(Modifier.height(6.dp))
         }
         BasicTextField(
@@ -71,7 +75,12 @@ fun LinguizeTextField(
             onValueChange = onValueChange,
             modifier = fieldModifier
                 .fillMaxWidth()
-                .semantics { if (isError) error(supporting.orEmpty()) },
+                .semantics {
+                    // Keep the label with the edit action, including when a value is present.
+                    // An explicit description in fieldModifier takes precedence.
+                    accessibleLabel?.let { contentDescription = it }
+                    if (isError) error(supporting.orEmpty())
+                },
             textStyle = style,
             singleLine = singleLine,
             minLines = minLines,

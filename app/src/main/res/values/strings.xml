@@ -6,7 +6,7 @@
     <string name="menu_auto" translatable="false">Linguize</string>
     <string name="menu_catalan" translatable="false">Catalanize</string>
     <string name="menu_castilian" translatable="false">Castilianize</string>
-    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, checks are saved on this phone. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
+    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 
 
     <!-- Presentation text. Protocol values and model prompts are not translated. -->
@@ -41,6 +41,7 @@
     <string name="copy_with_fixes">Copy with fixes</string>
     <string name="copy_with_rewordings">Copy with rewordings</string>
     <string name="meaning">Meaning</string>
+    <string name="original_text">Original text</string>
     <string name="assumptions">Assumptions</string>
     <string name="assumptions_description">The suggestions rely on this reading. If it isn\'t what you meant, clarify it and Linguize checks again.</string>
     <string name="your_choice">Your choice</string>
@@ -52,10 +53,11 @@
     <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
     <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
     <string name="check_your_text">Check your text</string>
+    <string name="your_text">Your text</string>
     <string name="try_it_placeholder">Type or paste text to check</string>
     <string name="no_text_to_check">No text to check.</string>
     <string name="recent">History</string>
-    <string name="recent_empty">Checks from other apps will appear here.</string>
+    <string name="recent_empty">Changes you apply in other apps will appear here.</string>
     <string name="history_off">History is off. New checks aren\'t saved.</string>
     <string name="check_was_deleted">This check was deleted.</string>
     <string name="put_back_in_app">Put back in the app</string>
@@ -81,8 +83,8 @@
     <string name="what_to_suggest">What to suggest</string>
     <string name="suggestions_description">Fixes correct mistakes. Rewordings make it sound more natural.</string>
     <string name="history">History</string>
-    <string name="save_history">Save checks in History</string>
-    <string name="save_history_on">Your text and the suggestions stay on this phone</string>
+    <string name="save_history">Save applied changes in History</string>
+    <string name="save_history_on">Saved on this phone after changes are applied</string>
     <string name="save_history_off">New checks aren\'t saved. Saved ones stay until you delete them.</string>
     <string name="delete_all">Delete all</string>
     <string name="delete_all_question">Delete all checks?</string>
@@ -172,10 +174,8 @@
     <!-- Under a change's explanation, the writer's own answer, e.g. "You said the meeting is tomorrow". -->
     <string name="you_said">You said %1$s</string>
     <string name="clarify_placeholder">Say it in your own words</string>
-    <string name="all_accepted">All accepted</string>
+    <string name="all_accepted">All changes accepted</string>
     <string name="looks_good_both">Nothing to fix, sounds natural</string>
-    <string name="checked_with_answer">Checked again with your answer</string>
-    <string name="checked_with_clarification">Checked again with your clarification</string>
 
     <!-- Home -->
     <string name="try_it_note">Not saved. In other apps, select text and choose Linguize in the menu.</string>
@@ -203,6 +203,7 @@
     <string name="delete_this_check_summary">Removes it from this phone</string>
     <!-- A row that opens a saved check's assumptions, e.g. "Assumptions, 1". -->
     <string name="assumptions_count">Assumptions, %1$d</string>
+    <string name="history_no_assumptions">No assumptions are available for this check.</string>
     <!-- One assumption in a summary line, e.g. "Time of the meeting: the meeting is tomorrow". -->
     <string name="assumption_summary">%1$s: %2$s</string>
 
@@ -211,6 +212,7 @@
     <string name="key_saved_summary">Saved, ends in %1$s</string>
     <string name="service">Service</string>
     <string name="connection">Connection</string>
+    <string name="models_refresh">Refresh models</string>
     <string name="model_more_with_key">%1$s, more once a key is saved</string>
     <string name="models_note">Models your %1$s key can use. The recommended one is the fastest and cheapest that checks well.</string>
     <string name="models_loading_note">Loading the models your %1$s key can use…</string>
@@ -265,7 +267,7 @@
     <string name="history_target_language">Target language: %1$s</string>
     <string name="history_detected_language">Detected language: %1$s</string>
     <string name="understand_copied_text">Understand copied text</string>
-    <string name="back_to_check">Back to check</string>
+    <string name="understand_copied_text_subtitle">Translate and explain copied text</string>
     <string name="translation">Translation</string>
     <string name="understanding_notes">Notes</string>
     <string name="copied_text">Copied text</string>

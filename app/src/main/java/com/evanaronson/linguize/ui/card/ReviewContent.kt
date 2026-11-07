@@ -32,7 +32,7 @@ import com.evanaronson.linguize.ui.theme.Linguize
 @Composable
 internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     if (result.looksGood) {
-        Outcome(stringResource(R.string.looks_good), stringResource(looksGoodDetail(result.kinds)))
+        Outcome(stringResource(R.string.looks_good), stringResource(looksGoodDetail(result.kinds)), success = true)
         return
     }
 
@@ -90,7 +90,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
         Spacer(Modifier.height(10.dp))
     }
     if (revision.edits(kind).isEmpty()) {
-        StatusLine(if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
+        SuccessLine(if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
         return
     }
 
@@ -107,7 +107,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
     Text(
         pluralStringResource(if (fix) R.plurals.fix_count else R.plurals.rewording_count, count, count),
         style = MaterialTheme.typography.labelLarge,
-        color = mark,
+        color = if (fix) mark else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
     Spacer(Modifier.height(8.dp))
@@ -121,7 +121,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
     )
     Spacer(Modifier.height(10.dp))
     if (remaining.isEmpty()) {
-        DoneLine(stringResource(R.string.all_accepted))
+        SuccessLine(stringResource(R.string.all_accepted), quiet = true)
     } else if (review != null) {
         LinguizeButton(stringResource(R.string.accept_all), { review.onAcceptAll(kind) }, ButtonKind.Tonal)
     }
@@ -137,10 +137,10 @@ internal fun SectionDivider() {
 
 /** Accepted text stays inspectable and undoable without offering the old suggestions. */
 @Composable
-internal fun RetainedChanges(revision: Revision?, review: ReviewActions?) {
+internal fun RetainedChanges(revision: Revision?, review: ReviewActions?, canApply: Boolean = false) {
     if (revision == null || !revision.canUndo) return
     SectionDivider()
-    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = null)
+    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply })
     else Text(
         pluralStringResource(R.plurals.changes_accepted_count, revision.acceptedCount, revision.acceptedCount),
         style = MaterialTheme.typography.labelLarge,

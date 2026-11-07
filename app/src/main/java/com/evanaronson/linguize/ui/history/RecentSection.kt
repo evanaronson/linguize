@@ -176,11 +176,11 @@ internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .background(MaterialTheme.colorScheme.error)
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onError)
             }
         },
         enableDismissFromStartToEnd = false,
@@ -194,8 +194,11 @@ internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit
 internal fun rememberDeleteSwipeState(onDelete: () -> Unit): SwipeToDismissBoxState {
     val delete by rememberUpdatedState(onDelete)
     val state = rememberSwipeToDismissBoxState()
-    LaunchedEffect(state.currentValue) {
-        if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+    LaunchedEffect(state.settledValue) {
+        if (state.settledValue == SwipeToDismissBoxValue.EndToStart) {
+            // currentValue changes halfway through a drag. Wait for release and
+            // the dismissal animation to settle, so resetting cannot interrupt
+            // a slow gesture while the finger is still down.
             // Lazy rows retain saveable state when removed. Undo must restore a settled
             // row, rather than restoring this dismissal and deleting the row again.
             state.snapTo(SwipeToDismissBoxValue.Settled)

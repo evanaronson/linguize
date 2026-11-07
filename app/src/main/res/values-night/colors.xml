@@ -1,5 +1,3 @@
 <resources>
     <color name="brand_ink">#FAFAF8</color>
-    <!-- Lighter cobalt, readable on the dark background. -->
-    <color name="brand_accent">#7C84FF</color>
 </resources>

@@ -5,202 +5,145 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.llm.Provider
-import com.evanaronson.linguize.ui.components.Dropdown
-import com.evanaronson.linguize.ui.components.RadioRow
-import com.evanaronson.linguize.ui.components.SectionTitle
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.ChoicePage
+import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.LinguizeTextField
+import com.evanaronson.linguize.ui.components.ListRow
+import com.evanaronson.linguize.ui.components.RowDivider
+import com.evanaronson.linguize.ui.components.SectionCard
+import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.text.labelResource
 import com.evanaronson.linguize.ui.text.localizedText
 import com.evanaronson.linguize.ui.text.titleResource
 
+/**
+ * The Model group. With a key: the key (and Delete key), Service, Model and Connection
+ * (and Test). Without one, the key field sits right under Service, so it is the first
+ * thing a new user meets.
+ */
 @Composable
-internal fun ModelSection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle(stringResource(R.string.ai_service))
-    if (!state.hasKey) {
-        Text(
-            stringResource(R.string.ai_service_description),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-    Column(Modifier.selectableGroup()) {
-        Provider.entries.forEach { option ->
-            RadioRow(stringResource(option.labelResource), selected = option == state.provider, onClick = { settings.selectProvider(option) }) {
-                KeyBadge(state.keys[option])
+internal fun ModelCard(state: SettingsState, settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) {
+    val provider = state.provider
+    val providerName = stringResource(provider.labelResource)
+    val status = state.keys[provider]
+    val recommended = stringResource(R.string.model_recommended, provider.recommendedModel)
+    val model = state.model ?: recommended
+    SectionCard {
+        if (status is KeyStatus.Saved) {
+            ListRow(stringResource(R.string.api_key), stringResource(R.string.key_saved_summary, status.lastFour)) {
+                LinguizeButton(stringResource(R.string.delete_key), settings::removeKey, ButtonKind.Text)
             }
+            RowDivider()
+        }
+        ListRow(stringResource(R.string.service), providerName, onClick = { onOpen(SettingsPage.Service) })
+        RowDivider()
+        if (status !is KeyStatus.Saved) {
+            KeyEntry(provider, unreadable = status == KeyStatus.Unreadable, saveFailed = state.keySaveFailed,
+                onSave = settings::saveKey, onDelete = settings::removeKey)
+        }
+        ListRow(
+            stringResource(R.string.model),
+            if (state.hasKey) model else stringResource(R.string.model_more_with_key, model),
+            onClick = { onOpen(SettingsPage.Model) },
+        )
+        if (state.hasKey) {
+            RowDivider()
+            ConnectionRow(state.modelTest, onTest = settings::testModel)
         }
     }
+}
 
+/** The models this key can use, the recommended one first. */
+@Composable
+internal fun ModelPage(state: SettingsState, settings: SettingsViewModel) {
+    LaunchedEffect(Unit) { settings.showModels() }
     val provider = state.provider
+    val providerName = stringResource(provider.labelResource)
     val recommended = stringResource(R.string.model_recommended, provider.recommendedModel)
     val available = (state.models as? ModelList.Loaded)?.models.orEmpty().filter { it != provider.recommendedModel }
-    Dropdown(
-        label = when (state.models) {
-            ModelList.Loading -> stringResource(R.string.model_loading)
-            ModelList.Failed -> stringResource(R.string.model_load_failed)
-            is ModelList.Loaded -> if (state.hasKey) stringResource(R.string.model) else stringResource(R.string.model_add_key)
-        },
-        selected = state.model,
+    ChoicePage(
         options = listOf<String?>(null) + available,
-        optionLabel = { it ?: recommended },
+        selected = { it == state.model },
+        label = { it ?: recommended },
+        description = { null },
         onSelect = settings::selectModel,
+        note = when (state.models) {
+            ModelList.Loading -> stringResource(R.string.models_loading_note, providerName)
+            ModelList.Failed -> stringResource(R.string.models_failed_note, providerName)
+            is ModelList.Loaded -> stringResource(R.string.models_note, providerName)
+        },
     )
-    if (state.hasKey) ModelTestRow(state.modelTest, onTest = settings::testModel)
+}
 
-    when (val status = state.keys[provider]) {
-        is KeyStatus.Saved -> SavedKey(provider, status.lastFour, onRemove = settings::removeKey)
-        else -> {
-            KeyEntry(provider, unreadable = status == KeyStatus.Unreadable, saveFailed = state.keySaveFailed, onSave = settings::saveKey)
-            if (status == KeyStatus.Unreadable) {
-                TextButton(onClick = settings::removeKey) { Text(stringResource(R.string.delete_key)) }
-            }
-        }
+@Composable
+private fun ConnectionRow(test: ModelTest?, onTest: () -> Unit) {
+    val summary = when (test) {
+        null -> stringResource(R.string.model_not_tested)
+        ModelTest.Testing -> stringResource(R.string.model_testing)
+        is ModelTest.Works -> stringResource(R.string.model_test_works, test.millis / 1000.0)
+        is ModelTest.Failed -> listOfNotNull(
+            stringResource(R.string.model_test_failed, stringResource(test.reason.titleResource)),
+            test.userMessage?.localizedText(),
+            // The AI service's own words, when it gave any.
+            test.detail,
+        ).joinToString("\n")
+    }
+    ListRow(
+        stringResource(R.string.connection), summary,
+        summaryColor = if (test is ModelTest.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        LinguizeButton(stringResource(R.string.test), onTest, ButtonKind.Text, enabled = test != ModelTest.Testing)
     }
 }
 
 @Composable
-private fun KeyBadge(status: KeyStatus?) {
-    when (status) {
-        is KeyStatus.Saved -> Text(
-            stringResource(R.string.key_saved),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        KeyStatus.Unreadable -> Text(
-            stringResource(R.string.key_lost),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.error,
-        )
-        KeyStatus.None, null -> Unit
-    }
-}
-
-@Composable
-private fun ModelTestRow(test: ModelTest?, onTest: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                when (test) {
-                    null -> stringResource(R.string.model_not_tested)
-                    ModelTest.Testing -> stringResource(R.string.model_testing)
-                    is ModelTest.Works -> stringResource(R.string.model_test_works, test.millis / 1000.0)
-                    is ModelTest.Failed -> stringResource(R.string.model_test_failed, stringResource(test.reason.titleResource))
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (test is ModelTest.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (test is ModelTest.Failed && test.userMessage != null) {
-                Text(test.userMessage.localizedText(), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            // The AI service's own words, when it gave any, under the title.
-            if (test is ModelTest.Failed && test.detail != null) {
-                Text(
-                    test.detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        TextButton(enabled = test != ModelTest.Testing, onClick = onTest) { Text(stringResource(R.string.test)) }
-    }
-}
-
-@Composable
-private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolean, onSave: (String) -> Unit) {
+private fun KeyEntry(provider: Provider, unreadable: Boolean, saveFailed: Boolean, onSave: (String) -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
+    val name = stringResource(provider.labelResource)
     // Not saveable: the key shouldn't end up in saved instance state.
     var key by remember(provider) { mutableStateOf("") }
-    OutlinedTextField(
-        value = key,
-        onValueChange = { key = it },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        label = { Text(stringResource(R.string.provider_api_key, stringResource(provider.labelResource))) },
-        placeholder = { Text(stringResource(R.string.paste_key)) },
-        isError = unreadable || saveFailed,
-        supportingText = {
-            Text(
-                when {
-                    saveFailed -> stringResource(R.string.key_save_failed)
-                    unreadable -> stringResource(R.string.key_unreadable)
-                    else -> stringResource(R.string.key_privacy, stringResource(provider.labelResource))
-                },
-            )
-        },
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(
-            enabled = key.isNotBlank(),
+    Column(Modifier.padding(top = 12.dp, bottom = 8.dp)) {
+        LinguizeTextField(
+            value = key,
+            onValueChange = { key = it },
+            label = stringResource(R.string.provider_api_key, name),
+            placeholder = stringResource(R.string.paste_key),
+            supporting = when {
+                saveFailed -> stringResource(R.string.key_save_failed)
+                unreadable -> stringResource(R.string.key_unreadable)
+                else -> stringResource(R.string.key_privacy, name)
+            },
+            isError = unreadable || saveFailed,
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        )
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Kept in the field until saved, so a failed save can be retried. A saved key replaces this field.
-            onClick = { onSave(key) },
-        ) { Text(stringResource(R.string.save)) }
-        TextButton(onClick = { context.openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl))) }) {
-            Text(stringResource(R.string.get_key))
-        }
-    }
-}
-
-/** Shown instead of the key field once a key is saved. */
-@Composable
-private fun SavedKey(provider: Provider, lastFour: String, onRemove: () -> Unit) {
-    val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            Modifier.padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // "key saved" says it; screen readers skip the tick.
-            Text("✓", style = MaterialTheme.typography.titleMedium, color = onContainer, modifier = Modifier.clearAndSetSemantics {})
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.provider_key_saved, stringResource(provider.labelResource)), style = MaterialTheme.typography.titleSmall, color = onContainer)
-                Text(stringResource(R.string.key_last_four, lastFour), style = MaterialTheme.typography.bodySmall, color = onContainer)
-            }
-            TextButton(
-                onClick = onRemove,
-                colors = ButtonDefaults.textButtonColors(contentColor = onContainer),
-            ) { Text(stringResource(R.string.delete_key)) }
+            LinguizeButton(stringResource(R.string.save), { onSave(key) }, ButtonKind.Filled, enabled = key.isNotBlank())
+            LinguizeButton(stringResource(R.string.get_key), {
+                context.openExternal(Intent(Intent.ACTION_VIEW, Uri.parse(provider.keyUrl)))
+            }, ButtonKind.Text)
+            if (unreadable) LinguizeButton(stringResource(R.string.delete_key), onDelete, ButtonKind.Text)
         }
     }
 }

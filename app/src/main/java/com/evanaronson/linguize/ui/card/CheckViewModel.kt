@@ -47,8 +47,13 @@ sealed interface CardState {
         val settled: List<Settled> = emptyList(),
         /** A non-reviewed answer leaves the previous accepted text available to the host. */
         override val retainedRevision: Revision? = null,
+        /** Set when this result came from checking again with the writer's answer or clarification. */
+        val clarifiedBy: Clarified? = null,
     ) : CardState
 }
+
+/** What a re-check took into account, so the card can say so. */
+enum class Clarified { Answer, Meaning }
 
 /**
  * One check and the changes the writer has accepted from it. Accepted changes
@@ -173,7 +178,7 @@ class CheckViewModel(
         settled = settled.filterNot {
             if (clarification.isMeaning) it.isMeaning else it.answers(clarification.about)
         } + clarification.copy(answer = answer)
-        run(Run.Again)
+        run(Run.Again, clarifiedBy = if (clarification.isMeaning) Clarified.Meaning else Clarified.Answer)
     }
 
     /** Retracts the writer's answer about one assumption and checks again. */
@@ -201,7 +206,7 @@ class CheckViewModel(
         Again,
     }
 
-    private fun run(kind: Run) {
+    private fun run(kind: Run, clarifiedBy: Clarified? = null) {
         generation++
         staleCheck?.cancel()
         staleCheck = null
@@ -251,7 +256,8 @@ class CheckViewModel(
                     result
                 }
                 history.succeeded(answers, answer.value.raw, kept, reusedFrom = answer.reused?.sessionId)
-                CardState.Done(kept, answers, retainedRevision = retained.takeUnless { kept is CheckResult.Reviewed })
+                CardState.Done(kept, answers, retainedRevision = retained.takeUnless { kept is CheckResult.Reviewed },
+                    clarifiedBy = clarifiedBy)
             } catch (failure: CheckFailure) {
                 if (requestedGeneration != generation) return@launch
                 history.failed(answers, failure.reason.token, failure.detail, failure.raw, message = failure.userMessage?.token)

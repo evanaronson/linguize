@@ -20,7 +20,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -104,23 +105,30 @@ fun FloatingPopup(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    FilledTonalButton(
-                        onClick = onOpenApp,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                    ) {
-                        Image(
-                            painterResource(R.drawable.wordmark),
-                            contentDescription = stringResource(R.string.open_linguize),
-                            modifier = Modifier.height(24.dp),
-                        )
-                    }
+                    WordmarkButton(onOpenApp)
                     header()
                 }
                 val cardModifier = Modifier.fillMaxWidth().heightIn(max = cardMaxHeight)
                 content(cardModifier)
             }
         }
+    }
+}
+
+/** The wordmark on a pill: opens the app without closing the check. */
+@Composable
+private fun WordmarkButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 40.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        contentPadding = PaddingValues(horizontal = 14.dp),
+    ) {
+        Image(
+            painterResource(R.drawable.wordmark),
+            contentDescription = stringResource(R.string.open_linguize),
+            modifier = Modifier.height(22.dp),
+        )
     }
 }

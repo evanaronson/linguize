@@ -1,6 +1,5 @@
 package com.evanaronson.linguize.ui.history
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,12 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,8 +26,17 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.ui.settings.HistoryDataControls
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.components.RowDivider
+import com.evanaronson.linguize.ui.components.ScreenColumn
+import com.evanaronson.linguize.ui.components.SectionCard
+import com.evanaronson.linguize.ui.components.SectionHeader
+import com.evanaronson.linguize.ui.components.cardSegment
+import com.evanaronson.linguize.ui.settings.HistoryDataCard
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
+import com.evanaronson.linguize.ui.settings.keptHistoryTitle
 import kotlinx.coroutines.flow.collect
 
 /** Full history: stable, lazy rows with another bounded database page loaded near the end. */
@@ -60,45 +65,49 @@ fun HistoryScreen(
         }.collect { cursor -> if (cursor != null) history.loadMore() }
     }
 
+    val title = keptHistoryTitle(settings)
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                HistoryDataControls(settings)
+        // Don't lay out an empty LazyColumn over a restored scroll position while loading.
+        if (page.rows.isEmpty()) {
+            ScreenColumn {
+                title?.let { SectionHeader(it) }
+                if (historyOn == false) SectionCard { HistoryOff(onOpenSettings) }
+                when {
+                    page.loading || (!page.failed && page.next != null) -> LoadingHistory()
+                    page.failed -> HistoryRetry(history::retryHistory)
+                    else -> Unit
+                }
+                HistoryDataCard(settings)
             }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                // Don't lay out an empty LazyColumn over a restored scroll position while loading.
-                if (page.rows.isEmpty()) {
-                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (historyOn == false) HistoryOff(onOpenSettings)
-                        when {
-                            page.loading || (!page.failed && page.next != null) -> LoadingHistory()
-                            page.failed -> HistoryRetry(history::retryHistory)
-                            else -> Quiet(stringResource(R.string.no_checks_saved))
-                        }
-                    }
-                } else {
-                    val now = System.currentTimeMillis()
-                    LazyColumn(state = list, contentPadding = PaddingValues(20.dp)) {
-                        if (historyOn == false) item(key = "history-off", contentType = "notice") { HistoryOff(onOpenSettings) }
-                        itemsIndexed(page.rows, key = { _, row -> row.summary.id }, contentType = { _, _ -> "check" }) { index, row ->
-                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            val delete = { history.delete(row.summary.id) }
-                            SwipeToDelete(onDelete = delete) {
-                                SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
-                            }
-                        }
-                        item(key = "history-footer", contentType = "footer") {
-                            when {
-                                page.loading -> LoadingHistory()
-                                page.failed -> HistoryRetry(history::retryHistory)
-                                page.next != null -> TextButton(onClick = history::loadMore) { Text(stringResource(R.string.load_more_checks)) }
-                            }
+        } else {
+            val now = System.currentTimeMillis()
+            val last = page.rows.lastIndex
+            val hasFooter = page.loading || page.failed || page.next != null
+            LazyColumn(state = list, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                item(key = "history-title", contentType = "title") { title?.let { SectionHeader(it) } }
+                if (historyOn == false) item(key = "history-off", contentType = "notice") {
+                    SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
+                }
+                itemsIndexed(page.rows, key = { _, row -> row.summary.id }, contentType = { _, _ -> "check" }) { index, row ->
+                    Column(Modifier.cardSegment(first = index == 0, last = index == last && !hasFooter)) {
+                        if (index > 0) RowDivider()
+                        val delete = { history.delete(row.summary.id) }
+                        SwipeToDelete(onDelete = delete) {
+                            SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
                         }
                     }
                 }
+                if (hasFooter) item(key = "history-footer", contentType = "footer") {
+                    Box(Modifier.cardSegment(first = false, last = true), contentAlignment = Alignment.Center) {
+                        when {
+                            page.loading -> LoadingHistory()
+                            page.failed -> HistoryRetry(history::retryHistory)
+                            else -> LinguizeButton(stringResource(R.string.load_more_checks), history::loadMore, ButtonKind.Text,
+                                modifier = Modifier.padding(vertical = 8.dp))
+                        }
+                    }
+                }
+                item(key = "history-data", contentType = "data") { HistoryDataCard(settings) }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
@@ -109,14 +118,14 @@ fun HistoryScreen(
 private fun LoadingHistory() {
     val label = stringResource(R.string.loading_history)
     Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(Modifier.semantics { contentDescription = label })
+        CircularProgressIndicator(Modifier.semantics { contentDescription = label }, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
 @Composable
 private fun HistoryRetry(onRetry: () -> Unit) {
-    Column(Modifier.padding(vertical = 12.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
         Quiet(stringResource(R.string.history_load_failed))
-        TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+        LinguizeButton(stringResource(R.string.retry), onRetry, ButtonKind.Text)
     }
 }

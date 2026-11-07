@@ -5,13 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
 import android.widget.Toast
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,54 +16,71 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.ui.openExternal
-import com.evanaronson.linguize.ui.components.SectionTitle
+import com.evanaronson.linguize.ui.components.DISABLED_ALPHA
+import com.evanaronson.linguize.ui.components.ListCard
+import com.evanaronson.linguize.ui.components.ListRow
+import com.evanaronson.linguize.ui.components.SwitchRow
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
+import com.evanaronson.linguize.ui.openExternal
 
 /** The save-history preference. Data controls belong to the full History page. */
 @Composable
-internal fun HistorySection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle(stringResource(R.string.history))
-    SwitchRow(stringResource(R.string.save_history), checked = state.historyEnabled, onChange = settings::setHistoryEnabled)
-    Text(
-        if (state.historyEnabled) {
-            stringResource(R.string.save_history_on)
-        } else {
-            stringResource(R.string.save_history_off)
-        },
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+internal fun HistorySwitch(state: SettingsState, settings: SettingsViewModel) {
+    ListCard({
+        SwitchRow(
+            stringResource(R.string.save_history),
+            stringResource(if (state.historyEnabled) R.string.save_history_on else R.string.save_history_off),
+            checked = state.historyEnabled,
+            onChange = settings::setHistoryEnabled,
+        )
+    })
 }
 
-/** Count, delete and export controls, shown only inside the full History page. */
+/** "12 checks since Oct 3": the History page's header. */
 @Composable
-internal fun HistoryDataControls(settings: SettingsViewModel) {
-    val context = LocalContext.current
+internal fun keptHistoryTitle(settings: SettingsViewModel): String? {
     val resources = LocalResources.current
+    val kept by settings.history.collectAsState()
+    return kept?.let { keptLabel(resources, it) }
+}
+
+/** Export and Delete all, as the last card of the History page. */
+@Composable
+internal fun HistoryDataCard(settings: SettingsViewModel) {
+    val context = LocalContext.current
     val kept by settings.history.collectAsState()
     val count = kept?.count ?: 0
     var confirmingClear by rememberSaveable { mutableStateOf(false) }
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(kept?.let { keptLabel(resources, it) }.orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        TextButton(onClick = { confirmingClear = true }) { Text(stringResource(R.string.delete_all)) }
-        TextButton(
-            enabled = count > 0 && !settings.exporting,
-            onClick = settings::exportHistory,
-        ) { Text(if (settings.exporting) stringResource(R.string.exporting) else stringResource(R.string.export)) }
-    }
+    ListCard(
+        {
+            val enabled = count > 0 && !settings.exporting
+            ListRow(
+                stringResource(R.string.export),
+                stringResource(if (settings.exporting) R.string.exporting else R.string.export_summary),
+                modifier = if (enabled) Modifier else Modifier.alpha(DISABLED_ALPHA),
+                onClick = if (enabled) settings::exportHistory else null,
+            )
+        },
+        {
+            ListRow(
+                stringResource(R.string.delete_all),
+                stringResource(R.string.delete_all_summary),
+                onClick = { confirmingClear = true },
+            )
+        },
+        modifier = Modifier.padding(top = 16.dp),
+    )
 
     // Offered from this composition, so from the activity on screen now, and only once it's
     // in front: an export that finishes while the app is in the background waits, and is
@@ -94,20 +106,6 @@ internal fun HistoryDataControls(settings: SettingsViewModel) {
             },
             dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(stringResource(R.string.cancel)) } },
         )
-    }
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

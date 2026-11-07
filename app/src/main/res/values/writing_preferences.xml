@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="writing_preferences">Writing preferences</string>
-    <string name="writing_language">Language</string>
+    <string name="writing_language">Writing in</string>
+    <string name="writing_language_current">Register and punctuation below apply to %1$s.</string>
+    <string name="writing_language_other">Switch to set a separate profile for %1$s.</string>
     <string name="writing_register">Register</string>
     <string name="writing_register_casual">Casual</string>
     <string name="writing_register_everyday">Everyday</string>
     <string name="writing_register_formal">Formal</string>
+    <string name="writing_register_casual_description">Ordinary chat, familiar expressions kept.</string>
+    <string name="writing_register_everyday_description">Neutral everyday writing.</string>
+    <string name="writing_register_formal_description">Professional or careful expression.</string>
 </resources>

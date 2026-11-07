@@ -428,8 +428,10 @@ class CheckViewModelTest {
         assertEquals(1, reviewed().revision.acceptedCount)
         assertEquals("Com estàs?", check.workingText)
 
+        assertNull("A plain re-check isn't announced", done().clarifiedBy)
         check.settle("tu", "informal")
         assertEquals(1, reviewed().revision.acceptedCount)
+        assertEquals(Clarified.Answer, done().clarifiedBy)
         assertEquals(listOf(Settled("tu", "informal")), client.checks.last().third.settled)
         assertEquals(listOf(Settled("tu", "informal")), done().settled)
         assertEquals(Language.Catalan, client.checks.last().third.language)
@@ -467,6 +469,7 @@ class CheckViewModelTest {
 
         check.clarifyMeaning(intent.answer)
         val clarified = reviewed()
+        assertEquals(Clarified.Meaning, done().clarifiedBy)
         assertEquals(2, client.checks.size)
         assertEquals(lookups, store.lookups.get())
         assertEquals(original, client.checks.last().third.text)

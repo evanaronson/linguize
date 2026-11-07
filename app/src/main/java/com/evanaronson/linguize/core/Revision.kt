@@ -83,6 +83,16 @@ data class Revision(
     /** The working text with all of [kind]'s remaining edits applied too, and where they sit. */
     fun preview(kind: EditKind): Rendered = render(original, shown(acceptedEdits + remaining(kind)))
 
+    /**
+     * What the card shows for [kind]: rewordings are read on the corrected text, so the
+     * remaining fixes are applied under them too; a rewording that touches a fix replaces it.
+     * Accepting still takes only that kind's edits.
+     */
+    fun previewOnCorrected(kind: EditKind): Rendered = when (kind) {
+        EditKind.Fix -> preview(kind)
+        EditKind.Natural -> render(original, shown(acceptedEdits + remaining(EditKind.Fix) + remaining(EditKind.Natural)))
+    }
+
     /** Whether edit [id] is accepted and shows in the working text: not a fix an accepted rewording replaced. */
     fun isApplied(id: Int) = edits.any { it.id == id && id in accepted && !retired(it) }
 

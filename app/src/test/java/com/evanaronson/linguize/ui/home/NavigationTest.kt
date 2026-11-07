@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.evanaronson.linguize.ui.settings.SettingsPage
 
 class NavigationTest {
     @Test
@@ -36,5 +37,19 @@ class NavigationTest {
         assertEquals(Screen.Home, Navigation.restore(listOf("detail:legacy")).parent)
         assertEquals(Navigation(), Navigation.restore(listOf("unknown", "detail:")))
         assertEquals(Navigation(), Navigation.restore(null))
+    }
+
+    @Test
+    fun drillDownPagesRestoreUnderTheirParents() {
+        val choice = Navigation().open(Screen.Settings).open(Screen.SettingsChoice(SettingsPage.Register))
+        assertEquals(choice, Navigation.restore(choice.saved))
+        assertEquals(Screen.Settings, choice.back().current)
+        val assumptions = Navigation().open(Screen.History).open(Screen.Detail("older"))
+            .open(Screen.DetailAssumptions("older"))
+        assertEquals(assumptions, Navigation.restore(assumptions.saved))
+        assertEquals(Screen.Detail("older"), assumptions.back().current)
+        val setup = Navigation().open(Screen.AccessibilitySetup)
+        assertEquals(setup, Navigation.restore(setup.saved))
+        assertEquals(Navigation().open(Screen.Settings), Navigation.restore(listOf("settings", "settings:unknown")))
     }
 }

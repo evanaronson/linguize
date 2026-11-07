@@ -8,6 +8,8 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.WritingRegister
+import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
 
@@ -37,6 +39,41 @@ val Judgments.labelResource: Int
     }
 
 @get:StringRes
+val Provider.descriptionResource: Int
+    get() = when (this) {
+        Provider.Gemini -> R.string.provider_gemini_description
+        Provider.OpenAI -> R.string.provider_openai_description
+    }
+
+val WritingRegister.labelResource: Int
+    get() = when (this) {
+        WritingRegister.Casual -> R.string.writing_register_casual
+        WritingRegister.Everyday -> R.string.writing_register_everyday
+        WritingRegister.Formal -> R.string.writing_register_formal
+    }
+
+val WritingRegister.descriptionResource: Int
+    get() = when (this) {
+        WritingRegister.Casual -> R.string.writing_register_casual_description
+        WritingRegister.Everyday -> R.string.writing_register_everyday_description
+        WritingRegister.Formal -> R.string.writing_register_formal_description
+    }
+
+val PopupPosition.labelResource: Int
+    get() = when (this) {
+        PopupPosition.Bottom -> R.string.popup_position_bottom
+        PopupPosition.Middle -> R.string.popup_position_middle
+        PopupPosition.Top -> R.string.popup_position_top
+    }
+
+/** Middle needs no explanation. */
+val PopupPosition.descriptionResource: Int?
+    get() = when (this) {
+        PopupPosition.Bottom -> R.string.popup_position_bottom_description
+        PopupPosition.Middle -> null
+        PopupPosition.Top -> R.string.popup_position_top_description
+    }
+
 val Provider.labelResource: Int
     get() = when (this) {
         Provider.Gemini -> R.string.provider_gemini

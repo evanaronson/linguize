@@ -1,28 +1,21 @@
 package com.evanaronson.linguize.ui.history
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,88 +24,116 @@ import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionRecord
-import com.evanaronson.linguize.ui.card.UnderstandingEntry
-import com.evanaronson.linguize.ui.card.UnderstandingPage
-import com.evanaronson.linguize.ui.card.understandingEntry
+import com.evanaronson.linguize.ui.card.AssumptionList
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.CardNote
+import com.evanaronson.linguize.ui.components.DISABLED_ALPHA
+import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.ListCard
+import com.evanaronson.linguize.ui.components.ListRow
+import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.components.RowDivider
+import com.evanaronson.linguize.ui.components.ScreenColumn
+import com.evanaronson.linguize.ui.components.SectionCard
+import com.evanaronson.linguize.ui.components.SectionHeader
+import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.titleResource
-import kotlinx.coroutines.launch
+
+private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
 /** Exact saved text and decisions; inspecting a past check cannot change it. */
 @Composable
-fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit) {
-    val scroll = rememberScrollState()
-    val scope = rememberCoroutineScope()
+fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit, onOpenAssumptions: () -> Unit = {}) {
     val deletion = session.deletion
     val page = session.page
     LaunchedEffect(deletion) {
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .verticalScroll(scroll)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    ScreenColumn {
         when (page) {
             SessionPage.Loading -> Unit
-            SessionPage.Missing -> Faint(stringResource(R.string.check_was_deleted))
-            SessionPage.Failed -> Column(Modifier.padding(vertical = 12.dp)) {
-                Faint(stringResource(R.string.history_load_failed))
-                TextButton(onClick = session::retry) { Text(stringResource(R.string.retry)) }
+            SessionPage.Missing -> CardNote(stringResource(R.string.check_was_deleted))
+            SessionPage.Failed -> {
+                CardNote(stringResource(R.string.history_load_failed))
+                LinguizeButton(stringResource(R.string.retry), session::retry, ButtonKind.Text,
+                    modifier = Modifier.padding(start = 8.dp))
             }
-            is SessionPage.Shown -> Shown(
-                page,
-                onMeaningNavigation = { scope.launch { scroll.scrollTo(0) } },
-            )
+            is SessionPage.Shown -> Shown(page, onOpenAssumptions)
         }
         if (deletion == SessionDeletion.Failed) {
-            Text(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
+            CardNote(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
         }
         // A refresh may remove the row before a failed checkpoint has been retried.
         if (page is SessionPage.Shown || deletion == SessionDeletion.Failed) {
-            DeleteButton(session::delete, deleting = deletion == SessionDeletion.Deleting)
+            Spacer(Modifier.height(16.dp))
+            DeleteRow(session::delete, deleting = deletion == SessionDeletion.Deleting)
         }
     }
 }
 
 @Composable
-private fun Shown(
-    page: SessionPage.Shown,
-    onMeaningNavigation: () -> Unit,
-) {
+private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
     val session = page.session
-    SessionDetails(session, page.appLabel)
-
     val reviewed = page.card?.result as? CheckResult.Reviewed
     val settled = page.card?.settled.orEmpty()
-    var meaningOpen by rememberSaveable(session.id) { mutableStateOf(false) }
-    val showMeaning: (Boolean) -> Unit = {
-        meaningOpen = it
-        onMeaningNavigation()
-    }
-    BackHandler(enabled = meaningOpen) { showMeaning(false) }
-    if (meaningOpen && reviewed != null) {
-        UnderstandingPage(reviewed.meaning, reviewed.assumptions, settled,
-            onSettle = null, onRemoveChoice = null, onBack = { showMeaning(false) })
-    } else {
-        TextBlock(stringResource(R.string.history_before), session.text)
-        WhatCameOfIt(session)
+    SessionDetails(session, page.appLabel)
+
+    SectionHeader(stringResource(R.string.history_before))
+    SectionCard(contentPadding = BlockPadding) {
+        TextBlock(session.text)
         page.failure?.let {
-            Text(stringResource(R.string.check_failed_reason, stringResource(it.titleResource)),
-                color = MaterialTheme.colorScheme.error)
+            Quiet(stringResource(R.string.check_failed_reason, stringResource(it.titleResource)),
+                Modifier.padding(top = 12.dp))
         }
         when (page.warning) {
-            Verdict.Status.Unclear -> Faint(stringResource(R.string.meaning_unclear))
-            Verdict.Status.WrongLanguage -> Faint(stringResource(R.string.wrong_language_status))
+            Verdict.Status.Unclear -> Quiet(stringResource(R.string.meaning_unclear), Modifier.padding(top = 12.dp))
+            Verdict.Status.WrongLanguage -> Quiet(stringResource(R.string.wrong_language_status), Modifier.padding(top = 12.dp))
             else -> Unit
         }
-        if (reviewed != null) {
-            UnderstandingEntry(understandingEntry(reviewed.meaning, reviewed.assumptions,
-                settled, readOnly = true), onOpen = { showMeaning(true) })
+    }
+
+    if (reviewed != null && (reviewed.meaning.isNotBlank() || reviewed.assumptions.isNotEmpty() || settled.isNotEmpty())) {
+        SectionHeader(stringResource(R.string.meaning))
+        SectionCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)) {
+            if (reviewed.meaning.isNotBlank()) TextBlock(reviewed.meaning, Modifier.padding(bottom = 12.dp))
+            val readings = reviewed.assumptions.size + settled.count { !it.isMeaning }
+            if (readings > 0) {
+                val first = settled.firstOrNull { !it.isMeaning }?.let { it.about to it.answer }
+                    ?: reviewed.assumptions.first().let { it.about to it.assumed }
+                ListRow(
+                    stringResource(R.string.assumptions_count, readings),
+                    stringResource(R.string.assumption_summary, first.first, first.second.lowercaseFirst()),
+                    onClick = onOpenAssumptions,
+                )
+            }
+            settled.firstOrNull { it.isMeaning }?.let {
+                if (readings > 0) RowDivider()
+                ListRow(stringResource(R.string.your_clarification), it.answer)
+            }
         }
-        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-            reviewed = reviewed, settled = settled)
+    }
+
+    SectionHeader(stringResource(R.string.history_after))
+    SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
+
+    SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+        reviewed = reviewed, settled = settled)
+}
+
+/** The readings a past check's suggestions rested on, and the writer's answers, read-only. */
+@Composable
+fun SessionAssumptionsScreen(session: SessionViewModel) {
+    val page = session.page as? SessionPage.Shown ?: return
+    val reviewed = page.card?.result as? CheckResult.Reviewed ?: return
+    val settled = page.card?.settled.orEmpty().filterNot { it.isMeaning }
+    val open = reviewed.assumptions.filterNot { a -> settled.any { it.answers(a.about) } }
+    ScreenColumn {
+        SectionHeader(stringResource(R.string.assumptions))
+        SectionCard(contentPadding = BlockPadding) {
+            Quiet(stringResource(R.string.assumptions_description_past))
+            Spacer(Modifier.height(4.dp))
+            AssumptionList(reviewed.assumptions, open, settled, onSettle = null, onRemoveChoice = null)
+        }
     }
 }
 
@@ -120,22 +141,21 @@ private fun Shown(
 private fun SessionDetails(session: SessionRecord, appLabel: String?) {
     val time = rememberTimeFormat()
     val resources = LocalResources.current
-    Column {
-        Text(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true), style = MaterialTheme.typography.titleLarge)
-        appLabel?.let { Faint(it) }
-        Faint(stringResource(R.string.history_target_language,
-            targetLanguageLabel(resources, session.targetLanguage, session.requestedLanguage)))
-        session.detectedLanguage?.takeIf { it != session.targetLanguage }?.let {
-            Faint(stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it)))
-        }
+    SectionHeader(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true))
+    val target = stringResource(R.string.history_target_language,
+        targetLanguageLabel(resources, session.targetLanguage, session.requestedLanguage))
+    val detected = session.detectedLanguage?.takeIf { it != session.targetLanguage }?.let {
+        stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it))
     }
+    val details = listOfNotNull(target, detected).joinToString("\n")
+    ListCard({ ListRow(appLabel ?: details, if (appLabel != null) details else null) })
 }
 
 @Composable
 private fun WhatCameOfIt(session: SessionRecord) {
     val finalText = session.finalText
     if (finalText != null) {
-        TextBlock(stringResource(R.string.history_after), finalText)
+        TextBlock(finalText)
         return
     }
     when (session.outcome) {
@@ -143,17 +163,21 @@ private fun WhatCameOfIt(session: SessionRecord) {
         Outcome.None -> stringResource(R.string.outcome_closed)
         Outcome.Abandoned -> stringResource(R.string.outcome_abandoned)
         Outcome.Applied, Outcome.Failed, null -> stringResource(R.string.history_no_applied_result)
-    }.let { Faint(it) }
+    }.let { Quiet(it) }
 }
 
 @Composable
-private fun DeleteButton(onDelete: () -> Unit, deleting: Boolean) {
+private fun DeleteRow(onDelete: () -> Unit, deleting: Boolean) {
     var confirming by rememberSaveable { mutableStateOf(false) }
-    TextButton(
-        onClick = { confirming = true },
-        enabled = !deleting,
-        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-    ) { Text(stringResource(if (deleting) R.string.deleting_check else R.string.delete)) }
+    ListCard({
+        ListRow(
+            stringResource(if (deleting) R.string.deleting_check else R.string.delete_this_check),
+            stringResource(R.string.delete_this_check_summary),
+            modifier = if (deleting) Modifier.alpha(DISABLED_ALPHA) else Modifier,
+            onClick = if (deleting) null else ({ confirming = true }),
+            onClickLabel = stringResource(R.string.delete),
+        )
+    })
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
@@ -170,27 +194,6 @@ private fun DeleteButton(onDelete: () -> Unit, deleting: Boolean) {
     }
 }
 
-/** A labelled text, set apart the way the card shows the meaning. */
-@Composable
-private fun TextBlock(label: String, text: String) {
-    Column {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SelectionContainer {
-            Text(
-                text,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .padding(top = 6.dp)
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .padding(12.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun Faint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
+/** "The meeting is tomorrow" after a colon: lower-case its first letter, unless it starts a name or acronym. */
+private fun String.lowercaseFirst(): String =
+    if (length > 1 && this[0].isUpperCase() && this[1].isLowerCase()) replaceFirstChar { it.lowercaseChar() } else this

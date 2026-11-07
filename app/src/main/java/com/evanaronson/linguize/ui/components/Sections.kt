@@ -203,7 +203,7 @@ fun ChoiceRow(
 }
 
 /**
- * A settings page that is one choice: its options in a card, then [note] under it.
+ * A settings page that is one choice: its options in a card, then [note] and [footer] under it.
  * [description] is null for options that need no explanation.
  */
 @Composable
@@ -215,6 +215,7 @@ fun <T> ChoicePage(
     onSelect: (T) -> Unit,
     note: String? = null,
     multiple: Boolean = false,
+    footer: @Composable () -> Unit = {},
 ) {
     ScreenColumn {
         Spacer(Modifier.height(8.dp))
@@ -225,6 +226,7 @@ fun <T> ChoicePage(
             }
         }
         note?.let { CardNote(it) }
+        footer()
     }
 }
 

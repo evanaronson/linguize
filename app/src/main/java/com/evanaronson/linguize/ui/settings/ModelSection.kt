@@ -5,10 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -23,14 +20,12 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.ui.components.ButtonKind
-import com.evanaronson.linguize.ui.components.CardNote
-import com.evanaronson.linguize.ui.components.ChoiceRow
+import com.evanaronson.linguize.ui.components.ChoicePage
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.SectionCard
-import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.text.labelResource
 import com.evanaronson.linguize.ui.text.localizedText
@@ -82,19 +77,18 @@ internal fun ModelPage(state: SettingsState, settings: SettingsViewModel) {
     val providerName = stringResource(provider.labelResource)
     val recommended = stringResource(R.string.model_recommended, provider.recommendedModel)
     val available = (state.models as? ModelList.Loaded)?.models.orEmpty().filter { it != provider.recommendedModel }
-    ScreenColumn {
-        Spacer(Modifier.height(8.dp))
-        SectionCard(Modifier.selectableGroup()) {
-            (listOf<String?>(null) + available).forEachIndexed { index, model ->
-                if (index > 0) RowDivider()
-                ChoiceRow(model ?: recommended, null, model == state.model, { settings.selectModel(model) })
-            }
-        }
-        CardNote(when (state.models) {
+    ChoicePage(
+        options = listOf<String?>(null) + available,
+        selected = { it == state.model },
+        label = { it ?: recommended },
+        description = { null },
+        onSelect = settings::selectModel,
+        note = when (state.models) {
             ModelList.Loading -> stringResource(R.string.models_loading_note, providerName)
             ModelList.Failed -> stringResource(R.string.models_failed_note, providerName)
             is ModelList.Loaded -> stringResource(R.string.models_note, providerName)
-        })
+        },
+    ) {
         if (state.hasKey) {
             LinguizeButton(
                 stringResource(if (state.models == ModelList.Failed) R.string.retry else R.string.models_refresh),

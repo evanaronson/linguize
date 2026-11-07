@@ -4,6 +4,7 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
@@ -66,9 +67,12 @@ class SettingsKeyLayoutTest {
             setContent {
                 CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
                     LinguizeTheme(dark = false) {
-                        // SectionCard's two 20dp insets leave 248dp for the three actions.
-                        Column(Modifier.width(288.dp).semantics { contentDescription = CARD }) {
-                            ModelCard(state, settings, onOpen = {})
+                        // The view root is measured exactly; Box releases that minimum so
+                        // the card can be 288dp, leaving 248dp after its two 20dp insets.
+                        Box {
+                            Column(Modifier.width(288.dp).semantics { contentDescription = CARD }) {
+                                ModelCard(state, settings, onOpen = {})
+                            }
                         }
                     }
                 }

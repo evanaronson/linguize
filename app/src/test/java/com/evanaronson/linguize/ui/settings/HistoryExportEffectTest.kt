@@ -11,6 +11,7 @@ import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -107,6 +108,9 @@ class HistoryExportEffectTest {
     /** A stable History composition, independent of Android views or lazy-item visibility. */
     private class ExportScreen(scope: CoroutineScope) {
         val app = RuntimeEnvironment.getApplication() as App
+        // Each Robolectric app has a new cache directory. Attach the manifest provider as
+        // Android does, so FileProvider drops the previous test's cached authority roots.
+        private val provider = Robolectric.buildContentProvider(FileProvider::class.java).create()
         val settings = SettingsViewModel(app)
         private val store = ViewModelStore().apply { put("settings", settings) }
         private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
@@ -155,6 +159,7 @@ class HistoryExportEffectTest {
             owner.lifecycle.currentState = Lifecycle.State.DESTROYED
             controller.pause().stop().destroy()
             app.exports.clear()
+            provider.shutdown()
         }
     }
 

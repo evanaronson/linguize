@@ -92,28 +92,25 @@ internal fun ExplanationPanel(
             .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(start = 14.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
     ) {
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                description?.let { ChangeLine(from, to, it) }
-                if (!context.isNullOrBlank()) {
-                    Text(context, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                if (expanded) {
-                    why?.takeIf { it.isNotBlank() }?.let {
-                        Text(it, style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
-                    }
-                }
+        description?.let { ChangeLine(from, to, it) }
+        if (!context.isNullOrBlank()) {
+            Text(context, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (expanded) {
+            why?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
             }
-            onAccept?.let {
-                LinguizeButton(
-                    stringResource(R.string.accept), onClick = it,
-                    kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal,
-                )
-            }
+        }
+        onAccept?.let {
+            LinguizeButton(
+                stringResource(R.string.accept), onClick = it,
+                kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal,
+                modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
+            )
         }
         if (expanded) WeightMeters(assessment, Modifier.padding(top = 8.dp))
         if (expanded && (assumptions.isNotEmpty() || answers.isNotEmpty())) {
@@ -187,7 +184,7 @@ internal fun WeightMeters(assessment: SuggestionAssessment?, modifier: Modifier 
         stringResource(R.string.assessment_dimension, stringResource(R.string.assessment_confidence), stringResource(presentation.confidence.label)),
     ).joinToString(stringResource(R.string.list_separator))
     FlowRow(
-        modifier.clearAndSetSemantics { contentDescription = spoken },
+        modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken },
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {

@@ -6,7 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -18,12 +20,17 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
@@ -217,36 +224,64 @@ class CardNavigationTest {
 
     private fun verifyNavigation(parentScrolls: Boolean) {
         val result = reviewed()
+        var viewportSize = IntSize.Zero
+        var viewportBounds = Rect.Zero
+        var expectedSize = 0
         root.setContent {
             MaterialTheme {
-                if (parentScrolls) {
-                    Column(Modifier.width(320.dp).height(320.dp).verticalScroll(rememberScrollState())) {
-                        Spacer(Modifier.height(600.dp))
-                        ResultCard(CardState.Done(result), actions, scrollable = false)
-                        Spacer(Modifier.height(600.dp))
+                expectedSize = with(LocalDensity.current) { 320.dp.roundToPx() }
+                // The root is exactly screen-sized. Box clears its minimum constraints so
+                // this fixture really has a 320dp viewport, as a constrained popup does.
+                Box(Modifier.fillMaxSize()) {
+                    val viewport = Modifier.width(320.dp).height(320.dp).onGloballyPositioned {
+                        viewportSize = it.size
+                        viewportBounds = it.boundsInRoot()
                     }
-                } else {
-                    ResultCard(CardState.Done(result), actions, Modifier.width(320.dp).height(320.dp))
+                    if (parentScrolls) {
+                        Column(viewport.verticalScroll(rememberScrollState())) {
+                            Spacer(Modifier.height(600.dp))
+                            ResultCard(CardState.Done(result), actions, scrollable = false)
+                            Spacer(Modifier.height(100.dp))
+                        }
+                    } else {
+                        ResultCard(CardState.Done(result), actions, viewport)
+                    }
                 }
             }
         }
+        fun diagnostic(stage: String) =
+            "$stage: parentScrolls=$parentScrolls viewport=$viewportSize bounds=$viewportBounds " +
+                "root=${root.width}x${root.height} scroll=${scrollOffset()}/${scrollRange().maxValue()}"
+        fun assertVisible(node: SemanticsNode, stage: String) {
+            val bounds = node.boundsInRoot
+            assertTrue("${diagnostic(stage)} node=$bounds position=${node.positionInRoot}",
+                bounds.width > 0f && bounds.height > 0f &&
+                    bounds.top >= viewportBounds.top && bounds.bottom <= viewportBounds.bottom)
+        }
         settle()
+        assertEquals("The navigation fixture must constrain its viewport", IntSize(expectedSize, expectedSize), viewportSize)
+        assertTrue(diagnostic("Content must overflow"), scrollRange().maxValue() > 0f)
         scrollToBottom()
-        assertTrue(scrollOffset() > 0f)
+        assertTrue(diagnostic("Before opening Meaning"), scrollOffset() > 0f)
+        val meaning = nodes().first { it.config.getOrNull(SemanticsActions.OnClick) != null &&
+            containsText(it, activity.getString(R.string.meaning)) }
+        assertVisible(meaning, "Meaning footer must be reachable")
         clickText(R.string.meaning)
         val heading = nodes().first { it.config.contains(SemanticsProperties.Heading) &&
             containsText(it, activity.getString(R.string.meaning)) }
-        assertTrue("The page title must be in the viewport", heading.boundsInRoot.height > 0f)
-        assertTrue("The back control must be in the viewport", backButtons().single().boundsInRoot.height > 0f)
-        if (!parentScrolls) assertEquals(0f, scrollOffset(), 1f)
+        assertVisible(heading, "Meaning page title")
+        assertVisible(backButtons().single(), "Meaning back control")
+        if (!parentScrolls) assertEquals(diagnostic("Meaning starts at the top"), 0f, scrollOffset(), 1f)
 
         scrollToBottom()
-        assertTrue(scrollOffset() > 0f)
-        clickBack()
+        assertTrue(diagnostic("Before returning"), scrollOffset() > 0f)
+        // System Back is available even after the long Meaning page has been scrolled.
+        activity.onBackPressedDispatcher.onBackPressed()
+        settle()
         val count = activity.resources.getQuantityString(R.plurals.fix_count, 1, 1)
         val firstLine = nodes().first { containsText(it, count) && it.config.getOrNull(SemanticsProperties.Text) != null }
-        assertTrue("Returning reveals the first suggestion section", firstLine.boundsInRoot.height > 0f)
-        if (!parentScrolls) assertEquals(0f, scrollOffset(), 1f)
+        assertVisible(firstLine, "Returning reveals the first suggestion section")
+        if (!parentScrolls) assertEquals(diagnostic("Suggestions start at the top"), 0f, scrollOffset(), 1f)
     }
 
     private fun reviewed(lines: Int = 50): CheckResult.Reviewed {
@@ -263,9 +298,11 @@ class CardNavigationTest {
         settle()
     }
 
-    private fun scrollOffset() = nodes().single {
+    private fun scrollRange() = nodes().single {
         it.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) != null
-    }.config[SemanticsProperties.VerticalScrollAxisRange].value()
+    }.config[SemanticsProperties.VerticalScrollAxisRange]
+
+    private fun scrollOffset() = scrollRange().value()
 
     private fun clickText(id: Int) {
         val text = activity.getString(id)
@@ -300,6 +337,9 @@ class CardNavigationTest {
             frames.sendFrame(frameTime)
             Snapshot.sendApplyNotifications()
             shadowOf(Looper.getMainLooper()).idle()
+            // Equal MeasureSpecs may otherwise let Android skip the Compose layout pass.
+            ownerView(root)?.forceLayout()
+            root.forceLayout()
             root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
             root.layout(0, 0, 1080, 1920)

@@ -22,12 +22,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.res.stringResource
 import com.evanaronson.linguize.ui.ClipboardText
 import com.evanaronson.linguize.ui.readCopiedText
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.card.ResultSurface
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.ui.card.FloatingPopup
 import com.evanaronson.linguize.ui.card.ResultCard
@@ -288,11 +290,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
                             )
                         } else {
                             check.state?.let { state ->
-                                ResultCard(state, actions, modifier, leadingContent = {
-                                    TextButton(onClick = ::switchToUnderstand) {
-                                        Text(stringResource(R.string.understand_copied_text))
-                                    }
-                                })
+                                ResultCard(state, actions, modifier, onUnderstandCopiedText = ::switchToUnderstand)
                             }
                         }
                     }
@@ -340,15 +338,14 @@ class LinguizeAccessibilityService : AccessibilityService() {
                 AppTheme {
                     FloatingPopup(onDismiss = dismiss, onOpenApp = openApp, position = position) { modifier ->
                         ResultSurface(modifier) {
-                            Text(stringResource(R.string.shortcut_recovery_hint))
+                            Text(stringResource(R.string.shortcut_recovery_hint), style = MaterialTheme.typography.bodyLarge)
                             Spacer(Modifier.height(12.dp))
-                            Text(text)
+                            Text(text, style = MaterialTheme.typography.bodyLarge)
                             Spacer(Modifier.height(12.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = { copyToClipboard(text) }) {
-                                    Text(stringResource(R.string.shortcut_copy_accepted))
-                                }
-                                TextButton(onClick = dismiss) { Text(stringResource(R.string.shortcut_dismiss)) }
+                                LinguizeButton(stringResource(R.string.shortcut_copy_accepted), { copyToClipboard(text) },
+                                    ButtonKind.Text)
+                                LinguizeButton(stringResource(R.string.shortcut_dismiss), dismiss, ButtonKind.Text)
                             }
                         }
                     }

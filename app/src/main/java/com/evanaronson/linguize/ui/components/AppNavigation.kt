@@ -2,15 +2,11 @@ package com.evanaronson.linguize.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -18,16 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
- * The full app's navigation: branding and settings at the root, Back and a title on
- * child pages. The activity owns the destination and back action. Cards keep their
- * own local drill-down navigation, including Meaning inside a popup.
+ * The full app's navigation: the wordmark and settings at the root, a back arrow and the
+ * page title on child pages. The activity owns the destination and back action. Cards
+ * keep their own local drill-down navigation, including Meaning inside a popup.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,21 +39,18 @@ internal fun AppNavigation(
                 Image(
                     painterResource(R.drawable.wordmark),
                     contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.height(36.dp).semantics { heading() },
+                    modifier = Modifier.height(29.dp).semantics { heading() },
                 )
             } else {
                 Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.semantics { heading() })
             }
         },
         navigationIcon = {
             onBack?.let { back ->
-                val description = stringResource(R.string.back_to, backLabel)
-                TextButton(onClick = back, modifier = Modifier.widthIn(max = 144.dp)
-                    .semantics { contentDescription = description }) {
-                    Icon(painterResource(R.drawable.ic_back), contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(backLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                IconButton(onClick = back) {
+                    Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back_to, backLabel))
                 }
             }
         },
@@ -68,6 +61,9 @@ internal fun AppNavigation(
                 }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Linguize.colors.ground,
+            scrolledContainerColor = Linguize.colors.ground,
+        ),
     )
 }

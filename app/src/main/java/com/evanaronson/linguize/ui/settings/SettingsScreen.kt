@@ -1,150 +1,126 @@
 package com.evanaronson.linguize.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.core.Judgments
-import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.data.MenuEntry
-import com.evanaronson.linguize.ui.components.Dropdown
-import com.evanaronson.linguize.ui.components.MultiSelectDropdown
-import com.evanaronson.linguize.ui.components.RadioRow
-import com.evanaronson.linguize.ui.components.SectionTitle
+import com.evanaronson.linguize.data.PopupPosition
+import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.ui.components.ChoicePage
+import com.evanaronson.linguize.ui.components.ListCard
+import com.evanaronson.linguize.ui.components.ListRow
+import com.evanaronson.linguize.ui.components.ScreenColumn
+import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.text.descriptionResource
 import com.evanaronson.linguize.ui.text.displayName
 import com.evanaronson.linguize.ui.text.labelResource
 
-/** Settings content; the activity owns the shared navigation bar and system insets. */
-@Composable
-fun SettingsScreen(settings: SettingsViewModel) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // The saved settings load in a moment; showing defaults first would flash the wrong choices.
-        val state = settings.state ?: return@Column
-        LaunchedEffect(Unit) { settings.showModels() }
-        CheckingSection(state, settings)
-        WritingSection(state, settings)
-        PopupSection(state, settings)
-        ModelSection(state, settings)
-        HistorySection(state, settings)
+/** The Settings choices that open a page of their own; the row and the page share a title. */
+enum class SettingsPage(val token: String, @param:StringRes val title: Int) {
+    Service("service", R.string.service),
+    Model("model", R.string.model),
+    Menu("menu", R.string.selection_menu_label),
+    Suggest("suggest", R.string.what_to_suggest),
+    WritingIn("writing", R.string.writing_language),
+    Register("register", R.string.writing_register),
+    Punctuation("punctuation", R.string.punctuation),
+    Position("position", R.string.popup_position),
+    ;
+
+    companion object {
+        fun read(token: String) = entries.firstOrNull { it.token == token }
     }
 }
 
+/**
+ * Settings: one card per group, each row showing its current value. A row with more than
+ * a few options opens a [SettingsPage]. The activity owns the navigation bar and insets.
+ */
 @Composable
-private fun CheckingSection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle(stringResource(R.string.checking))
-    val labels = menuLabels()
-    val descriptions = MenuEntry.entries.associateWith { entry ->
-        stringResource(R.string.menu_entry_description, labels.getValue(entry),
-            entry.language?.displayName() ?: stringResource(R.string.detect_language))
+fun SettingsScreen(settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) {
+    // The saved settings load in a moment; showing defaults first would flash the wrong choices.
+    val state = settings.state ?: return
+    LaunchedEffect(Unit) { settings.showModels() }
+    ScreenColumn {
+        SectionHeader(stringResource(R.string.ai_service))
+        ModelCard(state, settings, onOpen)
+
+        SectionHeader(stringResource(R.string.checking))
+        val separator = stringResource(R.string.list_separator)
+        val menu = MenuEntry.entries.filter { it in state.menu }.map { stringResource(it.label) }.joinToString(separator)
+        val suggest = stringResource(state.judgments.labelResource)
+        ListCard(
+            { ListRow(stringResource(R.string.selection_menu_label), menu, onClick = { onOpen(SettingsPage.Menu) }) },
+            { ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) },
+        )
+
+        SectionHeader(stringResource(R.string.writing_preferences))
+        val profile = state.writingProfile
+        val language = Language.forCode(state.writingLanguage) ?: Language.Catalan
+        val register = stringResource(profile.register.labelResource)
+        val punctuation = stringResource(profile.punctuation.labelResource)
+        ListCard(
+            { ListRow(stringResource(R.string.writing_language), language.displayName(), onClick = { onOpen(SettingsPage.WritingIn) }) },
+            { ListRow(stringResource(R.string.writing_register), register, onClick = { onOpen(SettingsPage.Register) }) },
+            { ListRow(stringResource(R.string.punctuation), punctuation, onClick = { onOpen(SettingsPage.Punctuation) }) },
+        )
+
+        SectionHeader(stringResource(R.string.popup))
+        val position = stringResource(state.popupPosition.labelResource)
+        ListCard({ ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) })
+
+        SectionHeader(stringResource(R.string.history))
+        HistorySwitch(state, settings)
     }
-    MultiSelectDropdown(
-        label = stringResource(R.string.selection_menu_label),
-        options = MenuEntry.entries,
-        selected = state.menu,
-        optionLabel = descriptions::getValue,
-        onToggle = settings::toggleMenuEntry,
-    )
-    if (state.menu.size == 1) {
-        Text(
-            stringResource(R.string.selection_menu_keep_one),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+}
+
+/** One page per [SettingsPage]: the options, each with what it does. */
+@Composable
+fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
+    val state = settings.state ?: return
+    when (page) {
+        SettingsPage.Service -> ChoicePage(
+            Provider.entries, { it == state.provider }, { stringResource(it.labelResource) },
+            { stringResource(it.descriptionResource) }, settings::selectProvider,
+        )
+        SettingsPage.Model -> ModelPage(state, settings)
+        SettingsPage.Menu -> ChoicePage(
+            MenuEntry.entries, { it in state.menu }, { stringResource(it.label) },
+            { it.language?.displayName() ?: stringResource(R.string.detect_language) },
+            settings::toggleMenuEntry, note = stringResource(R.string.menu_note), multiple = true,
+        )
+        SettingsPage.Suggest -> ChoicePage(
+            Judgments.entries, { it == state.judgments }, { stringResource(it.labelResource) },
+            { if (it == Judgments.Both) stringResource(R.string.suggestions_description) else null },
+            settings::setJudgments,
+        )
+        SettingsPage.WritingIn -> ChoicePage(
+            Language.all, { it.code == state.writingLanguage }, { it.displayName() },
+            { language ->
+                stringResource(
+                    if (language.code == state.writingLanguage) R.string.writing_language_current else R.string.writing_language_other,
+                    language.displayName(),
+                )
+            },
+            settings::selectWritingLanguage,
+        )
+        SettingsPage.Register -> ChoicePage(
+            WritingRegister.entries, { it == state.writingProfile.register }, { stringResource(it.labelResource) },
+            { stringResource(it.descriptionResource) }, settings::setWritingRegister,
+        )
+        SettingsPage.Punctuation -> ChoicePage(
+            Punctuation.entries, { it == state.writingProfile.punctuation }, { stringResource(it.labelResource) },
+            { stringResource(it.descriptionResource) }, settings::setWritingPunctuation,
+        )
+        SettingsPage.Position -> ChoicePage(
+            PopupPosition.entries, { it == state.popupPosition }, { stringResource(it.labelResource) },
+            { it.descriptionResource?.let { id -> stringResource(id) } }, settings::setPopupPosition,
         )
     }
-    Text(stringResource(R.string.what_to_suggest), style = MaterialTheme.typography.titleSmall)
-    Column(Modifier.selectableGroup()) {
-        Judgments.entries.forEach { option ->
-            RadioRow(stringResource(option.labelResource), selected = option == state.judgments, onClick = { settings.setJudgments(option) })
-        }
-    }
-    Text(
-        stringResource(R.string.suggestions_description),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-private fun WritingSection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle(stringResource(R.string.writing_preferences))
-    val languageLabels = Language.all.associateWith { it.displayName() }
-    val language = Language.forCode(state.writingLanguage) ?: Language.Catalan
-    Dropdown(
-        label = stringResource(R.string.writing_language),
-        selected = language,
-        options = Language.all,
-        optionLabel = languageLabels::getValue,
-        onSelect = settings::selectWritingLanguage,
-    )
-    val registerLabels = WritingRegister.entries.associateWith { register ->
-        stringResource(when (register) {
-            WritingRegister.Casual -> R.string.writing_register_casual
-            WritingRegister.Everyday -> R.string.writing_register_everyday
-            WritingRegister.Formal -> R.string.writing_register_formal
-        })
-    }
-    val profile = state.writingProfile
-    Dropdown(
-        label = stringResource(R.string.writing_register),
-        selected = profile.register,
-        options = WritingRegister.entries,
-        optionLabel = registerLabels::getValue,
-        onSelect = settings::setWritingRegister,
-    )
-    val punctuationLabels = Punctuation.entries.associateWith { stringResource(it.labelResource) }
-    Dropdown(
-        label = stringResource(R.string.punctuation),
-        selected = profile.punctuation,
-        options = Punctuation.entries,
-        optionLabel = punctuationLabels::getValue,
-        onSelect = settings::setWritingPunctuation,
-    )
-    Text(
-        stringResource(profile.punctuation.descriptionResource),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-private fun menuLabels(): Map<MenuEntry, String> = MenuEntry.entries.associateWith { stringResource(it.label) }
-
-@Composable
-private fun PopupSection(state: SettingsState, settings: SettingsViewModel) {
-    SectionTitle(stringResource(R.string.popup))
-    val labels = PopupPosition.entries.associateWith { position ->
-        stringResource(when (position) {
-            PopupPosition.Bottom -> R.string.popup_position_bottom
-            PopupPosition.Middle -> R.string.popup_position_middle
-            PopupPosition.Top -> R.string.popup_position_top
-        })
-    }
-    Dropdown(
-        label = stringResource(R.string.popup_position),
-        selected = state.popupPosition,
-        options = PopupPosition.entries,
-        optionLabel = labels::getValue,
-        onSelect = settings::setPopupPosition,
-    )
 }

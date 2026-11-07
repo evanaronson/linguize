@@ -122,7 +122,7 @@ class SessionScreenTest {
             assertTrue(hasText(root, activity.getString(R.string.delete_check_failed)))
 
             // Exercise the remaining UI, including its existing confirmation flow.
-            clickText(root, activity.getString(R.string.delete))
+            clickText(root, activity.getString(R.string.delete_this_check))
             settle(root)
             val dialog = requireNotNull(ShadowDialog.getLatestDialog())
             assertTrue(dialog.isShowing)

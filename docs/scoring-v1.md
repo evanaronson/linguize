@@ -36,9 +36,13 @@ The History schema/migrations are documented in history.md. There is no automati
 historical scoring job: the separate offline experiment can assess old suggestions
 without modifying their original evidence.
 
-Live unresolved assumptions use Review assumptions with a pending-only count.
-Clarify opens the existing alternatives and settling one checks again. Read-only
-History uses Meaning, and supplied answers are not counted as unresolved. The
+The card shows scores without words: under each change's reason, Impact then
+Confidence as three bars each (screen readers hear the labels). Under a hairline
+the explanation names the reading the change rests on ("Assumes …"), which opens
+the alternatives in place; Clarify settles one and checks again, and an answered
+reading reads "You said …". Meaning, the card's footer row, lists every assumption
+the same way. Read-only History shows the readings without the clarify controls,
+and supplied answers are not counted as unresolved. The
 prompt surfaces plausible meaning alternatives affecting a suggestion rather than
 creating intent questions for grammar, style or hypothetical dictionary senses.
 Re-checks produce fresh ratings and retain the writer's settled facts; no automatic

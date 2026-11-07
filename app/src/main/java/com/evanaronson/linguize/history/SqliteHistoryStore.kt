@@ -52,6 +52,10 @@ class SqliteHistoryStore(
         forgotten.saving(id)
     }
 
+    override fun releaseSession(id: String) {
+        forgotten.closing(id)
+    }
+
     override suspend fun save(session: SessionRecord) {
         write("save a session") { db ->
             if (forgotten.saving(session.id)) db.execute(HistorySchema.SAVE_SESSION, session.values().values)
@@ -159,7 +163,7 @@ class SqliteHistoryStore(
     }
 
     /**
-     * Oldest first, each row as it's stored ([rowJson]): nothing is decoded and encoded
+     * Visible applied changes, oldest first, each row as it's stored ([rowJson]): nothing is decoded and encoded
      * again, so what a newer build wrote leaves as it was. Leaves [out] open; the caller
      * closes it.
      */
@@ -168,7 +172,7 @@ class SqliteHistoryStore(
         // One transaction, so a delete during the export can't split a session from its suggestions.
         db.beginTransaction()
         try {
-            db.eachRow(HistorySchema.ALL_SESSIONS) { row ->
+            db.eachRow(HistorySchema.EXPORT_SESSIONS) { row ->
                 val session = rowJson(row, HistorySchema.SESSION_COLUMNS)
                 val suggestions = db.select(HistorySchema.SESSION_SUGGESTIONS, listOf(row.string("id"))) {
                     rowJson(it, HistorySchema.SUGGESTION_COLUMNS)

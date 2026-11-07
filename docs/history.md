@@ -26,11 +26,16 @@ recording settings, and process-wide coroutine scope.
 
 ## What is recorded
 
-Recording is on by default. It covers checks started from another app's selection
-menu or the accessibility button. The app's own Try it card is excluded. History
-also skips overlong inputs and cards opened while recording is off. Switching
-recording off stops further writes for an open card; switching it on again does
-not resume that card. Saved records stay until deleted.
+Recording is on by default. A check from another app's selection menu or the
+accessibility button is saved only after the host reports successfully returning
+changed text. Analysis alone, Copy, accepted changes that were not applied, failed
+replacement, and undoing back to the original text create no saved session. The
+app's own Try it card is excluded. History also skips overlong inputs and cards
+opened while recording is off. Switching recording off revokes an open card's
+permission to save; switching it on again does not resume that card.
+
+Older unapplied records remain stored, but are hidden from History, its counts,
+detail pages and exports. No migration deletes those records.
 
 One card is one session, including retries, language changes, and settings changes.
 A session keeps the original text, source package when known, timestamps, app
@@ -47,15 +52,17 @@ removes the previous answer for that identity and appends the new one: answers a
 sent oldest first, and newer clarifications take precedence where they conflict.
 Each attempt preserves the exact clarification list it used, including failed attempts.
 
-The session is queued for saving when recording opens, then updated after each
-completed attempt. Accept, undo, and copy activity stays in memory until closure.
-Closing queues the final session and suggestion rows in one transaction. Writes
-run off the main thread on a scope that outlives the screen, but not the process.
-The selection-menu host waits up to 500 ms for queued writes when closing.
+The session, attempts, clarifications, and accept/undo/copy activity stay in memory
+while the card is open. A successful changed-text handoff queues the final session
+and suggestion rows in one transaction. Other closures discard the in-memory
+session. Writes run off the main thread on a scope that outlives the screen, but
+not the process. The selection-menu host waits up to 500 ms for queued writes when
+closing. Registration lasts until discard or the final write completes, so Clear
+and Delete cannot be undone by an applied write that was already queued.
 
-On the next process start, saved sessions still open from an earlier process are
-marked `abandoned`. This cannot recover unsaved actions or a write that never
-reached storage. History failures are logged and normally return fallback values
+On the next process start, legacy saved sessions still open from an earlier build
+are marked `abandoned` and remain hidden. New provisional checks never reach the
+database. History failures are logged and normally return fallback values
 so they do not break checking. Recording is therefore best effort, not a complete
 event log or a guarantee that every request survives process death.
 
@@ -73,15 +80,20 @@ decision describes the state at closure:
 | `ignored` | Still offered when the card closed, without another recorded decision |
 | `superseded` | Belonged to a revision replaced by a later check or language change |
 
+Copy records the edits actually rendered in the chosen preview, including pending
+fixes in the corrected-text preview for rewordings; copying does not accept them.
+A fix replaced by a copied rewording is recorded as retired.
+
 For the final revision, applied changes take precedence, then retired, copied,
 undone, and ignored. If no text was handed back, nothing is `accepted`. An earlier
 revision replaced by another is recorded as `superseded`, without its intermediate
 accept/undo trajectory. `decidedAt` is closure or supersession time, not each tap's
 timestamp.
 
-The session outcome is `applied`, `copied`, `failed`, `none`, or `abandoned`.
-Applied takes precedence over copied; copied takes precedence over a failed last
-attempt. `status` separately records the last successful linguistic result:
+The outcome model retains `applied`, `copied`, `failed`, `none`, and `abandoned`
+for compatibility with older records. Newly saved sessions have outcome `applied`
+and a non-null final text different from the original. `status` separately records
+the last successful linguistic result:
 `ok`, `unclear`, or `wrong_language`. A technical failure and an unclear sentence
 are different observations.
 
@@ -121,8 +133,8 @@ Normal rechecks ask the model again.
 
 A saved page always shows the exact checked text as Before, and the recorded
 `finalText` as After when a result was handed back. It never reconstructs After
-from proposals. Copy-only sessions show the known outcome without inventing a
-pasted result. Suggestions come directly from the final non-superseded revision's
+from proposals. Legacy copy-only sessions remain stored but are hidden from History.
+Suggestions come directly from the final non-superseded revision's
 saved rows, including applied proposals. Tapping a row reveals its recorded reason
 and assessment; ignored/undone means Not applied, not rejected. Retired means
 Covered by a rewording, which may have been applied or copied.
@@ -160,8 +172,12 @@ version 7; row schemas are at version 6. Migration code preserves earlier format
 including old enum names and language names, and removes old Try it sessions.
 Keep these migrations and stable tokens when reorganizing code.
 
-Recent shows five closed checks; History pages through older ones by timestamp
-and ID. Failed checks remain visible. Settings counts closed, undeleted sessions.
+Recent shows five applied checks; History pages through older applied checks by
+timestamp and ID. Counts, oldest date, detail lookup, and export use the same
+eligibility rule: closed, undeleted, outcome `applied`, and a non-null final text
+different from the original. An empty final text is valid when the applied change
+deleted the original text. A later failed recheck does not exclude a session if
+the host successfully applied its retained accepted changes.
 
 Delete and Delete all perform hard deletes. `deletedAt` remains reserved and is
 not populated, so there are no sync tombstones. The store tracks open/deleted IDs
@@ -177,8 +193,8 @@ also requests a vacuum. Export-file cleanup is attempted after deletions and on
 expiry. These mechanisms should not be described as verified erasure across all
 failure cases or of copies already shared elsewhere.
 
-Export writes JSON Lines, one session with its suggestions per line, directly
-from stored rows so unknown values are retained. Only a completed export is
+Export writes JSON Lines, one visible applied session with its suggestions per line,
+directly from stored rows so unknown fields are retained. Only a completed export is
 offered through the share sheet. Temporary files have a five-minute expiry policy
 and are also cleared during later cleanup. History has no uploader. Checking
 sends text to the selected AI provider, and explicit export can send saved history
@@ -192,8 +208,8 @@ of captured checks and help reproduce or curate regressions. They do not validat
 the model's linguistic claims. Acceptance is a user action, ignored is not a
 rejection, and undone does not distinguish disagreement from a failed handoff.
 
-The menu can check read-only selections; history does not record authorship or
-whether the source was editable. The menu reports returning an Android result,
+The menu can check read-only selections, but a copy-only check is not saved.
+History does not record authorship. The menu reports returning an Android result,
 while accessibility reports the text-action return value. Neither proves the
 writer subsequently used or sent the text.
 
@@ -230,7 +246,6 @@ The fields are included in JSONL exports, Recent/History rows and check details.
 
 
 Understand is not a recorded origin or a different kind of correction session.
-It never calls CheckHistory. Switching an automatic Check to Understand discards
-the provisional Check: queued writes lose their recording permission, and deletion
-is ordered after writes already in flight. No accepted changes are applied by the
-switch. This differs from ordinary dismissal, which keeps a Check's history.
+It never calls CheckHistory. Switching an untouched automatic Check to Understand
+discards that in-memory session without a database write. Reviewed checks can be
+retained for returning to them; the switch itself never applies or saves changes.

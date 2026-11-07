@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -21,7 +20,6 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,8 +39,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.history.Outcome
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.components.RowDivider
+import com.evanaronson.linguize.ui.components.SectionCard
+import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.uiLocale
+import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.format.DateTimeFormatter
 import java.time.format.DecimalStyle
 
@@ -63,21 +67,21 @@ fun RecentSection(
     val time = rememberTimeFormat()
     HistoryDeletionFeedback(history, snackbar)
 
-    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.history), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        TextButton(onClick = onViewAll) { Text(stringResource(R.string.view_all_history)) }
+    SectionHeader(stringResource(R.string.history)) {
+        LinguizeButton(stringResource(R.string.view_all_history), onViewAll, ButtonKind.Text)
     }
-    if (historyOn == false) HistoryOff(onOpenSettings)
-    val shown = rows ?: return
-    if (shown.isEmpty()) {
-        if (historyOn == true) Quiet(stringResource(R.string.recent_empty))
-        return
-    }
-    val now = System.currentTimeMillis()
-    Column {
+    val shown = rows
+    SectionCard {
+        if (historyOn == false) HistoryOff(onOpenSettings)
+        if (shown == null) return@SectionCard
+        if (shown.isEmpty()) {
+            if (historyOn == true) Quiet(stringResource(R.string.recent_empty), Modifier.padding(vertical = 14.dp))
+            return@SectionCard
+        }
+        val now = System.currentTimeMillis()
         shown.take(HistoryViewModel.PREVIEW_SIZE).forEachIndexed { index, row ->
             key(row.summary.id) {
-                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (index > 0 || historyOn == false) RowDivider()
                 val delete = { history.delete(row.summary.id) }
                 SwipeToDelete(onDelete = delete) {
                     SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
@@ -133,7 +137,7 @@ internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCl
         Modifier
             .fillMaxWidth()
             // Opaque, so the delete background shows only while swiping.
-            .background(MaterialTheme.colorScheme.surface)
+            .background(Linguize.colors.card)
             // On the same node as the click, so screen readers offer Delete on the row they're on.
             .semantics {
                 customActions = listOf(
@@ -156,7 +160,7 @@ internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCl
         Text(
             summary.statusLine(resources),
             style = MaterialTheme.typography.bodySmall,
-            color = if (summary.outcome == Outcome.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -172,11 +176,11 @@ internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .background(MaterialTheme.colorScheme.error)
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onErrorContainer)
+                Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onError)
             }
         },
         enableDismissFromStartToEnd = false,
@@ -190,8 +194,11 @@ internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit
 internal fun rememberDeleteSwipeState(onDelete: () -> Unit): SwipeToDismissBoxState {
     val delete by rememberUpdatedState(onDelete)
     val state = rememberSwipeToDismissBoxState()
-    LaunchedEffect(state.currentValue) {
-        if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+    LaunchedEffect(state.settledValue) {
+        if (state.settledValue == SwipeToDismissBoxValue.EndToStart) {
+            // currentValue changes halfway through a drag. Wait for release and
+            // the dismissal animation to settle, so resetting cannot interrupt
+            // a slow gesture while the finger is still down.
             // Lazy rows retain saveable state when removed. Undo must restore a settled
             // row, rather than restoring this dismissal and deleting the row again.
             state.snapTo(SwipeToDismissBoxValue.Settled)
@@ -203,15 +210,10 @@ internal fun rememberDeleteSwipeState(onDelete: () -> Unit): SwipeToDismissBoxSt
 
 @Composable
 internal fun HistoryOff(onOpenSettings: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Quiet(stringResource(R.string.history_off), Modifier.weight(1f))
-        TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.open_settings)) }
+        LinguizeButton(stringResource(R.string.open_settings), onOpenSettings, ButtonKind.Text)
     }
-}
-
-@Composable
-internal fun Quiet(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }
 
 /** "14:02" or "2:02 PM", as the phone is set. */

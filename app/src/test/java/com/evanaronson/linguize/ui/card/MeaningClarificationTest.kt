@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.text.AnnotatedString
 import com.evanaronson.linguize.Checker
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
@@ -66,7 +67,7 @@ class MeaningClarificationTest {
         assertTrue("Opening the editor focuses its field",
             field().config.getOrNull(SemanticsProperties.Focused) == true)
         type("  I was greeting everyone  ")
-        clickText("Check again")
+        clickText("Clarify")
         assertEquals(listOf("I was greeting everyone"), answers)
     }
 
@@ -83,19 +84,19 @@ class MeaningClarificationTest {
         }
         settle()
         clickDescription("Clarify meaning")
-        assertTrue(disabled("Check again"))
+        assertTrue(disabled("Clarify"))
         type(" \n ")
-        assertTrue(disabled("Check again"))
+        assertTrue(disabled("Clarify"))
         assertFalse(hasError())
 
         val overlong = "x".repeat(Checker.MAX_CHARS + 1)
         type(overlong)
         assertEquals("Pasted input is retained without truncation", overlong, fieldText())
-        assertTrue(disabled("Check again"))
+        assertTrue(disabled("Clarify"))
         assertTrue(hasError())
 
         type("  Everyone is leaving.  ")
-        assertFalse(disabled("Check again"))
+        assertFalse(disabled("Clarify"))
         assertFalse(hasError())
         clickText("Cancel")
         assertTrue(answers.isEmpty())
@@ -104,7 +105,7 @@ class MeaningClarificationTest {
         clickDescription("Clarify meaning")
         assertEquals("", fieldText())
         type("  Everyone is leaving.  ")
-        clickText("Check again")
+        clickText("Clarify")
         assertEquals(listOf("Everyone is leaving."), answers)
     }
 
@@ -112,7 +113,7 @@ class MeaningClarificationTest {
         val answers = mutableListOf<Pair<String, String>>()
         activity.setContent {
             MaterialTheme {
-                AssumptionItem(Assumption("Who?", "I", alternatives = listOf("You"))) { about, answer ->
+                AssumptionInset(Assumption("Who?", "I", alternatives = listOf("You"))) { about, answer ->
                     answers += about to answer
                 }
             }
@@ -121,31 +122,38 @@ class MeaningClarificationTest {
         clickDescription("Clarify: Who?")
         assertTrue(hasText("I"))
         assertTrue(hasText("You"))
-        assertTrue(hasText("Something else…"))
+        assertTrue(hasText("Something else"))
+        assertTrue("Nothing is picked yet", disabled("Clarify"))
         clickText("You")
+        assertTrue("Picking a reading doesn't check again by itself", answers.isEmpty())
+        clickText("Clarify")
         assertEquals(listOf("Who?" to "You"), answers)
 
         clickDescription("Clarify: Who?")
-        clickText("Something else…")
+        clickText("Something else")
+        assertTrue("Something else needs words first", disabled("Clarify"))
         type("  A group of friends  ")
-        clickText("Check again")
+        clickText("Clarify")
         assertEquals(listOf("Who?" to "You", "Who?" to "A group of friends"), answers)
     }
 
-    @Test fun assumptionWithoutAlternativesCanBeAnsweredInTheWritersOwnWords() {
+    @Test fun assumptionWithoutAlternativesCanBeConfirmedOrAnsweredInTheWritersOwnWords() {
         val answers = mutableListOf<Pair<String, String>>()
         activity.setContent {
             MaterialTheme {
-                AssumptionItem(Assumption("When?", "Tomorrow")) { about, answer ->
+                AssumptionInset(Assumption("When?", "Tomorrow")) { about, answer ->
                     answers += about to answer
                 }
             }
         }
         settle()
         clickDescription("Clarify: When?")
+        assertTrue("The current reading can be confirmed", hasText("Tomorrow"))
+        assertTrue(fields().isEmpty())
+        clickText("Something else")
         assertEquals(1, fields().size)
         type("  Later this week  ")
-        clickText("Check again")
+        clickText("Clarify")
         assertEquals(listOf("When?" to "Later this week"), answers)
     }
 
@@ -170,8 +178,66 @@ class MeaningClarificationTest {
         assertFalse(hasText("Clarify"))
         assertFalse(hasText("Remove choice"))
         assertFalse(hasText("Remove clarification"))
-        assertFalse(hasText("Check again"))
+                assertTrue(fields().isEmpty())
+    }
+
+    @Test fun suggestionAssumptionsAndWriterAnswersKeepTheirOriginalCapitalization() {
+        val readings = listOf("Maria is arriving.", "Polish is spoken.")
+        activity.setContent {
+            MaterialTheme {
+                ExplanationPanel(
+                    from = "", to = "", description = null, why = null, assessment = null,
+                    assumptions = readings.mapIndexed { index, reading -> Assumption("Question $index", reading) },
+                    answers = readings,
+                    accent = MaterialTheme.colorScheme.primary,
+                    onSettle = { _, _ -> },
+                )
+            }
+        }
+        settle()
+
+        readings.forEach { reading ->
+            assertTrue(hasText(activity.getString(R.string.assumes, reading)))
+            assertTrue(hasText(activity.getString(R.string.you_said, reading)))
+        }
+    }
+
+    @Test fun savedClarificationItselfOpensTheEditorAndRemovalRestoresTheInitialLink() {
+        val original = "I meant several friends."
+        val settled = mutableStateOf(listOf(Settled.meaning(original)))
+        val answers = mutableListOf<String>()
+        activity.setContent {
+            MaterialTheme {
+                Column {
+                    MeaningSection("", settled.value,
+                        onClarify = { answers += it },
+                        onRemoveClarification = { settled.value = emptyList() },
+                        linkText = activity.getString(R.string.say_what_you_meant))
+                }
+            }
+        }
+        settle()
+        assertFalse(hasText(activity.getString(R.string.say_what_you_meant)))
+        assertFalse(hasText(activity.getString(R.string.not_what_you_mean)))
+        val edit = button(activity.getString(R.string.your_clarification))
+        assertTrue("The answer and its label are one edit target", containsText(edit, original))
+        val remove = button(activity.getString(R.string.remove_clarification))
+        assertEquals("Removal shares the clarification's left edge", edit.boundsInRoot.left,
+            remove.boundsInRoot.left, 1f)
+
+        clickText(activity.getString(R.string.your_clarification))
+        assertEquals(original, fieldText())
+        type("An unsaved change")
+        clickText("Cancel")
+        assertTrue(answers.isEmpty())
+        assertTrue(hasText(original))
         assertTrue(fields().isEmpty())
+        clickText(activity.getString(R.string.your_clarification))
+        assertEquals("Cancel keeps the saved answer", original, fieldText())
+        clickText("Cancel")
+        clickText(activity.getString(R.string.remove_clarification))
+        assertFalse(hasText(original))
+        assertTrue(hasText(activity.getString(R.string.say_what_you_meant)))
     }
 
     @Test fun unclearResultCanReviseItsSavedMeaningButWrongLanguageDoesNotOfferTheFlow() {
@@ -186,7 +252,7 @@ class MeaningClarificationTest {
         clickDescription("Clarify meaning")
         assertEquals("An earlier explanation.", fieldText())
         type("  I meant a different person.  ")
-        clickText("Check again")
+        clickText("Clarify")
         assertEquals(listOf("I meant a different person."), answers)
 
         state.value = CardState.Done(CheckResult.WrongLanguage("Catalan", "English"))
@@ -207,7 +273,8 @@ class MeaningClarificationTest {
     private fun clickDescription(description: String) {
         val node = nodes().first { node ->
             node.config.getOrNull(SemanticsActions.OnClick) != null &&
-                node.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(description) == true
+                (node.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(description) == true ||
+                    node.config.getOrNull(SemanticsActions.OnClick)?.label == description)
         }
         assertTrue(node.config[SemanticsActions.OnClick].action!!.invoke())
         settle()

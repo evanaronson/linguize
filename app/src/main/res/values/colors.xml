@@ -1,6 +1,8 @@
 <resources>
-    <color name="ic_launcher_background">#111111</color>
-    <!-- Brand: ink on paper, with cobalt as the one colour. Dark mode swaps them (values-night). -->
+    <!-- Brand: ink on paper (the wordmark). Dark mode swaps ink and paper (values-night). -->
     <color name="brand_ink">#111111</color>
-    <color name="brand_accent">#3340F0</color>
+    <!-- Launcher icon: paper tile, ink letters, proof line. Night swaps to ink, paper and the lighter line. -->
+    <color name="ic_launcher_background">#FAFAF8</color>
+    <color name="icon_letters">#111111</color>
+    <color name="icon_line">#C4321A</color>
 </resources>

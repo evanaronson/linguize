@@ -11,6 +11,7 @@ import com.evanaronson.linguize.core.interpret
 import com.evanaronson.linguize.history.Attempt
 import com.evanaronson.linguize.history.Decision
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.Opening
 import com.evanaronson.linguize.history.SessionContext
@@ -269,7 +270,7 @@ class SessionViewModelTest {
             val history = SqliteHistoryStore(context, "resume-${if (clear) "clear" else "delete"}")
             val raw = """{"status":"ok","language":"Catalan","has_errors":false,"meaning":"Saved meaning"}"""
             val detail = detailOf("check").let { it.copy(session = it.session.copy(
-                finalText = "Com estas?", attempts = listOf(Attempt(2, raw = raw)),
+                finalText = "Com estàs?", outcome = Outcome.Applied, attempts = listOf(Attempt(2, raw = raw)),
             )) }
             history.close(detail.session, detail.suggestions)
             val model = SessionViewModel(history, { Prompt("", "{}") }, AppLabels(context.packageManager), scope, {})
@@ -278,7 +279,7 @@ class SessionViewModelTest {
                 waitFor { model.page is SessionPage.Shown }
                 val shown = model.page as SessionPage.Shown
                 assertEquals("Com estas?", shown.session.text)
-                assertEquals("Com estas?", shown.session.finalText)
+                assertEquals("Com estàs?", shown.session.finalText)
                 assertEquals("Saved meaning", (shown.card?.result as? CheckResult.Reviewed)?.meaning)
 
                 // Both Home hosts share this store. Only the resumed host rereads its detail.

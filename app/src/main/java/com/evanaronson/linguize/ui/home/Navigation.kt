@@ -8,6 +8,7 @@ import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import com.evanaronson.linguize.ui.settings.SettingsPage
 
 /** The launcher activity's screens: few enough for a state and a back handler, no navigation library. */
 internal sealed interface Screen {
@@ -15,8 +16,17 @@ internal sealed interface Screen {
     data object History : Screen
     data object Settings : Screen
 
+    /** How to set up the accessibility button. */
+    data object AccessibilitySetup : Screen
+
+    /** One choice of Settings, on a page of its own. */
+    data class SettingsChoice(val page: SettingsPage) : Screen
+
     /** A past check. */
     data class Detail(val id: String) : Screen
+
+    /** The assumptions of a past check. */
+    data class DetailAssumptions(val id: String) : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -24,7 +34,10 @@ internal sealed interface Screen {
             Home -> "home"
             History -> "history"
             Settings -> "settings"
+            AccessibilitySetup -> "accessibility"
+            is SettingsChoice -> "settings:${page.token}"
             is Detail -> "detail:$id"
+            is DetailAssumptions -> "assumptions:$id"
         }
 
     companion object {
@@ -33,7 +46,11 @@ internal sealed interface Screen {
             saved == "home" -> Home
             saved == "history" -> History
             saved == "settings" -> Settings
+            saved == "accessibility" -> AccessibilitySetup
+            saved.startsWith("settings:") -> SettingsPage.read(saved.removePrefix("settings:"))?.let(::SettingsChoice)
             saved.startsWith("detail:") && saved.length > "detail:".length -> Detail(saved.removePrefix("detail:"))
+            saved.startsWith("assumptions:") && saved.length > "assumptions:".length ->
+                DetailAssumptions(saved.removePrefix("assumptions:"))
             else -> null
         }
     }

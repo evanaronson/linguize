@@ -1,0 +1,241 @@
+package com.evanaronson.linguize.ui.history
+
+import android.app.Application
+import android.os.Looper
+import android.view.View
+import android.view.ViewGroup
+import androidx.activity.ComponentActivity
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsOwner
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.CheckResult
+import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.interpret
+import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.Opening
+import com.evanaronson.linguize.history.Origin
+import com.evanaronson.linguize.history.SessionContext
+import com.evanaronson.linguize.history.SessionDetailResult
+import com.evanaronson.linguize.history.SessionRecording
+import com.evanaronson.linguize.history.SessionSettings
+import com.evanaronson.linguize.history.SqliteHistoryStore
+import com.evanaronson.linguize.llm.Prompt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
+class SessionAssumptionsScreenTest {
+    @Test
+    fun summaryCountsAnsweredAssumptionsOnlyOnce() = withScreen(showAssumptions = false) {
+        load(SessionDetailResult.Found(detail))
+
+        assertTrue(hasText(activity.getString(R.string.assumptions_count, 2)))
+        assertFalse(hasText(activity.getString(R.string.assumptions_count, 3)))
+        assertTrue(hasText(activity.getString(R.string.assumption_summary, "Person", "Catalan speakers")))
+    }
+
+    @Test
+    fun loadingAndFailedRefreshRemainVisibleAndRetryRestoresSavedReadings() = withScreen {
+        assertTrue(nodes().any {
+            it.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(activity.getString(R.string.loading_history)) == true
+        })
+        load(SessionDetailResult.Found(detail))
+        assertTrue(hasText("Catalan speakers"))
+        assertTrue(hasText("Tomorrow"))
+
+        load(SessionDetailResult.Failed)
+        assertTrue(hasText(activity.getString(R.string.history_load_failed)))
+        assertFalse(hasText("Catalan speakers"))
+        result.set(SessionDetailResult.Found(detail))
+        clickText(activity.getString(R.string.retry))
+        waitFor { model.page is SessionPage.Shown }
+        settle()
+        assertEquals(3, reads.get())
+        assertTrue(hasText("Catalan speakers"))
+        assertTrue(hasText("Tomorrow"))
+    }
+
+    @Test
+    fun removedCheckReplacesTheOpenAssumptionsWithMissingState() = withScreen {
+        load(SessionDetailResult.Found(detail))
+        assertTrue(hasText("Catalan speakers"))
+
+        load(SessionDetailResult.Missing)
+        assertTrue(hasText(activity.getString(R.string.check_was_deleted)))
+        assertFalse(hasText("Catalan speakers"))
+        assertFalse(hasText(activity.getString(R.string.retry)))
+    }
+
+    @Test
+    fun acknowledgedDeletionCannotLeaveTheAssumptionsPageBlank() = withScreen {
+        load(SessionDetailResult.Found(detail))
+        model.delete()
+        waitFor { model.deletion == SessionDeletion.Deleted }
+        settle()
+
+        assertTrue(hasText(activity.getString(R.string.check_was_deleted)))
+        assertFalse(hasText("Catalan speakers"))
+    }
+
+    @Test
+    fun unavailableReplayExplainsWhyTheAssumptionsAreEmpty() = withScreen {
+        val damaged = detail.copy(session = detail.session.copy(
+            attempts = detail.session.attempts.map { it.copy(raw = "not JSON") },
+        ))
+        load(SessionDetailResult.Found(damaged))
+
+        assertTrue(hasText(activity.getString(R.string.history_no_assumptions)))
+        assertFalse(hasText("Catalan speakers"))
+    }
+
+    private fun withScreen(showAssumptions: Boolean = true, test: Fixture.() -> Unit) {
+        val fixture = Fixture(showAssumptions)
+        try {
+            fixture.test()
+        } finally {
+            fixture.close()
+        }
+    }
+
+    private class Fixture(showAssumptions: Boolean) {
+        private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible().windowFocusChanged(true)
+        val activity = controller.get()
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        private val prompt = Prompt("", "{}")
+        val detail = SessionRecording("Com estas?", SessionContext(
+            Opening(Origin.Menu, null, "ca", SessionSettings("English", "moderate", "both", "gemini", "m", "p")),
+            "1", "device"), 1).let { recording ->
+            val raw = """{"status":"ok","language":"Catalan","has_errors":true,"corrected":"Com estàs?","assumptions":[{"about":"Person","assumed":"One person"},{"about":"Time","assumed":"Tomorrow"}]}"""
+            val reviewed = interpret("Com estas?", prompt.parseVerdict(raw)) as CheckResult.Reviewed
+            recording.attempt(2, listOf(Settled("Person", "Catalan speakers")), raw, null, null,
+                reviewed.revision, null, Verdict.Status.Ok)
+            val accepted = reviewed.revision.accept(reviewed.revision.edits.first().id)
+            recording.changed(accepted)
+            recording.close(3, accepted.workingText)
+        }
+        val result = AtomicReference<SessionDetailResult>(SessionDetailResult.Found(detail))
+        val reads = AtomicInteger()
+        private val history = object : HistoryStore by SqliteHistoryStore(activity, "unused") {
+            override suspend fun detail(id: String): SessionDetailResult {
+                reads.incrementAndGet()
+                return result.get()
+            }
+            override suspend fun delete(id: String) = true
+        }
+        val model = SessionViewModel(history, { prompt }, AppLabels(activity.packageManager), scope, {})
+        // Drive frames explicitly so earlier Robolectric windows cannot retain the frame dispatcher.
+        private val frames = BroadcastFrameClock()
+        private val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + frames)
+        private val recomposer = Recomposer(uiScope.coroutineContext)
+        private val root = ComposeView(activity).apply {
+            setParentCompositionContext(recomposer)
+            setContent {
+                MaterialTheme {
+                    if (showAssumptions) SessionAssumptionsScreen(model)
+                    else SessionScreen(model, onDeleted = {})
+                }
+            }
+        }
+        private var frameTime = 0L
+
+        init {
+            uiScope.launch { recomposer.runRecomposeAndApplyChanges() }
+            activity.setContentView(root)
+            settle()
+        }
+
+        fun load(value: SessionDetailResult) {
+            result.set(value)
+            model.load(detail.session.id)
+            waitFor {
+                when (value) {
+                    SessionDetailResult.Failed -> model.page == SessionPage.Failed
+                    SessionDetailResult.Missing -> model.page == SessionPage.Missing
+                    is SessionDetailResult.Found -> model.page is SessionPage.Shown
+                }
+            }
+            settle()
+        }
+
+        fun settle() {
+            // A loading indicator keeps requesting frames; a fixed interval allows it to animate.
+            fun flush() = repeat(6) {
+                Snapshot.sendApplyNotifications()
+                shadowOf(Looper.getMainLooper()).idle()
+                frameTime += 16_666_667L
+                frames.sendFrame(frameTime)
+            }
+            flush()
+            root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
+            root.layout(0, 0, 1080, 1920)
+            flush()
+        }
+
+        fun clickText(text: String) {
+            val node = nodes().single {
+                it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == text } == true &&
+                    it.config.getOrNull(SemanticsActions.OnClick) != null
+            }
+            assertTrue(node.config[SemanticsActions.OnClick].action!!.invoke())
+        }
+
+        fun hasText(text: String): Boolean = nodes().any {
+            it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == text } == true
+        }
+
+        fun nodes(): List<SemanticsNode> {
+            fun owner(view: View): SemanticsOwner? {
+                val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
+                if (method != null) return method.invoke(view) as SemanticsOwner
+                if (view is ViewGroup) for (index in 0 until view.childCount) owner(view.getChildAt(index))?.let { return it }
+                return null
+            }
+            fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
+            return flatten(requireNotNull(owner(root)).rootSemanticsNode)
+        }
+
+        fun waitFor(condition: () -> Boolean) {
+            val deadline = System.nanoTime() + 5_000_000_000L
+            while (!condition()) {
+                check(System.nanoTime() < deadline) { "Timed out waiting for saved assumptions" }
+                shadowOf(Looper.getMainLooper()).idle()
+                Thread.sleep(2)
+            }
+        }
+
+        fun close() {
+            scope.cancel()
+            root.disposeComposition()
+            recomposer.cancel()
+            uiScope.cancel()
+            controller.pause().stop().destroy()
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
+        }
+    }
+}

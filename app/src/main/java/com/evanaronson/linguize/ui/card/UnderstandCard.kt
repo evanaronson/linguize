@@ -1,16 +1,20 @@
 package com.evanaronson.linguize.ui.card
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.understand.UnderstandState
 
 /** Translation, original and optional source-anchored notes, without correction controls. */
@@ -22,18 +26,21 @@ fun UnderstandCard(
     onOpenSettings: (() -> Unit)? = null,
     onBackToCheck: (() -> Unit)? = null,
 ) {
+    if (LocalOnBackPressedDispatcherOwner.current != null) {
+        BackHandler(enabled = onBackToCheck != null) { onBackToCheck?.invoke() }
+    }
     ResultSurface(modifier) {
         onBackToCheck?.let { back ->
-            TextButton(onClick = back) { Text(stringResource(R.string.back_to_check)) }
+            PageHeader(stringResource(R.string.understand_copied_text), back)
         }
         when (state) {
             UnderstandState.ReadingClipboard -> Loading("", stringResource(R.string.reading_copied_text))
             is UnderstandState.Message -> {
-                Outcome(Mark.Unsure, stringResource(
+                Outcome(stringResource(
                     if (state.unavailable) R.string.clipboard_unavailable else R.string.shortcut_no_input,
                 ))
                 Spacer(Modifier.height(12.dp))
-                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                LinguizeButton(stringResource(R.string.retry), onRetry, ButtonKind.Filled)
             }
             is UnderstandState.Loading -> {
                 Text(stringResource(R.string.copied_text), style = MaterialTheme.typography.labelLarge)
@@ -43,7 +50,7 @@ fun UnderstandCard(
             is UnderstandState.Done -> {
                 Text(stringResource(R.string.translation), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
-                MeaningText(state.result.translation)
+                TextBlock(state.result.translation)
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.copied_text), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))

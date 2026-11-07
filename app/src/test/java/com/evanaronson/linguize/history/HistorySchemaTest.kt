@@ -242,9 +242,16 @@ class HistorySchemaTest {
     }
 
     @Test
-    fun theCountIsWhatRecentShows() {
-        assertTrue(HistorySchema.COUNT.contains("\"closedAt\" IS NOT NULL"))
-        assertTrue(HistorySchema.SINCE.contains("\"closedAt\" IS NOT NULL"))
+    fun everyHistoryReadUsesTheSameVisibilityRule() {
+        for (query in listOf(
+            HistorySchema.COUNT, HistorySchema.SINCE, HistorySchema.recent(10),
+            HistorySchema.recent(10, before = true), HistorySchema.SESSION, HistorySchema.EXPORT_SESSIONS,
+        )) {
+            assertTrue(query, query.contains(HistorySchema.VISIBLE_HISTORY))
+        }
+        // Raw legacy evidence and answer reuse have independent eligibility.
+        assertFalse(HistorySchema.ALL_SESSIONS.contains(HistorySchema.VISIBLE_HISTORY))
+        assertFalse(HistorySchema.reusable(session.reuseKey).contains(HistorySchema.VISIBLE_HISTORY))
     }
 
     @Test

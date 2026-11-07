@@ -6,7 +6,7 @@
     <string name="menu_auto" translatable="false">Linguize</string>
     <string name="menu_catalan" translatable="false">Catalanize</string>
     <string name="menu_castilian" translatable="false">Castilianize</string>
-    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, checks are saved on this phone. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
+    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the AI service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 
 
     <!-- Presentation text. Protocol values and model prompts are not translated. -->
@@ -38,34 +38,28 @@
     <string name="fixes_withheld">Some fixes could not be offered</string>
     <string name="rewordings_withheld">Some rewordings could not be offered</string>
     <string name="no_changes">No changes offered</string>
-    <string name="fixes_accepted">Fixes accepted or covered by a rewording</string>
-    <string name="rewordings_accepted">Rewordings accepted</string>
     <string name="copy_with_fixes">Copy with fixes</string>
     <string name="copy_with_rewordings">Copy with rewordings</string>
     <string name="meaning">Meaning</string>
+    <string name="original_text">Original text</string>
     <string name="assumptions">Assumptions</string>
-    <string name="meaning_description">What your text says, as the AI understood it.</string>
-    <string name="assumptions_description">Where your text could mean two things, the AI picked one.</string>
+    <string name="assumptions_description">The suggestions rely on this reading. If it isn\'t what you meant, clarify it and Linguize checks again.</string>
     <string name="your_choice">Your choice</string>
     <string name="remove_choice">Remove choice</string>
     <string name="remove_choice_about">Remove choice: %1$s</string>
-    <string name="not_right">Not right</string>
     <string name="what_did_you_mean">What did you mean?</string>
     <string name="show_understanding">Show how the AI read it</string>
     <string name="ai_could_not_understand">The AI couldn\'t tell what this means</string>
     <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
     <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
-    <string name="home_instructions">Select text in any app, then choose Linguize in the selection menu (it may be under ⋮). Or try it below.</string>
     <string name="check_your_text">Check your text</string>
-    <string name="try_it">Try it</string>
+    <string name="your_text">Your text</string>
     <string name="try_it_placeholder">Type or paste text to check</string>
     <string name="no_text_to_check">No text to check.</string>
-    <string name="try_it_not_saved">Checks here aren\'t saved.</string>
     <string name="recent">History</string>
-    <string name="recent_empty">Checks from other apps will appear here.</string>
+    <string name="recent_empty">Changes you apply in other apps will appear here.</string>
     <string name="history_off">History is off. New checks aren\'t saved.</string>
     <string name="check_was_deleted">This check was deleted.</string>
-    <string name="your_text">Your text</string>
     <string name="put_back_in_app">Put back in the app</string>
     <string name="no_result">No result</string>
     <string name="outcome_copied">Copied. Nothing was put back in the app.</string>
@@ -76,13 +70,7 @@
     <string name="delete_check_failed">Couldn\'t delete this check. Try deleting it again.</string>
     <string name="delete_check_description">It will be deleted from this phone. This can\'t be undone.</string>
     <string name="ai_service">Model</string>
-    <string name="ai_service_description">Linguize sends the text you check to Gemini or OpenAI. You need your own API key from one of them.</string>
-    <string name="model_loading">Model · loading…</string>
-    <string name="model_load_failed">Model · couldn\'t load others</string>
     <string name="model">Model</string>
-    <string name="model_add_key">Model · add a key to see more</string>
-    <string name="key_saved">Key saved</string>
-    <string name="key_lost">Key lost</string>
     <string name="model_not_tested">Not tested yet</string>
     <string name="model_testing">Testing…</string>
     <string name="paste_key">Paste key</string>
@@ -91,13 +79,12 @@
     <string name="get_key">Get a key</string>
     <string name="delete_key">Delete key</string>
     <string name="selection_menu_label">Show in selection menu</string>
-    <string name="selection_menu_keep_one">Keep at least one.</string>
     <string name="punctuation">Punctuation</string>
     <string name="what_to_suggest">What to suggest</string>
     <string name="suggestions_description">Fixes correct mistakes. Rewordings make it sound more natural.</string>
     <string name="history">History</string>
-    <string name="save_history">Save checks in History</string>
-    <string name="save_history_on">Your text and the suggestions are saved on this phone only.</string>
+    <string name="save_history">Save applied changes in History</string>
+    <string name="save_history_on">Saved on this phone after changes are applied</string>
     <string name="save_history_off">New checks aren\'t saved. Saved ones stay until you delete them.</string>
     <string name="delete_all">Delete all</string>
     <string name="delete_all_question">Delete all checks?</string>
@@ -115,15 +102,12 @@
     <string name="model_test_failed">Didn\'t work: %1$s</string>
     <string name="provider_api_key">%1$s API key</string>
     <string name="key_privacy">Saved only on this phone, and sent only to %1$s.</string>
-    <string name="provider_key_saved">%1$s key saved</string>
-    <string name="key_last_four">Ends in %1$s</string>
     <string name="check_failed_reason">Couldn\'t check · %1$s</string>
     <string name="close_card">Close card</string>
     <string name="language_accessibility">Language: %1$s, %2$s</string>
     <string name="detect_language">Detects the language</string>
     <string name="language_catalan">Catalan</string>
     <string name="language_spanish">Spanish</string>
-    <string name="menu_entry_description">%1$s (%2$s)</string>
     <string name="change_why_add">Why add %1$s</string>
     <string name="change_why_replace">Why %1$s becomes %2$s</string>
     <string name="change_add">Add %1$s</string>
@@ -134,7 +118,6 @@
     <string name="change_replace">Replace %1$s with %2$s</string>
     <string name="change_becomes">%1$s becomes %2$s</string>
     <string name="change_replacement">%1$s → %2$s</string>
-    <string name="not_right_about">Not right: %1$s</string>
     <string name="delete_check">Delete check</string>
     <string name="open_check">Open check</string>
     <string name="check_deleted">Check deleted</string>
@@ -179,10 +162,66 @@
     <string name="hint_rate_limited">Wait a minute, then retry</string>
     <string name="hint_too_long">Select a shorter part, then check again</string>
     <string name="hint_too_many">Wait a minute, then select the text again</string>
-    <string name="accessibility_setup_description">In some apps, like Telegram, Linguize isn\'t in the selection menu. There, turn on Linguize\'s accessibility button and tap it while you type. When you tap, it checks the writing in your typing field. If there is no writing in the field to check, it reads copied text to explain its meaning. It reads text only when you ask.</string>
-    <string name="accessibility_setup_steps">1. Open Accessibility, choose Linguize, and turn on Linguize and its shortcut.\n2. If Android says it\'s a restricted setting, open App info, tap ⋮, choose Allow restricted settings, then try step 1 again.</string>
     <string name="list_separator">", "</string>
-    <string name="status_separator">" · "</string>
+    <string name="status_separator">", "</string>
+    <!-- Card and Meaning -->
+    <string name="meaning_subtitle">How your message was read</string>
+    <string name="not_what_you_mean">Not what you mean</string>
+    <string name="say_what_you_meant">Say what you meant</string>
+    <string name="assumptions_description_past">The suggestions relied on this reading of your text.</string>
+    <!-- Under a change's explanation, before the reading it rests on, e.g. "Assumes the meeting is tomorrow". -->
+    <string name="assumes">Assumes %1$s</string>
+    <!-- Under a change's explanation, the writer's own answer, e.g. "You said the meeting is tomorrow". -->
+    <string name="you_said">You said %1$s</string>
+    <string name="clarify_placeholder">Say it in your own words</string>
+    <string name="all_accepted">All changes accepted</string>
+    <string name="looks_good_both">Nothing to fix, sounds natural</string>
+
+    <!-- Home -->
+    <string name="try_it_note">Not saved. In other apps, select text and choose Linguize in the menu.</string>
+    <string name="add_key_title">Add an API key to start</string>
+    <string name="add_key_description">Linguize checks with Gemini or OpenAI, using your own key.</string>
+    <string name="add_key">Add key</string>
+    <string name="accessibility_row_title">Set up the accessibility button</string>
+    <string name="accessibility_row_summary">For apps like Telegram that hide other apps\' entries</string>
+
+    <!-- Accessibility button setup -->
+    <string name="accessibility_button">Accessibility button</string>
+    <string name="accessibility_intro">Some apps, like Telegram, don\'t show other apps in their selection menu. Linguize can add a button instead. It reads text only when you tap the button, and skips fields that look like passwords, codes, numbers or email addresses.</string>
+    <string name="steps">Steps</string>
+    <string name="step_open_accessibility">1. Open Accessibility</string>
+    <string name="step_open_accessibility_detail">Installed apps › Linguize. Turn on Linguize and its shortcut.</string>
+    <string name="step_restricted">2. If Android says it\'s restricted</string>
+    <string name="step_restricted_detail">Open App info, tap ⋮, choose Allow restricted settings, then try step 1 again.</string>
+    <string name="step_tap">3. Tap the floating button while you type</string>
+    <string name="step_tap_detail">Linguize checks the field you\'re in. With nothing typed, it explains copied text.</string>
+
+    <!-- History and saved checks -->
+    <string name="export_summary">A JSON Lines file, to share with another app</string>
+    <string name="delete_all_summary">Deletes every saved check from this phone</string>
+    <string name="delete_this_check">Delete this check</string>
+    <string name="delete_this_check_summary">Removes it from this phone</string>
+    <!-- A row that opens a saved check's assumptions, e.g. "Assumptions, 1". -->
+    <string name="assumptions_count">Assumptions, %1$d</string>
+    <string name="history_no_assumptions">No assumptions are available for this check.</string>
+    <!-- One assumption in a summary line, e.g. "Time of the meeting: the meeting is tomorrow". -->
+    <string name="assumption_summary">%1$s: %2$s</string>
+
+    <!-- Settings -->
+    <string name="api_key">API key</string>
+    <string name="key_saved_summary">Saved, ends in %1$s</string>
+    <string name="service">Service</string>
+    <string name="connection">Connection</string>
+    <string name="models_refresh">Refresh models</string>
+    <string name="model_more_with_key">%1$s, more once a key is saved</string>
+    <string name="models_note">Models your %1$s key can use. The recommended one is the fastest and cheapest that checks well.</string>
+    <string name="models_loading_note">Loading the models your %1$s key can use…</string>
+    <string name="models_failed_note">Couldn\'t load the models your %1$s key can use. The recommended one still works.</string>
+    <string name="provider_gemini_description">Needs a Gemini API key from Google AI Studio.</string>
+    <string name="provider_openai_description">Needs an OpenAI API key.</string>
+    <string name="menu_note">Each entry checks in that language. Keep at least one.</string>
+    <string name="popup_position_bottom_description">Leaves the top of the app visible.</string>
+    <string name="popup_position_top_description">Leaves the typing field visible.</string>
     <string name="try_it_sample" translatable="false">Bon dia! Com estas amb la pluja?</string>
 
     <!-- Always pass the count as a format argument as well as the quantity. -->
@@ -228,7 +267,7 @@
     <string name="history_target_language">Target language: %1$s</string>
     <string name="history_detected_language">Detected language: %1$s</string>
     <string name="understand_copied_text">Understand copied text</string>
-    <string name="back_to_check">Back to check</string>
+    <string name="understand_copied_text_subtitle">Translate and explain copied text</string>
     <string name="translation">Translation</string>
     <string name="understanding_notes">Notes</string>
     <string name="copied_text">Copied text</string>

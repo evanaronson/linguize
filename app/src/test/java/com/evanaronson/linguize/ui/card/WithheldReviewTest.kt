@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.semantics.SemanticsActions
@@ -73,8 +74,10 @@ class WithheldReviewTest {
     private fun show(result: CheckResult.Reviewed) {
         activity.setContent {
             MaterialTheme {
-                ReviewContent(result, emptyList(), CardActions(onCopy = { _, _ -> }, review = null,
-                    onRetry = { retries++ }, onOpenSettings = null, onSettle = { _, _ -> }))
+                Column {
+                    Suggestions(result, emptyList(), CardActions(onCopy = { _, _ -> }, review = null,
+                        onRetry = { retries++ }, onOpenSettings = null, onSettle = { _, _ -> }))
+                }
             }
         }
         Snapshot.sendApplyNotifications()

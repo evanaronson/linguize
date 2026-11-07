@@ -1,87 +1,41 @@
 package com.evanaronson.linguize.ui.card
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
+import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.theme.Linguize
 
-/** The way into the meaning and assumptions, one section per judgment, then Undo and Done once something has been accepted. */
+/**
+ * The suggestions page: one section per judgment (its count, the text with its changes
+ * marked, Accept all), then the accepted changes with Undo and Apply. Meaning is the
+ * card's footer row (see [ResultCard]).
+ */
 @Composable
-internal fun ReviewContent(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
-    // How the text was understood is a page of its own: in from the right, back to the left.
-    var showingUnderstanding by rememberSaveable(result, settled) { mutableStateOf(false) }
-    val forward = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
-    AnimatedContent(
-        targetState = showingUnderstanding,
-        transitionSpec = {
-            val direction = if (targetState) forward else -forward
-            (slideInHorizontally { direction * it / 3 } + fadeIn()) togetherWith
-                (slideOutHorizontally { -direction * it / 3 } + fadeOut())
-        },
-        label = "understanding",
-    ) { understandingPage ->
-        Column {
-            if (understandingPage) {
-                UnderstandingPage(
-                    result.meaning,
-                    result.assumptions,
-                    settled,
-                    actions.onSettle,
-                    actions.onRemoveChoice,
-                    onBack = { showingUnderstanding = false },
-                    onClarify = actions.onClarify,
-                    onRemoveClarification = actions.onRemoveClarification,
-                )
-            } else {
-                val entry = understandingEntry(result.meaning, result.assumptions, settled, readOnly = false)
-                UnderstandingEntry(entry, onOpen = { showingUnderstanding = true })
-                if (entry.visible) Spacer(Modifier.height(8.dp))
-                Suggestions(result, settled, actions)
-            }
-        }
-    }
-}
-
-@Composable
-private fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
+internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     if (result.looksGood) {
-        val checked = result.kinds.map { if (it == EditKind.Fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural) }
-        Outcome(Mark.Good, stringResource(R.string.looks_good), checked.joinToString(stringResource(R.string.status_separator)))
+        Outcome(stringResource(R.string.looks_good), stringResource(looksGoodDetail(result.kinds)), success = true)
         return
     }
 
-    val review = actions.review
     // Naturalness was judged on the model's corrected text. It cannot reassure
     // the writer about the original when required corrections were withheld.
     result.kinds.filterNot { it == EditKind.Natural && EditKind.Fix in result.withheld &&
@@ -92,23 +46,34 @@ private fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, ac
     }
 
     if (result.withheld.isNotEmpty()) {
-        TextButton(onClick = actions.onRetry) { Text(stringResource(R.string.retry)) }
+        LinguizeButton(stringResource(R.string.retry), actions.onRetry, ButtonKind.Text)
     }
 
+    val review = actions.review
     if (review != null && result.revision.canUndo) {
-        Spacer(Modifier.height(12.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            val count = result.revision.acceptedCount
-            Text(
-                pluralStringResource(R.plurals.changes_accepted_count, count, count),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = review.onUndo) { Text(stringResource(R.string.undo)) }
-            FilledTonalButton(onClick = review.onApply) { Text(stringResource(R.string.apply)) }
-        }
+        SectionDivider()
+        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply)
+    }
+}
+
+private fun looksGoodDetail(kinds: List<EditKind>) = when {
+    EditKind.Fix in kinds && EditKind.Natural in kinds -> R.string.looks_good_both
+    EditKind.Fix in kinds -> R.string.nothing_to_fix
+    else -> R.string.sounds_natural
+}
+
+/** "3 changes accepted   Undo  [Apply]": Apply is the card's one filled action. */
+@Composable
+internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            pluralStringResource(R.plurals.changes_accepted_count, count, count),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        LinguizeButton(stringResource(R.string.undo), onUndo, ButtonKind.Text)
+        onApply?.let { LinguizeButton(stringResource(R.string.apply), it, ButtonKind.Filled) }
     }
 }
 
@@ -120,51 +85,67 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
     val fix = kind == EditKind.Fix
     val remaining = revision.remaining(kind)
     if (withheld) {
-        StatusLine(Mark.Unsure, stringResource(if (fix) R.string.fixes_withheld else R.string.rewordings_withheld))
+        StatusLine(stringResource(if (fix) R.string.fixes_withheld else R.string.rewordings_withheld))
         if (revision.edits(kind).isEmpty()) return
         Spacer(Modifier.height(10.dp))
     }
     if (revision.edits(kind).isEmpty()) {
-        StatusLine(Mark.Good, if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
+        SuccessLine(if (fix) stringResource(R.string.nothing_to_fix) else stringResource(R.string.sounds_natural))
         return
     }
 
-    val accent = if (fix) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val mark = if (fix) Linguize.colors.proof else Linguize.colors.rewording
     val count = revision.edits(kind).size
-    val label = pluralStringResource(
-        if (fix) R.plurals.fix_count else R.plurals.rewording_count,
-        count, count,
-    )
-    val preview = revision.preview(kind)
+    val preview = revision.previewOnCorrected(kind)
     val highlights = remaining.mapNotNull { edit ->
-        preview.ranges[edit.id]?.let { Highlight(edit.id, it, edit.from, edit.why, edit.assessment,
-            linkedAssumptions(edit.assumptionIndices, result.assumptions, settled)) }
+        preview.ranges[edit.id]?.let {
+            Highlight(edit.id, it, edit.from, edit.why, edit.assessment,
+                linkedAssumptions(edit.assumptionIndices, result.assumptions, settled),
+                linkedAnswers(edit.assumptionIndices, result.assumptions, settled))
+        }
     }
     Text(
-        label,
+        pluralStringResource(if (fix) R.plurals.fix_count else R.plurals.rewording_count, count, count),
         style = MaterialTheme.typography.labelLarge,
-        color = accent,
+        color = if (fix) mark else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
-    Spacer(Modifier.height(6.dp))
+    Spacer(Modifier.height(8.dp))
     HighlightedText(
-        preview.text, highlights, accent, review?.onAccept,
+        preview.text, highlights, mark, review?.onAccept,
         onCopy = { actions.onCopy(preview.text, kind) },
         copyDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
         onSettle = actions.onSettle,
+        dotted = !fix,
+        edge = Linguize.colors.proof,
     )
+    Spacer(Modifier.height(10.dp))
     if (remaining.isEmpty()) {
-        Spacer(Modifier.height(10.dp))
-        StatusLine(Mark.Good, if (fix) stringResource(R.string.fixes_accepted) else stringResource(R.string.rewordings_accepted))
+        SuccessLine(stringResource(R.string.all_accepted), quiet = true)
     } else if (review != null) {
-        Spacer(Modifier.height(10.dp))
-        FilledTonalButton(onClick = { review.onAcceptAll(kind) }) { Text(stringResource(R.string.accept_all)) }
+        LinguizeButton(stringResource(R.string.accept_all), { review.onAcceptAll(kind) }, ButtonKind.Tonal)
     }
 }
 
+/** 14dp, a hairline, 14dp: between a card's sections. */
 @Composable
-private fun SectionDivider() {
+internal fun SectionDivider() {
     Spacer(Modifier.height(14.dp))
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     Spacer(Modifier.height(14.dp))
+}
+
+/** Accepted text stays inspectable and undoable without offering the old suggestions. */
+@Composable
+internal fun RetainedChanges(revision: Revision?, review: ReviewActions?, canApply: Boolean = false) {
+    if (revision == null || !revision.canUndo) return
+    SectionDivider()
+    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply })
+    else Text(
+        pluralStringResource(R.plurals.changes_accepted_count, revision.acceptedCount, revision.acceptedCount),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(revision.workingText, style = MaterialTheme.typography.bodyLarge)
 }

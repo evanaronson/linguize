@@ -234,6 +234,20 @@ class EditsTest {
     }
 
     @Test
+    fun rewordingsAreShownOnTheCorrectedText() {
+        val revision = revision("Hola, com estas? Fins dema", corrected = "Hola, com estàs? Fins demà",
+            natural = "Hola, com va? Fins demà", naturalChanges = listOf(VerdictChange("com estàs", "com va")))
+        val shown = revision.previewOnCorrected(EditKind.Natural)
+        // What the rewording section shows is what accepting everything would give.
+        assertEquals(revision.acceptAll(EditKind.Fix).acceptAll(EditKind.Natural).workingText, shown.text)
+        assertTrue(revision.remaining(EditKind.Natural).all { shown.ranges.containsKey(it.id) })
+        assertEquals(revision.preview(EditKind.Fix), revision.previewOnCorrected(EditKind.Fix))
+        // Accepting a rewording still takes only the rewording.
+        val rewording = revision.remaining(EditKind.Natural).first()
+        assertEquals(1, revision.accept(rewording.id).acceptedCount)
+    }
+
+    @Test
     fun changesToSpacingAloneAreSuggestedAndApplied() {
         assertEquals("hola que tal?", revision("hola  que tal", corrected = "hola que tal?").acceptAll(EditKind.Fix).workingText)
         val paragraph = revision("hola\n\nque tal", corrected = "hola\nque tal")

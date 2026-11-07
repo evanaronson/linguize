@@ -47,6 +47,8 @@ sealed interface CardState {
         val settled: List<Settled> = emptyList(),
         /** A non-reviewed answer leaves the previous accepted text available to the host. */
         override val retainedRevision: Revision? = null,
+        /** The original checked input, including for answers that contain no review. */
+        val sourceText: String? = null,
     ) : CardState
 }
 
@@ -60,6 +62,7 @@ sealed interface CardState {
  * opened with each fresh [check], gets an attempt per answer, whatever changed in between
  * (other settings for a [recheck], another language with [changeLanguage]: a card is one
  * session), and is closed by [dismiss], the next [check] or the view model going away.
+ * It stays in memory until changed text is successfully handed back; only then is it saved.
  * [onCleared] closes it as not applied: a host that hands the text back calls
  * `dismiss(applied = true)` itself before finishing.
  *
@@ -251,7 +254,8 @@ class CheckViewModel(
                     result
                 }
                 history.succeeded(answers, answer.value.raw, kept, reusedFrom = answer.reused?.sessionId)
-                CardState.Done(kept, answers, retainedRevision = retained.takeUnless { kept is CheckResult.Reviewed })
+                CardState.Done(kept, answers, retainedRevision = retained.takeUnless { kept is CheckResult.Reviewed },
+                    sourceText = text)
             } catch (failure: CheckFailure) {
                 if (requestedGeneration != generation) return@launch
                 history.failed(answers, failure.reason.token, failure.detail, failure.raw, message = failure.userMessage?.token)
@@ -270,20 +274,20 @@ class CheckViewModel(
     }
 
     fun undo() {
-        val current = state
-        if (current is CardState.Loading || current is CardState.Failed) {
-            val previous = current.retainedRevision ?: return
-            val revision = previous.undo()
-            if (revision != previous) hasReviewed = true
-            state = when (current) {
-                is CardState.Loading -> current.copy(retainedRevision = revision)
-                is CardState.Failed -> current.copy(retainedRevision = revision)
-                else -> return
-            }
-            history.changed(revision)
-        } else {
+        val current = state ?: return
+        if (current is CardState.Done && current.result is CheckResult.Reviewed) {
             update { it.undo() }
+            return
         }
+        val previous = current.retainedRevision ?: return
+        val revision = previous.undo()
+        if (revision != previous) hasReviewed = true
+        state = when (current) {
+            is CardState.Loading -> current.copy(retainedRevision = revision)
+            is CardState.Failed -> current.copy(retainedRevision = revision)
+            is CardState.Done -> current.copy(retainedRevision = revision)
+        }
+        history.changed(revision)
     }
 
     /** The writer copied the version shown for [kind]; only history needs to know. */
@@ -356,7 +360,6 @@ class CheckViewModel(
                         scope = app.appScope,
                         log = { message, e -> Log.w(TAG, message, e) },
                         maxChars = Checker.MAX_CHARS,
-                        retireExports = { app.exports.clear() },
                     ),
                 )
             }

@@ -3,10 +3,7 @@ package com.evanaronson.linguize.ui.components
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -17,9 +14,6 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -32,10 +26,10 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
-/** Checks the merged Compose semantics on the actual Material menu item, without a UI-test dependency. */
+/** Checks the merged Compose semantics of a multiple-choice row, without a UI-test dependency. */
 @RunWith(RobolectricTestRunner::class)
-class MultiSelectMenuSemanticsTest {
-    @Test fun menuItemExposesCheckboxStateAndOneClickAction() {
+class ChoiceRowSemanticsTest {
+    @Test fun multipleChoiceRowExposesCheckboxStateAndOneClickAction() {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         val selected = mutableStateOf(false)
         var clicks = 0
@@ -43,17 +37,15 @@ class MultiSelectMenuSemanticsTest {
             setContent {
                 MaterialTheme {
                     Column(Modifier.padding(16.dp)) {
-                        DropdownMenuItem(
-                            text = { Text("Option") },
-                            leadingIcon = { Checkbox(checked = selected.value, onCheckedChange = null) },
+                        ChoiceRow(
+                            "Option",
+                            "What it does",
+                            selected = selected.value,
                             onClick = {
                                 clicks++
                                 selected.value = !selected.value
                             },
-                            modifier = Modifier.semantics {
-                                role = Role.Checkbox
-                                toggleableState = if (selected.value) ToggleableState.On else ToggleableState.Off
-                            },
+                            multiple = true,
                         )
                     }
                 }

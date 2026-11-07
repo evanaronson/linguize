@@ -1,18 +1,15 @@
 package com.evanaronson.linguize.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,7 +51,7 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
     val name = label(selected)
     val description = stringResource(R.string.language_accessibility, name,
         selected?.displayName() ?: stringResource(R.string.detect_language))
-    FilledTonalButton(
+    LinguizeButton(
         onClick = {
             if (open) menu.dismiss() else menu.show(owner, anchor) {
                 LanguageMenu(selected) { entry ->
@@ -63,13 +60,13 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
                 }
             }
         },
-        modifier = modifier.heightIn(min = 48.dp)
+        kind = ButtonKind.Tonal,
+        modifier = modifier
             .onGloballyPositioned {
                 anchor = it.boundsInRoot()
                 menu.move(owner, anchor)
             }
             .semantics { contentDescription = description },
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Text(name)
         Spacer(Modifier.width(8.dp))
@@ -81,8 +78,7 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
 private fun LanguageMenu(selected: Language?, onSelect: (Language?) -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         shadowElevation = 6.dp,
         modifier = Modifier.widthIn(min = 220.dp, max = 320.dp),
     ) {
@@ -105,7 +101,7 @@ private fun LanguageMenu(selected: Language?, onSelect: (Language?) -> Unit) {
                     Spacer(Modifier.width(16.dp))
                     Text(
                         if (entry == selected) "✓" else " ",
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.clearAndSetSemantics {},
                     )
                 }

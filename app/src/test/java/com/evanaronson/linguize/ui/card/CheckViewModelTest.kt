@@ -76,6 +76,7 @@ import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.android.controller.ActivityController
+import org.robolectric.util.ReflectionHelpers
 import java.io.OutputStream
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
@@ -121,8 +122,7 @@ class CheckViewModelTest {
         override val appVersion = "1.0"
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val retiredExports = AtomicInteger()
-    private val history = CheckHistory(store, environment, scope, retireExports = { retiredExports.incrementAndGet() })
+    private val history = CheckHistory(store, environment, scope)
     private val viewModels = ViewModelStore()
     private val check = ViewModelProvider(
         viewModels,
@@ -214,6 +214,17 @@ class CheckViewModelTest {
         return store.closed.toList()
     }
 
+    /** Attempts stay in memory until the host confirms an actual replacement. */
+    private fun pending(): SessionRecord =
+        ReflectionHelpers.getField<SessionRecording>(history, "recording").session
+
+    private fun assertNoHistory() {
+        assertTrue(closed().isEmpty())
+        assertEquals(0, store.saves.get())
+        assertTrue(store.suggestions.isEmpty())
+        assertTrue(store.deleted.isEmpty())
+    }
+
 
     @Test
     fun switchingToUnderstandDiscardsTheProvisionalCheckWithoutApplying() {
@@ -223,28 +234,24 @@ class CheckViewModelTest {
         runBlocking { history.flush() }
         assertNull(check.state)
         assertNull(check.workingText)
-        assertTrue(closed().isEmpty())
-        assertEquals(1, store.deleted.size)
-        assertEquals(1, retiredExports.get())
+        assertNoHistory()
         // Closing the Understand popup or clearing the host cannot recreate that evidence.
         check.dismiss(applied = false)
         viewModels.clear()
         runBlocking { history.flush() }
-        assertTrue(closed().isEmpty())
-        assertEquals(1, store.deleted.size)
+        assertNoHistory()
     }
 
     @Test
     fun switchingDuringLoadingCancelsAndDiscardsTheCheck() {
         client.answer = { awaitCancellation() }
         check.check(QUESTION, null, Origin.Button)
-        waitFor("a provisional record") { store.saves.get() > 0 }
+        waitFor("the pending request") { client.checks.size == 1 }
         assertFalse(check.suspendForUnderstand())
         runBlocking { history.flush() }
         settle()
         assertNull(check.state)
-        assertTrue(closed().isEmpty())
-        assertEquals(1, store.deleted.size)
+        assertNoHistory()
     }
 
     @Test
@@ -262,9 +269,7 @@ class CheckViewModelTest {
         assertNull(check.workingText)
         assertTrue(check.suspendForUnderstand())
         check.dismiss(applied = false)
-        assertNull(closed().single().finalText)
-        assertTrue(store.deleted.isEmpty())
-        assertEquals(0, retiredExports.get())
+        assertNoHistory()
     }
 
     @Test
@@ -275,7 +280,7 @@ class CheckViewModelTest {
         assertTrue(check.suspendForUnderstand())
         assertNull(check.workingText)
         check.dismiss(applied = false)
-        assertEquals(Outcome.Copied, closed().single().outcome)
+        assertNoHistory()
 
         check.check(QUESTION, null, Origin.Button)
         reviewed()
@@ -285,8 +290,9 @@ class CheckViewModelTest {
         assertEquals(answered, check.state)
         assertEquals(listOf(Settled("tu", "informal")), answered.settled)
         runBlocking { history.flush() }
-        assertTrue(store.deleted.isEmpty())
-        assertEquals(0, retiredExports.get())
+        assertNoHistory()
+        check.dismiss(applied = false)
+        assertNoHistory()
     }
 
     @Test
@@ -387,20 +393,22 @@ class CheckViewModelTest {
         clipboard.setPrimaryClip(ClipData.newPlainText("existing", "leave this alone"))
         check.check(QUESTION, null, Origin.Button)
         reviewed()
+        var recoveryText: String? = null
         val actions = CardActions.of(
             check, context,
-            onClose = { check.dismiss(applied = false) },
+            onClose = {
+                recoveryText = check.workingText
+                check.dismiss(applied = false)
+            },
             onOpenSettings = null,
         )
         actions.review!!.onAcceptAll(EditKind.Fix)
         assertTrue(closed().isEmpty())
         actions.review!!.onApply()
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
-        val session = closed().single()
-        assertEquals(Outcome.None, session.outcome)
-        assertNull(session.finalText)
-        assertEquals(Decision.Undone, store.suggestions.single { it.kind == EditKind.Fix }.decision)
-        assertFalse(store.suggestions.any { it.decision == Decision.Copied })
+        assertEquals("Com estàs?", recoveryText)
+        assertNull(check.state)
+        assertNoHistory()
     }
 
     @Test
@@ -434,6 +442,61 @@ class CheckViewModelTest {
         assertEquals(listOf(Settled("tu", "informal")), done().settled)
         assertEquals(Language.Catalan, client.checks.last().third.language)
         assertEquals(3, client.checks.size)
+    }
+
+    @Test
+    fun unclearResultsKeepTheOriginalSourceThroughRechecksAndMeaningClarification() {
+        val intent = Settled.meaning("I am asking how you feel.")
+        for (origin in listOf(Origin.Menu, Origin.Button)) {
+            client.answer = { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
+            check.check(QUESTION, null, origin)
+            reviewed()
+            check.acceptAll(EditKind.Fix)
+            assertEquals("Com estàs?", check.workingText)
+
+            client.answer = { ModelAnswer(Verdict(Verdict.Status.Unclear), """{"status":"unclear"}""") }
+            check.recheck()
+            val unclear = done()
+            assertEquals(CheckResult.Unclear, unclear.result)
+            assertEquals(QUESTION, unclear.sourceText)
+            assertEquals("Com estàs?", unclear.retainedRevision?.workingText)
+
+            check.clarifyMeaning(intent.answer)
+            val clarified = done()
+            assertEquals(CheckResult.Unclear, clarified.result)
+            assertEquals(QUESTION, clarified.sourceText)
+            assertEquals(listOf(intent), clarified.settled)
+            assertEquals(QUESTION, client.checks.last().third.text)
+            assertEquals("Com estàs?", check.workingText)
+            check.dismiss(applied = false)
+            assertNoHistory()
+        }
+    }
+
+    @Test
+    fun acceptedChangesCanBeUndoneAfterUnclearOrWrongLanguageRechecks() {
+        for (status in listOf(Verdict.Status.Unclear, Verdict.Status.WrongLanguage)) {
+            client.answer = { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
+            check.check(QUESTION, Language.Catalan, Origin.Button)
+            reviewed()
+            check.acceptAll(EditKind.Fix)
+            val accepted = check.workingText
+            client.answer = {
+                val verdict = Verdict(status, language = "English")
+                ModelAnswer(verdict, Json.encodeToString(verdict))
+            }
+            check.recheck()
+            val result = done().result
+            assertFalse(result is CheckResult.Reviewed)
+            assertEquals(accepted, done().retainedRevision?.workingText)
+            check.undo()
+            assertEquals(result, done().result)
+            assertFalse(done().retainedRevision!!.canUndo)
+            assertEquals(QUESTION, done().retainedRevision!!.workingText)
+            assertNull(check.workingText)
+            check.dismiss(applied = true)
+            assertNoHistory()
+        }
     }
 
     @Test
@@ -478,7 +541,8 @@ class CheckViewModelTest {
         assertEquals("Mañana yo vengo.", clarified.revision.preview(EditKind.Fix).text)
         assertEquals("Mañana vengo.", clarified.revision.preview(EditKind.Natural).text)
         assertEquals(1, clarified.revision.acceptedCount)
-        check.dismiss(applied = false)
+        assertNoHistory()
+        check.dismiss(applied = true)
         assertEquals(listOf(emptyList(), listOf(intent)), closed().single().attempts.map { it.settled })
     }
 
@@ -510,7 +574,9 @@ class CheckViewModelTest {
         assertEquals(listOf(assumption), done().settled)
         assertEquals(listOf(assumption), client.checks.last().third.settled)
         assertTrue(client.checks.all { it.third.text == QUESTION })
-        check.dismiss(applied = false)
+        assertNoHistory()
+        check.acceptAll(EditKind.Fix)
+        check.dismiss(applied = true)
         assertEquals(
             listOf(emptyList(), listOf(assumption), listOf(assumption, first),
                 listOf(assumption, revised), listOf(assumption)),
@@ -562,7 +628,8 @@ class CheckViewModelTest {
         assertEquals(1, reviewed().revision.acceptedCount)
         assertEquals(listOf(intent), done().settled)
         assertEquals(listOf(intent), client.checks.last().third.settled)
-        check.dismiss(applied = false)
+        assertNoHistory()
+        check.dismiss(applied = true)
         val attempts = closed().single().attempts
         assertEquals(listOf(emptyList(), listOf(intent), listOf(intent)), attempts.map { it.settled })
         assertEquals(CheckFailure.Reason.Offline.token, attempts[1].failure)
@@ -625,7 +692,8 @@ class CheckViewModelTest {
         assertEquals(listOf(assumption), linkedAssumptions(listOf(0), result.assumptions, done().settled))
         check.settle(assumption.about, assumptionChoices(assumption).last())
         assertEquals(listOf(other, first), done().settled)
-        check.dismiss(applied = false)
+        assertNoHistory()
+        check.dismiss(applied = true)
         assertEquals(
             listOf(emptyList(), listOf(first), listOf(first, other), listOf(other), listOf(other, first)),
             closed().single().attempts.map { it.settled },
@@ -653,7 +721,8 @@ class CheckViewModelTest {
         assertEquals(1, reviewed().revision.acceptedCount)
         assertEquals(listOf(other), done().settled)
         assertEquals(listOf(other), client.checks.last().third.settled)
-        check.dismiss(applied = false)
+        assertNoHistory()
+        check.dismiss(applied = true)
         val attempts = closed().single().attempts
         assertEquals(listOf(first, other), attempts[2].settled)
         assertEquals(listOf(other), attempts[3].settled)
@@ -673,11 +742,13 @@ class CheckViewModelTest {
         }
         check.removeChoice("tu")
         waitFor("removal request") { client.checks.size == 3 }
+        val attempts = pending().attempts
         check.dismiss(applied = false)
         waitFor("cancelled removal request") { cancelled.get() }
         assertNull(check.state)
         assertEquals(listOf(emptyList(), listOf(Settled("tu", "informal"))),
-            closed().single().attempts.map { it.settled })
+            attempts.map { it.settled })
+        assertNoHistory()
     }
 
     @Test
@@ -692,6 +763,7 @@ class CheckViewModelTest {
         }
         check.removeChoice("tu")
         waitFor("removal request") { client.checks.size == 3 }
+        val attempts = pending().attempts
         client.answer = { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) }
         check.check(QUESTION, null, Origin.Menu)
         assertTrue(done().settled.isEmpty())
@@ -699,7 +771,8 @@ class CheckViewModelTest {
         waitFor("cancelled removal request") { cancelled.get() }
         assertEquals(4, client.checks.size)
         assertEquals(listOf(emptyList(), listOf(Settled("tu", "informal"))),
-            closed().single().attempts.map { it.settled })
+            attempts.map { it.settled })
+        assertNoHistory()
     }
 
     @Test
@@ -738,8 +811,7 @@ class CheckViewModelTest {
         assertEquals(0, reviewed().revision.acceptedCount)
         assertNull(check.workingText)
         check.dismiss(applied = true)
-        assertNull(closed().single().finalText)
-        assertFalse(store.suggestions.any { it.decision == Decision.Accepted })
+        assertNoHistory()
     }
 
     @Test
@@ -760,6 +832,7 @@ class CheckViewModelTest {
         assertTrue(check.state is CardState.Failed)
         assertEquals("Com estàs?", check.workingText)
         assertTrue(check.state!!.retainedRevision!!.canUndo)
+        assertNoHistory()
         check.dismiss(applied = true)
         val session = closed().single()
         assertEquals("Com estàs?", session.finalText)
@@ -785,10 +858,7 @@ class CheckViewModelTest {
         assertNull(check.workingText)
         activity.finish()
         assertEquals(android.app.Activity.RESULT_CANCELED, shadowOf(activity).resultCode)
-        val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.Failed, session.outcome)
-        assertEquals(Decision.Undone, store.suggestions.single().decision)
+        assertNoHistory()
         deliverSelectionResult(caller.get(), activity)
         assertEquals(Activity.RESULT_CANCELED, caller.get().receivedResult?.second)
         controller.pause().stop().destroy()
@@ -804,9 +874,7 @@ class CheckViewModelTest {
         assertNull(check.workingText)
         assertEquals(0, reviewed().revision.acceptedCount)
         // The first card's change never went back to the app.
-        val first = closed().single()
-        assertNull(first.finalText)
-        assertEquals(Outcome.None, first.outcome)
+        assertNoHistory()
     }
 
     @Test
@@ -825,7 +893,9 @@ class CheckViewModelTest {
         waitFor("the model asked again") { client.checks.size == 2 }
         assertEquals(settled, client.checks.last().third.settled)
         done()
-        check.dismiss(applied = false)
+        assertNoHistory()
+        check.acceptAll(EditKind.Fix)
+        check.dismiss(applied = true)
         val session = closed().single()
         assertEquals("earlier", session.attempts.first().reusedFrom)
         assertEquals(settled, session.attempts.first().settled)
@@ -863,10 +933,58 @@ class CheckViewModelTest {
     }
 
     @Test
+    fun anAnalyzedCardWithoutAcceptedChangesNeverCreatesHistory() {
+        check.check(QUESTION, null, Origin.Menu)
+        assertTrue(reviewed().revision.edits.isNotEmpty())
+        assertNoHistory()
+        check.dismiss(applied = true)
+        assertNull(check.state)
+        assertNoHistory()
+    }
+
+    @Test
+    fun copyingWithoutAcceptanceKeepsTheCardOpenAndCreatesNoHistory() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        check.check(QUESTION, null, Origin.Menu)
+        val corrected = reviewed().revision.preview(EditKind.Fix).text
+        val actions = CardActions.of(check, context,
+            onClose = { check.dismiss(applied = true) }, onOpenSettings = null)
+
+        actions.onCopy(corrected, EditKind.Fix)
+
+        assertEquals("Com estàs?", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertTrue(check.state is CardState.Done)
+        assertNull(check.workingText)
+        assertNoHistory()
+        check.dismiss(applied = true)
+        assertNoHistory()
+    }
+
+    @Test
+    fun undoingAllChangesCreatesNoHistoryEvenWhenTheHostReportsSuccess() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        assertEquals("Com estàs?", check.workingText)
+        assertNoHistory()
+
+        check.undo()
+
+        assertEquals(QUESTION, reviewed().revision.workingText)
+        assertEquals(0, reviewed().revision.acceptedCount)
+        assertNull(check.workingText)
+        check.dismiss(applied = true)
+        assertNoHistory()
+    }
+
+    @Test
     fun dismissingWithTheTextHandedBackRecordsItAsApplied() {
         check.check(QUESTION, Language.Catalan, Origin.Menu)
         reviewed()
+        assertNoHistory()
         check.acceptAll(EditKind.Fix)
+        assertNoHistory()
         check.dismiss(applied = true)
         assertNull(check.state)
         assertNull(check.workingText)
@@ -875,6 +993,12 @@ class CheckViewModelTest {
         assertEquals(Outcome.Applied, session.outcome)
         assertEquals("ca", session.requestedLanguage)
         assertEquals("gemini", session.provider)
+        assertEquals(0, store.saves.get())
+        assertEquals(Decision.Accepted, store.suggestions.single().decision)
+        // A repeated close or later ViewModel destruction cannot duplicate the applied record.
+        check.dismiss(applied = true)
+        viewModels.clear()
+        assertEquals(listOf(session), closed())
     }
 
     @Test
@@ -883,9 +1007,7 @@ class CheckViewModelTest {
         reviewed()
         check.acceptAll(EditKind.Fix)
         check.dismiss(applied = false)
-        val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.None, session.outcome)
+        assertNoHistory()
     }
 
     @Test
@@ -894,21 +1016,18 @@ class CheckViewModelTest {
         reviewed()
         check.acceptAll(EditKind.Fix)
         viewModels.clear()
-        val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.None, session.outcome)
+        assertNoHistory()
     }
 
     @Test
-    fun aFailureIsShownAndKeptByItsToken() {
+    fun aFailureIsShownByItsTokenWithoutCreatingHistory() {
         client.answer = { throw CheckFailure(CheckFailure.Reason.RateLimited, "slow down") }
         check.check(QUESTION, null, Origin.Button)
         waitFor("the failure") { check.state is CardState.Failed }
         assertEquals(CardState.Failed(CheckFailure.Reason.RateLimited, "slow down"), check.state)
+        assertEquals("rate_limited", pending().attempts.single().failure)
         check.dismiss(applied = false)
-        val session = closed().single()
-        assertEquals("rate_limited", session.attempts.single().failure)
-        assertEquals(Outcome.Failed, session.outcome)
+        assertNoHistory()
     }
 
     @Test
@@ -1033,17 +1152,13 @@ class CheckViewModelTest {
             assertTrue(card.state is CardState.Loading)
             assertNull(card.workingText)
             waitFor("second checker acquisition") { acquiring.count == 0L }
+            val session = pending()
             card.dismiss(applied = false)
-
-            val session = closed().single()
-            assertNull(session.finalText)
-            assertEquals(Outcome.Copied, session.outcome)
+            assertNoHistory()
             // Selection alone does not claim that an attempt ran in the selected language.
             assertEquals("ca", session.requestedLanguage)
             assertEquals(1, session.attempts.size)
             assertTrue(session.attempts.single().replayInvalidated)
-            assertTrue(store.suggestions.isNotEmpty())
-            assertTrue(store.suggestions.all { it.decision == Decision.Superseded })
             assertEquals(1, client.checks.size)
         } finally {
             resume.countDown()
@@ -1072,17 +1187,24 @@ class CheckViewModelTest {
         card.changeLanguage(Language.Spanish)
         waitFor("context failure") { card.state is CardState.Failed }
         assertNull(card.workingText)
-        card.dismiss(applied = false)
+        assertNoHistory()
+        assertEquals("bad_response", pending().attempts.last().failure)
+        failRead.set(false)
+        card.recheck()
+        waitFor("new language retry") { card.state is CardState.Done }
+        card.acceptAll(EditKind.Fix)
+        card.dismiss(applied = true)
 
         val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(listOf("ca", "es"), session.attempts.map { it.requestedLanguage })
-        assertEquals("bad_response", session.attempts.last().failure)
+        assertEquals("Com estàs?", session.finalText)
+        assertEquals(listOf("ca", "es", "es"), session.attempts.map { it.requestedLanguage })
+        assertEquals("bad_response", session.attempts[1].failure)
         // The attempted context was unavailable: only the previously acquired settings are known.
-        assertEquals(listOf("moderate", "moderate"), session.attempts.map { it.punctuation })
-        assertEquals(1, client.checks.size)
+        assertEquals(listOf("moderate", "moderate", "strict"), session.attempts.map { it.punctuation })
+        assertEquals(2, client.checks.size)
         assertTrue(store.suggestions.isNotEmpty())
-        assertTrue(store.suggestions.all { it.attempt == 0 && it.decision == Decision.Superseded })
+        assertEquals(Decision.Superseded, store.suggestions.single { it.attempt == 0 }.decision)
+        assertEquals(Decision.Accepted, store.suggestions.single { it.attempt == 2 }.decision)
     }
 
     @Test
@@ -1124,13 +1246,14 @@ class CheckViewModelTest {
             waitFor("latest settings answer") { card.state is CardState.Done }
             resume()
             assertEquals(Punctuation.Strict, client.checks.single().third.punctuation)
-            card.dismiss(applied = false)
+            card.acceptAll(EditKind.Fix)
+            card.dismiss(applied = true)
 
             val session = closed().single()
             assertEquals("org.telegram.messenger", session.hostApp)
             assertEquals(listOf("strict"), session.attempts.map { it.punctuation })
             assertEquals(QUESTION_JSON, session.attempts.single().raw)
-            assertEquals(2, store.saves.get())
+            assertEquals(0, store.saves.get())
             assertEquals(0, store.lookups.get())
         }
 
@@ -1141,7 +1264,8 @@ class CheckViewModelTest {
             card.recheckIfStale()
             waitFor("tester answer with latest settings") { card.state is CardState.Done }
             resume()
-            card.dismiss(applied = false)
+            card.acceptAll(EditKind.Fix)
+            card.dismiss(applied = true)
 
             assertEquals(Punctuation.Strict, client.checks.single().third.punctuation)
             assertTrue(closed().isEmpty())
@@ -1165,7 +1289,8 @@ class CheckViewModelTest {
             card.recheckIfStale()
             waitFor("another unrecorded answer") { card.state is CardState.Done && client.checks.size == 2 }
             resume()
-            card.dismiss(applied = false)
+            card.acceptAll(EditKind.Fix)
+            card.dismiss(applied = true)
             history.awaitWrites(5_000)
 
             assertEquals(listOf(Punctuation.Strict, Punctuation.Moderate), client.checks.map { it.third.punctuation })
@@ -1187,7 +1312,7 @@ class CheckViewModelTest {
             card.recheckIfStale()
             waitFor("recorded settings refresh") { card.state is CardState.Done }
             history.awaitWrites(5_000)
-            assertEquals(2, store.saves.get())
+            assertEquals(0, store.saves.get())
 
             // Turning recording off and on advances its epoch, even if no write saw it off.
             epoch.incrementAndGet()
@@ -1198,10 +1323,11 @@ class CheckViewModelTest {
                 }
             }
             resume()
-            card.dismiss(applied = false)
+            card.acceptAll(EditKind.Fix)
+            card.dismiss(applied = true)
             history.awaitWrites(5_000)
 
-            assertEquals(2, store.saves.get())
+            assertEquals(0, store.saves.get())
             assertTrue(store.closed.isEmpty())
             assertEquals(0, store.lookups.get())
         }
@@ -1234,8 +1360,9 @@ class CheckViewModelTest {
 
             assertEquals("New selection", client.checks.single().third.text)
             assertEquals(Language.Spanish, client.checks.single().third.language)
+            assertEquals("New selection", pending().text)
             card.dismiss(applied = false)
-            assertEquals("New selection", closed().single().text)
+            assertNoHistory()
         }
 
     /** Holds the first complete settings snapshot in IO, before the view model can publish it. */
@@ -1316,17 +1443,18 @@ class CheckViewModelTest {
             waitFor("retry answer") { card.state is CardState.Done }
             resume.countDown()
             settle()
-            card.dismiss(applied = false)
+            card.acceptAll(EditKind.Fix)
+            card.dismiss(applied = true)
             history.awaitWrites(5_000)
 
             assertEquals(2, client.checks.size)
             assertEquals(0, store.lookups.get())
-            assertEquals(2, store.saves.get())
+            assertEquals(0, store.saves.get())
             val session = store.closed.single()
             assertEquals("org.telegram.messenger", session.hostApp)
             assertEquals(listOf("strict"), session.attempts.map { it.punctuation })
             assertEquals(QUESTION_JSON, session.attempts.single().raw)
-            assertEquals(Outcome.None, session.outcome)
+            assertEquals(Outcome.Applied, session.outcome)
         } finally {
             resume.countDown()
         }
@@ -1375,7 +1503,8 @@ class CheckViewModelTest {
             settle()
             assertEquals(2, requests.get())
             assertEquals(storedSettings, runBlocking { checker.context().stored })
-            card.dismiss(applied = false)
+            card.acceptAll(EditKind.Fix)
+            card.dismiss(applied = true)
             val session = closed().single()
             assertEquals(1, session.attempts.size)
             assertNull(session.attempts.single().failure)
@@ -1464,9 +1593,7 @@ class CheckViewModelTest {
         val activity = controller.get()
         activity.finish()
         assertEquals(android.app.Activity.RESULT_CANCELED, shadowOf(activity).resultCode)
-        val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.None, session.outcome)
+        assertNoHistory()
         deliverSelectionResult(caller.get(), activity)
         assertEquals(Activity.RESULT_CANCELED, caller.get().receivedResult?.second)
         controller.pause().stop().destroy()
@@ -1487,17 +1614,14 @@ class CheckViewModelTest {
         assertEquals(Activity.RESULT_CANCELED, shadowOf(activity).resultCode)
         assertNull(shadowOf(activity).resultIntent)
         assertNull(caller.get().receivedResult)
-        val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.None, session.outcome)
-        assertTrue(store.suggestions.none { it.decision == Decision.Accepted })
+        assertNoHistory()
         controller.pause().stop().destroy()
         caller.pause().stop().destroy()
     }
 
     @Test
     @Config(application = App::class)
-    fun aSelectionWithoutAResultRecipientKeepsItsCopiedOutcome() {
+    fun aSelectionWithoutAResultRecipientCanCopyWithoutCreatingHistory() {
         check.check(QUESTION, null, Origin.Menu)
         val corrected = reviewed().revision.preview(EditKind.Fix).text
         val caller = Robolectric.buildActivity(ResultCaller::class.java).setup()
@@ -1512,9 +1636,7 @@ class CheckViewModelTest {
         assertFalse(activity.isFinishing)
         activity.finish()
         assertEquals(Activity.RESULT_CANCELED, shadowOf(activity).resultCode)
-        val session = closed().single()
-        assertNull(session.finalText)
-        assertEquals(Outcome.Copied, session.outcome)
+        assertNoHistory()
         controller.pause().stop().destroy()
         caller.pause().stop().destroy()
     }
@@ -1552,7 +1674,7 @@ class CheckViewModelTest {
         settle()
         assertNull(check.state)
         assertEquals(1, client.checks.size)
-        assertEquals(1, closed().size)
+        assertNoHistory()
     }
 
     @Test
@@ -1599,7 +1721,7 @@ class CheckViewModelTest {
         val context = SessionContext(Opening(Origin.Menu, null, null, settings), appVersion = "1.0", deviceId = "device")
         val recording = SessionRecording(QUESTION, context, 500, newId = { "earlier" })
         recording.attempt(600, settled, raw, null, null, null, null)
-        return recording.close(700, null)
+        return recording.close(700, "Com estàs?")
     }
 
     /** Remembers the sessions it was asked to close, and counts saves and lookups; [kept] is what every reuse lookup finds. */

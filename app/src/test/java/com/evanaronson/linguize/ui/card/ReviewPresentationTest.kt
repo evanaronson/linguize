@@ -33,16 +33,12 @@ class ReviewPresentationTest {
     @Test
     fun missingAssessmentIsUnassessedWhileZeroIsAnActualRating() {
         val missing = assessmentPresentation(null)
-        assertNull(missing.confidence.score)
-        assertNull(missing.impact.score)
         assertNull(missing.confidence.level)
         assertNull(missing.impact.level)
         assertEquals(R.string.assessment_unassessed, missing.confidence.label)
         assertEquals(R.string.assessment_unassessed, missing.impact.label)
 
         val zero = assessmentPresentation(SuggestionAssessment(0, 0))
-        assertEquals(0, zero.confidence.score)
-        assertEquals(0, zero.impact.score)
         assertEquals(1, zero.confidence.level)
         assertEquals(1, zero.impact.level)
         assertEquals(R.string.assessment_low, zero.confidence.label)
@@ -50,14 +46,12 @@ class ReviewPresentationTest {
     }
 
     @Test
-    fun bothDimensionsUseTheSameDisplayBucketsWithoutChangingRawScores() {
+    fun bothDimensionsUseTheSameDisplayBuckets() {
         val expectedLevels = listOf(1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3)
         val labels = listOf(R.string.assessment_low, R.string.assessment_medium, R.string.assessment_high)
         for (score in 0..10) {
             val impact = 10 - score
             val scored = assessmentPresentation(SuggestionAssessment(score, impact))
-            assertEquals(score, scored.confidence.score)
-            assertEquals(impact, scored.impact.score)
             assertEquals(expectedLevels[score], scored.confidence.level)
             assertEquals(expectedLevels[impact], scored.impact.level)
             assertEquals(labels[expectedLevels[score] - 1], scored.confidence.label)

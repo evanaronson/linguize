@@ -101,13 +101,14 @@ the [eval guide](eval/README.md) for running and interpreting these checks.
 
 ## Brand
 
-The wordmark is **lingu·ize**: the raised dot (the Catalan *punt volat*, as in col·legi) marks where *-ize* snaps onto a word, as in catalan·ize and castilian·ize. The launcher icon is "·ize", cut straight from the wordmark. In the app the wordmark is set in Newsreader Medium (SIL Open Font License), outlined into `wordmark.xml`, in ink. The interface follows the Proofmark system: ink on paper, neutral greys, and proof vermilion (`#C4321A`, lighter `#FF8A70` in dark mode) as the one colour, used only as a mark: a fix's underline, the fix count, the explanation's edge and a switch that is on. Primary buttons are ink. App screens sit on a grey ground with white section cards, as Android's own settings do.
+The wordmark is **lingu·ize**: the raised dot (the Catalan *punt volat*, as in col·legi) marks where *-ize* snaps onto a word, as in catalan·ize and castilian·ize. The launcher icon is "·ize", the wordmark cropped to its mark, with the proof line under "ize": ink on a paper tile, and paper on ink with the lighter line at night and in themed icons. In the app the wordmark is set in Newsreader Medium (SIL Open Font License), outlined into `wordmark.xml`, in ink. The interface follows the Proofmark system: ink on paper, neutral greys, and proof vermilion (`#C4321A`, lighter `#FF8A70` in dark mode) as the one colour, used only as a mark: a fix's underline, the fix count, the explanation's edge and a switch that is on. Primary buttons are ink. App screens sit on a grey ground with white section cards, as Android's own settings do.
 
 [brand/](brand/) holds the wordmarks, icon variants, and construction studies.
 Every letter is drawn in code from one geometric kit in `brand/source/`;
 `python3 brand/source/build.py` rebuilds the SVGs. The app's copies are separate
-vector drawables: `wordmark.xml` (now the Newsreader outline, not the kit's
-lettering), `ic_launcher_foreground.xml`, and `ic_launcher_monochrome.xml`. The
+vector drawables: `wordmark.xml`, `ic_launcher_foreground.xml` and
+`ic_launcher_monochrome.xml`, all outlined from Newsreader Medium per the Proofmark
+brand kit rather than drawn from the kit in `brand/source/`. The
 generator does not update those XML files.
 
 ## Build locally

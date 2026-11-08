@@ -22,28 +22,12 @@ import com.evanaronson.linguize.ui.card.UnderstandCard
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
-import com.evanaronson.linguize.ui.components.ListCard
-import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
-import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.readCopiedText
 import com.evanaronson.linguize.ui.understand.UnderstandState
 import com.evanaronson.linguize.ui.understand.UnderstandViewModel
-
-/** Lab: Help me reply on Home, as its own group. */
-@Composable
-fun ReplyHomeEntry(onOpen: () -> Unit) {
-    SectionHeader(stringResource(R.string.lab_reply_drafter_home_header))
-    ListCard({
-        ListRow(
-            stringResource(R.string.lab_reply_drafter_help_me_reply),
-            stringResource(R.string.lab_reply_drafter_home_summary),
-            onClick = onOpen,
-        )
-    })
-}
 
 /**
  * Lab: Help me reply in the app. Paste a message, read what it says, then answer it. The same

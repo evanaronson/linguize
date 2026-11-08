@@ -10,9 +10,14 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import com.evanaronson.linguize.ui.settings.SettingsPage
 
-/** The launcher activity's screens: few enough for a state and a back handler, no navigation library. */
+/**
+ * The launcher activity's screens: few enough for a state and a back handler, no navigation
+ * library. Four are top-level destinations in the bottom bar ([tabs]): Chat, Write, Progress
+ * and History. Everything else opens above one of them.
+ */
 internal sealed interface Screen {
-    data object Home : Screen
+    /** Write: check something now (Try it) and the other writing and reading tools. Saved as "home", its old name. */
+    data object Write : Screen
     data object History : Screen
     data object Settings : Screen
 
@@ -63,11 +68,16 @@ internal sealed interface Screen {
     data object Conjugations : Screen
     /** Lab: one cell of the conjugation grid, by language and cell token. */
     data class ConjugationCell(val language: String, val cell: String) : Screen
+    /** Progress: Practice and every view learned from History, in one place. */
+    data object Progress : Screen
+
+    /** A bottom-bar destination: opening one replaces the path above the start destination. */
+    val isTab: Boolean get() = this in tabs
 
     /** For saved instance state. */
     val saved: String
         get() = when (this) {
-            Home -> "home"
+            Write -> "home"
             History -> "history"
             Settings -> "settings"
             AccessibilitySetup -> "accessibility"
@@ -89,12 +99,16 @@ internal sealed interface Screen {
             VocabGaps -> "vocab_gaps"
             Conjugations -> "conjugations"
             is ConjugationCell -> "conjugation:$language:$cell"
+            Progress -> "progress"
         }
 
     companion object {
+        /** The bottom bar, in order. */
+        val tabs: List<Screen> get() = listOf(Chat, Write, Progress, History)
+
         fun restore(saved: String?): Screen? = when {
             saved == null -> null
-            saved == "home" -> Home
+            saved == "home" -> Write
             saved == "history" -> History
             saved == "settings" -> Settings
             saved == "accessibility" -> AccessibilitySetup
@@ -121,26 +135,33 @@ internal sealed interface Screen {
             saved == "conjugations" -> Conjugations
             saved.startsWith("conjugation:") -> saved.removePrefix("conjugation:").split(':', limit = 2)
                 .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }
+            saved == "progress" -> Progress
             else -> null
         }
     }
 }
 
-/** The actual path taken, so the same check can return to Recent or to the full History list. */
+/**
+ * The actual path taken. It starts at the start destination (Chat, or Write when "Open to
+ * chat" is off); another tab sits right above it, so Back from any tab returns to the start
+ * and Back from the start leaves the app. Other screens open above the current one, so the
+ * same check can return to History or to Your patterns.
+ */
 internal data class Navigation private constructor(private val screens: List<Screen>) {
-    constructor() : this(listOf(Screen.Home))
+    constructor() : this(listOf(Screen.Write))
 
-    /** Lab Chat: a path that starts at [root] (Home, or the chat). */
+    /** A path that starts at [root]: Chat or Write. */
     constructor(root: Screen) : this(listOf(root))
 
     val current: Screen get() = screens.last()
     val parent: Screen? get() = screens.dropLast(1).lastOrNull()
     val saved: List<String> get() = screens.map { it.saved }
 
+    /** The bottom bar's selected destination: the tab the current screen was opened from. */
+    val tab: Screen get() = screens.last { it.isTab || it == screens.first() }
+
     fun open(screen: Screen): Navigation = when {
-        // Home sits right above the chat when the app opens to it.
-        screen == Screen.Home -> if (screens.first() == Screen.Chat) Navigation(listOf(Screen.Chat, Screen.Home)) else Navigation()
-        screen == Screen.Chat && Screen.Chat in screens -> Navigation(screens.take(screens.indexOf(Screen.Chat) + 1))
+        screen.isTab -> if (screen == screens.first()) Navigation(screens.take(1)) else Navigation(listOf(screens.first(), screen))
         screen == current -> this
         else -> Navigation(screens + screen)
     }

@@ -52,6 +52,8 @@ fun SettingsScreen(
     appVoiceRow: @Composable () -> Unit = {},
     /** Lab: What Linguize knows. */
     memoryRow: @Composable () -> Unit = {},
+    /** How to set up the accessibility button, in "In other apps". */
+    onSetUpAccessibility: (() -> Unit)? = null,
 ) {
     // The saved settings load in a moment; showing defaults first would flash the wrong choices.
     val state = settings.state ?: return
@@ -62,13 +64,8 @@ fun SettingsScreen(
         SecondOpinionSettingsRow(onOpen = { onOpen(SettingsPage.SecondOpinion) })
 
         SectionHeader(stringResource(R.string.checking))
-        val separator = stringResource(R.string.list_separator)
-        val menu = MenuEntry.entries.filter { it in state.menu }.map { stringResource(it.label) }.joinToString(separator)
         val suggest = stringResource(state.judgments.labelResource)
-        ListCard(
-            { ListRow(stringResource(R.string.selection_menu_label), menu, onClick = { onOpen(SettingsPage.Menu) }) },
-            { ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) },
-        )
+        ListCard({ ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) })
 
         SectionHeader(stringResource(R.string.writing_preferences))
         val profile = state.writingProfile
@@ -83,9 +80,20 @@ fun SettingsScreen(
         appVoiceRow()
         memoryRow()
 
-        SectionHeader(stringResource(R.string.popup))
+        // Where Linguize shows up outside the app: the selection menu, the accessibility button and the popup.
+        SectionHeader(stringResource(R.string.lab_home_ia_in_other_apps))
+        val separator = stringResource(R.string.list_separator)
+        val menu = MenuEntry.entries.filter { it in state.menu }.map { stringResource(it.label) }.joinToString(separator)
         val position = stringResource(state.popupPosition.labelResource)
-        ListCard({ ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) })
+        ListCard(
+            { ListRow(stringResource(R.string.selection_menu_label), menu, onClick = { onOpen(SettingsPage.Menu) }) },
+            onSetUpAccessibility?.let { open ->
+                {
+                    ListRow(stringResource(R.string.accessibility_button), stringResource(R.string.accessibility_row_summary), onClick = open)
+                }
+            },
+            { ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) },
+        )
 
         com.evanaronson.linguize.ui.chat.ChatSettingsSection()
 

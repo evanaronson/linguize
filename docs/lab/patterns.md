@@ -15,10 +15,9 @@ moment in the [Lab README](README.md) while keeping *evidence first, learning la
 
 ## How to use it
 
-- **Home**: once there are at least 3 counted checks and one group seen in 2 of them, a
-  "Your patterns" card appears under History, naming the top groups. It disappears again
-  if deletions leave too little.
-- **History**: a "Your patterns" row sits above the list.
+- **Progress**: a "Your patterns" row under Fixes and phrases. Once there are at least 3
+  counted checks and one group seen in 2 of them, it names the top groups with a sparkline;
+  until then, and again if deletions leave too little, it says what the page is for.
 - **Your patterns page**: recurring groups, each with a count ("5 times in 3 checks"), a
   trend phrase and a small chart over time. Below: "Explain my patterns", "Not grouped"
   and "How this works".
@@ -42,7 +41,7 @@ Code:
 | Explanation prompt and reply | `llm/lab/PatternsPrompt.kt`, `assets/lab_patterns_prompt.md` | llm |
 | Lab-local explanation store | `data/lab/PatternNotes.kt` (`lab_patterns` preferences) | data |
 | Composition, invalidation | `PatternsLab.kt` | root |
-| Screens and Home card | `ui/patterns/` | ui |
+| Screens and Progress summary | `ui/patterns/` | ui |
 
 ### Evidence
 

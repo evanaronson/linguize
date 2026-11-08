@@ -9,6 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -46,9 +49,9 @@ import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
 import com.evanaronson.linguize.ui.patterns.PatternsScreen
 import com.evanaronson.linguize.ui.patterns.PatternsViewModel
 import com.evanaronson.linguize.ui.patterns.labelResource
-import com.evanaronson.linguize.ui.practice.PracticeEntry
 import com.evanaronson.linguize.ui.practice.PracticeScreen
 import com.evanaronson.linguize.ui.practice.PracticeViewModel
+import com.evanaronson.linguize.ui.progress.ProgressView
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -84,7 +87,7 @@ class HomeActivity : ComponentActivity() {
         navigation = Navigation.restore(
             savedInstanceState?.getStringArrayList(STACK)
                 ?: savedInstanceState?.getString(SCREEN)?.let { listOf(it) }
-                ?: startNavigation(this, intent.getBooleanExtra(OPEN_SETTINGS, false)).saved,
+                ?: startNavigation(this, intent.getBooleanExtra(OPEN_SETTINGS, false), requestedTab(intent)).saved,
         )
         navigation.current.sessionId?.let(session::load)
         com.evanaronson.linguize.ui.quicktile.QuickLaunch.publishInBackground(this)
@@ -97,48 +100,43 @@ class HomeActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        // Lab Chat draws its own bar (conversations, language, Home, Settings).
+                        // The chat draws its own bar (conversations, language, Settings).
                         if (current != Screen.Chat) AppNavigation(
-                            title = navigation.current.title(),
-                            onBack = if (navigation.parent == null) null else ::back,
-                            backLabel = navigation.parent?.title() ?: stringResource(R.string.app_name),
-                            onOpenSettings = if (current == Screen.Home) openSettings else null,
+                            title = current.title(),
+                            // Tabs are siblings: Back from one returns to the start, but no arrow says so.
+                            onBack = if (navigation.parent == null || current.isTab) null else ::back,
+                            backLabel = navigation.parent?.let { it.title() ?: stringResource(R.string.lab_home_ia_write) }
+                                ?: stringResource(R.string.app_name),
+                            onOpenSettings = if (current.isTab) openSettings else null,
                         )
+                    },
+                    bottomBar = {
+                        // Typing (Try it, the chat composer) gets the room while the keyboard is up.
+                        if (current.isTab && !imeVisible()) AppTabs(navigation.tab) { navigation = navigation.open(it) }
                     },
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                         saved.SaveableStateProvider(current.saved) {
                             when (current) {
-                                Screen.Home -> HomeScreen(
-                                    check, history,
-                                    historyOn = settings.state?.historyEnabled,
+                                Screen.Write -> WriteScreen(
+                                    check,
                                     needsKey = settings.state?.hasKey == false,
                                     onOpenSettings = openSettings,
-                                    onOpen = ::open,
-                                    onViewHistory = { navigation = navigation.open(Screen.History) },
-                                    onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) },
-                                    onOpenPhrasebook = { navigation = navigation.open(Screen.Phrasebook) },
                                     onFillGaps = { text ->
                                         if (text != null) { gaps.close(); gaps.draft = text }
                                         navigation = navigation.open(Screen.FillGaps)
                                     },
                                     onHelpReply = { navigation = navigation.open(Screen.LabReply) },
                                     onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
-                                    patterns = patterns,
-                                    onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
-                                    practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
-                                    words = { com.evanaronson.linguize.ui.words.WordsHomeCard(words) { navigation = navigation.open(Screen.Words) } },
-                                    onOpenChat = { navigation = navigation.open(Screen.Chat) },
-                                    vocabGaps = { com.evanaronson.linguize.ui.vocabgaps.VocabGapsHomeEntry { navigation = navigation.open(Screen.VocabGaps) } },
-                                    onOpenConjugations = { navigation = navigation.open(Screen.Conjugations) },
                                 )
+                                Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
+                                    practice, patterns, words, conjugations, vocabGaps,
+                                ) { view -> navigation = navigation.open(view.screen) }
                                 Screen.History -> HistoryScreen(
                                     history, settings,
                                     historyOn = settings.state?.historyEnabled,
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,
-                                    onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
-                                    wordsRow = { com.evanaronson.linguize.ui.words.WordsHistoryRow { navigation = navigation.open(Screen.Words) } },
                                     onOpenThread = { com.evanaronson.linguize.ui.chat.ChatRequests.conversation = it; navigation = navigation.open(Screen.Chat) },
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
@@ -147,7 +145,7 @@ class HomeActivity : ComponentActivity() {
                                     AppVoiceSettingsRow(appVoice) { navigation = navigation.open(Screen.AppVoice()) }
                                 }, memoryRow = {
                                     com.evanaronson.linguize.ui.memory.MemorySettingsRow { navigation = navigation.open(Screen.Memory) }
-                                })
+                                }, onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) })
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
                                 is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenAssumptions = {
@@ -174,9 +172,7 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
                                     words, current.language, current.key, current.level, onOpenCheck = ::open,
                                 )
-                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(
-                                    onOpenHome = { navigation = navigation.open(Screen.Home) }, onOpenSettings = openSettings,
-                                )
+                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(onOpenSettings = openSettings)
                                 Screen.VocabGaps -> com.evanaronson.linguize.ui.vocabgaps.VocabGapsScreen(vocabGaps)
                                 Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(conjugations) { language, cell ->
                                     navigation = navigation.open(Screen.ConjugationCell(language, cell.token))
@@ -202,7 +198,7 @@ class HomeActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        navigation = startNavigation(this, intent.getBooleanExtra(OPEN_SETTINGS, false))
+        navigation = startNavigation(this, intent.getBooleanExtra(OPEN_SETTINGS, false), requestedTab(intent))
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -236,15 +232,39 @@ class HomeActivity : ComponentActivity() {
         private const val SCREEN = "screen"
         private const val STACK = "navigation"
         private const val OPEN_SETTINGS = "openSettings"
+        private const val OPEN_TAB = "openTab"
         fun homeIntent(context: Context) = Intent(context, HomeActivity::class.java)
         fun settingsIntent(context: Context) = homeIntent(context).putExtra(OPEN_SETTINGS, true)
+
+        /** Opens Write, where Try it is (the Try it launcher shortcut), above whichever tab the app starts on. */
+        fun writeIntent(context: Context) = homeIntent(context).putExtra(OPEN_TAB, Screen.Write.saved)
+
+        /** The bottom-bar destination an intent asks for, if any. */
+        internal fun requestedTab(intent: Intent?): Screen? = Screen.restore(intent?.getStringExtra(OPEN_TAB))?.takeIf { it.isTab }
     }
 }
 
-/** The title in the navigation bar, and in "Back to …"; null for Home, which shows the wordmark. */
+/** The keyboard is showing. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun imeVisible(): Boolean = WindowInsets.isImeVisible
+
+/** Where a [ProgressView] lives in the navigation. */
+private val ProgressView.screen: Screen
+    get() = when (this) {
+        ProgressView.Practice -> Screen.Practice
+        ProgressView.Words -> Screen.Words
+        ProgressView.Conjugations -> Screen.Conjugations
+        ProgressView.VocabGaps -> Screen.VocabGaps
+        ProgressView.Patterns -> Screen.Patterns
+        ProgressView.Phrasebook -> Screen.Phrasebook
+    }
+
+/** The title in the navigation bar, and in "Back to …"; null for Write, which shows the wordmark. */
 @Composable
 private fun Screen.title(): String? = when (this) {
-    Screen.Home -> null
+    Screen.Write -> null
+    Screen.Progress -> stringResource(R.string.lab_home_ia_progress)
     Screen.History -> stringResource(R.string.history)
     Screen.Settings -> stringResource(R.string.settings)
     Screen.AccessibilitySetup -> stringResource(R.string.accessibility_button)

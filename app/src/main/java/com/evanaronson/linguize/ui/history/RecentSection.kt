@@ -50,54 +50,6 @@ import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.format.DateTimeFormatter
 import java.time.format.DecimalStyle
 
-/**
- * The checks made before, newest first. Tap one to open it; swipe it away to delete
- * it, with a moment to undo. [historyOn] is null until the setting has been read.
- */
-@Composable
-fun RecentSection(
-    history: HistoryViewModel,
-    historyOn: Boolean?,
-    snackbar: SnackbarHostState,
-    onOpen: (String) -> Unit,
-    onOpenSettings: () -> Unit,
-    onViewAll: () -> Unit,
-    /** Lab Chat: opens a chat conversation's row; null opens its newest saved message. */
-    onOpenThread: ((String) -> Unit)? = null,
-) {
-    val rows by history.recent.collectAsState()
-    val time = rememberTimeFormat()
-    HistoryDeletionFeedback(history, snackbar)
-
-    SectionHeader(stringResource(R.string.history)) {
-        LinguizeButton(stringResource(R.string.view_all_history), onViewAll, ButtonKind.Text)
-    }
-    val shown = rows
-    SectionCard {
-        if (historyOn == false) HistoryOff(onOpenSettings)
-        if (shown == null) return@SectionCard
-        if (shown.isEmpty()) {
-            if (historyOn == true) Quiet(stringResource(R.string.recent_empty), Modifier.padding(vertical = 14.dp))
-            return@SectionCard
-        }
-        val now = System.currentTimeMillis()
-        shown.take(HistoryViewModel.PREVIEW_SIZE).forEachIndexed { index, row ->
-            key(row.key) {
-                if (index > 0 || historyOn == false) RowDivider()
-                val thread = row.thread
-                if (thread != null) {
-                    ThreadRow(row, now, time) { onOpenThread?.invoke(thread.conversationId) ?: onOpen(row.summary.id) }
-                } else {
-                    val delete = { history.delete(row.summary.id) }
-                    SwipeToDelete(onDelete = delete) {
-                        SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
-                    }
-                }
-            }
-        }
-    }
-}
-
 /** The visible list owns deletion feedback; the operation itself stays in the view model. */
 @Composable
 internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: SnackbarHostState) {

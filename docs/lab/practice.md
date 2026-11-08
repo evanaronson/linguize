@@ -13,8 +13,8 @@ for that mistake. A run is 5 to 10 items and takes about a minute.
 
 ## How to use it
 
-- Home shows a **Practice** card with "N due" only while items are due. Nothing
-  due, no card: not nagging is a feature.
+- Progress shows **Practice** at the top: "N due", or "Nothing due". Nothing is pushed
+  anywhere else: Progress is where you go when you want to practise.
 - Tap it. Each item shows **You wrote** with the mistaken words underlined in
   proof vermilion, as on the check card.
   - **Type the fix** for words and short phrases. Check compares locally.

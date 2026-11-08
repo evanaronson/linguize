@@ -19,7 +19,7 @@ everywhere, so copy, pull down the shade, tap **Linguize Lab**.
 - **Launcher shortcuts.** Long-press the Linguize Lab icon:
   - **Check copied text** checks it straight away.
   - **Understand copied text** translates and explains it straight away.
-  - **Try it** opens Home, where the Try it box is.
+  - **Try it** opens Write, where the Try it box is, above the page the app starts on.
   Shortcuts can be dragged to the home screen. They appear after the app has been
   opened once.
 - **Accepted changes go on the clipboard.** There's no field to put changes back
@@ -53,7 +53,7 @@ everywhere, so copy, pull down the shade, tap **Linguize Lab**.
 - `ui/quicktile/QuickLaunch.kt` defines the three jobs as intent actions on this
   package, builds the launcher shortcuts and publishes them with
   `pushDynamicShortcut` (which leaves other shortcuts alone) off the main thread when
-  Home opens. Shortcut intents name an action rather than the activity class, so `ui`
+  Write opens. Shortcut intents name an action rather than the activity class, so `ui`
   doesn't depend on `menu`. Dynamic, not static XML, shortcuts are used because the
   Lab and release builds have different application ids.
 - The card is the shared one: `FloatingPopup`, `ResultCard` with the language picker,

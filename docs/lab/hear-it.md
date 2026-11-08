@@ -21,7 +21,7 @@ said was right.
   the corrected words ("podré").
 - **On Meaning**: the speaker button beside the meaning plays it in the writer's
   own language.
-- **In Home, Try it**: **Speak** opens the phone's speech recognizer in the chosen
+- **In Try it, on Write**: **Speak** opens the phone's speech recognizer in the chosen
   language. What it hears replaces the starter sample or an empty box, or follows
   the text already typed. Tap **Check** to check it.
 

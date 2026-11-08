@@ -28,7 +28,7 @@ Catalan acostar-se means to come closer. For going to bed, say ficar-se al llit.
 - **From the check card.** Under a reviewed result, below Meaning, a row reads
   **Say it in Catalan** (or Spanish). It picks the other language: the one you didn't
   pin, or the one your text doesn't look like. Accepted changes are included.
-- **From Home's Try it.** Next to **Check**, a **Say it in …** button follows what you
+- **From Try it, on Write.** Next to **Check**, a **Say it in …** button follows what you
   type. Write Spanish and it offers Catalan.
 
 The page shows the result, your text, and **Word by word**. When the message was read

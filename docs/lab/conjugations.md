@@ -19,7 +19,8 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
 
 ## How to use it
 
-- **Home**: a "Your conjugations" row under the other learning features.
+- **Progress**: a "Your conjugations" row under Your writing, with how many forms you
+  have used in the language on the switch. It opens on that language.
 - **Language switch**: Spanish or Catalan. It starts on the language with more text.
 - **Tenses and persons**: rows are tenses and moods, columns are persons (yo, tú, él/usted,
   nosotros, vosotros, ellos/ustedes; jo, tu, ell/vostè…). A filled cell shows how many
@@ -44,7 +45,7 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
 | Function words (articles, pronouns…) | `core/morphology/ClosedClass.kt` | core |
 | Analyser, clitics, guessing, `MorphologyLemmatizer` | `core/morphology/Morphology.kt` | core |
 | Tokenizer, compounds, counting, trend | `core/conjugations/ConjugationMap.kt` | core |
-| Screens, Home row, view model | `ui/conjugations/` | ui |
+| Screens, view model | `ui/conjugations/` | ui |
 
 Everything is pure Kotlin and offline. Nothing is stored: the grid is rebuilt from
 `App.corpus` each time the screen opens, so deleting a check or chat removes its text from

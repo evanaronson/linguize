@@ -27,24 +27,10 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
-import com.evanaronson.linguize.ui.components.ListCard
-import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.copyToClipboard
-
-/** Home's entry: its own card below Try it. */
-@Composable
-fun GapFillerEntry(onOpen: () -> Unit) {
-    ListCard({
-        ListRow(
-            stringResource(R.string.lab_gap_filler_title),
-            stringResource(R.string.lab_gap_filler_home_summary),
-            onClick = onOpen,
-        )
-    }, modifier = Modifier.padding(top = 12.dp))
-}
 
 /**
  * Write in the target language with [brackets] where you got stuck, fill the gaps, then use

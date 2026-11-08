@@ -44,10 +44,11 @@ chat too. History is "everything you wrote, with how it was corrected".
   really write to: pick a person memory knows ("Jordi, my landlord, formal"), or describe
   one ("my kid's teacher, about a sick day"). The partner plays them, in their register,
   and still never corrects you. The conversation's title shows who.
-- **Home and Settings.** The house button opens Home (Try it, History and every Lab entry)
-  above the chat, so Back returns to it. The gear opens Settings. **Open to chat**
-  (Settings, Chat, on by default) can switch back to starting on Home.
-- **History.** Each conversation is one row in History and in Home's recent five ("Chat,
+- **The rest of the app.** The bottom bar under the chat has Write (Try it and the other
+  tools), Progress and History; Back from any of them returns to the chat. The gear opens
+  Settings. **Open to chat** (Settings, Chat, on by default) can switch to starting on
+  Write. See [Home and navigation](home-ia.md).
+- **History.** Each conversation is one row in History ("Chat,
   Weekend plans" over "5 messages, 2 corrected"); tap it to open the conversation. Checks
   sent to other apps keep their own rows, so the chat never buries them.
 
@@ -96,7 +97,7 @@ chat too. History is "everything you wrote, with how it was corrected".
   the writer leaves it, Chat calls `App.userMemory.learnFrom("chat:<id>", messages)`.
   Deleting a conversation calls `forget("chat:<id>")`.
 - **Start**: `ui/home/ChatStart.kt` makes the chat the navigation root when Open to chat
-  is on; `Navigation.open(Home)` then puts Home above it.
+  is on; the other tabs open above it.
 
 ## Limits
 

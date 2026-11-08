@@ -68,13 +68,55 @@ class Corpus(private val sources: List<CorpusSource>) {
 }
 
 /**
- * Lab: maps a written word to its dictionary forms (lemmas) in a language, e.g. "fuimos" to
- * {"ir", "ser"}. Words are lowercase. [Identity] knows no morphology; a richer one replaces it.
+ * Lab: a lexeme, the unit a vocabulary is made of: a dictionary form plus its part of speech.
+ * "llama" the noun and "llamar" the verb are different lexemes; "la" the article and "la" the
+ * pronoun are different lexemes with the same [lemma]. Lemmas are lowercase.
  */
-fun interface Lemmatizer {
-    fun lemmas(word: String, language: String): Set<String>
+data class Lexeme(val lemma: String, val pos: Pos)
+
+/** Lab: parts of speech shared by every Lab feature (decks, morphology, word counts). */
+enum class Pos(val token: String) {
+    Noun("n"), Verb("v"), Adjective("adj"), Adverb("adv"), Pronoun("pron"), Determiner("det"),
+    Article("art"), Preposition("prep"), Conjunction("conj"), Numeral("num"), Interjection("interj"),
+    /** Known word, part of speech not classified. */
+    Other("other"),
+    /** Nothing is known about the word. */
+    Unknown("unknown");
 
     companion object {
-        val Identity = Lemmatizer { word, _ -> setOf(word) }
+        /** Reads a token, also accepting common spellings ("noun", "verb", "determiner"); else [Unknown]. */
+        fun of(token: String?): Pos = when (val t = token?.trim()?.lowercase()) {
+            null, "" -> Unknown
+            "noun" -> Noun
+            "verb" -> Verb
+            "adjective" -> Adjective
+            "adverb" -> Adverb
+            "pronoun" -> Pronoun
+            "determiner" -> Determiner
+            "article" -> Article
+            "preposition" -> Preposition
+            "conjunction" -> Conjunction
+            "numeral", "number" -> Numeral
+            "interjection" -> Interjection
+            "none" -> Other
+            else -> entries.firstOrNull { it.token == t } ?: Unknown
+        }
+    }
+}
+
+/**
+ * Lab: analyses a written word into the lexemes it can be in a language, e.g. "fuimos" to
+ * {ir/v, ser/v} and "la" to {el/art, ella/pron}. Words are lowercase. An ambiguous word returns
+ * every candidate; features decide how to count it (and say so). [Identity] knows no
+ * morphology: the word is its own lemma, part of speech [Pos.Unknown].
+ */
+fun interface Lemmatizer {
+    fun lexemes(word: String, language: String): Set<Lexeme>
+
+    /** The dictionary forms, ignoring part of speech. */
+    fun lemmas(word: String, language: String): Set<String> = lexemes(word, language).mapTo(LinkedHashSet()) { it.lemma }
+
+    companion object {
+        val Identity = Lemmatizer { word, _ -> setOf(Lexeme(word, Pos.Unknown)) }
     }
 }

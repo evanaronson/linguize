@@ -25,12 +25,22 @@ correction. It is the evidence for what they know.
 Sources today: `check` (History: original text of applied checks) and `chat`
 (conversations: each message as typed, before pre-send corrections).
 
-## Lemmatizer
+## Word forms, lexemes and lemmas
 
-`App.lemmatizer` maps a lowercase word to its dictionary forms in a language
-("fuimos" to {"ir", "ser"}). It starts as `Lemmatizer.Identity`; the conjugation experiment
-supplies Spanish and Catalan morphology. Vocabulary features use it so that "vaig", "anem"
-and "anar" all count toward "anar".
+Vocabulary is counted at three levels, and every feature uses the same terms:
+
+- **Word form:** what was written ("fuimos", "la", "llama").
+- **Lexeme:** a dictionary form with its part of speech (`Lexeme(lemma, pos)`): "ir"/verb,
+  "el"/article, "ella"/pronoun, "llama"/noun, "llamar"/verb. This is the unit of vocabulary.
+- **Lemma:** the dictionary form alone ("el", "ella", "llamar"), grouping lexemes that share it.
+
+`App.lemmatizer` analyses a lowercase word form into the lexemes it can be
+(`lexemes(word, language)`; `lemmas(...)` drops the part of speech). It starts as
+`Lemmatizer.Identity` (the form is its own lemma, part of speech unknown); the conjugation
+experiment supplies Spanish and Catalan morphology. Parts of speech use the shared `Pos`
+tokens (n, v, adj, adv, pron, det, art, prep, conj, num, interj, other, unknown), the same as
+the Spanish frequency deck. An ambiguous form returns every candidate; a feature that counts
+it must state its rule (count toward each candidate, or split the count).
 
 ## User memory
 

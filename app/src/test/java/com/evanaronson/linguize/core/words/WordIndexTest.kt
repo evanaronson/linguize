@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.core.words
 
 import com.evanaronson.linguize.core.corpus.Lemmatizer
+import com.evanaronson.linguize.core.corpus.Lexeme
+import com.evanaronson.linguize.core.corpus.Pos
 import com.evanaronson.linguize.core.corpus.Span
 import com.evanaronson.linguize.core.corpus.Utterance
 import org.junit.Assert.assertEquals
@@ -135,7 +137,7 @@ class WordIndexTest {
                 "vaig", "anem", "anar" -> setOf("anar")
                 "fuimos" -> setOf("ir", "ser")
                 else -> setOf(word)
-            }
+            }.mapTo(LinkedHashSet()) { Lexeme(it, Pos.Verb) }
         }
         val index = build(
             utterance("a", "vaig a casa i anem junts", 1),

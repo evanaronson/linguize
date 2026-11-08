@@ -96,6 +96,7 @@ class HomeActivity : ComponentActivity() {
                                         if (text != null) { gaps.close(); gaps.draft = text }
                                         navigation = navigation.open(Screen.FillGaps)
                                     },
+                                    onHelpReply = { navigation = navigation.open(Screen.LabReply) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -118,6 +119,7 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
                                 Screen.FillGaps -> GapFillScreen(gaps, onOpenSettings = openSettings)
+                                Screen.LabReply -> com.evanaronson.linguize.ui.reply.ReplyScreen(onOpenSettings = openSettings)
                             }
                         }
                     }
@@ -187,4 +189,5 @@ private fun Screen.title(): String? = when (this) {
     Screen.Phrasebook -> stringResource(R.string.lab_phrasebook_title)
     is Screen.AppVoice -> appVoiceTitle(app)
     Screen.FillGaps -> stringResource(R.string.lab_gap_filler_title)
+    Screen.LabReply -> stringResource(R.string.lab_reply_drafter_help_me_reply)
 }

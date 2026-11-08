@@ -52,6 +52,7 @@ fun HomeScreen(
     onOpenPhrasebook: () -> Unit = {},
     /** Lab: opens Fill the gaps, with Try it's text when it came from its card. */
     onFillGaps: (text: String?) -> Unit = {},
+    onHelpReply: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -64,6 +65,7 @@ fun HomeScreen(
             GapFillerEntry(onOpen = { onFillGaps(null) })
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             PhrasebookHomeSection(onOpenPhrasebook)
+            com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

@@ -34,6 +34,8 @@ internal sealed interface Screen {
     data class AppVoice(val app: String? = null) : Screen
     /** Lab: Fill the gaps. */
     data object FillGaps : Screen
+    /** Lab: Help me reply. */
+    data object LabReply : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -48,6 +50,7 @@ internal sealed interface Screen {
             Phrasebook -> "phrasebook"
             is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
             FillGaps -> "lab_gap_filler"
+            LabReply -> "lab_reply"
         }
 
     companion object {
@@ -65,6 +68,7 @@ internal sealed interface Screen {
             saved == "appvoice" -> AppVoice()
             saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))
             saved == "lab_gap_filler" -> FillGaps
+            saved == "lab_reply" -> LabReply
             else -> null
         }
     }

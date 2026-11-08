@@ -38,6 +38,8 @@ import com.evanaronson.linguize.ui.understand.UnderstandState
 import com.evanaronson.linguize.ui.understand.UnderstandViewModel
 import com.evanaronson.linguize.ui.gaps.GapFillViewModel
 import com.evanaronson.linguize.ui.gaps.PopupGapsOrCheck
+import com.evanaronson.linguize.ui.reply.ReplyCard
+import com.evanaronson.linguize.ui.reply.ReplyViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
@@ -199,6 +201,11 @@ class LinguizeAccessibilityService : AccessibilityService() {
         voice.attach(check)
         val gaps = ViewModelProvider(window, GapFillViewModel.factory(App.of(this)))[GapFillViewModel::class.java]
         var understanding by mutableStateOf(selection == null)
+        // Lab: Help me reply, a page of the understand card. It can fill the empty field it opened from.
+        val reply = ViewModelProvider(window, ReplyViewModel.factory(App.of(this)))[ReplyViewModel::class.java]
+        var replying by mutableStateOf(false)
+        val replyField = field.takeIf { selection == null }
+        val replyFieldText = replyField?.text?.toString()
         var retainedCheck by mutableStateOf(false)
         var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
         var language by mutableStateOf<Language?>(null)
@@ -262,6 +269,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             check, context = this, onClose = close, onOpenSettings = openSettings,
         )
         fun captureClipboard() {
+            replying = false
             understand.readingClipboard()
             window.whenFocused(
                 onReady = { if (!closed && understanding) understand.captured(readCopiedText()) },
@@ -273,6 +281,12 @@ class LinguizeAccessibilityService : AccessibilityService() {
             understanding = true
             menus.dismiss()
             captureClipboard()
+        }
+        val putReply: (String) -> Unit = { text ->
+            if (end { false } != null && (replyField == null || !ReplyPutBack.into(replyField, replyFieldText, text))) {
+                copyToClipboard(text)
+                Toast.makeText(this, R.string.lab_reply_drafter_put_back_failed, Toast.LENGTH_LONG).show()
+            }
         }
         try {
             window.show {
@@ -291,7 +305,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
                             }
                         },
                     ) { modifier ->
-                        if (understanding) {
+                        if (understanding && replying) {
+                            ReplyCard(reply, onBack = { replying = false }, modifier, onOpenSettings = openSettings,
+                                onPutBack = putReply.takeIf { replyField != null })
+                        } else if (understanding) {
                             UnderstandCard(understand.state, onRetry = {
                                 if (understand.state is UnderstandState.Message) captureClipboard() else understand.retry()
                             }, modifier = modifier, onOpenSettings = openSettings,
@@ -300,6 +317,12 @@ class LinguizeAccessibilityService : AccessibilityService() {
                                     understanding = false
                                     check.recheckIfStale()
                                 }) else null,
+                                onHelpReply = (understand.state as? UnderstandState.Done)?.let { done ->
+                                    {
+                                        reply.start(done.text, done.result.translation)
+                                        replying = true
+                                    }
+                                },
                             )
                         } else {
                             check.state?.let { state ->

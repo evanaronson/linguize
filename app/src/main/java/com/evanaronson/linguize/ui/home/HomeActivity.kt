@@ -28,6 +28,9 @@ import com.evanaronson.linguize.ui.history.HistoryScreen
 import com.evanaronson.linguize.ui.history.SessionAssumptionsScreen
 import com.evanaronson.linguize.ui.history.SessionScreen
 import com.evanaronson.linguize.ui.history.SessionViewModel
+import com.evanaronson.linguize.ui.practice.PracticeEntry
+import com.evanaronson.linguize.ui.practice.PracticeScreen
+import com.evanaronson.linguize.ui.practice.PracticeViewModel
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -39,6 +42,7 @@ class HomeActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private val history: HistoryViewModel by viewModels { HistoryViewModel.factory(App.of(this)) }
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
+    private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +82,7 @@ class HomeActivity : ComponentActivity() {
                                     onOpen = ::open,
                                     onViewHistory = { navigation = navigation.open(Screen.History) },
                                     onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) },
+                                    practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -94,6 +99,7 @@ class HomeActivity : ComponentActivity() {
                                     navigation = navigation.open(Screen.DetailAssumptions(current.id))
                                 })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
+                                Screen.Practice -> PracticeScreen(practice, onDone = ::back)
                             }
                         }
                     }
@@ -158,4 +164,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.SettingsChoice -> stringResource(page.title)
     is Screen.Detail -> stringResource(R.string.saved_check)
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
+    Screen.Practice -> stringResource(R.string.lab_practice_title)
 }

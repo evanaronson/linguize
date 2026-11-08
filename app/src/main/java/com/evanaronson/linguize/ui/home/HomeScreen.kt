@@ -47,6 +47,7 @@ fun HomeScreen(
     onOpen: (id: String) -> Unit,
     onViewHistory: () -> Unit,
     onSetUpAccessibility: () -> Unit,
+    practice: @Composable () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -56,6 +57,7 @@ fun HomeScreen(
             SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
                 TryIt(check, onOpenSettings)
             }
+            practice()
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({

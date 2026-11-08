@@ -18,6 +18,8 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure.Reason
+import com.evanaronson.linguize.ui.appvoice.AppVoiceChip
+import com.evanaronson.linguize.ui.appvoice.CardVoiceViewModel
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
@@ -33,6 +35,7 @@ import com.evanaronson.linguize.ui.theme.AppTheme
  */
 class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
+    private val voice: CardVoiceViewModel by viewModels { CardVoiceViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
     private var readOnly = true
     private val canReplace: Boolean get() = !readOnly && callingActivity != null
@@ -63,6 +66,9 @@ class CheckActivity : ComponentActivity() {
         // Which menu entry was tapped decides the language: Catalanize, Castilianize, or Linguize to detect it.
         val entry = App.of(this).menu.entryFor(intent.component)
         language = if (savedInstanceState == null) entry.language else Language.forCode(savedInstanceState.getString(KEY_LANGUAGE))
+        // The calling app's voice rule (when Android names the caller) pins the language for Auto Detect.
+        voice.attach(check)
+        if (check.state == null) language = voice.start(callingPackage, language)
 
         // Any app can open this entry, so each one gets only a few checks a minute. A card already
         // limited stays limited when it's recreated, without counting again.
@@ -92,6 +98,7 @@ class CheckActivity : ComponentActivity() {
                             language = selected
                             if (!limited) check.changeLanguage(selected)
                         }, modifier = Modifier.weight(1f, fill = false))
+                        AppVoiceChip(voice, onChanged = { if (!limited) check.recheck() }, Modifier.weight(1f, fill = false))
                     }
                 }
             }

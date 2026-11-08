@@ -90,6 +90,12 @@ class CheckViewModel(
     private var ranWith: CheckContext? = null
     private var ranWithKeyRevision: Long? = null
 
+    /**
+     * Adjusts the settings each check runs with before it's sent and recorded, such as the
+     * source app's voice rule (see ui/appvoice). Identity unless a host sets it.
+     */
+    var adjustContext: (CheckContext) -> CheckContext = { it }
+
     /** Null before the first check and after [dismiss]. */
     var state by mutableStateOf<CardState?>(null)
         private set
@@ -145,7 +151,7 @@ class CheckViewModel(
         staleCheck?.cancel()
         staleCheck = viewModelScope.launch {
             val now = try {
-                withContext(Dispatchers.Default) { checker() }.context()
+                adjustContext(withContext(Dispatchers.Default) { checker() }.context())
             } catch (_: CheckFailure) {
                 null
             }
@@ -224,7 +230,7 @@ class CheckViewModel(
             val shown = try {
                 // Creating the checker reads its prompt from assets, so not on the main thread.
                 val checker = withContext(Dispatchers.Default) { checker() }
-                val context = checker.context()
+                val context = adjustContext(checker.context())
                 // Runtime credential freshness stays outside the context recorded in history.
                 ranWithKeyRevision = keyRevision(context.provider)
                 ranWith = context

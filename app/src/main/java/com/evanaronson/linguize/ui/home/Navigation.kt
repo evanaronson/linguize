@@ -28,6 +28,9 @@ internal sealed interface Screen {
     /** The assumptions of a past check. */
     data class DetailAssumptions(val id: String) : Screen
 
+    /** Per-app voice (Lab): the list of apps, or one [app]'s rule. */
+    data class AppVoice(val app: String? = null) : Screen
+
     /** For saved instance state. */
     val saved: String
         get() = when (this) {
@@ -38,6 +41,7 @@ internal sealed interface Screen {
             is SettingsChoice -> "settings:${page.token}"
             is Detail -> "detail:$id"
             is DetailAssumptions -> "assumptions:$id"
+            is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
         }
 
     companion object {
@@ -51,6 +55,8 @@ internal sealed interface Screen {
             saved.startsWith("detail:") && saved.length > "detail:".length -> Detail(saved.removePrefix("detail:"))
             saved.startsWith("assumptions:") && saved.length > "assumptions:".length ->
                 DetailAssumptions(saved.removePrefix("assumptions:"))
+            saved == "appvoice" -> AppVoice()
+            saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))
             else -> null
         }
     }

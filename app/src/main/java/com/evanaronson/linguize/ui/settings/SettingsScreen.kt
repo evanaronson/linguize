@@ -43,7 +43,11 @@ enum class SettingsPage(val token: String, @param:StringRes val title: Int) {
  * a few options opens a [SettingsPage]. The activity owns the navigation bar and insets.
  */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) {
+fun SettingsScreen(
+    settings: SettingsViewModel,
+    onOpen: (SettingsPage) -> Unit,
+    appVoiceRow: @Composable () -> Unit = {},
+) {
     // The saved settings load in a moment; showing defaults first would flash the wrong choices.
     val state = settings.state ?: return
     LaunchedEffect(Unit) { settings.showModels() }
@@ -70,6 +74,7 @@ fun SettingsScreen(settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) 
             { ListRow(stringResource(R.string.writing_register), register, onClick = { onOpen(SettingsPage.Register) }) },
             { ListRow(stringResource(R.string.punctuation), punctuation, onClick = { onOpen(SettingsPage.Punctuation) }) },
         )
+        appVoiceRow()
 
         SectionHeader(stringResource(R.string.popup))
         val position = stringResource(state.popupPosition.labelResource)

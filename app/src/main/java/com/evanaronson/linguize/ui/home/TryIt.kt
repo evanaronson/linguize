@@ -25,10 +25,11 @@ import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.gaps.GapOffer
 
 /** A text box and the same card the selection menu shows, so checks can be tried here. */
 @Composable
-internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
+internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit, onFillGaps: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val initialSample = stringResource(R.string.try_it_sample)
     var sample by rememberSaveable { mutableStateOf(initialSample) }
@@ -89,6 +90,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             ),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             scrollable = false,
+            gapOffer = onFillGaps?.let { open -> GapOffer.of(sample.trim()) { open(sample.trim()) } },
         )
     }
     Quiet(stringResource(R.string.try_it_note), Modifier.padding(top = 12.dp))

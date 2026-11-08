@@ -36,6 +36,8 @@ import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.card.UnderstandCard
 import com.evanaronson.linguize.ui.understand.UnderstandState
 import com.evanaronson.linguize.ui.understand.UnderstandViewModel
+import com.evanaronson.linguize.ui.gaps.GapFillViewModel
+import com.evanaronson.linguize.ui.gaps.PopupGapsOrCheck
 import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
@@ -191,6 +193,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         val understand = ViewModelProvider(window, UnderstandViewModel.factory(App.of(this)))[UnderstandViewModel::class.java]
+        val gaps = ViewModelProvider(window, GapFillViewModel.factory(App.of(this)))[GapFillViewModel::class.java]
         var understanding by mutableStateOf(selection == null)
         var retainedCheck by mutableStateOf(false)
         var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
@@ -202,7 +205,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
             window.hidden = false
             if (understanding) {
                 understand.recheckIfStale()
-            } else check.recheckIfStale()
+            } else {
+                check.recheckIfStale()
+                gaps.retryIfFailed()
+            }
         }
         fun openAppAt(settings: Boolean) {
             val returnToken = PopupReturn.await(backFromApp)
@@ -228,8 +234,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
             var putBack = false
             window.remove {
                 understand.cancel()
+                gaps.cancel()
+                val checkWorking = check.workingText
                 putBack = !understanding && applied()
-                check.dismiss(applied = putBack)
+                check.dismiss(applied = gaps.checkApplied(putBack, checkWorking))
             }
             if (card?.window === window) card = null
             return putBack
@@ -239,7 +247,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
             // text or records a Copy decision.
             // Freeze the exact accepted text before dismiss clears the revision. A kind's
             // preview could include additional changes the writer never accepted.
-            val replacement = if (!understanding && field != null && selection != null) check.workingText else null
+            val replacement = if (!understanding && field != null && selection != null) gaps.replacement(check.workingText) else null
             val applied = end { replacement != null && field != null && selection != null && writeBack(field, selection, replacement) }
             if (applied == false && replacement != null) showRecovery(replacement, popupPosition)
         }
@@ -273,7 +281,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
                             if (!understanding) {
                                 LanguagePicker(language, onSelect = {
                                     language = it
-                                    check.changeLanguage(it)
+                                    if (gaps.state != null) gaps.changeLanguage(it) else check.changeLanguage(it)
                                 }, modifier = Modifier.weight(1f, fill = false))
                             }
                         },
@@ -290,7 +298,14 @@ class LinguizeAccessibilityService : AccessibilityService() {
                             )
                         } else {
                             check.state?.let { state ->
-                                ResultCard(state, actions, modifier, onUnderstandCopiedText = ::switchToUnderstand)
+                                PopupGapsOrCheck(
+                                    gaps, selection?.let { gaps.source(it.text, check.workingText) }, language,
+                                    canReplace = field != null && selection != null, onPutBack = close,
+                                    onCheck = { check.check(it, language, Origin.Button, field?.packageName?.toString()) },
+                                    onOpenSettings = openSettings, modifier,
+                                ) { offer ->
+                                    ResultCard(state, actions, modifier, onUnderstandCopiedText = ::switchToUnderstand, gapOffer = offer)
+                                }
                             }
                         }
                     }

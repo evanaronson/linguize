@@ -31,6 +31,7 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.RecentSection
+import com.evanaronson.linguize.ui.gaps.GapFillerEntry
 
 /**
  * The launcher content below the app navigation: check something now, browse previous
@@ -47,6 +48,8 @@ fun HomeScreen(
     onOpen: (id: String) -> Unit,
     onViewHistory: () -> Unit,
     onSetUpAccessibility: () -> Unit,
+    /** Lab: opens Fill the gaps, with Try it's text when it came from its card. */
+    onFillGaps: (text: String?) -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -54,8 +57,9 @@ fun HomeScreen(
             if (needsKey) AddKeyStrip(onOpenSettings)
             SectionHeader(stringResource(R.string.check_your_text))
             SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-                TryIt(check, onOpenSettings)
+                TryIt(check, onOpenSettings, onFillGaps)
             }
+            GapFillerEntry(onOpen = { onFillGaps(null) })
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({

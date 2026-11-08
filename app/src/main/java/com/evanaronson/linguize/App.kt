@@ -12,6 +12,7 @@ import com.evanaronson.linguize.llm.GeminiClient
 import com.evanaronson.linguize.llm.OpenAIClient
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.llm.lab.GapPrompt
 import com.evanaronson.linguize.data.Exports
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +74,9 @@ class App : Application() {
     /** Created off the main thread by the view models. */
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
+    val gapFiller by lazy {
+        GapFiller(settings, keys, clients) { GapPrompt.load { assets.open(it).bufferedReader().use { r -> r.readText() } } }
+    }
 
     override fun onCreate() {
         super.onCreate()

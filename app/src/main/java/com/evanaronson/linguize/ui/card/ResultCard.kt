@@ -55,6 +55,8 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
+import com.evanaronson.linguize.ui.gaps.GapOffer
+import com.evanaronson.linguize.ui.gaps.GapOfferRow
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.text.localizedText
@@ -76,6 +78,8 @@ fun ResultCard(
     scrollable: Boolean = true,
     /** Starts the separate clipboard job when this host supports it. */
     onUnderstandCopiedText: (() -> Unit)? = null,
+    /** Lab: offers Fill the gaps when the text has gaps; null hides it. */
+    gapOffer: GapOffer? = null,
 ) {
     val done = state as? CardState.Done
     val reviewed = done?.result as? CheckResult.Reviewed
@@ -89,11 +93,12 @@ fun ResultCard(
         modifier,
         scrollable,
         navigationKey = showingUnderstanding,
-        footer = if ((reviewed != null && !showingUnderstanding) || onUnderstandCopiedText != null) {
+        footer = if ((reviewed != null && !showingUnderstanding) || onUnderstandCopiedText != null || gapOffer != null) {
             {
                 if (reviewed != null && !showingUnderstanding) {
                     UnderstandingEntry(onOpen = { showingUnderstanding = true })
                 }
+                if (!showingUnderstanding) gapOffer?.let { GapOfferRow(it) }
                 onUnderstandCopiedText?.let { open ->
                     FooterRow(
                         stringResource(R.string.understand_copied_text),

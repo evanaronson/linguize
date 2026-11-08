@@ -14,6 +14,8 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
+import com.evanaronson.linguize.llm.lab.ReplyPrompt
+import com.evanaronson.linguize.llm.lab.ReplyingClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,27 +33,32 @@ class Checker(
     private val keys: ProviderKeys,
     private val prompt: Prompt,
     private val clients: Map<Provider, ProviderClient>,
+    /** Lab: the reply rules, read on first use; only a check with a message to reply to uses them. */
+    private val replyPrompt: () -> ReplyPrompt = { error("No reply prompt") },
 ) {
-    /** The settings a check started now would run with. */
-    suspend fun context(): CheckContext = failingAsCheckFailure { readContext() }
+    /** The settings a check started now would run with ([replyingTo]: Lab, the message the text answers). */
+    suspend fun context(replyingTo: String? = null): CheckContext = failingAsCheckFailure { readContext(replyingTo) }
 
     /**
      * Checks [text] as [language], or lets the model detect the language when it's null.
      * [settled] are the writer's meaning clarifications and answers from this check of the same text.
      * Runs with [context] when given, else with the settings as they are now.
+     * Lab: [replyingTo] is the message the text answers; null sends the shipped request unchanged.
      */
     suspend fun check(
         text: String,
         language: Language?,
         settled: List<Settled> = emptyList(),
         context: CheckContext? = null,
+        replyingTo: String? = null,
     ): Checked {
         if (text.length > MAX_CHARS) throw CheckFailure(CheckFailure.Reason.TooLong, userMessage = CheckFailure.Message.InputTooLong)
         return failingAsCheckFailure {
-            val used = context ?: readContext()
+            val used = context ?: readContext(replyingTo)
             val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native,
                 writingProfiles = used.writingProfiles)
-            val client = clients.getValue(used.provider)
+            val provider = clients.getValue(used.provider)
+            val client = if (replyingTo == null) provider else ReplyingClient(provider, replyPrompt(), prompt, replyingTo)
             val key = key(used.provider)
             val first = checked(text, language, client.check(key, used.model, request), used)
             val partial = first.result as? CheckResult.Reviewed
@@ -114,7 +121,7 @@ class Checker(
         clients.getValue(provider).models(key(provider))
     }
 
-    private fun readContext(): CheckContext {
+    private fun readContext(replyingTo: String? = null): CheckContext {
         val provider = settings.provider
         return CheckContext(
             provider = provider,
@@ -122,7 +129,7 @@ class Checker(
             punctuation = settings.punctuation,
             judgments = settings.judgments,
             native = settings.nativeLanguage,
-            promptHash = prompt.hash,
+            promptHash = replyingTo?.let { replyPrompt().hash(prompt, it) } ?: prompt.hash,
             writingProfiles = settings.writingProfiles.distinctBy { it.language }.sortedBy { it.language }.toList(),
         )
     }

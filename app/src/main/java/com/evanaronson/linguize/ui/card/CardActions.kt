@@ -5,6 +5,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
+import com.evanaronson.linguize.ui.replycontext.ReplyContextActions
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -27,6 +28,8 @@ class CardActions(
     val language: () -> Language? = { null },
     /** Lab Phrasebook: where saved phrases come from; null shows no save control. */
     val phraseOrigin: PhraseOrigin? = null,
+    /** Lab: the message being replied to; null for a past check or a host that shows it itself. */
+    val replyContext: ReplyContextActions? = null,
 ) {
     companion object {
         /**
@@ -41,6 +44,7 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
+            replyContext: Boolean = true,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
@@ -64,6 +68,7 @@ class CardActions(
             onRemoveClarification = check::removeMeaning,
             language = { check.pinnedLanguage },
             phraseOrigin = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
+            replyContext = if (replyContext) ReplyContextActions.of(check) else null,
         )
     }
 }

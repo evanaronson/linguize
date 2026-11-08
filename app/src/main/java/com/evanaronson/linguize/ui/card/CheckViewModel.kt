@@ -25,6 +25,7 @@ import com.evanaronson.linguize.history.Opening
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.llm.lab.ReplyPrompt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -106,6 +107,30 @@ class CheckViewModel(
     var state by mutableStateOf<CardState?>(null)
         private set
 
+    /**
+     * Lab: the message this text replies to, or null. It stays across checks on this card
+     * (and in Try it) until removed; it is never recorded, only sent with each check.
+     */
+    var replyingTo by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Lab: attaches [message] as what the text replies to (null removes it) and, with a card
+     * open, checks again in that context, keeping accepted changes that still apply.
+     * Returns false when [message] is blank or too long to attach.
+     */
+    fun replyTo(message: String?): Boolean {
+        val normalized = ReplyPrompt.normalize(message)
+        if (message != null && normalized == null) return false
+        if (normalized == replyingTo) return true
+        replyingTo = normalized
+        if (state != null) {
+            hasReviewed = true
+            run(Run.Again)
+        }
+        return true
+    }
+
     /** The text with accepted changes, or null when nothing has been accepted. */
     val workingText: String?
         get() = revision?.takeIf { it.acceptedCount > 0 }?.workingText
@@ -157,7 +182,7 @@ class CheckViewModel(
         staleCheck?.cancel()
         staleCheck = viewModelScope.launch {
             val now = try {
-                adjustContext(withContext(Dispatchers.Default) { checker() }.context())
+                adjustContext(withContext(Dispatchers.Default) { checker() }.context(replyingTo))
             } catch (_: CheckFailure) {
                 null
             }
@@ -227,6 +252,7 @@ class CheckViewModel(
         val language = language
         val origin = origin
         val hostApp = hostApp
+        val replyingTo = replyingTo
         job?.cancel()
         if (kind == Run.NewLanguage) history.changeLanguage(language?.code)
         state = CardState.Loading(text, retained)
@@ -236,11 +262,11 @@ class CheckViewModel(
             val shown = try {
                 // Creating the checker reads its prompt from assets, so not on the main thread.
                 val checker = withContext(Dispatchers.Default) { checker() }
-                val context = adjustContext(checker.context())
+                val context = adjustContext(checker.context(replyingTo))
                 // Runtime credential freshness stays outside the context recorded in history.
                 ranWithKeyRevision = keyRevision(context.provider)
                 ranWith = context
-                val ask: suspend () -> Checked = { checker.check(text, language, answers, context) }
+                val ask: suspend () -> Checked = { checker.check(text, language, answers, context, replyingTo) }
                 val opening = Opening(origin, hostApp, language?.code, context.stored)
                 val reuse: suspend (Kept) -> Checked = { kept -> checker.reuse(text, language, kept.raw, context) }
                 val answer = when (kind) {

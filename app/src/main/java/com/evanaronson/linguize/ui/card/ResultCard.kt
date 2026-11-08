@@ -59,6 +59,8 @@ import com.evanaronson.linguize.ui.hearit.HearItBar
 import com.evanaronson.linguize.ui.hearit.ProvideHearIt
 import com.evanaronson.linguize.ui.gaps.GapOffer
 import com.evanaronson.linguize.ui.gaps.GapOfferRow
+import com.evanaronson.linguize.ui.replycontext.ReplyContextFooter
+import com.evanaronson.linguize.ui.replycontext.ReplyContextHeader
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
@@ -115,6 +117,7 @@ fun ResultCard(
             }
         } else null,
     ) {
+        ReplyContextHeader(actions.replyContext)
         when (state) {
             is CardState.Loading -> {
                 if (state.retainedRevision?.canUndo == true) {
@@ -163,6 +166,7 @@ fun ResultCard(
                 }
             }
         }
+        ReplyContextFooter(actions.replyContext, state, hidden = showingUnderstanding)
     } }
 }
 

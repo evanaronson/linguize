@@ -14,6 +14,7 @@ import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.words.LanguageWords
 import com.evanaronson.linguize.core.words.WordIndex
 import com.evanaronson.linguize.core.words.WordIndexCache
+import com.evanaronson.linguize.core.words.WordLevel
 import com.evanaronson.linguize.core.words.WordSort
 import com.evanaronson.linguize.core.words.WordViews
 import com.evanaronson.linguize.data.Exports
@@ -41,8 +42,8 @@ data class WordsState(
     val language: String? = null,
     val sort: WordSort = WordSort.MostUsed,
     val query: String = "",
-    /** Group by dictionary form, when the lemmatizer knows any morphology. */
-    val byLemma: Boolean = false,
+    /** Count by form, lexeme or lemma; lexemes and lemmas only when the lemmatizer knows morphology. */
+    val level: WordLevel = WordLevel.Forms,
 ) {
     /** The language shown: the chosen one while it has words, otherwise the most used. */
     val shown: LanguageWords?
@@ -100,7 +101,7 @@ class WordsViewModel internal constructor(
     fun selectLanguage(language: String?) = _state.update { it.copy(language = language) }
     fun sortBy(sort: WordSort) = _state.update { it.copy(sort = sort) }
     fun search(query: String) = _state.update { it.copy(query = query) }
-    fun groupByLemma(byLemma: Boolean) = _state.update { it.copy(byLemma = byLemma) }
+    fun countBy(level: WordLevel) = _state.update { it.copy(level = level) }
 
     /** Writes the shown language's CSV for the share sheet. */
     fun exportCsv() {

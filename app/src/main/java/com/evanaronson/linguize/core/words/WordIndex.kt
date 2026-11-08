@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.core.words
 
 import com.evanaronson.linguize.core.corpus.Lemmatizer
+import com.evanaronson.linguize.core.corpus.Lexeme
+import com.evanaronson.linguize.core.corpus.Pos
 import com.evanaronson.linguize.core.corpus.Utterance
 import java.time.Instant
 import java.time.LocalDate
@@ -19,10 +21,27 @@ data class WordUse(
     val tried: Boolean,
 )
 
-/** What the word list shows for a word form or a dictionary form. */
+/** The three levels the words can be counted at. */
+enum class WordLevel(val token: String) {
+    /** Each spelling as written: "vaig", "anem", "la". */
+    Forms("f"),
+    /** A lemma with its part of speech: "anar" (verb); "la" is "el" (article) and "ella" (pronoun). */
+    Lexemes("x"),
+    /** A dictionary form, whatever its part of speech. */
+    Lemmas("l"),
+    ;
+
+    companion object {
+        fun read(token: String?): WordLevel? = entries.firstOrNull { it.token == token }
+    }
+}
+
+/** What the word list shows for a word form, a lexeme or a lemma. */
 interface WordCounts {
-    /** The form or lemma itself. */
+    /** Unique within its level: the form, "lemma/pos" for a lexeme, or the lemma. */
     val key: String
+    /** What the row shows, searched and sorted by: the form or the lemma. */
+    val label: String get() = key
     /** Uses outside corrected spans. */
     val right: Int
     /** Uses inside corrected spans. */
@@ -42,8 +61,8 @@ interface WordCounts {
 /** One word form as written (lowercase): "vaig", "anem". */
 data class WordEntry(
     val form: String,
-    /** Its dictionary forms from the lemmatizer; just [form] when it knows no morphology. */
-    val lemmas: Set<String>,
+    /** Every lexeme the lemmatizer gives it; just ([form], unknown) when it knows no morphology. */
+    val lexemes: Set<Lexeme>,
     override val right: Int,
     override val tried: Int,
     override val firstAt: Long,
@@ -53,11 +72,45 @@ data class WordEntry(
     override val recent: List<WordUse>,
 ) : WordCounts {
     override val key: String get() = form
+
+    /** Its dictionary forms, ignoring part of speech. */
+    val lemmas: Set<String> get() = lexemes.mapTo(LinkedHashSet()) { it.lemma }
+
+    /** The form could be more than one lexeme, and counts toward each of them. */
+    val ambiguous: Boolean get() = lexemes.size > 1
+}
+
+/** The key of a lexeme in the index and in navigation: "el/art". */
+fun Lexeme.key(): String = "$lemma/${pos.token}"
+
+/**
+ * One lexeme (a lemma with its part of speech) and the forms of it the writer typed:
+ * "anar" (verb) from "vaig", "anem". Homographs stay apart: "la" counts toward "el"
+ * (article) and "ella" (pronoun), and is listed in [ambiguousForms] of both.
+ */
+data class LexemeEntry(
+    val lexeme: Lexeme,
+    /** Most used first. */
+    val forms: List<String>,
+    /** Forms that could also be another lexeme, so they count toward each. */
+    val ambiguousForms: Set<String>,
+    override val right: Int,
+    override val tried: Int,
+    override val firstAt: Long,
+    override val lastAt: Long,
+    override val firstRightAt: Long?,
+    override val messages: Int,
+    override val recent: List<WordUse>,
+) : WordCounts {
+    override val key: String get() = lexeme.key()
+    override val label: String get() = lexeme.lemma
 }
 
 /** One dictionary form and every form of it the writer typed: "anar" from "vaig", "anem". */
 data class LemmaEntry(
     val lemma: String,
+    /** The lexemes grouped under it, most used first: "el" (article), "el" (pronoun). */
+    val lexemes: List<Lexeme>,
     /** Most used first. */
     val forms: List<String>,
     override val right: Int,
@@ -83,6 +136,7 @@ data class LanguageWords(
     val language: String?,
     /** Most used first. */
     val words: List<WordEntry>,
+    val lexemes: List<LexemeEntry>,
     val lemmas: List<LemmaEntry>,
     val names: List<NameEntry>,
     /** Every counted word typed, right or tried, names left out. */
@@ -100,13 +154,34 @@ data class LanguageWords(
 ) {
     /** Forms used right at least once. */
     val distinctWords: Int get() = words.count { it.known }
+    val distinctLexemes: Int get() = lexemes.count { it.known }
     val distinctLemmas: Int get() = lemmas.count { it.known }
 
-    /** Whether the lemmatizer groups anything: then the list can switch to dictionary forms. */
-    val lemmasDiffer: Boolean get() = lemmas.any { it.forms.size > 1 || it.lemma != it.forms.firstOrNull() }
+    /**
+     * Whether the lemmatizer knows morphology here (any part of speech other than unknown):
+     * only then are lexemes and lemmas worth showing.
+     */
+    val morphology: Boolean get() = words.any { word -> word.lexemes.any { it.pos != Pos.Unknown } }
+
+    /** Forms that count toward more than one lexeme. */
+    val ambiguousForms: Int get() = words.count { it.ambiguous }
 
     fun word(form: String): WordEntry? = words.firstOrNull { it.form == form }
+    fun lexeme(key: String): LexemeEntry? = lexemes.firstOrNull { it.key == key }
     fun lemma(lemma: String): LemmaEntry? = lemmas.firstOrNull { it.lemma == lemma }
+
+    /** The rows of [level]. */
+    fun rows(level: WordLevel): List<WordCounts> = when (level) {
+        WordLevel.Forms -> words
+        WordLevel.Lexemes -> lexemes
+        WordLevel.Lemmas -> lemmas
+    }
+
+    fun entry(level: WordLevel, key: String): WordCounts? = when (level) {
+        WordLevel.Forms -> word(key)
+        WordLevel.Lexemes -> lexeme(key)
+        WordLevel.Lemmas -> lemma(key)
+    }
 }
 
 /** The word index over the whole corpus, one entry per language, most used language first. */
@@ -160,19 +235,34 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
                 val counts = counts(uses)
                 WordEntry(
                     form = form,
-                    lemmas = lemmatizer.lemmas(form, language.orEmpty()).ifEmpty { setOf(form) },
+                    lexemes = lemmatizer.lexemes(form, language.orEmpty()).ifEmpty { setOf(Lexeme(form, Pos.Unknown)) },
                     right = counts.right, tried = counts.tried, firstAt = counts.firstAt, lastAt = counts.lastAt,
                     firstRightAt = counts.firstRightAt, messages = counts.messages, recent = counts.recent,
                 )
             }.sortedWith(compareByDescending<WordEntry> { it.uses }.thenBy { it.form })
 
-            val formsByLemma = entries.flatMap { entry -> entry.lemmas.map { it to entry } }.groupBy({ it.first }, { it.second })
+            // An ambiguous form counts toward every candidate lexeme (and every candidate lemma once).
             val byForm = words.groupBy { it.token.form }
+            val formOrder = compareByDescending<WordEntry> { it.uses }.thenBy { it.form }
+            val formsByLexeme = entries.flatMap { entry -> entry.lexemes.map { it to entry } }.groupBy({ it.first }, { it.second })
+            val lexemes = formsByLexeme.map { (lexeme, forms) ->
+                val counts = counts(forms.flatMap { byForm[it.form].orEmpty() })
+                LexemeEntry(
+                    lexeme = lexeme,
+                    forms = forms.sortedWith(formOrder).map { it.form },
+                    ambiguousForms = forms.filter { it.ambiguous }.mapTo(LinkedHashSet()) { it.form },
+                    right = counts.right, tried = counts.tried, firstAt = counts.firstAt, lastAt = counts.lastAt,
+                    firstRightAt = counts.firstRightAt, messages = counts.messages, recent = counts.recent,
+                )
+            }.sortedWith(compareByDescending<LexemeEntry> { it.uses }.thenBy { it.key })
+
+            val formsByLemma = entries.flatMap { entry -> entry.lemmas.map { it to entry } }.groupBy({ it.first }, { it.second })
             val lemmas = formsByLemma.map { (lemma, forms) ->
                 val counts = counts(forms.flatMap { byForm[it.form].orEmpty() })
                 LemmaEntry(
                     lemma = lemma,
-                    forms = forms.sortedWith(compareByDescending<WordEntry> { it.uses }.thenBy { it.form }).map { it.form },
+                    lexemes = lexemes.filter { it.lexeme.lemma == lemma }.map { it.lexeme },
+                    forms = forms.sortedWith(formOrder).map { it.form },
                     right = counts.right, tried = counts.tried, firstAt = counts.firstAt, lastAt = counts.lastAt,
                     firstRightAt = counts.firstRightAt, messages = counts.messages, recent = counts.recent,
                 )
@@ -194,6 +284,7 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
             return LanguageWords(
                 language = language,
                 words = entries,
+                lexemes = lexemes,
                 lemmas = lemmas,
                 names = nameEntries,
                 totalWords = words.size,

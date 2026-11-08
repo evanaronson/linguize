@@ -12,7 +12,8 @@
 
     <string name="lab_words_language">Language</string>
     <string name="lab_words_stat_distinct">Words</string>
-    <string name="lab_words_stat_lemmas">Dictionary forms</string>
+    <string name="lab_words_stat_lexemes">Lexemes</string>
+    <string name="lab_words_stat_lemmas">Lemmas</string>
     <string name="lab_words_stat_total">Words written</string>
     <string name="lab_words_stat_month">This month</string>
     <plurals name="lab_words_new_this_month">
@@ -29,8 +30,9 @@
     <string name="lab_words_sort_newest">Newest</string>
     <string name="lab_words_sort_az">A–Z</string>
     <string name="lab_words_sort_tried">Not yet right</string>
-    <string name="lab_words_by_form">Words</string>
-    <string name="lab_words_by_lemma">Dictionary forms</string>
+    <string name="lab_words_by_form">Word forms</string>
+    <string name="lab_words_by_lexeme">Lexemes</string>
+    <string name="lab_words_by_lemma">Lemmas</string>
     <string name="lab_words_no_match">No words match</string>
     <string name="lab_words_no_tried">Every word you tried, you\'ve also used right.</string>
     <plurals name="lab_words_uses">
@@ -72,7 +74,8 @@
     <string name="lab_words_detail_first">First used</string>
     <string name="lab_words_detail_last">Last used</string>
     <string name="lab_words_detail_messages">Messages</string>
-    <string name="lab_words_detail_lemmas">Dictionary form</string>
+    <string name="lab_words_detail_lexemes">Could be</string>
+    <string name="lab_words_detail_lexemes_under">Lexemes</string>
     <string name="lab_words_detail_forms">Forms you used</string>
     <string name="lab_words_contexts">Where you used it</string>
     <plurals name="lab_words_contexts_newest">
@@ -86,4 +89,30 @@
     <string name="lab_words_source_chat">Conversation</string>
     <string name="lab_words_open_check">Open check</string>
     <string name="lab_words_gone">This word isn\'t in your words anymore.</string>
+
+    <!-- Lexemes: a lemma with its part of speech. "el (art)" -->
+    <string name="lab_words_lexeme">%1$s (%2$s)</string>
+    <string name="lab_words_levels">Count by</string>
+    <string name="lab_words_row_forms">Forms: %1$s</string>
+    <string name="lab_words_row_forms_ambiguous">Forms: %1$s (ambiguous: %2$s)</string>
+    <!-- "art, pron. Forms: el, la" -->
+    <string name="lab_words_row_lemma">%1$s. Forms: %2$s</string>
+    <string name="lab_words_row_could_be">could be %1$s</string>
+    <string name="lab_words_ambiguous_note">An ambiguous form counts toward every word it could be, so these counts can add up to more than the words you wrote.</string>
+    <string name="lab_words_how_levels">Word forms are spellings as you wrote them. A lexeme is a word with its part of speech, so la the article and la the pronoun stay apart. A lemma groups every lexeme with the same dictionary form.</string>
+    <string name="lab_words_how_ambiguous">When a form could be more than one word, it counts toward each and is marked ambiguous.</string>
+    <string name="lab_words_detail_ambiguous">Ambiguous forms</string>
+    <string name="lab_words_pos_noun">noun</string>
+    <string name="lab_words_pos_verb">verb</string>
+    <string name="lab_words_pos_adjective">adj</string>
+    <string name="lab_words_pos_adverb">adv</string>
+    <string name="lab_words_pos_pronoun">pron</string>
+    <string name="lab_words_pos_determiner">det</string>
+    <string name="lab_words_pos_article">art</string>
+    <string name="lab_words_pos_preposition">prep</string>
+    <string name="lab_words_pos_conjunction">conj</string>
+    <string name="lab_words_pos_numeral">num</string>
+    <string name="lab_words_pos_interjection">interj</string>
+    <string name="lab_words_pos_other">other</string>
+    <string name="lab_words_pos_unknown">unknown</string>
 </resources>

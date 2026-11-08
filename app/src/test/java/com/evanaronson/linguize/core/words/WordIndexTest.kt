@@ -149,7 +149,7 @@ class WordIndexTest {
         assertEquals(3, anar.right)
         assertEquals(setOf("vaig", "anem", "anar"), anar.forms.toSet())
         assertEquals(2, anar.messages)
-        assertTrue(ca.lemmasDiffer)
+        assertTrue(ca.morphology)
         assertEquals(ca.distinctWords - 2, ca.distinctLemmas)
 
         val es = build(utterance("c", "fuimos", 1, language = "es"), lemmatizer = lemmatizer).language("es")!!
@@ -159,8 +159,120 @@ class WordIndexTest {
     @Test
     fun identityLemmatizerGroupsNothing() {
         val ca = build(utterance("a", "vaig a casa", 1)).language("ca")!!
-        assertFalse(ca.lemmasDiffer)
+        assertFalse(ca.morphology)
+        assertEquals(ca.distinctWords, ca.distinctLexemes)
         assertEquals(ca.distinctWords, ca.distinctLemmas)
+        assertEquals(0, ca.ambiguousForms)
+        assertEquals(Lexeme("casa", Pos.Unknown), ca.word("casa")!!.lexemes.single())
+    }
+
+    /** A small fake morphology: homographs and a verb form with two lemmas. */
+    private val lexicon = Lemmatizer { word, _ ->
+        when (word) {
+            "la" -> setOf(Lexeme("el", Pos.Article), Lexeme("ella", Pos.Pronoun))
+            "el" -> setOf(Lexeme("el", Pos.Article))
+            "els" -> setOf(Lexeme("el", Pos.Article), Lexeme("ell", Pos.Pronoun))
+            "veig", "veus", "veure" -> setOf(Lexeme("veure", Pos.Verb))
+            "fuimos", "fue" -> setOf(Lexeme("ir", Pos.Verb), Lexeme("ser", Pos.Verb))
+            "vaig" -> setOf(Lexeme("anar", Pos.Verb))
+            "casa" -> setOf(Lexeme("casa", Pos.Noun))
+            "bonic" -> setOf(Lexeme("bonic", Pos.Adjective))
+            else -> setOf(Lexeme(word, Pos.Unknown))
+        }
+    }
+
+    @Test
+    fun homographsStayApartAsLexemes() {
+        val ca = build(
+            utterance("a", "veig la casa", 1),
+            utterance("b", "la veig", 2),
+            utterance("c", "el veus bonic", 3),
+            lemmatizer = lexicon,
+        ).language("ca")!!
+        val article = ca.lexeme("el/art")!!
+        val pronoun = ca.lexeme("ella/pron")!!
+        // "la" is ambiguous: it counts toward both lexemes and is marked so in each.
+        assertEquals(listOf("la", "el"), article.forms)
+        assertEquals(3, article.right)
+        assertEquals(setOf("la"), article.ambiguousForms)
+        assertEquals(listOf("la"), pronoun.forms)
+        assertEquals(2, pronoun.right)
+        assertEquals(setOf("la"), pronoun.ambiguousForms)
+        assertTrue(ca.word("la")!!.ambiguous)
+        assertFalse(ca.word("el")!!.ambiguous)
+        assertEquals(1, ca.ambiguousForms)
+
+        val veure = ca.lexeme("veure/v")!!
+        assertEquals(setOf("veig", "veus"), veure.forms.toSet())
+        assertEquals(3, veure.right)
+        assertTrue(veure.ambiguousForms.isEmpty())
+        assertEquals("veure", veure.label)
+        assertTrue(ca.morphology)
+    }
+
+    @Test
+    fun lemmasGroupLexemesWithTheSameDictionaryForm() {
+        val ca = build(utterance("a", "els veig i la veig", 1), utterance("b", "el veus", 2), lemmatizer = lexicon).language("ca")!!
+        // "els" is el (article) or ell (pronoun); "la" el (article) or ella (pronoun).
+        val el = ca.lemma("el")!!
+        assertEquals(listOf(Lexeme("el", Pos.Article)), el.lexemes)
+        assertEquals(setOf("els", "la", "el"), el.forms.toSet())
+        assertEquals(3, el.right)
+        assertEquals(listOf("els"), ca.lemma("ell")!!.forms)
+        // Six distinct forms: els, veig, i, la, el, veus. Lexemes: el/art, ell/pron, ella/pron, veure/v, i.
+        assertEquals(6, ca.distinctWords)
+        assertEquals(5, ca.distinctLexemes)
+        assertEquals(5, ca.distinctLemmas)
+    }
+
+    @Test
+    fun aVerbFormWithSeveralLemmasCountsTowardEach() {
+        val es = build(
+            utterance("a", "fuimos a casa", 1, language = "es"),
+            utterance("b", "fue bonic", 2, language = "es"),
+            lemmatizer = lexicon,
+        ).language("es")!!
+        val ir = es.lexeme("ir/v")!!
+        val ser = es.lexeme("ser/v")!!
+        assertEquals(listOf("fue", "fuimos"), ir.forms)
+        assertEquals(2, ir.right)
+        assertEquals(2, ser.right)
+        assertEquals(setOf("fuimos", "fue"), ir.ambiguousForms)
+        assertEquals(listOf(Lexeme("ser", Pos.Verb)), es.lemma("ser")!!.lexemes)
+        // Words written still counts each word once.
+        assertEquals(5, es.totalWords)
+    }
+
+    @Test
+    fun rowsAndEntriesByLevel() {
+        val ca = build(utterance("a", "la veig", 1), lemmatizer = lexicon).language("ca")!!
+        assertEquals(ca.words, ca.rows(WordLevel.Forms))
+        assertEquals(ca.lexemes, ca.rows(WordLevel.Lexemes))
+        assertEquals(ca.lemmas, ca.rows(WordLevel.Lemmas))
+        assertEquals("ella/pron", ca.entry(WordLevel.Lexemes, "ella/pron")!!.key)
+        assertNull(ca.entry(WordLevel.Lexemes, "ella/art"))
+        assertEquals(WordLevel.Lexemes, WordLevel.read("x"))
+        assertNull(WordLevel.read("z"))
+    }
+
+    @Test
+    fun csvHasOneRowPerLexemeWithItsPartOfSpeech() {
+        val ca = build(utterance("a", "la casa", day("2026-11-01")), utterance("b", "hola", day("2026-11-02")), lemmatizer = lexicon)
+            .language("ca")!!
+        val lines = WordViews.csv(ca, utc).trimEnd().split("\r\n")
+        assertEquals("word,lemma,lexeme_pos,count,tried,first,last", lines[0])
+        assertTrue("la,el,art,1,0,2026-11-01,2026-11-01" in lines)
+        assertTrue("la,ella,pron,1,0,2026-11-01,2026-11-01" in lines)
+        assertTrue("casa,casa,n,1,0,2026-11-01,2026-11-01" in lines)
+        assertTrue("hola,hola,,1,0,2026-11-02,2026-11-02" in lines)
+        assertEquals(5, lines.size)
+    }
+
+    @Test
+    fun lexemeSearchAndSortUseTheLemma() {
+        val ca = build(utterance("a", "la la la veig", 1), lemmatizer = lexicon).language("ca")!!
+        assertEquals(listOf("ella/pron"), WordViews.arrange(ca.lexemes, WordSort.MostUsed, query = "ella").map { it.key })
+        assertEquals(listOf("el", "ella", "veure"), WordViews.arrange(ca.lexemes, WordSort.Alphabetical).map { it.label })
     }
 
     @Test
@@ -238,9 +350,9 @@ class WordIndexTest {
         )
         val csv = WordViews.csv(index.language("ca")!!, utc)
         val lines = csv.trimEnd().split("\r\n")
-        assertEquals("word,lemma,count,tried,first,last", lines[0])
-        assertEquals("bon,bon,2,0,2026-10-01,2026-11-02", lines[1])
-        assertTrue("vespre,vespre,0,1,2026-11-02,2026-11-02" in lines)
+        assertEquals("word,lemma,lexeme_pos,count,tried,first,last", lines[0])
+        assertEquals("bon,bon,,2,0,2026-10-01,2026-11-02", lines[1])
+        assertTrue("vespre,vespre,,0,1,2026-11-02,2026-11-02" in lines)
         assertEquals(4, lines.size)
     }
 }

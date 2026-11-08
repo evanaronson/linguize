@@ -49,8 +49,12 @@ internal sealed interface Screen {
     data object Memory : Screen
     /** Lab: every word the writer typed. */
     data object Words : Screen
-    /** Lab: one word form (or dictionary form, when [lemma]) in [language]. */
-    data class WordDetail(val language: String?, val key: String, val lemma: Boolean) : Screen
+    /** Lab: one row of Your words in [language]: [level] is the `WordLevel` token (form, lexeme or lemma). */
+    data class WordDetail(val language: String?, val key: String, val level: String) : Screen {
+        companion object {
+            val LEVELS = setOf("f", "x", "l")
+        }
+    }
     /** Lab: the chat, which the app opens to unless that is switched off. */
     data object Chat : Screen
 
@@ -74,7 +78,7 @@ internal sealed interface Screen {
             Practice -> "practice"
             Memory -> "lab_memory"
             Words -> "words"
-            is WordDetail -> "word:${if (lemma) "l" else "f"}:${language.orEmpty()}:$key"
+            is WordDetail -> "word:$level:${language.orEmpty()}:$key"
             Chat -> "lab_chat"
         }
 
@@ -100,8 +104,9 @@ internal sealed interface Screen {
             saved == "practice" -> Practice
             saved == "lab_memory" -> Memory
             saved == "words" -> Words
-            saved.startsWith("word:") -> saved.split(':', limit = 4).takeIf { it.size == 4 && it[3].isNotEmpty() }
-                ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1] == "l") }
+            saved.startsWith("word:") -> saved.split(':', limit = 4)
+                .takeIf { it.size == 4 && it[3].isNotEmpty() && it[1] in WordDetail.LEVELS }
+                ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1]) }
             saved == "lab_chat" -> Chat
             else -> null
         }

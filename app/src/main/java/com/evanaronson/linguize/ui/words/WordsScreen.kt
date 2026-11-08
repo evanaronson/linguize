@@ -46,6 +46,12 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.words.GrowthPoint
 import com.evanaronson.linguize.core.words.LanguageWords
 import com.evanaronson.linguize.core.words.WordCounts
+import com.evanaronson.linguize.core.words.WordEntry
+import com.evanaronson.linguize.core.words.LexemeEntry
+import com.evanaronson.linguize.core.words.LemmaEntry
+import com.evanaronson.linguize.core.words.WordLevel
+import com.evanaronson.linguize.core.corpus.Pos
+import androidx.compose.foundation.selection.selectableGroup
 import com.evanaronson.linguize.core.words.WordSort
 import com.evanaronson.linguize.core.words.WordViews
 import com.evanaronson.linguize.ui.components.ButtonKind
@@ -72,7 +78,7 @@ import java.util.Locale
  * over time and a list to sort and search. Tap a word for the sentences it was used in.
  */
 @Composable
-fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (language: String?, key: String, lemma: Boolean) -> Unit) {
+fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (language: String?, key: String, level: WordLevel) -> Unit) {
     val state by words.state.collectAsState()
     LaunchedEffect(words) { words.refresh() }
     WordsExportEffect(words)
@@ -97,8 +103,8 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
         return
     }
     val locale = LocalResources.current.uiLocale
-    val byLemma = state.byLemma && shown.lemmasDiffer
-    val all: List<WordCounts> = if (byLemma) shown.lemmas else shown.words
+    val level = if (shown.morphology) state.level else WordLevel.Forms
+    val all: List<WordCounts> = shown.rows(level)
     val rows = WordViews.arrange(all, state.sort, state.query, Locale.forLanguageTag(shown.language ?: locale.toLanguageTag()))
     val last = rows.lastIndex
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
@@ -108,7 +114,10 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
         item(key = "stats", contentType = "stats") { Stats(shown) }
         item(key = "growth", contentType = "growth") { Growth(shown.growth) }
         item(key = "controls", contentType = "controls") {
-            Controls(state.query, state.sort, byLemma, shown.lemmasDiffer, words::search, words::sortBy, words::groupByLemma)
+            Controls(state.query, state.sort, level, shown.morphology, words::search, words::sortBy, words::countBy)
+            if (level != WordLevel.Forms && shown.ambiguousForms > 0) {
+                Quiet(stringResource(R.string.lab_words_ambiguous_note), Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
+            }
         }
         if (rows.isEmpty()) {
             item(key = "none", contentType = "notice") {
@@ -120,7 +129,7 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
         itemsIndexed(rows, key = { _, row -> "w:" + row.key }, contentType = { _, _ -> "word" }) { position, row ->
             Column(Modifier.cardSegment(first = position == 0, last = position == last).padding(horizontal = 20.dp)) {
                 if (position > 0) RowDivider()
-                WordRow(row, onClick = { onOpenWord(shown.language, row.key, byLemma) })
+                WordRow(row, shown.morphology, onClick = { onOpenWord(shown.language, row.key, level) })
             }
         }
         item(key = "footer", contentType = "footer") {
@@ -132,7 +141,7 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
                     LinguizeButton(stringResource(R.string.lab_words_export), words::exportCsv, ButtonKind.Text)
                 }
-                HowItWorks()
+                HowItWorks(shown.morphology)
                 if (historyOn == false) CardNote(stringResource(R.string.history_off))
             }
         }
@@ -170,7 +179,10 @@ private fun Stats(words: LanguageWords) {
     SectionCard(contentPadding = padding) {
         Row(Modifier.fillMaxWidth()) {
             Stat(words.distinctWords, stringResource(R.string.lab_words_stat_distinct), Modifier.weight(1f))
-            Stat(words.distinctLemmas, stringResource(R.string.lab_words_stat_lemmas), Modifier.weight(1f))
+            if (words.morphology) {
+                Stat(words.distinctLexemes, stringResource(R.string.lab_words_stat_lexemes), Modifier.weight(1f))
+                Stat(words.distinctLemmas, stringResource(R.string.lab_words_stat_lemmas), Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth()) {
@@ -257,11 +269,11 @@ private fun GrowthChart(points: List<GrowthPoint>, today: LocalDate, modifier: M
 private fun Controls(
     query: String,
     sort: WordSort,
-    byLemma: Boolean,
+    level: WordLevel,
     canGroup: Boolean,
     onSearch: (String) -> Unit,
     onSort: (WordSort) -> Unit,
-    onGroup: (Boolean) -> Unit,
+    onLevel: (WordLevel) -> Unit,
 ) {
     SectionHeader(stringResource(R.string.lab_words_list))
     LinguizeTextField(
@@ -280,10 +292,17 @@ private fun Controls(
             FilterChip(selected = option == sort, onClick = { onSort(option) }, label = { Text(sortLabel(option)) })
         }
     }
+    // Lexemes and lemmas only mean something once the lemmatizer knows morphology.
     if (canGroup) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !byLemma, onClick = { onGroup(false) }, label = { Text(stringResource(R.string.lab_words_by_form)) })
-            FilterChip(selected = byLemma, onClick = { onGroup(true) }, label = { Text(stringResource(R.string.lab_words_by_lemma)) })
+        val countBy = stringResource(R.string.lab_words_levels)
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 8.dp)
+                .semantics { contentDescription = countBy }.selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            WordLevel.entries.forEach { option ->
+                FilterChip(selected = option == level, onClick = { onLevel(option) }, label = { Text(levelLabel(option)) })
+            }
         }
     }
 }
@@ -299,8 +318,8 @@ private fun sortLabel(sort: WordSort): String = stringResource(
 )
 
 @Composable
-private fun WordRow(row: WordCounts, onClick: () -> Unit) {
-    val summary = when {
+private fun WordRow(row: WordCounts, morphology: Boolean, onClick: () -> Unit) {
+    val usage = when {
         !row.known -> pluralStringResource(R.plurals.lab_words_row_tried, row.tried, row.tried)
         row.tried > 0 -> stringResource(
             R.string.lab_words_row_pair,
@@ -309,9 +328,24 @@ private fun WordRow(row: WordCounts, onClick: () -> Unit) {
         )
         else -> pluralStringResource(R.plurals.lab_words_row_used, row.messages, row.messages)
     }
+    // Under the usage: which lexemes a form could be, or which forms a lexeme or lemma has.
+    val structure: String? = when (row) {
+        is WordEntry -> if (morphology && row.ambiguous) {
+            stringResource(R.string.lab_words_row_could_be, row.lexemes.map { lexemeTitle(it) }.joinToString(", "))
+        } else null
+        is LexemeEntry -> formsLine(row.forms, row.ambiguousForms)
+        is LemmaEntry -> {
+            val forms = row.forms.joinToString(", ")
+            val parts = row.lexemes.filter { it.pos != Pos.Unknown }.map { stringResource(it.pos.labelResource) }
+            if (parts.isEmpty()) stringResource(R.string.lab_words_row_forms, forms)
+            else stringResource(R.string.lab_words_row_lemma, parts.joinToString(", "), forms)
+        }
+        else -> null
+    }
+    val title = if (row is LexemeEntry) lexemeTitle(row.lexeme) else row.label
     ListRow(
-        row.key,
-        summary,
+        title,
+        structure?.let { stringResource(R.string.lab_words_row_pair, usage, it) } ?: usage,
         onClick = onClick,
         onClickLabel = stringResource(R.string.lab_words_open_word),
     ) {
@@ -320,11 +354,26 @@ private fun WordRow(row: WordCounts, onClick: () -> Unit) {
     }
 }
 
+/** "Forms: el, la (ambiguous: la)". */
 @Composable
-private fun HowItWorks() {
+internal fun formsLine(forms: List<String>, ambiguous: Set<String>): String {
+    val list = forms.joinToString(", ")
+    val marked = forms.filter { it in ambiguous }
+    return if (marked.isEmpty()) stringResource(R.string.lab_words_row_forms, list)
+    else stringResource(R.string.lab_words_row_forms_ambiguous, list, marked.joinToString(", "))
+}
+
+@Composable
+private fun HowItWorks(morphology: Boolean = false) {
     SectionHeader(stringResource(R.string.lab_words_how_header))
     SectionCard(contentPadding = padding) {
         Quiet(stringResource(R.string.lab_words_how))
+        if (morphology) {
+            Spacer(Modifier.height(8.dp))
+            Quiet(stringResource(R.string.lab_words_how_levels))
+            Spacer(Modifier.height(8.dp))
+            Quiet(stringResource(R.string.lab_words_how_ambiguous))
+        }
         Spacer(Modifier.height(8.dp))
         Quiet(stringResource(R.string.lab_words_how_tried))
         Spacer(Modifier.height(8.dp))

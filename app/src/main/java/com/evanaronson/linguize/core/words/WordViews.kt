@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.core.words
 
 import com.evanaronson.linguize.core.Sentences
+import com.evanaronson.linguize.core.corpus.Pos
 import java.text.Collator
 import java.text.Normalizer
 import java.time.Instant
@@ -34,13 +35,13 @@ object WordViews {
      */
     fun <T : WordCounts> arrange(rows: List<T>, sort: WordSort, query: String = "", locale: Locale = Locale.ROOT): List<T> {
         val needle = fold(query.trim())
-        val matching = if (needle.isEmpty()) rows else rows.filter { fold(it.key).contains(needle) }
+        val matching = if (needle.isEmpty()) rows else rows.filter { fold(it.label).contains(needle) }
         return when (sort) {
             WordSort.MostUsed -> matching.sortedWith(compareByDescending<T> { it.uses }.thenByDescending { it.lastAt }.thenBy { it.key })
             WordSort.Newest -> matching.sortedWith(compareByDescending<T> { it.firstAt }.thenBy { it.key })
             WordSort.Alphabetical -> {
                 val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
-                matching.sortedWith { a, b -> collator.compare(a.key, b.key).takeIf { it != 0 } ?: a.key.compareTo(b.key) }
+                matching.sortedWith { a, b -> collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.key.compareTo(b.key) }
             }
             WordSort.Tried -> matching.filter { it.tried > 0 && !it.known }
                 .sortedWith(compareByDescending<T> { it.tried }.thenByDescending { it.lastAt }.thenBy { it.key })
@@ -87,19 +88,27 @@ object WordViews {
         return maxOf(i, limit)
     }
 
-    /** CSV of every form: word, lemma, count, tried, first, last. Dates are local, yyyy-mm-dd. */
+    /**
+     * CSV of every form: word, lemma, lexeme_pos, count, tried, first, last. A form that could be
+     * more than one lexeme has one row per lexeme, each with the form's full counts (an
+     * ambiguous form counts toward every candidate). lexeme_pos is the part-of-speech token
+     * ("v", "art"), empty when unknown. Dates are local, yyyy-mm-dd.
+     */
     fun csv(words: LanguageWords, zone: ZoneId = ZoneId.systemDefault()): String = buildString {
-        append("word,lemma,count,tried,first,last\r\n")
+        append("word,lemma,lexeme_pos,count,tried,first,last\r\n")
         for (entry in words.words.sortedWith(compareByDescending<WordEntry> { it.uses }.thenBy { it.form })) {
-            val fields = listOf(
-                entry.form,
-                entry.lemmas.sorted().joinToString(" / "),
-                entry.right.toString(),
-                entry.tried.toString(),
-                day(entry.firstAt, zone),
-                day(entry.lastAt, zone),
-            )
-            append(fields.joinToString(",", transform = ::csvField)).append("\r\n")
+            for (lexeme in entry.lexemes.sortedWith(compareBy({ it.lemma }, { it.pos.ordinal }))) {
+                val fields = listOf(
+                    entry.form,
+                    lexeme.lemma,
+                    lexeme.pos.takeIf { it != Pos.Unknown }?.token.orEmpty(),
+                    entry.right.toString(),
+                    entry.tried.toString(),
+                    day(entry.firstAt, zone),
+                    day(entry.lastAt, zone),
+                )
+                append(fields.joinToString(",", transform = ::csvField)).append("\r\n")
+            }
         }
     }
 

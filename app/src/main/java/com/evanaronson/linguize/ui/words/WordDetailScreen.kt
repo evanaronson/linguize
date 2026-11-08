@@ -27,6 +27,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.words.LemmaEntry
+import com.evanaronson.linguize.core.words.LexemeEntry
+import com.evanaronson.linguize.core.words.WordLevel
 import com.evanaronson.linguize.core.words.WordContext
 import com.evanaronson.linguize.core.words.WordCounts
 import com.evanaronson.linguize.core.words.WordEntry
@@ -52,13 +54,14 @@ fun WordDetailScreen(
     words: WordsViewModel,
     language: String?,
     key: String,
-    lemma: Boolean,
+    /** The `WordLevel` token. */
+    level: String,
     onOpenCheck: (sessionId: String) -> Unit,
 ) {
     val state by words.state.collectAsState()
     LaunchedEffect(words) { words.refresh() }
     val shown = state.index?.language(language)
-    val entry: WordCounts? = if (lemma) shown?.lemma(key) else shown?.word(key)
+    val entry: WordCounts? = WordLevel.read(level)?.let { shown?.entry(it, key) }
     ScreenColumn {
         if (shown == null || entry == null) {
             if (state.index != null) CardNote(stringResource(R.string.lab_words_gone))
@@ -74,11 +77,30 @@ fun WordDetailScreen(
             RowDivider(); Fact(stringResource(R.string.lab_words_detail_first), date(entry.firstAt))
             RowDivider(); Fact(stringResource(R.string.lab_words_detail_last), date(entry.lastAt))
             when (entry) {
-                is WordEntry -> if (shown.lemmasDiffer && entry.lemmas != setOf(entry.form)) {
-                    RowDivider(); Fact(stringResource(R.string.lab_words_detail_lemmas), entry.lemmas.sorted().joinToString(", "))
+                is WordEntry -> if (shown.morphology) {
+                    RowDivider()
+                    ListRow(stringResource(R.string.lab_words_detail_lexemes), entry.lexemes.map { lexemeTitle(it) }.joinToString(", "))
                 }
-                is LemmaEntry -> { RowDivider(); Fact(stringResource(R.string.lab_words_detail_forms), entry.forms.joinToString(", ")) }
+                is LexemeEntry -> {
+                    RowDivider()
+                    ListRow(stringResource(R.string.lab_words_detail_forms), entry.forms.joinToString(", "))
+                    if (entry.ambiguousForms.isNotEmpty()) {
+                        RowDivider()
+                        ListRow(stringResource(R.string.lab_words_detail_ambiguous), entry.ambiguousForms.joinToString(", "))
+                    }
+                }
+                is LemmaEntry -> {
+                    if (shown.morphology) {
+                        RowDivider()
+                        ListRow(stringResource(R.string.lab_words_detail_lexemes_under), entry.lexemes.map { lexemeTitle(it) }.joinToString(", "))
+                    }
+                    RowDivider()
+                    ListRow(stringResource(R.string.lab_words_detail_forms), entry.forms.joinToString(", "))
+                }
             }
+        }
+        if (entry is LexemeEntry && entry.ambiguousForms.isNotEmpty() || entry is WordEntry && entry.ambiguous && shown.morphology) {
+            CardNote(stringResource(R.string.lab_words_how_ambiguous))
         }
         SectionHeader(stringResource(R.string.lab_words_contexts))
         val contexts = entry.recent.mapNotNull { WordViews.context(it, shown.texts) }

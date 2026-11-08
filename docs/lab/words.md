@@ -19,18 +19,38 @@ less" from the [Lab README](README.md), and it is the first consumer of the shar
 - **Home**: once a counted word exists, a "Your words" card appears under Your patterns:
   "312 words you've written in Catalan". It disappears if deletions leave nothing.
 - **History**: a "Your words" row sits above the list.
-- **Your words page**: a language switch (when more than one language has words), four
-  numbers (words, dictionary forms, words written, this month), "N new words this month",
-  a chart of distinct words over time, then the word list with search and four orders:
-  Most used, Newest, A–Z (Catalan or Spanish collation) and Not yet right (words only
-  ever tried inside a fix). When the lemmatizer knows morphology, a Words / Dictionary
-  forms switch groups "vaig", "anem" and "anar" under "anar". Names left out are listed
-  under the list. Export CSV shares `word,lemma,count,tried,first,last` through the share
-  sheet.
-- **A word's page**: used right, tried, messages, first and last used, its dictionary
-  form (or, for a dictionary form, the forms used), and the newest 30 sentences it appears
-  in, with the word underlined (struck through in the proof colour where a fix replaced
-  it). A sentence from a saved check opens that check.
+- **Your words page**: a language switch (when more than one language has words), the
+  headline numbers (words, plus lexemes and lemmas when morphology is known; words
+  written, this month), "N new words this month", a chart of distinct words over time,
+  then the word list with search and four orders: Most used, Newest, A–Z (Catalan or
+  Spanish collation) and Not yet right (words only ever tried inside a fix). Names left
+  out are listed under the list. Export CSV shares
+  `word,lemma,lexeme_pos,count,tried,first,last` through the share sheet.
+- **Three levels.** When the lemmatizer knows morphology (it returns any part of speech
+  other than unknown), a "Word forms / Lexemes / Lemmas" switch appears:
+  - *Word forms*: spellings as written ("vaig", "la"). An ambiguous form says what it
+    could be: "could be el (art), ella (pron)".
+  - *Lexemes*: a lemma with its part of speech, shown as "veure (verb)", with the forms
+    used under it ("Forms: veig, veus"). Homographs stay apart: "la" counts toward
+    "el (art)" and "ella (pron)".
+  - *Lemmas*: every lexeme with the same dictionary form, with their parts of speech and
+    forms ("art, pron. Forms: el, la").
+  With `Lemmatizer.Identity` (every word unknown) the switch and the extra numbers stay
+  hidden. Part-of-speech labels are short and localized (noun, verb, adj, adv, pron, det,
+  art, prep, conj, num, interj, other).
+- **A word's page**: used right, tried, messages, first and last used; for a form, the
+  lexemes it could be; for a lexeme, its forms and which of them are ambiguous; for a
+  lemma, its lexemes and forms. Then the newest 30 sentences it appears in, with the word
+  underlined (struck through in the proof colour where a fix replaced it). A sentence
+  from a saved check opens that check.
+
+**The ambiguity rule.** A form that could be more than one lexeme counts toward every
+candidate lexeme, with its full counts, and is marked ambiguous there (in the row's
+"ambiguous:" list and on the lexeme's page). At the lemma level it counts once toward each
+candidate lemma. So lexeme and lemma totals can add up to more than the words written;
+the page says so under the switch, and "How it's counted" repeats it. Words written and
+word-form counts are never inflated. In the CSV an ambiguous form has one row per
+candidate lexeme, each with the form's counts.
 
 ## How it works
 
@@ -48,8 +68,8 @@ text, exactly as typed, never the text that was put back. `Utterance.corrected` 
 spans of fixes the writer accepted, plus fixes a rewording they accepted took over
 (`retired`). Accepted rewordings are not marked: the original was right, only less
 natural. Undone, ignored and copied fixes are not marked either: the writer kept their
-words. Words in a corrected span count as **tried**, never as known; "words" and
-"dictionary forms" count only forms used right at least once.
+words. Words in a corrected span count as **tried**, never as known; words, lexemes and
+lemmas count only entries used right at least once.
 
 **What is left out.**
 - A check that reused another saved check's answer: the same text, counted once.
@@ -72,9 +92,10 @@ form only ever appears capitalized and at least once in mid-sentence. Shouted te
 nothing about names.
 
 **Index.** Per language: each form's right and tried counts, first and last use, first
-right use, distinct messages and newest 30 uses. Lemma groups come from `App.lemmatizer`
-(Identity today, so each form is its own group and the switch stays hidden); a form with
-two lemmas ("fuimos": ir, ser) counts toward both. Growth is the cumulative number of
+right use, distinct messages and newest 30 uses. Each form's lexemes come from
+`App.lemmatizer.lexemes()`; lexeme entries (keyed `lemma/pos`, e.g. `el/art`) and lemma
+entries gather the uses of their forms by the ambiguity rule above, so a verb form with
+two lemmas ("fuimos": ir/v, ser/v) counts toward both. Growth is the cumulative number of
 forms by the day each was first used right.
 
 **Derived, never copied.** The index is rebuilt from `App.corpus` when the screen opens and

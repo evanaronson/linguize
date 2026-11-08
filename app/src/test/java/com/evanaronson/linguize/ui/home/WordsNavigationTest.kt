@@ -7,20 +7,24 @@ import org.junit.Test
 class WordsNavigationTest {
     @Test
     fun wordScreensSurviveSavedState() {
-        val path = Navigation().open(Screen.Words).open(Screen.WordDetail("ca", "l'", lemma = false)).open(Screen.Detail("s1"))
+        val path = Navigation().open(Screen.Words).open(Screen.WordDetail("ca", "l'", "f")).open(Screen.Detail("s1"))
         assertEquals(listOf("home", "words", "word:f:ca:l'", "detail:s1"), path.saved)
         assertEquals(path, Navigation.restore(path.saved))
     }
 
     @Test
-    fun aLemmaWithoutLanguageRoundTrips() {
-        val screen = Screen.WordDetail(null, "anar", lemma = true)
-        assertEquals(screen, Screen.restore(screen.saved))
+    fun lexemesAndLemmasRoundTrip() {
+        val lexeme = Screen.WordDetail("ca", "el/art", "x")
+        assertEquals("word:x:ca:el/art", lexeme.saved)
+        assertEquals(lexeme, Screen.restore(lexeme.saved))
+        val lemma = Screen.WordDetail(null, "anar", "l")
+        assertEquals(lemma, Screen.restore(lemma.saved))
     }
 
     @Test
-    fun anEmptyWordIsNotRestored() {
+    fun anEmptyWordOrUnknownLevelIsNotRestored() {
         assertNull(Screen.restore("word:f:ca:"))
         assertNull(Screen.restore("word:"))
+        assertNull(Screen.restore("word:z:ca:casa"))
     }
 }

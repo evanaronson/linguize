@@ -159,11 +159,11 @@ class HomeActivity : ComponentActivity() {
                                 )
                                 Screen.Practice -> PracticeScreen(practice, onDone = ::back)
                                 Screen.Memory -> com.evanaronson.linguize.ui.memory.MemoryScreen(memory)
-                                Screen.Words -> com.evanaronson.linguize.ui.words.WordsScreen(words, settings.state?.historyEnabled) { language, key, lemma ->
-                                    navigation = navigation.open(Screen.WordDetail(language, key, lemma))
+                                Screen.Words -> com.evanaronson.linguize.ui.words.WordsScreen(words, settings.state?.historyEnabled) { language, key, level ->
+                                    navigation = navigation.open(Screen.WordDetail(language, key, level.token))
                                 }
                                 is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
-                                    words, current.language, current.key, current.lemma, onOpenCheck = ::open,
+                                    words, current.language, current.key, current.level, onOpenCheck = ::open,
                                 )
                                 Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(
                                     onOpenHome = { navigation = navigation.open(Screen.Home) }, onOpenSettings = openSettings,
@@ -245,6 +245,6 @@ private fun Screen.title(): String? = when (this) {
     Screen.Practice -> stringResource(R.string.lab_practice_title)
     Screen.Memory -> stringResource(R.string.lab_memory_title)
     Screen.Words -> stringResource(R.string.lab_words_title)
-    is Screen.WordDetail -> key
+    is Screen.WordDetail -> if (level == "x") key.substringBeforeLast('/') else key
     Screen.Chat -> stringResource(R.string.lab_chat_title)
 }

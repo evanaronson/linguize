@@ -1,7 +1,7 @@
 # Linguize Lab
 
-Linguize Lab is the experimental build on `feature/bonanza`. It is a separate app
-(`com.evanaronson.linguize.lab`, named "Linguize Lab") that installs beside
+Linguize Lab is the experimental build on `feature/bonanza`. It installs as a
+separate app, "Linguize X Claude" (`com.evanaronson.linguize.xclaude`), beside
 Linguize. Android gives each app its own private storage, so Lab never reads,
 migrates or deletes Linguize's history, settings or encrypted API keys. Removing
 Lab removes only Lab's data. `main` is unchanged.

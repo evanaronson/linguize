@@ -23,7 +23,10 @@ import com.evanaronson.linguize.ui.appvoice.CardVoiceViewModel
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import com.evanaronson.linguize.ui.card.FloatingCard
+import com.evanaronson.linguize.ui.card.FloatingPopup
+import com.evanaronson.linguize.ui.card.ResultCard
+import com.evanaronson.linguize.ui.gaps.GapFillViewModel
+import com.evanaronson.linguize.ui.gaps.PopupGapsOrCheck
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.theme.AppTheme
@@ -36,6 +39,7 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private val voice: CardVoiceViewModel by viewModels { CardVoiceViewModel.factory(App.of(this)) }
+    private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
     private var readOnly = true
     private val canReplace: Boolean get() = !readOnly && callingActivity != null
@@ -89,16 +93,20 @@ class CheckActivity : ComponentActivity() {
             AppTheme {
                 val state = if (limited) CardState.Failed(Reason.TooMany, getString(R.string.menu_check_not_sent)) else check.state
                 state?.let {
-                    FloatingCard(it, actions,
-                        onDismiss = ::finish,
-                        onOpenApp = ::openApp,
-                        position = popupPosition,
-                    ) {
+                    FloatingPopup(::finish, ::openApp, popupPosition, header = {
                         LanguagePicker(language, onSelect = { selected ->
                             language = selected
-                            if (!limited) check.changeLanguage(selected)
+                            if (gaps.state != null) gaps.changeLanguage(selected)
+                            else if (!limited) check.changeLanguage(selected)
                         }, modifier = Modifier.weight(1f, fill = false))
                         AppVoiceChip(voice, onChanged = { if (!limited) check.recheck() }, Modifier.weight(1f, fill = false))
+                    }) { modifier ->
+                        PopupGapsOrCheck(
+                            gaps, source = gaps.source(selection.text, check.workingText).takeIf { !limited },
+                            language, canReplace, onPutBack = ::finish,
+                            onCheck = { filled -> check.check(filled, language, Origin.Menu, callingPackage) },
+                            onOpenSettings = null, modifier,
+                        ) { offer -> ResultCard(it, actions, modifier, gapOffer = offer) }
                     }
                 }
             }
@@ -139,7 +147,8 @@ class CheckActivity : ComponentActivity() {
      * only matters when the database is slow to open, and then the write goes on alone.
      */
     override fun finish() {
-        val accepted = check.workingText
+        val checkWorking = check.workingText
+        val accepted = gaps.replacement(checkWorking)
         val selection = selection
         val handedBack = if (canReplace && accepted != null && selection != null) {
             setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, selection.with(accepted)))
@@ -147,7 +156,7 @@ class CheckActivity : ComponentActivity() {
         } else {
             false
         }
-        check.dismiss(applied = handedBack, waitMs = CLOSE_WAIT_MS)
+        check.dismiss(applied = gaps.checkApplied(handedBack, checkWorking), waitMs = CLOSE_WAIT_MS)
         super.finish()
     }
 

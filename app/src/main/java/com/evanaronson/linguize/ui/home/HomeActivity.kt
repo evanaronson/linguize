@@ -36,6 +36,8 @@ import com.evanaronson.linguize.ui.history.SessionViewModel
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookScreen
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookViewModel
+import com.evanaronson.linguize.ui.gaps.GapFillScreen
+import com.evanaronson.linguize.ui.gaps.GapFillViewModel
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -49,6 +51,7 @@ class HomeActivity : ComponentActivity() {
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
     private val phrasebook: PhrasebookViewModel by viewModels { PhrasebookViewModel.factory(PhrasebookStore.of(this)) }
     private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
+    private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,6 +92,10 @@ class HomeActivity : ComponentActivity() {
                                     onViewHistory = { navigation = navigation.open(Screen.History) },
                                     onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) },
                                     onOpenPhrasebook = { navigation = navigation.open(Screen.Phrasebook) },
+                                    onFillGaps = { text ->
+                                        if (text != null) { gaps.close(); gaps.draft = text }
+                                        navigation = navigation.open(Screen.FillGaps)
+                                    },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -110,6 +117,7 @@ class HomeActivity : ComponentActivity() {
                                 Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
+                                Screen.FillGaps -> GapFillScreen(gaps, onOpenSettings = openSettings)
                             }
                         }
                     }
@@ -144,6 +152,7 @@ class HomeActivity : ComponentActivity() {
     private fun back() {
         if (navigation.current == Screen.Settings) {
             check.recheckIfStale()
+            gaps.retryIfFailed()
         }
         navigation = navigation.back()
     }
@@ -177,4 +186,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
     Screen.Phrasebook -> stringResource(R.string.lab_phrasebook_title)
     is Screen.AppVoice -> appVoiceTitle(app)
+    Screen.FillGaps -> stringResource(R.string.lab_gap_filler_title)
 }

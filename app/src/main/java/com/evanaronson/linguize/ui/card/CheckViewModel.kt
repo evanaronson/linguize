@@ -378,6 +378,22 @@ class CheckViewModel(
         if (waitMs > 0) history.awaitWrites(waitMs)
     }
 
+    /**
+     * Lab Chat: closes the card because [sent] was sent (the accepted changes applied, or the
+     * text as typed). Returns the History session it is saved as, or null when it isn't saved.
+     */
+    fun dismissSent(sent: String): String? {
+        val id = history.session?.id
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
+        history.close(finalText = sent)
+        job?.cancel()
+        state = null
+        hasReviewed = false
+        return id
+    }
+
     /** Keep actual review work available to return to; erase only an untouched provisional check. */
     fun suspendForUnderstand(): Boolean {
         if (state != null && hasReviewed) return true

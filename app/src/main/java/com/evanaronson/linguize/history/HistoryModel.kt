@@ -37,7 +37,17 @@ enum class Origin(val token: String, val recorded: Boolean) {
      * recorded it; the upgrade to 4 deletes those sessions.
      */
     Tester("tester", recorded = false),
+
+    /**
+     * Lab Chat: a message written to the chat partner, checked before it was sent. Recorded
+     * like an applied check; one sent unchanged is kept too ([keepsUnchanged]), since correct
+     * writing is evidence as well. Which conversation it belongs to is kept by the chat.
+     */
+    Chat("chat", recorded = true),
     ;
+
+    /** Whether a session closed with its text unchanged is still kept: the text was sent as it was. */
+    val keepsUnchanged: Boolean get() = this == Chat
 
     companion object {
         val tokens = Tokens(entries, Origin::token)

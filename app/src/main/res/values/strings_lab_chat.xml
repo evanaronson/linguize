@@ -9,19 +9,26 @@
     <string name="lab_chat_open_conversations">Open conversations</string>
     <string name="lab_chat_open_home">Open Home</string>
     <string name="lab_chat_language">Conversation language: %1$s. Change language</string>
-    <string name="lab_chat_language_note">The reply comes in the new language.</string>
     <string name="lab_chat_composer_label">Your message</string>
     <string name="lab_chat_composer_placeholder">Write a message</string>
     <string name="lab_chat_send">Send</string>
     <string name="lab_chat_send_checked">Check and send message</string>
-    <string name="lab_chat_send_now">Send message</string>
+    <string name="lab_chat_send_with_fixes">Send with fixes</string>
     <string name="lab_chat_send_as_written">Send as written</string>
     <string name="lab_chat_keep_editing">Keep editing</string>
+    <string name="lab_chat_details">Details</string>
+    <string name="lab_chat_hide_details">Hide details</string>
     <string name="lab_chat_checking">Checking your message</string>
-    <string name="lab_chat_checking_live">Checking</string>
+    <plurals name="lab_chat_fix_count">
+        <item quantity="one">%d fix</item>
+        <item quantity="other">%d fixes</item>
+    </plurals>
+    <string name="lab_chat_fixes_withheld">Linguize couldn\'t offer every fix. Open Details to see more.</string>
+    <string name="lab_chat_skip_fix">Skip</string>
+    <string name="lab_chat_keep_fix">Keep</string>
+    <string name="lab_chat_show_reason">Show reason</string>
     <string name="lab_chat_typing">Writing a reply</string>
     <string name="lab_chat_looks_good">Looks good</string>
-    <string name="lab_chat_corrected">Corrected</string>
     <string name="lab_chat_as_written">Sent as written</string>
     <string name="lab_chat_show_changes">Show changes</string>
     <string name="lab_chat_hide_changes">Hide changes</string>
@@ -35,6 +42,11 @@
     </plurals>
     <string name="lab_chat_you_said">You: %1$s</string>
     <string name="lab_chat_partner_said">Reply: %1$s</string>
+    <string name="lab_chat_copy">Copy message</string>
+    <string name="lab_chat_translate">Translate</string>
+    <string name="lab_chat_hide_translation">Hide translation</string>
+    <string name="lab_chat_translating">Translating</string>
+    <string name="lab_chat_note">%1$s: %2$s</string>
     <string name="lab_chat_no_reply">No reply yet</string>
     <string name="lab_chat_no_key_title">No API key</string>
     <string name="lab_chat_no_key_hint">Add one in settings to get replies and checks.</string>
@@ -44,16 +56,33 @@
     <string name="lab_chat_save">Save</string>
     <string name="lab_chat_cancel">Cancel</string>
     <string name="lab_chat_delete">Delete</string>
-    <string name="lab_chat_deleted">Conversation deleted</string>
+    <string name="lab_chat_delete_title">Delete conversation?</string>
+    <string name="lab_chat_delete_body">Its messages, their checks in History and what was learned from it are deleted.</string>
     <string name="lab_chat_more">Rename or delete %1$s</string>
     <string name="lab_chat_row">%1$s, %2$s, %3$s</string>
     <string name="lab_chat_row_detail">%1$s, %2$s</string>
-    <string name="lab_chat_accept">Accept</string>
-    <string name="lab_chat_dismiss">Dismiss</string>
-    <string name="lab_chat_close_change">Close change</string>
+    <string name="lab_chat_practise_with">Practise with…</string>
+    <string name="lab_chat_practise_with_summary">Chat with a stand-in for someone you write to</string>
+    <string name="lab_chat_practise_who">Who, and about what</string>
+    <string name="lab_chat_practise_placeholder">My kid\'s teacher, about a sick day</string>
+    <string name="lab_chat_practise_start">Start</string>
     <string name="lab_chat_settings_header">Chat</string>
     <string name="lab_chat_open_to_chat">Open to chat</string>
     <string name="lab_chat_open_to_chat_summary">The app starts in a conversation. Off starts on Home.</string>
-    <string name="lab_chat_check_as_you_type">Check as I type</string>
-    <string name="lab_chat_check_as_you_type_summary">Underlines changes while you write, instead of checking when you send.</string>
+    <!-- Where a saved check came from, on Patterns and Practice examples. -->
+    <string name="lab_chat_origin_chat">Chat</string>
+    <string name="lab_chat_origin_app">Another app</string>
+    <string name="lab_chat_you_wrote_in_chat">You wrote in a chat</string>
+    <string name="lab_chat_you_wrote_in_app">You wrote in another app</string>
+    <!-- History: a chat conversation as one row. -->
+    <string name="lab_chat_history_row">Chat, %1$s</string>
+    <plurals name="lab_chat_history_messages">
+        <item quantity="one">%d message</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+    <plurals name="lab_chat_history_corrected">
+        <item quantity="one">%d corrected</item>
+        <item quantity="other">%d corrected</item>
+    </plurals>
+    <string name="lab_chat_open_conversation">Open conversation</string>
 </resources>

@@ -16,6 +16,11 @@ data class Conversation(
     val titleIsCustom: Boolean = false,
     /** How many messages user memory has learned from; learning runs again once there are more. */
     val learnedCount: Int = 0,
+    /**
+     * Who the partner plays, when the writer is practising with a stand-in for someone real
+     * ("Jordi, my landlord, formal"); null for the usual friendly partner.
+     */
+    val persona: String? = null,
 )
 
 /** How a writer's message was checked before it was sent. */
@@ -70,6 +75,8 @@ data class ChatMessage(
     val changes: List<ChatChange> = emptyList(),
     val check: SentCheck = SentCheck.None,
     val at: Long,
+    /** The History session the message was saved as (Origin.Chat); null when History was off or it wasn't checked. */
+    val sessionId: String? = null,
 ) {
     init {
         require(changes.all { it.end <= raw.length && raw.substring(it.start, it.end) == it.from }) {
@@ -94,9 +101,23 @@ data class Outgoing(
     val changes: List<ChatChange>,
     val check: SentCheck,
 ) {
-    fun message(id: String, conversationId: String, at: Long) =
-        ChatMessage(id, conversationId, fromWriter = true, raw = raw, text = text, changes = changes, check = check, at = at)
+    fun message(id: String, conversationId: String, at: Long, sessionId: String? = null) =
+        ChatMessage(id, conversationId, fromWriter = true, raw = raw, text = text, changes = changes, check = check, at = at,
+            sessionId = sessionId)
 }
+
+/**
+ * Lab Chat in History: one conversation, shown as a single row in place of its messages'
+ * saved checks. [messages] counts what the writer sent, [corrected] those sent with changes.
+ */
+data class ChatThreadInfo(
+    val conversationId: String,
+    val title: String,
+    val persona: String?,
+    val language: String,
+    val messages: Int,
+    val corrected: Int,
+)
 
 /** A row of the conversation list. */
 data class ConversationSummary(

@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Lab Chat's Send: check, review, send; send as written; already fine. */
+/** Lab Chat's Send: check first; nothing to fix sends at once; fixes offer Send with fixes or Send as written. */
 class SendFlowTest {
     private val draft = "Hola, ayer fuimos a la playa y fue muy bonito"
     private val fix = Edit(0, EditKind.Fix, 23, 28, "playa", "plaza", "Wrong word")
@@ -19,39 +19,54 @@ class SendFlowTest {
     private val clean = CheckResult.Reviewed(Revision(draft, emptyList()), listOf(EditKind.Fix, EditKind.Natural))
 
     @Test fun sendChecksTheTrimmedDraftFirst() {
-        val transition = SendState.Composing.on(SendEvent.Send("  $draft \n", checkFirst = true))
+        val transition = SendState.Composing.on(SendEvent.Send("  $draft \n"))
         assertEquals(SendState.Checking(draft), transition.state)
         assertEquals(Effect.StartCheck(draft), transition.effect)
     }
 
     @Test fun aBlankDraftSendsNothing() {
-        assertEquals(Transition(SendState.Composing), SendState.Composing.on(SendEvent.Send("   ", checkFirst = true)))
+        assertEquals(Transition(SendState.Composing), SendState.Composing.on(SendEvent.Send("   ")))
     }
 
-    @Test fun aCleanCheckSendsStraightAwayMarkedLooksGood() {
+    @Test fun nothingToFixSendsAtOnceAndIsRecorded() {
         val transition = SendState.Checking(draft).on(SendEvent.Checked(clean))
         assertEquals(SendState.Composing, transition.state)
-        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.LooksGood)), transition.effect)
+        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.LooksGood), record = true), transition.effect)
     }
 
-    @Test fun changesOpenTheReviewAndSendTakesWhatWasAccepted() {
+    @Test fun rewordingsAloneDontHoldAMessageUp() {
+        val onlyRewording = CheckResult.Reviewed(Revision(draft, listOf(rewording)), listOf(EditKind.Fix, EditKind.Natural))
+        val transition = SendState.Checking(draft).on(SendEvent.Checked(onlyRewording))
+        assertEquals(SendState.Composing, transition.state)
+        // Withheld fixes are something to look at, though.
+        val withheld = onlyRewording.copy(withheld = setOf(EditKind.Fix))
+        assertEquals(SendState.Reviewing(draft), SendState.Checking(draft).on(SendEvent.Checked(withheld)).state)
+    }
+
+    @Test fun fixesShowAndSendWithFixesTakesWhatWasKept() {
         val reviewing = SendState.Checking(draft).on(SendEvent.Checked(reviewed))
         assertEquals(Transition(SendState.Reviewing(draft)), reviewing)
-        val sent = reviewing.state.on(SendEvent.SendAccepted(revision.accept(fix.id)))
+        val sent = reviewing.state.on(SendEvent.SendWithFixes(revision.accept(fix.id)))
         assertEquals(SendState.Composing, sent.state)
-        val outgoing = (sent.effect as Effect.Deliver).outgoing
-        assertEquals(draft, outgoing.raw)
-        assertEquals("Hola, ayer fuimos a la plaza y fue muy bonito", outgoing.text)
-        assertEquals(SentCheck.Corrected, outgoing.check)
-        assertEquals(listOf(ChatChange(EditKind.Fix, 23, 28, "playa", "plaza", "Wrong word")), outgoing.changes)
+        val deliver = sent.effect as Effect.Deliver
+        assertEquals(true, deliver.record)
+        assertEquals(draft, deliver.outgoing.raw)
+        assertEquals("Hola, ayer fuimos a la plaza y fue muy bonito", deliver.outgoing.text)
+        assertEquals(SentCheck.Corrected, deliver.outgoing.check)
+        assertEquals(listOf(ChatChange(EditKind.Fix, 23, 28, "playa", "plaza", "Wrong word")), deliver.outgoing.changes)
     }
 
     @Test fun sendAsWrittenIsAlwaysThere() {
-        val reviewing = SendState.Reviewing(draft)
-        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.AsWritten)), reviewing.on(SendEvent.SendAsWritten).effect)
-        // Before the check even answers: nothing was checked.
-        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.None)),
+        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.AsWritten), record = true),
+            SendState.Reviewing(draft).on(SendEvent.SendAsWritten).effect)
+        // Before the check answers, nothing was checked and nothing is saved.
+        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.None), record = false),
             SendState.Checking(draft).on(SendEvent.SendAsWritten).effect)
+    }
+
+    @Test fun skippingEveryFixSendsAsWritten() {
+        val sent = SendState.Reviewing(draft).on(SendEvent.SendWithFixes(revision))
+        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.AsWritten), record = true), sent.effect)
     }
 
     @Test fun aFailedOrUnclearCheckStillOffersTheReview() {
@@ -59,11 +74,6 @@ class SendFlowTest {
         assertEquals(SendState.Reviewing(draft), SendState.Checking(draft).on(SendEvent.Checked(CheckResult.Unclear)).state)
         assertEquals(SendState.Reviewing(draft),
             SendState.Checking(draft).on(SendEvent.Checked(CheckResult.WrongLanguage("Spanish", "English"))).state)
-    }
-
-    @Test fun nothingAcceptedSendsAsWritten() {
-        val sent = SendState.Reviewing(draft).on(SendEvent.SendAccepted(revision))
-        assertEquals(Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.AsWritten)), sent.effect)
     }
 
     @Test fun editingClosesTheReviewAndCancelsTheCheck() {
@@ -76,15 +86,8 @@ class SendFlowTest {
         assertEquals(Transition(SendState.Composing), SendState.Composing.on(SendEvent.Checked(clean)))
         assertEquals(Transition(SendState.Reviewing(draft)), SendState.Reviewing(draft).on(SendEvent.Checked(clean)))
         val other = Revision("Something else", emptyList())
-        assertEquals(Transition(SendState.Reviewing(draft)), SendState.Reviewing(draft).on(SendEvent.SendAccepted(other)))
-        // A second Send while one is checking does nothing.
-        assertEquals(Transition(SendState.Checking(draft)), SendState.Checking(draft).on(SendEvent.Send("x", checkFirst = true)))
-    }
-
-    @Test fun liveModeSendsItsOwnRecordWithoutAReview() {
-        val live = Outgoing("Hola amigo", "Hola, amigo", listOf(ChatChange(EditKind.Fix, 4, 4, "", ",")), SentCheck.Corrected)
-        val transition = SendState.Composing.on(SendEvent.Send("Hola, amigo", checkFirst = false, live = live))
-        assertEquals(Transition(SendState.Composing, Effect.Deliver(live)), transition)
+        assertEquals(Transition(SendState.Reviewing(draft)), SendState.Reviewing(draft).on(SendEvent.SendWithFixes(other)))
+        assertEquals(Transition(SendState.Checking(draft)), SendState.Checking(draft).on(SendEvent.Send("x")))
     }
 
     @Test fun aRewordingOverAnAcceptedFixKeepsBothAgainstTheRawText() {
@@ -92,9 +95,9 @@ class SendFlowTest {
         val outgoing = Outgoings.accepted(accepted)
         assertEquals("Hola, ayer fuimos a la plaza y estuvo genial", outgoing.text)
         assertEquals(listOf(EditKind.Fix, EditKind.Natural), outgoing.changes.map { it.kind })
-        val message = outgoing.message("m", "c", 1)
-        // Only fixes mark the writer's words as tried and wrong.
+        val message = outgoing.message("m", "c", 1, sessionId = "s1")
         assertEquals(listOf(Span(23, 28)), message.correctedSpans)
+        assertEquals("s1", message.sessionId)
         assertNull(outgoing.changes[1].why)
     }
 }

@@ -8,7 +8,6 @@ import com.evanaronson.linguize.core.chat.ChatChange
 import com.evanaronson.linguize.core.chat.ChatMessage
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.SentCheck
-import com.evanaronson.linguize.core.corpus.Span
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -80,7 +79,6 @@ class ChatStoreTest {
         assertEquals(listOf(opener, mine), removed.second)
         assertTrue(store.conversations().isEmpty())
         assertTrue(store.messages("c1").isEmpty())
-        assertTrue(ChatCorpusSource(store).utterances().isEmpty())
         assertNull(store.delete("c1"))
 
         store.restore(removed.first, removed.second)
@@ -95,17 +93,42 @@ class ChatStoreTest {
         assertEquals(listOf(catalan), store.messages("c1"))
     }
 
-    @Test fun theCorpusSourceReadsRawWriterTextOnly() = runBlocking {
+    @Test fun notesEachMessagesSavedCheckAndGroupsThemByConversation() = runBlocking {
         store.create(first)
+        store.create(second.copy(persona = "Jordi, my landlord, formal", title = "Jordi"))
         store.add(opener)
-        store.add(mine)
-        val source = ChatCorpusSource(store)
-        assertEquals("chat", source.name)
-        val utterances = source.utterances()
-        assertEquals(1, utterances.size)
-        assertEquals("chat:w1", utterances[0].id)
-        assertEquals("Muy bien, tengo frio", utterances[0].text)
-        assertEquals("es", utterances[0].language)
-        assertEquals(listOf(Span(16, 20)), utterances[0].corrected)
+        store.add(mine.copy(sessionId = "s1"))
+        store.add(ChatMessage("w2", "c1", true, "Vale", "Vale", check = SentCheck.LooksGood, at = 40, sessionId = "s2"))
+        store.add(ChatMessage("w3", "c2", true, "Bon dia", "Bon dia", check = SentCheck.LooksGood, at = 50, sessionId = "s3"))
+        assertEquals("s1", store.messages("c1").single { it.id == "w1" }.sessionId)
+        assertEquals(setOf("s1", "s2"), store.sessionIds("c1").toSet())
+
+        val threads = store.threads(listOf("s1", "s2", "s3", "elsewhere"))
+        assertEquals(setOf("s1", "s2", "s3"), threads.keys)
+        val chat = threads.getValue("s1")
+        assertEquals("c1", chat.conversationId)
+        assertEquals(2, chat.messages)
+        assertEquals(1, chat.corrected)
+        assertEquals(chat, threads.getValue("s2"))
+        assertEquals("Jordi, my landlord, formal", threads.getValue("s3").persona)
+        assertEquals("Jordi, my landlord, formal", store.conversation("c2")?.persona)
+        assertTrue(store.threads(emptyList()).isEmpty())
+    }
+
+    @Test fun aVersionOneDatabaseGainsPersonaAndSessionColumns() = runBlocking {
+        store.close()
+        context.deleteDatabase(ChatStore.DATABASE)
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(ChatStore.DATABASE), null).use { db ->
+            db.execSQL("CREATE TABLE conversations (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL DEFAULT '', language TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, title_custom INTEGER NOT NULL DEFAULT 0, learned_count INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE messages (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, conversation TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE, from_writer INTEGER NOT NULL, raw TEXT NOT NULL, text TEXT NOT NULL, changes TEXT, checked TEXT NOT NULL DEFAULT 'none', at INTEGER NOT NULL)")
+            db.execSQL("INSERT INTO conversations VALUES ('old', 'Old', 'es', 1, 2, 0, 0)")
+            db.execSQL("INSERT INTO messages (id, conversation, from_writer, raw, text, changes, checked, at) VALUES ('m', 'old', 1, 'Hola', 'Hola', '[]', 'none', 2)")
+            db.version = 1
+        }
+        val upgraded = ChatStore(context)
+        assertEquals("Old", upgraded.conversation("old")?.title)
+        assertNull(upgraded.conversation("old")?.persona)
+        assertNull(upgraded.messages("old").single().sessionId)
+        upgraded.close()
     }
 }

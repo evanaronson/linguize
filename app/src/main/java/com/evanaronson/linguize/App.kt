@@ -104,8 +104,8 @@ class App : Application() {
      */
     val corpus by lazy {
         com.evanaronson.linguize.core.corpus.Corpus(listOf<com.evanaronson.linguize.core.corpus.CorpusSource>(
+            // Chat messages are History records too (Origin.Chat), so this one source covers them.
             com.evanaronson.linguize.history.corpus.CheckCorpusSource(history, com.evanaronson.linguize.data.lab.NotTypedTexts(this)::hashes),
-            com.evanaronson.linguize.data.chat.ChatCorpusSource(chatStore),
         ))
     }
 
@@ -132,9 +132,16 @@ class App : Application() {
     /** Lab Chat: conversations in their own `lab_chat` database, and the partner that answers. */
     val chatStore by lazy { com.evanaronson.linguize.data.chat.ChatStore(this) }
     val chatPartner by lazy {
-        ChatPartner(settings, keys, clients, { userMemory }) {
+        ChatPartner(settings, keys, clients, { userMemory }, targets = { chatTargets.block(it) }) {
             com.evanaronson.linguize.llm.chat.ChatPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
         }
+    }
+
+    /** Lab Chat: what the partner steers toward, from the corpus, conjugations and vocabulary gaps. */
+    val chatTargets by lazy {
+        ChatTargets({ corpus.utterances() }, { morphology }, { lemmatizer },
+            com.evanaronson.linguize.data.vocabgaps.BundledDecks { name -> assets.open(name).bufferedReader().use { it.readText() } },
+            appScope)
     }
 
     /** Lab: Say it in another language. Its own prompt asset, read on first use. */

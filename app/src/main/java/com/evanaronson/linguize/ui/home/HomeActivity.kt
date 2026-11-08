@@ -139,6 +139,7 @@ class HomeActivity : ComponentActivity() {
                                     onOpenSettings = openSettings,
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                     wordsRow = { com.evanaronson.linguize.ui.words.WordsHistoryRow { navigation = navigation.open(Screen.Words) } },
+                                    onOpenThread = { com.evanaronson.linguize.ui.chat.ChatRequests.conversation = it; navigation = navigation.open(Screen.Chat) },
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
                                     navigation = navigation.open(Screen.SettingsChoice(it))

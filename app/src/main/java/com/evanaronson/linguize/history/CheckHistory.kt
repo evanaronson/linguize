@@ -313,7 +313,9 @@ class CheckHistory(
         this.permission = null
         recording ?: return
         val id = recording.session.id
-        if (finalText == null || finalText == recording.session.text || permission == null) {
+        // Lab Chat: a message sent as typed is still a record of what was written.
+        val unchanged = finalText == recording.session.text && recording.session.origin?.keepsUnchanged != true
+        if (finalText == null || unchanged || permission == null) {
             releaseSession(id)
             return
         }

@@ -52,6 +52,8 @@ fun HistoryScreen(
     onOpenPatterns: (() -> Unit)? = null,
     /** Lab: Your words' row, above the list. */
     wordsRow: (@Composable () -> Unit)? = null,
+    /** Lab Chat: opens a chat conversation's row; null opens its newest saved message. */
+    onOpenThread: ((String) -> Unit)? = null,
 ) {
     val page by history.historyList.collectAsState()
     val list = rememberLazyListState()
@@ -96,12 +98,17 @@ fun HistoryScreen(
                 if (historyOn == false) item(key = "history-off", contentType = "notice") {
                     SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
                 }
-                itemsIndexed(page.rows, key = { _, row -> row.summary.id }, contentType = { _, _ -> "check" }) { index, row ->
+                itemsIndexed(page.rows, key = { _, row -> row.key }, contentType = { _, row -> if (row.thread != null) "thread" else "check" }) { index, row ->
                     Column(Modifier.cardSegment(first = index == 0, last = index == last && !hasFooter)) {
                         if (index > 0) RowDivider()
-                        val delete = { history.delete(row.summary.id) }
-                        SwipeToDelete(onDelete = delete) {
-                            SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                        val thread = row.thread
+                        if (thread != null) {
+                            ThreadRow(row, now, time) { onOpenThread?.invoke(thread.conversationId) ?: onOpen(row.summary.id) }
+                        } else {
+                            val delete = { history.delete(row.summary.id) }
+                            SwipeToDelete(onDelete = delete) {
+                                SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                            }
                         }
                     }
                 }

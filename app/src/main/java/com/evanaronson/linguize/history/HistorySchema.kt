@@ -147,8 +147,9 @@ internal object HistorySchema {
     /**
      * User-visible history is an applied change. Older unapplied checks remain stored,
      * but are hidden from every History read, including restored details and export.
+     * Lab Chat: a chat message sent unchanged ([Origin.keepsUnchanged]) is visible too.
      */
-    val VISIBLE_HISTORY = """"deletedAt" IS NULL AND "closedAt" IS NOT NULL AND "outcome" = '${Outcome.Applied.token}' AND "finalText" IS NOT NULL AND "finalText" != "text""""
+    val VISIBLE_HISTORY = """"deletedAt" IS NULL AND "closedAt" IS NOT NULL AND "outcome" = '${Outcome.Applied.token}' AND "finalText" IS NOT NULL AND ("finalText" != "text" OR "origin" IN (${Origin.entries.filter { it.keepsUnchanged }.joinToString { "'${it.token}'" }}))"""
 
     /** The number of applied changes History can show. */
     val COUNT = """SELECT COUNT(*) AS "n" FROM $SESSIONS WHERE $VISIBLE_HISTORY"""

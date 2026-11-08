@@ -32,6 +32,8 @@ data class PatternExample(
     val editKind: EditKind,
     val kind: PatternKind,
     val basis: Basis,
+    /** History's origin token of the check it came from ("chat" for Lab Chat); null when unknown. */
+    val origin: String? = null,
 )
 
 /** The same change seen more than once, as the writer would recognise it. */
@@ -172,6 +174,7 @@ object PatternAnalyser {
                         sessionId = session.id, suggestionId = row.id, attempt = row.attempt, at = session.startedAt,
                         language = language, from = row.fromText, to = row.toText, why = row.why,
                         assessment = row.assessment, editKind = row.kind, kind = group.kind, basis = group.basis,
+                        origin = session.origin?.token,
                     ).also(examples::add)
                 }
             PatternSource(session.id, decided ?: used.firstOrNull()?.attempt ?: -1, used.map { it.suggestionId })

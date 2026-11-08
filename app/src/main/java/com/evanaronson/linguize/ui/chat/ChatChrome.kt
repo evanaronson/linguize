@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -145,12 +147,18 @@ private fun LanguageButton(code: String, onSelect: (String) -> Unit) {
 internal fun ConversationDrawer(
     conversations: List<ConversationSummary>,
     currentId: String?,
-    onNew: () -> Unit,
+    /** People memory knows the writer writes to, offered in "Practise with…". */
+    people: List<String>,
+    onLoadPeople: () -> Unit,
+    /** A new conversation; with a persona, the partner stands in for that person. */
+    onNew: (String?) -> Unit,
     onOpen: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
+    var practising by rememberSaveable { mutableStateOf(false) }
     ModalDrawerSheet(drawerContainerColor = Linguize.colors.ground) {
         Text(
             stringResource(R.string.lab_chat_conversations),
@@ -160,7 +168,7 @@ internal fun ConversationDrawer(
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onNew)
+                .clickable(onClick = { onNew(null) })
                 .heightIn(min = 56.dp)
                 .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -169,11 +177,27 @@ internal fun ConversationDrawer(
             Spacer(Modifier.width(16.dp))
             Text(stringResource(R.string.lab_chat_new), style = MaterialTheme.typography.bodyLarge)
         }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = { onLoadPeople(); practising = true })
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(painterResource(R.drawable.lab_chat_ic_person), contentDescription = null)
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(stringResource(R.string.lab_chat_practise_with), style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.lab_chat_practise_with_summary), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         HorizontalDivider(color = Linguize.colors.rowDivider)
         LazyColumn {
             items(conversations, key = { it.conversation.id }) { summary ->
                 ConversationRow(summary, summary.conversation.id == currentId, { onOpen(summary.conversation.id) },
-                    onRename = { renaming = summary.conversation.id }, onDelete = { onDelete(summary.conversation.id) })
+                    onRename = { renaming = summary.conversation.id }, onDelete = { deleting = summary.conversation.id })
             }
         }
     }
@@ -181,7 +205,58 @@ internal fun ConversationDrawer(
         val current = conversations.firstOrNull { it.conversation.id == id }?.conversation?.title.orEmpty()
         RenameDialog(current, onDismiss = { renaming = null }, onSave = { onRename(id, it); renaming = null })
     }
+    deleting?.let { id ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text(stringResource(R.string.lab_chat_delete_title)) },
+            text = { Text(stringResource(R.string.lab_chat_delete_body)) },
+            confirmButton = {
+                LinguizeButton(stringResource(R.string.lab_chat_delete), { onDelete(id); deleting = null }, ButtonKind.Destructive)
+            },
+            dismissButton = { LinguizeButton(stringResource(R.string.lab_chat_cancel), { deleting = null }, ButtonKind.Text) },
+        )
+    }
+    if (practising) {
+        PractiseWithDialog(people, onDismiss = { practising = false }, onStart = { practising = false; onNew(it) })
+    }
 }
+
+/** "Practise with…": someone memory knows the writer writes to, or anyone they describe. */
+@Composable
+private fun PractiseWithDialog(people: List<String>, onDismiss: () -> Unit, onStart: (String) -> Unit) {
+    var who by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.lab_chat_practise_with)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                people.take(MAX_PEOPLE).forEach { person ->
+                    Text(
+                        person,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = stringResource(R.string.lab_chat_practise_start)) { onStart(person) }
+                            .heightIn(min = 48.dp)
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                LinguizeTextField(who, { who = it.take(com.evanaronson.linguize.llm.chat.ChatPrompt.MAX_PERSONA) },
+                    label = stringResource(R.string.lab_chat_practise_who),
+                    placeholder = stringResource(R.string.lab_chat_practise_placeholder), minLines = 2)
+            }
+        },
+        confirmButton = {
+            LinguizeButton(stringResource(R.string.lab_chat_practise_start), { onStart(who.trim()) }, ButtonKind.Filled,
+                enabled = who.isNotBlank())
+        },
+        dismissButton = { LinguizeButton(stringResource(R.string.lab_chat_cancel), onDismiss, ButtonKind.Text) },
+    )
+}
+
+private const val MAX_PEOPLE = 8
 
 @Composable
 private fun ConversationRow(

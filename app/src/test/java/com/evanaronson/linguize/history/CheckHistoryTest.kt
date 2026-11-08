@@ -753,7 +753,8 @@ class CheckHistoryTest {
 
     @Test
     fun onlyChecksFromOtherAppsAreRecorded() {
-        assertEquals(setOf(Origin.Menu, Origin.Button), Origin.entries.filter { it.recorded }.toSet())
+        // Lab Chat: a message sent in the chat is recorded too, like text sent to a person.
+        assertEquals(setOf(Origin.Menu, Origin.Button, Origin.Chat), Origin.entries.filter { it.recorded }.toSet())
     }
 
     @Test

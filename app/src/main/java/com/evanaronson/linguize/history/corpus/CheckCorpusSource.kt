@@ -65,8 +65,10 @@ object CheckUtterances {
         for (detail in ordered) {
             val session = detail.session
             val reused = session.attempts.any { it.reusedFrom != null && it.reusedFrom in present }
-            val recheckOfPutBack = session.text.trim() in putBack
-            session.finalText?.let { putBack += it.trim() }
+            // A chat message is always newly typed, and what it sent never comes back to be checked.
+            val chat = session.origin == Origin.Chat
+            val recheckOfPutBack = !chat && session.text.trim() in putBack
+            if (!chat) session.finalText?.let { putBack += it.trim() }
             if (reused || recheckOfPutBack || session.textHash in notTyped || session.origin == Origin.Tester) continue
             if (session.text.isBlank()) continue
             out += of(detail)
@@ -87,6 +89,7 @@ object CheckUtterances {
             text = session.text,
             corrected = corrected(detail, decided),
             at = session.startedAt,
+            origin = session.origin?.token,
         )
     }
 

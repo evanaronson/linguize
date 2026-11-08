@@ -112,7 +112,7 @@ private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean
     var typed by rememberSaveable(run.index) { mutableStateOf("") }
     when (item.mode) {
         PracticeItem.Mode.Type -> {
-            Label(stringResource(R.string.lab_practice_you_wrote))
+            Label(stringResource(com.evanaronson.linguize.ui.chat.youWroteLabel(item.origin)))
             MarkedSentence(item)
             if (answered == null) {
                 Spacer(Modifier.height(16.dp))

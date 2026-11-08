@@ -1,11 +1,10 @@
 package com.evanaronson.linguize.ui.chat
 
-import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -14,36 +13,34 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.ChatPartner
-import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
+import com.evanaronson.linguize.core.Understood
 import com.evanaronson.linguize.core.chat.ChatMessage
 import com.evanaronson.linguize.core.chat.ChatStart
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.Effect
-import com.evanaronson.linguize.core.chat.LiveRecord
 import com.evanaronson.linguize.core.chat.Outgoing
 import com.evanaronson.linguize.core.chat.SendEvent
 import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.chat.deriveTitle
 import com.evanaronson.linguize.core.chat.on
+import com.evanaronson.linguize.core.memory.FactCategory
 import com.evanaronson.linguize.core.memory.MemoryMessage
 import com.evanaronson.linguize.core.memory.UserMemory
-import com.evanaronson.linguize.core.writingpad.CheckSchedule
-import com.evanaronson.linguize.core.writingpad.LiveSuggestion
-import com.evanaronson.linguize.core.writingpad.PadEngine
 import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
 import com.evanaronson.linguize.llm.CheckFailure
+import com.evanaronson.linguize.llm.chat.ChatPrompt
 import com.evanaronson.linguize.llm.chat.Turn
 import com.evanaronson.linguize.ui.card.CardState
+import com.evanaronson.linguize.ui.forgetExports
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,23 +54,32 @@ data class ChatThread(val conversation: Conversation, val messages: List<ChatMes
     val awaitingReply get() = messages.lastOrNull()?.fromWriter == true
 }
 
-/** Live checking's underlines and the changes under the cursor. */
-data class LiveChecks(
-    val suggestions: List<LiveSuggestion>,
-    val focused: List<LiveSuggestion>,
-    val checking: Boolean,
-)
-
-/** The pre-send check, run by the screen's card (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
+/** The pre-send check, run by the screen's card engine (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
 interface DraftCheck {
     fun start(draft: String, language: Language)
+
+    /** Drops the check without saving anything. */
     fun stop()
+
+    /** Accepts every fix on offer except [skipped]; the revision to send, or null when the answer has none. */
+    fun keepFixes(skipped: Set<Int>): Revision?
+
+    /** Takes back everything accepted, for Send as written. */
+    fun clearAccepted()
+
+    /**
+     * [sent] was sent. With [record], the check is saved in History (Origin.Chat) with what was
+     * sent as its final text; returns that session's id, or null when nothing is saved.
+     */
+    fun finish(sent: String, record: Boolean): String?
 }
 
 /**
  * Lab Chat: conversations with a partner who only talks, while Linguize checks each message
- * before it goes ([SendState]). Messages and conversations live in [store]; memory learns from
- * a conversation once it goes quiet or is left, and forgets it when it is deleted.
+ * before it goes ([SendState]). Each checked message is saved in History like an applied check
+ * (Origin.Chat) when History is on; the conversations themselves live in [store], which notes
+ * the History session of each message. Memory learns from a conversation once it goes quiet or
+ * is left, and forgets it when it is deleted, with its History sessions.
  */
 class ChatViewModel(
     private val store: ChatStore,
@@ -82,12 +88,17 @@ class ChatViewModel(
     private val memory: () -> UserMemory,
     /** The language a new conversation starts in. */
     private val startLanguage: suspend () -> String,
-    /** Live checking's checks; never recorded in History. */
-    private val liveCheck: suspend (String, Language) -> CheckResult,
-    /** Outlives the screen: learning and forgetting finish even after it closes. */
+    /** Deletes saved checks from History. */
+    private val deleteSessions: suspend (List<String>) -> Unit,
+    /** People memory knows the writer writes to, for "Practise with…". */
+    private val people: suspend () -> List<String>,
+    /** Translates a partner message into the writer's own language (the Understand path). */
+    translate: suspend (String) -> Understood,
+    /** Starts building the practice targets for a language before the first reply. */
+    private val warmTargets: (Language) -> Unit,
+    /** Outlives the screen: learning, forgetting and deleting finish even after it closes. */
     private val appScope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val uptime: () -> Long = SystemClock::uptimeMillis,
 ) : ViewModel() {
     var conversations by mutableStateOf<List<ConversationSummary>>(emptyList())
         private set
@@ -107,29 +118,49 @@ class ChatViewModel(
         private set
     var needsKey by mutableStateOf(false)
         private set
-    var checkAsYouType by mutableStateOf(false)
-        private set
-    var live by mutableStateOf<LiveChecks?>(null)
-        private set
 
     /** The id of the message whose changes are shown, if any. */
     var expanded by mutableStateOf<String?>(null)
         private set
 
-    /** Set by the screen that hosts the review card. */
+    /** Fixes on show that the writer chose to skip, by edit id. */
+    var skipped by mutableStateOf<Set<Int>>(emptySet())
+        private set
+
+    /** The fix whose reason is open, by edit id. */
+    var focusedFix by mutableStateOf<Int?>(null)
+        private set
+
+    /** Whether the full card (Meaning, assumptions, rewordings) is open over the review. */
+    var details by mutableStateOf(false)
+        private set
+
+    /** People to practise with, read when the writer opens "Practise with…". */
+    var knownPeople by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    private val translations = Translations(translate)
+    private var translationVersion by mutableIntStateOf(0)
+
+    /** Set by the screen that hosts the card engine. */
     var draftCheck: DraftCheck? = null
 
+    /** Whether the current check answered with a review (not unclear, another language or a failure). */
+    private var reviewed = false
     private var replyJob: Job? = null
-    private var engine: PadEngine? = null
-    private val record = LiveRecord()
-    private var showingLive = false
-    private var timer: Job? = null
-    private var running: Job? = null
     private var started = false
 
-    /** The chat is showing: opens the current conversation, or a new one, once. */
-    fun start() {
+    /**
+     * The chat is showing: opens [requested] when History asked for a conversation, else the
+     * current one, or a new one, once.
+     */
+    fun start(requested: String? = null) {
         refreshSettings()
+        if (requested != null) {
+            started = true
+            open(requested)
+            return
+        }
         if (started) return
         started = true
         viewModelScope.launch {
@@ -143,27 +174,26 @@ class ChatViewModel(
         }
     }
 
-    /** Back from Settings or the background: the key and Lab choices may have changed. */
+    /** Back from Settings or the background: the key may have changed. */
     fun refreshSettings() {
         viewModelScope.launch {
-            val (key, live) = withContext(Dispatchers.IO) { partner.hasKey() to preferences.checkAsYouType }
+            val key = withContext(Dispatchers.IO) { partner.hasKey() }
             needsKey = !key
-            if (live != checkAsYouType) {
-                checkAsYouType = live
-                if (live) startEngine() else stopEngine()
-            }
             val current = thread
             // A reply that failed for want of a key can go now.
             if (key && current != null && current.awaitingReply && replyFailure?.reason == CheckFailure.Reason.NoKey) retryReply()
         }
     }
 
-    fun newConversation() {
+    /** A new conversation; with [persona], the partner plays that person ("Practise with…"). */
+    fun newConversation(persona: String? = null) {
         leave()
+        val who = persona?.trim()?.take(ChatPrompt.MAX_PERSONA)?.takeIf { it.isNotEmpty() }
         viewModelScope.launch {
             val now = clock()
             val language = startLanguage()
-            val conversation = Conversation(UUID.randomUUID().toString(), "", language, now, now)
+            val conversation = Conversation(UUID.randomUUID().toString(), who?.let { deriveTitle(it) }.orEmpty(), language, now, now,
+                persona = who)
             if (!store.create(conversation)) return@launch
             // An unanswered opener holds nothing the writer typed: one is enough.
             store.conversations().filter { it.writerMessages == 0 && it.conversation.id != conversation.id }
@@ -190,10 +220,18 @@ class ChatViewModel(
         replyFailure = null
         expanded = null
         draft = TextFieldValue()
-        reset()
+        draftCheck?.stop()
+        resetReview()
+        send = SendState.Composing
         thread = next
         preferences.lastLanguage = next.conversation.language
         conversations = visible(conversations, next.conversation.id)
+        Language.forCode(next.conversation.language)?.let(warmTargets)
+    }
+
+    /** Reads who memory knows the writer writes to, for "Practise with…". */
+    fun loadPeople() {
+        viewModelScope.launch { knownPeople = runCatching { people() }.getOrDefault(emptyList()) }
     }
 
     /** The conversation's language; an untouched opener is written again in the new one. */
@@ -203,7 +241,7 @@ class ChatViewModel(
         val conversation = current.conversation.copy(language = code)
         thread = current.copy(conversation = conversation)
         preferences.lastLanguage = code
-        startEngine()
+        Language.forCode(code)?.let(warmTargets)
         viewModelScope.launch {
             store.setLanguage(conversation.id, code)
             if (current.writerMessages == 0) {
@@ -227,38 +265,31 @@ class ChatViewModel(
     }
 
     /**
-     * Deletes conversation [id] and forgets what memory learned from it; [onDeleted] gets what
-     * was removed so [restore] can bring it back.
+     * Deletes conversation [id] for good, after the writer confirmed: its messages, its saved
+     * checks in History, and what memory learned from it. There is no Undo: History deletes
+     * for good, so the conversation does too.
      */
-    fun delete(id: String, onDeleted: (Pair<Conversation, List<ChatMessage>>) -> Unit) {
+    fun delete(id: String) {
         val wasOpen = thread?.conversation?.id == id
         if (wasOpen) {
             replyJob?.cancel()
-            reset()
+            draftCheck?.stop()
+            resetReview()
+            send = SendState.Composing
         }
         viewModelScope.launch {
-            val removed = store.delete(id) ?: return@launch
-            appScope.launch { runCatching { memory().forget(source(id)) } }
+            val sessions = store.sessionIds(id)
+            store.delete(id) ?: return@launch
+            appScope.launch {
+                runCatching { deleteSessions(sessions) }.onFailure { Log.w(TAG, "Couldn't delete a conversation's checks", it) }
+                runCatching { memory().forget(source(id)) }
+            }
             reloadList()
             if (wasOpen) {
+                thread = null
                 val next = store.conversations().firstOrNull { it.writerMessages > 0 }
-                if (next != null) {
-                    thread = null
-                    open(next.conversation.id)
-                } else {
-                    thread = null
-                    newConversation()
-                }
+                if (next != null) open(next.conversation.id) else newConversation()
             }
-            onDeleted(removed)
-        }
-    }
-
-    /** Undoes [delete]. Memory learns from it again once it is quiet. */
-    fun restore(removed: Pair<Conversation, List<ChatMessage>>) {
-        viewModelScope.launch {
-            store.restore(removed.first.copy(learnedCount = 0), removed.second)
-            reloadList()
         }
     }
 
@@ -266,47 +297,80 @@ class ChatViewModel(
         expanded = if (expanded == messageId) null else messageId
     }
 
-    /** The composer changed: typing, or the cursor moving. */
-    fun onDraftChange(value: TextFieldValue) {
-        val edited = value.text != draft.text
-        draft = value
-        if (!edited) {
-            showingLive = value.selection.collapsed && (engine?.at(value.selection.start)?.isNotEmpty() == true)
-            publishLive()
-            return
-        }
-        if (send != SendState.Composing) handle(SendEvent.Edit)
-        engine?.let { engine ->
-            engine.edit(value.text, uptime())
-            record.edited(value.text)
-            showingLive = false
-            reschedule()
-        }
-        publishLive()
+    // Translations of partner messages.
+
+    /** What partner message [id] shows under it; read in composition so it updates. */
+    fun translation(id: String): Translation? {
+        translationVersion
+        return translations.shown(id)
     }
 
-    /** Send tapped: checks first, unless live checking already did. */
-    fun send() {
-        val text = draft.text
-        val liveMode = engine != null
-        handle(SendEvent.Send(text, checkFirst = !liveMode, live = if (liveMode) record.outgoing(text) else null))
+    fun translationOpen(id: String): Boolean {
+        translationVersion
+        return translations.isOpen(id)
     }
+
+    /** Translate (or Hide) on a partner message; a failed one is fetched again. */
+    fun toggleTranslation(message: ChatMessage) {
+        if (message.fromWriter) return
+        val fetch = translations.toggle(message.id)
+        translationVersion++
+        if (!fetch) return
+        viewModelScope.launch {
+            translations.load(message.id, message.text)
+            translationVersion++
+        }
+    }
+
+    // Composing and sending.
+
+    fun onDraftChange(value: TextFieldValue) {
+        draft = value
+    }
+
+    /** Send tapped: the draft is checked first. */
+    fun send() = handle(SendEvent.Send(draft.text))
 
     /** What the check of the draft did; the screen reports the card's state. */
     fun onCardState(state: CardState?) {
         if (send !is SendState.Checking) return
         when (state) {
-            is CardState.Done -> handle(SendEvent.Checked(state.result))
-            is CardState.Failed -> handle(SendEvent.CheckFailed)
+            is CardState.Done -> {
+                reviewed = state.result is CheckResult.Reviewed
+                handle(SendEvent.Checked(state.result))
+            }
+            is CardState.Failed -> {
+                reviewed = false
+                handle(SendEvent.CheckFailed)
+            }
             else -> Unit
         }
     }
 
-    /** Send with the changes accepted on the card; [revision] is null when the answer had none. */
-    fun sendAccepted(revision: Revision?) =
-        handle(if (revision != null) SendEvent.SendAccepted(revision) else SendEvent.SendAsWritten)
+    /** Tapping a fix (in the text or the list) opens its reason; tapping it again closes it. */
+    fun focusFix(id: Int?) {
+        focusedFix = if (focusedFix == id) null else id
+    }
 
-    fun sendAsWritten() = handle(SendEvent.SendAsWritten)
+    /** Keeps or skips fix [id] for Send with fixes. */
+    fun toggleSkip(id: Int) {
+        skipped = if (id in skipped) skipped - id else skipped + id
+    }
+
+    fun showDetails(show: Boolean) {
+        details = show
+    }
+
+    /** Send with the fixes the writer kept (and anything accepted on the full card). */
+    fun sendWithFixes() {
+        val revision = draftCheck?.keepFixes(skipped)
+        if (revision == null) sendAsWritten() else handle(SendEvent.SendWithFixes(revision))
+    }
+
+    fun sendAsWritten() {
+        draftCheck?.clearAccepted()
+        handle(SendEvent.SendAsWritten)
+    }
 
     /** Closes the review and goes back to the draft. */
     fun keepEditing() = handle(SendEvent.Edit)
@@ -316,21 +380,32 @@ class ChatViewModel(
         send = transition.state
         when (val effect = transition.effect) {
             is Effect.StartCheck -> {
+                resetReview()
                 val language = Language.forCode(thread?.conversation?.language) ?: Language.Spanish
                 draftCheck?.start(effect.draft, language) ?: handle(SendEvent.CheckFailed)
             }
-            Effect.CancelCheck -> draftCheck?.stop()
-            is Effect.Deliver -> deliver(effect.outgoing)
+            Effect.CancelCheck -> {
+                draftCheck?.stop()
+                resetReview()
+            }
+            is Effect.Deliver -> deliver(effect.outgoing, effect.record && reviewed)
             null -> Unit
         }
     }
 
-    private fun deliver(outgoing: Outgoing) {
+    private fun resetReview() {
+        skipped = emptySet()
+        focusedFix = null
+        details = false
+        reviewed = false
+    }
+
+    private fun deliver(outgoing: Outgoing, record: Boolean) {
         val current = thread ?: return
-        draftCheck?.stop()
-        val message = outgoing.message(UUID.randomUUID().toString(), current.conversation.id, clock())
+        val sessionId = draftCheck?.finish(outgoing.text, record)
+        resetReview()
+        val message = outgoing.message(UUID.randomUUID().toString(), current.conversation.id, clock(), sessionId)
         draft = TextFieldValue()
-        reset()
         val withMessage = current.copy(
             conversation = current.conversation.copy(updatedAt = message.at),
             messages = current.messages + message,
@@ -358,7 +433,7 @@ class ChatViewModel(
         val needTitle = conversation.title.isEmpty() && !conversation.titleIsCustom
         replyJob = viewModelScope.launch {
             try {
-                val answer = partner.reply(language, history, needTitle)
+                val answer = partner.reply(language, history, needTitle, conversation.persona)
                 val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock())
                 store.add(reply)
                 val title = if (needTitle) {
@@ -391,7 +466,7 @@ class ChatViewModel(
         val language = Language.forCode(conversation.language) ?: Language.Spanish
         replying = true
         val text = try {
-            partner.open(language)
+            partner.open(language, conversation.persona)
         } catch (e: CancellationException) {
             throw e
         } catch (e: CheckFailure) {
@@ -408,112 +483,6 @@ class ChatViewModel(
         thread = now.copy(messages = listOf(opener))
     }
 
-    // Live checking: the Writing pad's engine, with a record of which parts were accepted.
-
-    fun acceptLive(key: Long) {
-        val engine = engine ?: return
-        val suggestion = engine.suggestions.firstOrNull { it.key == key } ?: return
-        val before = engine.text
-        val cursor = engine.accept(key, uptime()) ?: return
-        record.accepted(before, engine.text, suggestion)
-        draft = TextFieldValue(engine.text, TextRange(cursor))
-        showingLive = false
-        reschedule()
-        publishLive()
-    }
-
-    fun dismissLive(key: Long) {
-        engine?.dismiss(key)
-        showingLive = false
-        publishLive()
-    }
-
-    /** Shows the change [key], as a screen reader's action on the text does. */
-    fun focusLive(key: Long) {
-        val suggestion = engine?.suggestions?.firstOrNull { it.key == key } ?: return
-        draft = draft.copy(selection = TextRange(suggestion.start))
-        showingLive = true
-        publishLive()
-    }
-
-    fun closeLive() {
-        showingLive = false
-        publishLive()
-    }
-
-    private fun startEngine() {
-        stopEngine()
-        if (!checkAsYouType) return
-        engine = PadEngine(draft.text, CheckSchedule.DEFAULT_IDLE_MILLIS, Checker.MAX_CHARS)
-        record.reset()
-        record.edited(draft.text)
-        reschedule()
-        publishLive()
-    }
-
-    private fun stopEngine() {
-        timer?.cancel()
-        running?.cancel()
-        engine?.stop()
-        engine = null
-        showingLive = false
-        live = null
-    }
-
-    private fun reset() {
-        send = SendState.Composing
-        record.reset()
-        if (engine != null) startEngine()
-    }
-
-    private fun reschedule() {
-        timer?.cancel()
-        val engine = engine ?: return
-        val wake = engine.schedule.wakeAt() ?: return
-        timer = viewModelScope.launch {
-            delay((wake - uptime()).coerceAtLeast(0))
-            if (this@ChatViewModel.engine === engine) engine.due(uptime())?.let(::startLive)
-            publishLive()
-        }
-    }
-
-    private fun startLive(start: CheckSchedule.Start) {
-        val engine = engine ?: return
-        if (start.cancelled != null) running?.cancel()
-        val request = start.request
-        val language = Language.forCode(thread?.conversation?.language) ?: Language.Spanish
-        running = viewModelScope.launch {
-            try {
-                engine.received(request, liveCheck(request.text, language))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                engine.failed(request)
-                if ((e as? CheckFailure)?.reason == CheckFailure.Reason.NoKey) needsKey = true
-            }
-            if (this@ChatViewModel.engine !== engine) return@launch
-            reschedule()
-            publishLive()
-        }
-        publishLive()
-    }
-
-    private fun publishLive() {
-        val engine = engine
-        if (engine == null) {
-            live = null
-            return
-        }
-        // The engine follows the composer exactly.
-        if (engine.text != draft.text) engine.edit(draft.text, uptime())
-        val cursor = draft.selection
-        live = LiveChecks(
-            suggestions = engine.suggestions,
-            focused = if (showingLive && cursor.collapsed) engine.at(cursor.start) else emptyList(),
-            checking = engine.schedule.running != null,
-        )
-    }
-
     // Memory and the list.
 
     /** The writer left the conversation (switched, closed the chat, or the app went away). */
@@ -528,8 +497,7 @@ class ChatViewModel(
                 val conversation = summary.conversation
                 if (summary.writerMessages == 0) continue
                 if (clock() - conversation.updatedAt < ChatStart.QUIET_MILLIS) continue
-                val messages = store.messages(conversation.id)
-                learnNow(conversation, messages, left = false)
+                learnNow(conversation, store.messages(conversation.id), left = false)
             }
         }
     }
@@ -561,7 +529,6 @@ class ChatViewModel(
 
     override fun onCleared() {
         leave()
-        stopEngine()
     }
 
     companion object {
@@ -596,8 +563,19 @@ class ChatViewModel(
                             )
                         }
                     },
-                    // Live checks aren't recorded in History, like checks in Try it.
-                    liveCheck = { text, language -> withContext(Dispatchers.Default) { app.checker }.check(text, language).result },
+                    deleteSessions = { ids ->
+                        ids.forEach { app.history.delete(it) }
+                        if (ids.isNotEmpty()) app.forgetExports()
+                    },
+                    people = {
+                        withContext(Dispatchers.IO) {
+                            val state = app.memoryStore.load()
+                            if (!state.enabled) emptyList()
+                            else state.facts.filter { it.category == FactCategory.People }.map { it.text }
+                        }
+                    },
+                    translate = { text -> app.understander.understand(text) },
+                    warmTargets = { app.chatTargets.warm(it) },
                     appScope = app.appScope,
                 )
             }

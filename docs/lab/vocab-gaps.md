@@ -13,7 +13,7 @@ probably getting around them.
 
 ## How to use it
 
-Home → **Vocabulary gaps** (below Your patterns).
+Progress → **Vocabulary gaps** (under Your writing). It opens on the language on the switch.
 
 - **Language and deck.** Spanish and Catalan lists are bundled. Imported decks show up beside them.
 - **Count by.** By lexeme (the default) or by lemma. By lexeme, "como" the conjunction and
@@ -139,8 +139,8 @@ language, deck and level). Nothing else is read or written.
 - `data/vocabgaps/VocabGapsStore.kt`: imported decks, report cache, selection, and
   `BundledDecks`.
 - `VocabGapsLab.kt` (root): corpus + lemmatizer + store, cache by fingerprint.
-- `ui/vocabgaps/`: screen, dialogs, view model, Home entry.
-- Hooks: one line each in `HomeScreen`, `HomeActivity`, `Navigation`.
+- `ui/vocabgaps/`: screen, dialogs, view model.
+- Hooks: a row in `ProgressScreen`, one line each in `HomeActivity`, `Navigation`.
 
 ## Limits
 

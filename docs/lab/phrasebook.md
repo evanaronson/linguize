@@ -18,12 +18,12 @@ the check gave, in their own language.
 
 - **Save from a check.** Tap a fix or a rewording on the card to open its explanation.
   The star beside Accept saves the phrase. Tap it again to remove it. This works on every
-  card: Try it on Home, the selection-menu popup and the accessibility button.
+  card: Try it on Write, the selection-menu popup and the accessibility button.
 - **Save from History.** Open a saved check, expand a suggestion, and tap its star.
 - **Add one by hand.** On the Phrasebook screen, tap **Add phrase**. Type the phrase and,
   if you like, what you used to write instead and a note in your own language. Pick the
   language, then **Save phrase**.
-- **Find it again.** Home has a **Phrasebook** section. The screen lists phrases by
+- **Find it again.** Progress has a **Phrasebook** row with the count. The screen lists phrases by
   language, newest first. Search covers the phrase, what it replaced and its note, and
   ignores case and accents ("esta" finds "està").
 - **Use it.** The copy button copies a phrase. Tap a phrase for **Open check** (when it
@@ -53,7 +53,7 @@ case and spacing) keeps one entry. If the first copy had no note, the second fil
   it over the old one. A file this build can't read is renamed to `.unreadable` and never
   deleted. Unknown fields are ignored, so a later format can add fields. One store is
   shared by the app (`PhrasebookStore.of`) and exposes its phrases as a `StateFlow`. Every
-  star and the Home count stay in step without refreshing.
+  star and the Progress count stay in step without refreshing.
 - **Save control.** `ui/phrasebook/PhraseSave.kt`. `phraseCandidate` turns a change into
   a `PhraseDraft`. It offers nothing for deletions, spacing, punctuation-only changes or
   text over 300 characters. `SavePhraseButton` is the star: a toggle with its state read
@@ -67,7 +67,7 @@ case and spacing) keeps one entry. If the first copy had no note, the second fil
 - **Screen.** `ui/phrasebook/PhrasebookScreen.kt` and `PhrasebookViewModel.kt`. The pure
   functions `filterPhrases`, `groupByLanguage` and `phrasebookText` handle search, sections
   and export. Delete removes the phrase at once and keeps it in the view model for Undo.
-- **Hooks into shared files.** One `Screen.Phrasebook` entry, the Home section call, an
+- **Hooks into shared files.** One `Screen.Phrasebook` entry, the Progress row, an
   optional `phrase` parameter on `ExplanationPanel`, `phraseOrigin` on `CardActions`, two
   read-only properties on `CheckViewModel`, and the providers in `ResultCard` and
   `SessionScreen`. History, its schema and the check prompt are unchanged.
@@ -80,7 +80,7 @@ and Undo) and `PhrasebookNavigationTest`.
 ## Limits
 
 - No inserting from the popup yet. From a popup, the wordmark button opens the app
-  without losing the check. From there, the Phrasebook is on Home, and Copy puts a phrase
+  without losing the check. From there, the Phrasebook is in Progress, and Copy puts a phrase
   on the clipboard.
 - A phrase is the change's own words, not the whole sentence around it. A one-word fix
   ("està") is saved as one word.

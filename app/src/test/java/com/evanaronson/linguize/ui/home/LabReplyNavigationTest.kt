@@ -4,9 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LabReplyNavigationTest {
-    @Test fun helpMeReplyIsRestoredAboveHome() {
+    @Test fun helpMeReplyIsRestoredAboveWrite() {
         val reply = Navigation().open(Screen.LabReply)
         assertEquals(reply, Navigation.restore(reply.saved))
-        assertEquals(Screen.Home, Navigation.restore(reply.saved).back().current)
+        assertEquals(Screen.Write, Navigation.restore(reply.saved).back().current)
     }
 }

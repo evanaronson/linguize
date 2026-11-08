@@ -4,15 +4,17 @@ import android.content.Context
 import com.evanaronson.linguize.data.chat.ChatPreferences
 
 /**
- * Lab Chat: where the app starts. With "Open to chat" on (the default) the chat is the root
- * and Home sits above it, so Back from Home returns to the chat; off, Home is the root as
- * before. [openSettings] (a popup's "Open settings") puts Settings on top of either.
+ * Where the app starts. With "Open to chat" on (the default) the chat is the start
+ * destination; off, Write is. Every other tab sits above the start, so Back returns to it.
+ * [tab] (the Try it shortcut asks for Write) opens one tab above the start, and
+ * [openSettings] (a popup's "Open settings") puts Settings on top.
  */
-internal fun startNavigation(openToChat: Boolean, openSettings: Boolean): Navigation {
+internal fun startNavigation(openToChat: Boolean, openSettings: Boolean, tab: Screen? = null): Navigation {
     val root = if (openToChat) Navigation(Screen.Chat) else Navigation()
-    return if (openSettings) root.open(Screen.Settings) else root
+    val opened = tab?.takeIf { it.isTab }?.let(root::open) ?: root
+    return if (openSettings) opened.open(Screen.Settings) else opened
 }
 
 /** [startNavigation] with the saved Lab choice. */
-internal fun startNavigation(context: Context, openSettings: Boolean): Navigation =
-    startNavigation(runCatching { ChatPreferences(context).openToChat }.getOrDefault(true), openSettings)
+internal fun startNavigation(context: Context, openSettings: Boolean, tab: Screen? = null): Navigation =
+    startNavigation(runCatching { ChatPreferences(context).openToChat }.getOrDefault(true), openSettings, tab)

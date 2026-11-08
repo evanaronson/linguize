@@ -62,7 +62,7 @@ import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.util.Date
 
-/** The chat's bar: conversations, the title, the language, Home and Settings. */
+/** The chat's bar: conversations, the title, the language and Settings. The app's bottom bar holds the other places. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChatTopBar(
@@ -70,7 +70,6 @@ internal fun ChatTopBar(
     language: String?,
     onOpenConversations: () -> Unit,
     onSelectLanguage: (String) -> Unit,
-    onOpenHome: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     TopAppBar(
@@ -93,9 +92,6 @@ internal fun ChatTopBar(
         },
         actions = {
             language?.let { LanguageButton(it, onSelectLanguage) }
-            IconButton(onClick = onOpenHome) {
-                Icon(painterResource(R.drawable.lab_chat_ic_home), contentDescription = stringResource(R.string.lab_chat_open_home))
-            }
             IconButton(onClick = onOpenSettings) {
                 Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
             }

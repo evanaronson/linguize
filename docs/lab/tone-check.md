@@ -16,10 +16,10 @@ sounds like them. They do not want to be told that casual writing is wrong.
 
 ## How to use it
 
-- **On the check card** (selection menu, accessibility button, and Home's Try it), a
+- **On the check card** (selection menu, accessibility button, and Try it on Write), a
   reviewed check has a footer row **How it lands** under **Meaning**. It opens a page
   for the text as it stands now: the original with the changes you have accepted.
-- **On Home**, under Try it, a **How it lands** button reads the text in the box
+- **On Write**, under Try it, a **How it lands** button reads the text in the box
   without checking it first.
 
 The page shows:

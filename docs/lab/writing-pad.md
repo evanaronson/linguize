@@ -18,7 +18,7 @@ voice stays theirs: nothing changes until they accept a change.
 
 ## How to use it
 
-1. On Home, tap **Writing pad**, then **New draft** (or open a saved draft).
+1. On Write, under More ways to write, tap **Writing pad**, then **New draft** (or open a saved draft).
 2. Write. Add a title if you like; otherwise the list uses the first line.
 3. Pause. After about 1.5 seconds Linguize checks the text. A solid red underline
    is a fix. A dotted grey one is a rewording.
@@ -71,7 +71,7 @@ Checks use the provider, model and options from Settings.
   in the app's files directory, written through a temporary file and a rename. An
   unreadable file is set aside, not overwritten. It never touches History or
   settings.
-- **Entry.** `menu/WritingPadActivity` hosts the pad. Home opens it by class name,
+- **Entry.** `menu/WritingPadActivity` hosts the pad. Write opens it by class name,
   since `ui` must not import `menu`; a test holds that name to the manifest.
 
 ## Limits

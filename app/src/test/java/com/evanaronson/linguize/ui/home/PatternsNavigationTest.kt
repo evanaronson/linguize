@@ -7,8 +7,8 @@ import org.junit.Test
 class PatternsNavigationTest {
     @Test
     fun patternScreensSurviveSavedState() {
-        val path = Navigation().open(Screen.History).open(Screen.Patterns).open(Screen.PatternDetail("accents")).open(Screen.Detail("s1"))
-        assertEquals(listOf("home", "history", "patterns", "pattern:accents", "detail:s1"), path.saved)
+        val path = Navigation().open(Screen.Progress).open(Screen.Patterns).open(Screen.PatternDetail("accents")).open(Screen.Detail("s1"))
+        assertEquals(listOf("home", "progress", "patterns", "pattern:accents", "detail:s1"), path.saved)
         assertEquals(path, Navigation.restore(path.saved))
         assertEquals(Screen.PatternDetail("accents"), path.back().current)
     }

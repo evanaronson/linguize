@@ -263,7 +263,7 @@ private fun Done(run: PracticeRun, state: PracticeState, onDone: () -> Unit) {
         Quiet(pluralStringResource(R.plurals.lab_practice_score, run.size, run.right, run.size), Modifier.padding(top = 4.dp))
         nextLine(state)?.let { Quiet(it) }
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.End) {
-            LinguizeButton(stringResource(R.string.lab_practice_back_home), onDone, ButtonKind.Filled)
+            LinguizeButton(stringResource(R.string.lab_home_ia_practice_done), onDone, ButtonKind.Filled)
         }
     }
 }

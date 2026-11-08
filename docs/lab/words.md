@@ -16,9 +16,8 @@ less" from the [Lab README](README.md), and it is the first consumer of the shar
 
 ## How to use it
 
-- **Home**: once a counted word exists, a "Your words" card appears under Your patterns:
-  "312 words you've written in Catalan". It disappears if deletions leave nothing.
-- **History**: a "Your words" row sits above the list.
+- **Progress**: a "Your words" row under Your writing: "312 words you've written in
+  Catalan" for the language on the switch. It opens on that language.
 - **Your words page**: a language switch (when more than one language has words), the
   headline numbers (words, plus lexemes and lemmas when morphology is known; words
   written, this month), "N new words this month", a chart of distinct words over time,

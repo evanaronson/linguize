@@ -37,7 +37,7 @@ can't vouch for. Help me reply keeps them in the language and in control:
   suggestion, and read the draft. **Put back** writes it into the empty message
   field you started from; **Copy reply** copies it. Back returns to the
   explanation.
-- **From Home.** Under **Reply to a message**, open **Help me reply**, paste the
+- **From Write.** Under **Read and reply**, open **Help me reply**, paste the
   message (or tap **Paste**), tap **Understand**, then **Help me reply**. Here the
   reply is copied.
 
@@ -53,7 +53,7 @@ Nothing is saved: no History records, no Lab database.
 | Domain types (draft, sentences, words, intents) | `core/reply/Reply.kt` |
 | Settings, key and provider plumbing | `ReplyDrafter.kt` (root, beside `Understander`) |
 | State: suggestions, describing, drafting, edits, late-answer handling | `ui/reply/ReplyViewModel.kt` |
-| The reply page; Home entry and page | `ui/reply/ReplyCard.kt`, `ui/reply/ReplyScreen.kt` |
+| The reply page; the in-app page | `ui/reply/ReplyCard.kt`, `ui/reply/ReplyScreen.kt` |
 | Writing the reply into the empty field | `accessibility/ReplyPutBack.kt` |
 
 Two small requests go through the existing Gemini/OpenAI clients' `generate` path
@@ -80,8 +80,8 @@ reply is copied and a toast says so.
 
 Shared files touched, each with a one-line or short additive hook: `App.kt`
 (the `replyDrafter`), `UnderstandCard.kt` (`onHelpReply`, `scrollable`),
-`LinguizeAccessibilityService.kt` (the reply page and Put back), `HomeScreen.kt`,
-`HomeActivity.kt` and `Navigation.kt` (the Home entry and `Screen.LabReply`).
+`LinguizeAccessibilityService.kt` (the reply page and Put back), `WriteScreen.kt`,
+`HomeActivity.kt` and `Navigation.kt` (the Write row and `Screen.LabReply`).
 
 ## Limits
 
@@ -93,6 +93,6 @@ Shared files touched, each with a one-line or short additive hook: `App.kt`
   languages without a profile get everyday register.
 - From a check (a field with text in it), Put back isn't offered, so the writer's
   own draft is never replaced; the reply can be copied.
-- In the app, the Home page has no accessibility field, so it can only copy.
+- In the app, the page has no accessibility field, so it can only copy.
 - Not covered by the eval: reply quality depends on the model and was not measured
   against curated cases.

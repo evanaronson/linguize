@@ -6,32 +6,34 @@ Linguize. Android gives each app its own private storage, so Lab never reads,
 migrates or deletes Linguize's history, settings or encrypted API keys. Removing
 Lab removes only Lab's data. `main` is unchanged.
 
-Each experiment has its own page in this folder.
+Each experiment has its own page in this folder. [Home and navigation](home-ia.md)
+explains where things are: a bottom bar with Chat, Write, Progress and History, and
+Settings behind the gear.
 
 ## Experiments
 
 | Moment | Experiment | Where |
 |---|---|---|
-| Stuck mid-sentence | [Fill the gaps](gap-filler.md): write with [native words] where stuck; only the gaps are filled | Home; card row when text has gaps |
-| Before sending | [How it lands](tone-check.md): warmth, directness, formality, and warmer or more polite versions | Card row; Try it |
-| Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Try it |
+| Stuck mid-sentence | [Fill the gaps](gap-filler.md): write with [native words] where stuck; only the gaps are filled | Write; card row when text has gaps |
+| Before sending | [How it lands](tone-check.md): warmth, directness, formality, and warmer or more polite versions | Card row; Try it (Write) |
+| Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Try it (Write) |
 | Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
-| Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Try it |
-| Composing longer text | [Writing pad](writing-pad.md): drafts checked as you pause, with inline underlines | Home |
-| Hearing and speaking | [Hear it](hear-it.md): play text, changes and Meaning aloud; dictate into Try it | Card; Try it |
-| Reading what arrives | [Help me reply](reply-drafter.md): from Understand, draft a simple glossed reply | Understand card; Home |
-| Reading what arrives | [Share and photo](share-photo.md): share text in; understand a photo of a letter or sign | Share sheet; Home |
-| Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System |
+| Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Try it (Write) |
+| Composing longer text | [Writing pad](writing-pad.md): drafts checked as you pause, with inline underlines | Write |
+| Hearing and speaking | [Hear it](hear-it.md): play text, changes and Meaning aloud; dictate into Try it | Card; Try it (Write) |
+| Reading what arrives | [Help me reply](reply-drafter.md): from Understand, draft a simple glossed reply | Understand card; Write |
+| Reading what arrives | [Share and photo](share-photo.md): share text in; understand a photo of a letter or sign | Share sheet; Write |
+| Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Try it shortcut opens Write |
 | Learning over time | [Teach me](teach-me.md): a one-minute lesson and quiz for any change | Change explanation |
-| Learning over time | [Phrasebook](phrasebook.md): star natural phrasings and keep them | Change explanation; Home |
-| Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Home; History |
-| Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Home |
-| Learning over time | [What Linguize knows](memory.md): short notes about you, learned from chats or added, all editable | Settings |
-| Learning over time | [Your words](words.md): every word you typed, counted, with tried words kept apart | Home; History |
-| Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; Home; History; Settings |
-| Learning over time | [Vocabulary gaps](vocab-gaps.md): common words you have used and not yet, by month | Home |
-| Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Home |
+| Learning over time | [Phrasebook](phrasebook.md): star natural phrasings and keep them | Change explanation; Progress |
+| Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Progress |
+| Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Progress |
+| Learning over time | [What Linguize knows](memory.md): short notes about you, learned from chats or added, all editable | Settings, About you |
+| Learning over time | [Your words](words.md): every word you typed, counted, with tried words kept apart | Progress |
+| Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |
+| Learning over time | [Vocabulary gaps](vocab-gaps.md): common words you have used and not yet, by month | Progress |
+| Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 
 ## What Linguize is, from first principles
 

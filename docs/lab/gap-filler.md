@@ -17,7 +17,7 @@ help only where they asked for it. The writer still writes the message; Linguize
 
 ## How to use it
 
-- **Home:** tap **Fill the gaps** below Try it. Write in the box, put gaps in
+- **Write:** tap **Fill the gaps** under More ways to write. Write in the box, put gaps in
   `[brackets]` (or just mix in English), pick a language or leave Auto Detect, and tap
   **Fill the gaps**. The result shows each fill highlighted, then a **Filled in** list with
   your own phrase, the fill, a short note, and **Other ways to say it**. Tap an
@@ -35,7 +35,7 @@ help only where they asked for it. The writer still writes the message; Linguize
     still puts back the filled text.
   - **Copy**, or the back arrow to return to the check.
   - The language picker above the card fills again in another language.
-- **Try it on Home:** the same footer row appears on its card, and opens Fill the gaps with
+- **Try it on Write:** the same footer row appears on its card, and opens Fill the gaps with
   that text.
 
 ### Why offer, not auto-run
@@ -66,7 +66,7 @@ not a gap.
   selected provider and model, and the encrypted key, like Understand.
 - `ui/gaps/`: `GapFillViewModel` (request, retries, alternatives, and what a popup puts
   back), `GapFillCard`, `GapOffer` (footer row and the popup's switch between check and
-  fill), and `GapFillScreen` with its Home entry.
+  fill), and `GapFillScreen`, opened from Write.
 
 ## Limits
 
@@ -75,7 +75,7 @@ not a gap.
 - Only the gaps change. Spelling or grammar mistakes in the writer's own words are left
   for the check, which is why **Check it** is there.
 - Unbracketed detection only knows English. Other native languages work with brackets,
-  and the model can still fill unmarked phrases when asked from Home.
+  and the model can still fill unmarked phrases when asked from Write.
 - A single unbracketed English word is not offered on the card (too easy to confuse with a
   name or loanword); brackets always are.
 - The writer's native-language words are sent to the model provider they set up, as with

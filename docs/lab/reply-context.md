@@ -18,7 +18,7 @@ it, or to quote it), so the copied text is already the context.
   a message?* offers **Use copied text**, which attaches what is on the clipboard in one tap,
   and **Type it**, which opens a field to paste or type the message. The card checks again
   in context. Accepted changes that still apply stay accepted.
-- **In Try it** on Home: the same entry sits above the text box, so a message can be
+- **In Try it** on Write: the same entry sits above the text box, so a message can be
   attached before the first check, or while a card is open (which checks again).
 - Once attached, the message shows compactly above the result (two lines; tap to show all)
   with **Remove**. Removing it checks again without context.

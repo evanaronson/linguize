@@ -29,6 +29,54 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class)
 class NavigationStateTest {
     @Test
+    fun switchingTabsKeepsTheStartsStateAndDropsTheTabLeft() = runBlocking(FrameClock) {
+        withTimeout(5_000) {
+            val recomposer = Recomposer(coroutineContext)
+            val runner = launch { recomposer.runRecomposeAndApplyChanges() }
+            var navigation by mutableStateOf(Navigation(Screen.Chat))
+            lateinit var currentValue: MutableState<Int>
+            val registry = SaveableStateRegistry(restoredValues = null) { true }
+            val composition = Composition(EmptyApplier(), recomposer).also { composition ->
+                composition.setContent {
+                    CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
+                        val saved = rememberNavigationStateHolder(navigation)
+                        saved.SaveableStateProvider(navigation.current.saved) {
+                            currentValue = rememberSaveable { mutableStateOf(0) }
+                        }
+                    }
+                }
+            }
+            suspend fun settle() {
+                repeat(2) {
+                    Snapshot.sendApplyNotifications()
+                    yield()
+                    recomposer.awaitIdle()
+                }
+            }
+            try {
+                currentValue.value = 1
+                navigation = navigation.open(Screen.Progress)
+                settle()
+                currentValue.value = 2
+                navigation = navigation.open(Screen.History)
+                settle()
+                assertEquals(setOf("lab_chat", "history"), screenKeys(registry.performSave()))
+                navigation = navigation.open(Screen.Progress)
+                settle()
+                // Progress was left, so it starts fresh; the chat underneath kept its state.
+                assertEquals(0, currentValue.value)
+                navigation = navigation.back()
+                settle()
+                assertEquals(1, currentValue.value)
+            } finally {
+                composition.dispose()
+                recomposer.cancel()
+                runner.cancelAndJoin()
+            }
+        }
+    }
+
+    @Test
     fun savingDropsVisitedDetailsAndRestoresOnlyTheLivePath() = runBlocking(FrameClock) {
         withTimeout(5_000) {
             val recomposer = Recomposer(coroutineContext)

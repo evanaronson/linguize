@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.content.pm.ShortcutManager
 import com.evanaronson.linguize.ui.home.HomeActivity
+import com.evanaronson.linguize.ui.home.Screen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -56,6 +57,10 @@ class QuickLaunchTest {
         assertEquals(ClipboardJob.Understand, ClipboardJob.of(shortcuts[1].intent))
         val tryIt = shortcuts[2].intent!!
         assertEquals(HomeActivity::class.java.name, tryIt.component?.className)
+        // Try it is on Write, whichever tab the app starts on.
+        assertEquals(Screen.Write, HomeActivity.requestedTab(tryIt))
+        assertNull(HomeActivity.requestedTab(HomeActivity.homeIntent(context)))
+        assertNull(HomeActivity.requestedTab(HomeActivity.homeIntent(context).putExtra("openTab", "practice")))
         // Launchers refuse shortcut intents without an action.
         assertTrue(shortcuts.all { it.intent?.action != null })
         assertTrue(shortcuts.all { !it.shortLabel.isNullOrBlank() && !it.longLabel.isNullOrBlank() })

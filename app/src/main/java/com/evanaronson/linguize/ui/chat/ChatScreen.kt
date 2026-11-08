@@ -49,10 +49,10 @@ object ChatRequests {
  * Lab Chat: the screen the app opens to. A conversation with a partner who only talks; Send
  * checks the message first and shows any fixes over the composer. Each sent message is saved
  * in History (Origin.Chat) when History is on. Its own top bar holds the conversations, the
- * language, Home and Settings.
+ * language and Settings; the app's bottom bar sits below it.
  */
 @Composable
-fun ChatScreen(onOpenHome: () -> Unit, onOpenSettings: () -> Unit) {
+fun ChatScreen(onOpenSettings: () -> Unit) {
     val app = LocalContext.current.applicationContext as? App ?: return
     val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
     // The chat's own card engine, apart from Try it's; it records as Origin.Chat.
@@ -112,7 +112,6 @@ fun ChatScreen(onOpenHome: () -> Unit, onOpenSettings: () -> Unit) {
                 language = chat.thread?.conversation?.language,
                 onOpenConversations = { scope.launch { drawer.open() } },
                 onSelectLanguage = chat::setLanguage,
-                onOpenHome = onOpenHome,
                 onOpenSettings = onOpenSettings,
             )
             Box(Modifier.weight(1f)) { ChatBody(chat, check, onOpenSettings) }

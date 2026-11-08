@@ -8,7 +8,7 @@ Two ways to get text into Linguize that the selection menu can't reach:
    small floating chooser over the app you shared from: **Check it** runs the usual
    check card, **Understand it** runs the usual Understand card (translation and notes).
 2. **Understand a photo.** Share an image to Linguize ("Understand photo" in the share
-   sheet), or tap **Understand a photo** on Home and pick one with the system photo
+   sheet), or tap **Understand a photo** on Write and pick one with the system photo
    picker. Linguize sends the image to your AI provider and shows:
    - what it is (a one-line summary, and the language it's written in),
    - what it asks you to do, with any deadline and amount as the text states them,
@@ -37,7 +37,7 @@ they want: check their own writing, or understand someone else's.
   card offers Copy with fixes and Copy with rewordings; shared text can't be put back in
   the source app, so there's no Apply. Back returns to the chooser.
 - **Photo from another app:** Share an image → Understand photo.
-- **Photo from Home:** Home → Read something → Understand a photo → pick an image.
+- **Photo from Write:** Write → Read and reply → Understand a photo → pick an image.
 - After a result, **Choose another** reads a different photo. If a key is missing or
   wrong, **Open settings** goes to Settings; coming back retries with the new settings.
 
@@ -46,9 +46,9 @@ they want: check their own writing, or understand someone else's.
 - Entry points live in `menu`: `ShareActivity` (text/plain, overlay theme, reuses
   `CheckViewModel`, `FloatingCard`, `UnderstandViewModel` and `UnderstandCard`) and
   `PhotoActivity` (image/\*, a normal app screen). `SharedContent` reads the intents.
-- Home's entry (`ui/photo/PhotoHomeEntry.kt`) uses
+- Write's row uses `rememberPhotoPicker` (`ui/photo/PhotoScreen.kt`), which uses
   `ActivityResultContracts.PickVisualMedia` with `ImageOnly`. No storage permission:
-  the system picker grants access to the one chosen image. Home opens the result on a
+  the system picker grants access to the one chosen image. Write opens the result on a
   new `Screen.Photo` inside `HomeActivity`.
 - `ui/photo/PhotoImage` opens the image with `ImageDecoder` (which applies EXIF
   rotation), decodes it straight to at most 1600 px on the long side, flattens any

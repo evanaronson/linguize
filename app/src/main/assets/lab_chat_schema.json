@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "reply": {"type": "string"},
+    "title": {"type": "string"}
+  },
+  "required": ["reply", "title"],
+  "additionalProperties": false
+}

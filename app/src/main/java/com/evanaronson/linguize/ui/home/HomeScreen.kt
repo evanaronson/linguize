@@ -62,6 +62,8 @@ fun HomeScreen(
     practice: @Composable () -> Unit = {},
     /** Lab: Your words' Home card. */
     words: @Composable () -> Unit = {},
+    /** Lab: opens the chat. */
+    onOpenChat: (() -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -71,6 +73,7 @@ fun HomeScreen(
             SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
                 TryIt(check, onOpenSettings, onFillGaps)
             }
+            onOpenChat?.let { com.evanaronson.linguize.ui.chat.ChatHomeEntry(it) }
             GapFillerEntry(onOpen = { onFillGaps(null) })
             UnderstandPhotoEntry(onPhotoPicked)
             com.evanaronson.linguize.ui.writingpad.WritingPadEntry()

@@ -87,6 +87,8 @@ fun SettingsScreen(
         val position = stringResource(state.popupPosition.labelResource)
         ListCard({ ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) })
 
+        com.evanaronson.linguize.ui.chat.ChatSettingsSection()
+
         SectionHeader(stringResource(R.string.history))
         HistorySwitch(state, settings)
     }

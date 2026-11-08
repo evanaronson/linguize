@@ -105,6 +105,7 @@ class App : Application() {
     val corpus by lazy {
         com.evanaronson.linguize.core.corpus.Corpus(listOf<com.evanaronson.linguize.core.corpus.CorpusSource>(
             com.evanaronson.linguize.history.corpus.CheckCorpusSource(history, com.evanaronson.linguize.data.lab.NotTypedTexts(this)::hashes),
+            com.evanaronson.linguize.data.chat.ChatCorpusSource(chatStore),
         ))
     }
 
@@ -123,6 +124,14 @@ class App : Application() {
     /** Lab: the facts behind [userMemory], in `lab_memory.json`. Nothing is read until first use. */
     val memoryStore by lazy {
         com.evanaronson.linguize.data.memory.MemoryStore(java.io.File(filesDir, com.evanaronson.linguize.data.memory.MemoryStore.FILE_NAME))
+    }
+
+    /** Lab Chat: conversations in their own `lab_chat` database, and the partner that answers. */
+    val chatStore by lazy { com.evanaronson.linguize.data.chat.ChatStore(this) }
+    val chatPartner by lazy {
+        ChatPartner(settings, keys, clients, { userMemory }) {
+            com.evanaronson.linguize.llm.chat.ChatPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        }
     }
 
     /** Lab: Say it in another language. Its own prompt asset, read on first use. */

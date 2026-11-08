@@ -78,7 +78,7 @@ class HomeActivity : ComponentActivity() {
         navigation = Navigation.restore(
             savedInstanceState?.getStringArrayList(STACK)
                 ?: savedInstanceState?.getString(SCREEN)?.let { listOf(it) }
-                ?: if (intent.getBooleanExtra(OPEN_SETTINGS, false)) Navigation().open(Screen.Settings).saved else null,
+                ?: startNavigation(this, intent.getBooleanExtra(OPEN_SETTINGS, false)).saved,
         )
         navigation.current.sessionId?.let(session::load)
         com.evanaronson.linguize.ui.quicktile.QuickLaunch.publishInBackground(this)
@@ -91,9 +91,10 @@ class HomeActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        AppNavigation(
+                        // Lab Chat draws its own bar (conversations, language, Home, Settings).
+                        if (current != Screen.Chat) AppNavigation(
                             title = navigation.current.title(),
-                            onBack = if (current == Screen.Home) null else ::back,
+                            onBack = if (navigation.parent == null) null else ::back,
                             backLabel = navigation.parent?.title() ?: stringResource(R.string.app_name),
                             onOpenSettings = if (current == Screen.Home) openSettings else null,
                         )
@@ -121,6 +122,7 @@ class HomeActivity : ComponentActivity() {
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                     practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
                                     words = { com.evanaronson.linguize.ui.words.WordsHomeCard(words) { navigation = navigation.open(Screen.Words) } },
+                                    onOpenChat = { navigation = navigation.open(Screen.Chat) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -163,6 +165,9 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
                                     words, current.language, current.key, current.lemma, onOpenCheck = ::open,
                                 )
+                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(
+                                    onOpenHome = { navigation = navigation.open(Screen.Home) }, onOpenSettings = openSettings,
+                                )
                             }
                         }
                     }
@@ -181,7 +186,7 @@ class HomeActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        navigation = if (intent.getBooleanExtra(OPEN_SETTINGS, false)) Navigation().open(Screen.Settings) else Navigation()
+        navigation = startNavigation(this, intent.getBooleanExtra(OPEN_SETTINGS, false))
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -241,4 +246,5 @@ private fun Screen.title(): String? = when (this) {
     Screen.Memory -> stringResource(R.string.lab_memory_title)
     Screen.Words -> stringResource(R.string.lab_words_title)
     is Screen.WordDetail -> key
+    Screen.Chat -> stringResource(R.string.lab_chat_title)
 }

@@ -51,6 +51,8 @@ internal sealed interface Screen {
     data object Words : Screen
     /** Lab: one word form (or dictionary form, when [lemma]) in [language]. */
     data class WordDetail(val language: String?, val key: String, val lemma: Boolean) : Screen
+    /** Lab: the chat, which the app opens to unless that is switched off. */
+    data object Chat : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -73,6 +75,7 @@ internal sealed interface Screen {
             Memory -> "lab_memory"
             Words -> "words"
             is WordDetail -> "word:${if (lemma) "l" else "f"}:${language.orEmpty()}:$key"
+            Chat -> "lab_chat"
         }
 
     companion object {
@@ -99,6 +102,7 @@ internal sealed interface Screen {
             saved == "words" -> Words
             saved.startsWith("word:") -> saved.split(':', limit = 4).takeIf { it.size == 4 && it[3].isNotEmpty() }
                 ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1] == "l") }
+            saved == "lab_chat" -> Chat
             else -> null
         }
     }
@@ -108,22 +112,29 @@ internal sealed interface Screen {
 internal data class Navigation private constructor(private val screens: List<Screen>) {
     constructor() : this(listOf(Screen.Home))
 
+    /** Lab Chat: a path that starts at [root] (Home, or the chat). */
+    constructor(root: Screen) : this(listOf(root))
+
     val current: Screen get() = screens.last()
     val parent: Screen? get() = screens.dropLast(1).lastOrNull()
     val saved: List<String> get() = screens.map { it.saved }
 
-    fun open(screen: Screen): Navigation = when (screen) {
-        Screen.Home -> Navigation()
-        current -> this
+    fun open(screen: Screen): Navigation = when {
+        // Home sits right above the chat when the app opens to it.
+        screen == Screen.Home -> if (screens.first() == Screen.Chat) Navigation(listOf(Screen.Chat, Screen.Home)) else Navigation()
+        screen == Screen.Chat && Screen.Chat in screens -> Navigation(screens.take(screens.indexOf(Screen.Chat) + 1))
+        screen == current -> this
         else -> Navigation(screens + screen)
     }
 
     fun back(): Navigation = if (screens.size > 1) Navigation(screens.dropLast(1)) else this
 
     companion object {
-        fun restore(saved: List<String>?): Navigation = saved.orEmpty()
-            .mapNotNull(Screen::restore)
-            .fold(Navigation()) { navigation, screen -> navigation.open(screen) }
+        fun restore(saved: List<String>?): Navigation {
+            val screens = saved.orEmpty().mapNotNull(Screen::restore)
+            val root = if (screens.firstOrNull() == Screen.Chat) Navigation(Screen.Chat) else Navigation()
+            return screens.fold(root) { navigation, screen -> navigation.open(screen) }
+        }
     }
 }
 

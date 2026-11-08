@@ -30,13 +30,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.evanaronson.linguize.App
-import com.evanaronson.linguize.core.CheckResult
-import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
-import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.history.Origin
-import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import kotlinx.coroutines.launch
 
@@ -47,7 +43,7 @@ object ChatRequests {
 
 /**
  * Lab Chat: the screen the app opens to. A conversation with a partner who only talks; Send
- * checks the message first and shows any fixes over the composer. Each sent message is saved
+ * runs the same check as a message in another app, forced, on the same card. Each sent message is saved
  * in History (Origin.Chat) when History is on. Its own top bar holds the conversations, the
  * language and Settings; the app's bottom bar sits below it.
  */
@@ -98,8 +94,9 @@ fun ChatScreen(onOpenSettings: () -> Unit) {
                 conversations = chat.conversations,
                 currentId = chat.thread?.conversation?.id,
                 people = chat.knownPeople,
+                language = chat.thread?.conversation?.language,
                 onLoadPeople = chat::loadPeople,
-                onNew = { persona -> chat.newConversation(persona); scope.launch { drawer.close() } },
+                onNew = { persona, language -> chat.newConversation(persona, language); scope.launch { drawer.close() } },
                 onOpen = { chat.open(it); scope.launch { drawer.close() } },
                 onRename = chat::rename,
                 onDelete = chat::delete,
@@ -109,6 +106,7 @@ fun ChatScreen(onOpenSettings: () -> Unit) {
         Column(Modifier.fillMaxSize()) {
             ChatTopBar(
                 title = chat.thread?.conversation?.title.orEmpty(),
+                persona = chat.thread?.conversation?.persona,
                 language = chat.thread?.conversation?.language,
                 onOpenConversations = { scope.launch { drawer.open() } },
                 onSelectLanguage = chat::setLanguage,
@@ -119,37 +117,20 @@ fun ChatScreen(onOpenSettings: () -> Unit) {
     }
 }
 
-/** The pre-send check on the shared card engine; nothing of it is saved unless a message goes. */
+/** The check before sending, on the same card as everywhere else; nothing of it is saved unless a message goes. */
 private class CardDraftCheck(private val check: CheckViewModel) : DraftCheck {
     override fun start(draft: String, language: Language) = check.check(draft, language, Origin.Chat)
 
     override fun stop() = check.discard()
 
-    override fun keepFixes(skipped: Set<Int>): Revision? {
-        val revision = revision() ?: return null
-        revision.remaining(EditKind.Fix).filter { it.id !in skipped }.forEach { check.accept(it.id) }
-        return revision()
-    }
-
-    override fun clearAccepted() {
-        var guard = 0
-        while (revision()?.canUndo == true && guard++ < MAX_UNDO) check.undo()
-    }
-
-    override fun finish(sent: String, record: Boolean): String? =
-        if (record) check.dismissSent(sent) else null.also { check.discard() }
-
-    private fun revision(): Revision? = ((check.state as? CardState.Done)?.result as? CheckResult.Reviewed)?.revision
-
-    companion object {
-        const val MAX_UNDO = 200
-    }
+    override fun finish(sent: String): String? = check.dismissSent(sent)
 }
 
 @Composable
 private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings: () -> Unit) {
     val thread = chat.thread
     val messages = thread?.messages.orEmpty()
+    val lastReply = messages.lastOrNull { !it.fromWriter }?.id
     val list = rememberLazyListState()
     // Newest at the bottom, and the list anchored there, so the keyboard opening keeps it in view.
     LaunchedEffect(messages.size, chat.replying, chat.send) {
@@ -176,9 +157,9 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
                         message,
                         expanded = chat.expanded == message.id,
                         onToggle = { chat.toggleChanges(message.id) },
-                        translation = chat.translation(message.id),
-                        translationOpen = chat.translationOpen(message.id),
-                        onTranslate = { chat.toggleTranslation(message) },
+                        flipped = chat.flippedView(message),
+                        onFlip = { chat.flip(message) },
+                        hint = chat.translateHint && message.id == lastReply,
                     )
                 }
             }

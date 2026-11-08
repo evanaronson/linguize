@@ -42,13 +42,13 @@ class ChatPartnerTest {
 
     @Test fun bothProvidersSendTheChatContractWithMemoryAndReadTheReply() = runBlocking {
         for (provider in Provider.entries) {
-            val answers = listOf("""{"reply":"Hola! Com està la Pipa?","title":""}""", """{"reply":"Que bé!","title":"La Pipa"}""")
+            val answers = listOf("""{"reply":"Hola! Com està la Pipa?","translation":"Hi! How's Pipa?","title":""}""", """{"reply":"Que bé!","title":"La Pipa"}""")
             val http = FakeHttp { _, index -> 200 to payload(provider, answers[index]) }
             val client = if (provider == Provider.Gemini) GeminiClient(http.client, checkPrompt) else OpenAIClient(http.client, checkPrompt)
             val prefs = FakePreferences().apply { this.provider = provider }
             val partner = ChatPartner(prefs, ProviderKeys { "key" }, mapOf(provider to client), { memory }) { chatPrompt }
 
-            assertEquals("Hola! Com està la Pipa?", partner.open(Language.Catalan))
+            assertEquals("Hola! Com està la Pipa?", partner.open(Language.Catalan).reply)
             val reply = partner.reply(Language.Catalan, listOf(Turn(false, "Hola!"), Turn(true, "Molt bé, gràcies")), needTitle = true)
             assertEquals("Que bé!", reply.reply)
             assertEquals("La Pipa", reply.title)

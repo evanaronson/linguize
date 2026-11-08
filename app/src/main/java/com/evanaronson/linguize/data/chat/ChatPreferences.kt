@@ -18,9 +18,15 @@ class ChatPreferences(context: Context) {
         get() = prefs.getString(LAST_LANGUAGE, null)
         set(value) = prefs.edit().putString(LAST_LANGUAGE, value).apply()
 
+    /** Whether the writer has flipped a reply to its translation once: the "Tap to translate" hint is gone for good. */
+    var translateHintSeen: Boolean
+        get() = prefs.getBoolean(TRANSLATE_HINT_SEEN, false)
+        set(value) = prefs.edit().putBoolean(TRANSLATE_HINT_SEEN, value).apply()
+
     private companion object {
         const val FILE = "lab_chat"
         const val OPEN_TO_CHAT = "openToChat"
         const val LAST_LANGUAGE = "lastLanguage"
+        const val TRANSLATE_HINT_SEEN = "translateHintSeen"
     }
 }

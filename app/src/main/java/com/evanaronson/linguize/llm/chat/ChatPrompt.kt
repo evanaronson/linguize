@@ -16,8 +16,11 @@ import kotlinx.serialization.json.putJsonObject
 /** One turn of the conversation as the partner sees it: what the writer sent, or what it said. */
 data class Turn(val fromWriter: Boolean, val text: String)
 
-/** What the partner answers with: its message, and a title when one was asked for. */
-data class PartnerReply(val reply: String, val title: String?)
+/**
+ * What the partner answers with: its message, the same message in the writer's own language
+ * (null when the answer had none), and a title when one was asked for.
+ */
+data class PartnerReply(val reply: String, val title: String?, val translation: String? = null)
 
 /** Who the partner is talking to and in what language. */
 data class ChatSetting(
@@ -102,7 +105,10 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         }
         val title = runCatching { fields["title"]?.jsonPrimitive?.content }.getOrNull()?.trim()
             ?.trimEnd('.')?.takeIf { it.isNotEmpty() && it.length <= MAX_TITLE && '\n' !in it }
-        return PartnerReply(reply, title)
+        // A missing or unusable translation never costs the reply: it can be asked for later.
+        val translation = runCatching { fields["translation"]?.jsonPrimitive?.content }.getOrNull()?.trim()
+            ?.takeIf { it.isNotEmpty() && it.length <= MAX_TRANSLATION && it != reply }
+        return PartnerReply(reply, title, translation)
     }
 
     companion object {
@@ -117,10 +123,11 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         private const val MAX_MEMORY = 4_000
         private const val MAX_TARGETS = 1_500
         const val MAX_PERSONA = 300
-        private const val MAX_OUTPUT_TOKENS = 1024
+        private const val MAX_OUTPUT_TOKENS = 2048
         private const val MAX_ANSWER = 16_384
         private const val MAX_REPLY = 2_000
         private const val MAX_TITLE = 60
+        private const val MAX_TRANSLATION = 3_000
 
         private val json = Json { ignoreUnknownKeys = true }
 

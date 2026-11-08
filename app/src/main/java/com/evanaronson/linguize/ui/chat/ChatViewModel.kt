@@ -13,7 +13,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.ChatPartner
-import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Understood
@@ -34,6 +33,7 @@ import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.chat.ChatPrompt
+import com.evanaronson.linguize.llm.chat.PartnerReply
 import com.evanaronson.linguize.llm.chat.Turn
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.forgetExports
@@ -54,24 +54,18 @@ data class ChatThread(val conversation: Conversation, val messages: List<ChatMes
     val awaitingReply get() = messages.lastOrNull()?.fromWriter == true
 }
 
-/** The pre-send check, run by the screen's card engine (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
+/** The check before sending, run by the screen's card (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
 interface DraftCheck {
     fun start(draft: String, language: Language)
 
-    /** Drops the check without saving anything. */
+    /** Drops the check without saving anything (Keep editing). */
     fun stop()
 
-    /** Accepts every fix on offer except [skipped]; the revision to send, or null when the answer has none. */
-    fun keepFixes(skipped: Set<Int>): Revision?
-
-    /** Takes back everything accepted, for Send as written. */
-    fun clearAccepted()
-
     /**
-     * [sent] was sent. With [record], the check is saved in History (Origin.Chat) with what was
-     * sent as its final text; returns that session's id, or null when nothing is saved.
+     * [sent] was sent: the check is saved in History (Origin.Chat) with what was sent as its
+     * final text and the decisions as made. Returns that session's id, or null when History is off.
      */
-    fun finish(sent: String, record: Boolean): String?
+    fun finish(sent: String): String?
 }
 
 /**
@@ -123,30 +117,21 @@ class ChatViewModel(
     var expanded by mutableStateOf<String?>(null)
         private set
 
-    /** Fixes on show that the writer chose to skip, by edit id. */
-    var skipped by mutableStateOf<Set<Int>>(emptySet())
-        private set
-
-    /** The fix whose reason is open, by edit id. */
-    var focusedFix by mutableStateOf<Int?>(null)
-        private set
-
-    /** Whether the full card (Meaning, assumptions, rewordings) is open over the review. */
-    var details by mutableStateOf(false)
-        private set
-
-    /** People to practise with, read when the writer opens "Practise with…". */
+    /** People memory knows the writer writes to, suggested in the new-conversation sheet. */
     var knownPeople by mutableStateOf<List<String>>(emptyList())
         private set
 
-    private val translations = Translations(translate)
-    private var translationVersion by mutableIntStateOf(0)
+    /** Whether to show "Tap to translate" under the latest reply: until the writer first flips one. */
+    var translateHint by mutableStateOf(false)
+        private set
 
-    /** Set by the screen that hosts the card engine. */
+    /** Bubbles flipped to their translation; an older reply saved without one gets it from Understand when tapped. */
+    private val flips = Flips(translate)
+    private var flipVersion by mutableIntStateOf(0)
+
+    /** Set by the screen that hosts the card. */
     var draftCheck: DraftCheck? = null
 
-    /** Whether the current check answered with a review (not unclear, another language or a failure). */
-    private var reviewed = false
     private var replyJob: Job? = null
     private var started = false
 
@@ -177,21 +162,26 @@ class ChatViewModel(
     /** Back from Settings or the background: the key may have changed. */
     fun refreshSettings() {
         viewModelScope.launch {
-            val key = withContext(Dispatchers.IO) { partner.hasKey() }
+            val (key, hintSeen) = withContext(Dispatchers.IO) { partner.hasKey() to preferences.translateHintSeen }
             needsKey = !key
+            translateHint = !hintSeen
             val current = thread
             // A reply that failed for want of a key can go now.
             if (key && current != null && current.awaitingReply && replyFailure?.reason == CheckFailure.Reason.NoKey) retryReply()
         }
     }
 
-    /** A new conversation; with [persona], the partner plays that person ("Practise with…"). */
-    fun newConversation(persona: String? = null) {
+    /**
+     * A new conversation. [persona] is optional: who the writer is talking to ("my kid's
+     * teacher"), which the partner then plays; empty means the usual partner. [language] is
+     * the one picked in the sheet, else the usual start language.
+     */
+    fun newConversation(persona: String? = null, language: String? = null) {
         leave()
         val who = persona?.trim()?.take(ChatPrompt.MAX_PERSONA)?.takeIf { it.isNotEmpty() }
         viewModelScope.launch {
             val now = clock()
-            val language = startLanguage()
+            val language = language?.takeIf { Language.forCode(it) != null } ?: startLanguage()
             val conversation = Conversation(UUID.randomUUID().toString(), who?.let { deriveTitle(it) }.orEmpty(), language, now, now,
                 persona = who)
             if (!store.create(conversation)) return@launch
@@ -221,7 +211,6 @@ class ChatViewModel(
         expanded = null
         draft = TextFieldValue()
         draftCheck?.stop()
-        resetReview()
         send = SendState.Composing
         thread = next
         preferences.lastLanguage = next.conversation.language
@@ -229,7 +218,7 @@ class ChatViewModel(
         Language.forCode(next.conversation.language)?.let(warmTargets)
     }
 
-    /** Reads who memory knows the writer writes to, for "Practise with…". */
+    /** Reads who memory knows the writer writes to, for the new-conversation sheet. */
     fun loadPeople() {
         viewModelScope.launch { knownPeople = runCatching { people() }.getOrDefault(emptyList()) }
     }
@@ -274,7 +263,6 @@ class ChatViewModel(
         if (wasOpen) {
             replyJob?.cancel()
             draftCheck?.stop()
-            resetReview()
             send = SendState.Composing
         }
         viewModelScope.launch {
@@ -299,26 +287,24 @@ class ChatViewModel(
 
     // Translations of partner messages.
 
-    /** What partner message [id] shows under it; read in composition so it updates. */
-    fun translation(id: String): Translation? {
-        translationVersion
-        return translations.shown(id)
+    /** What partner message [message] shows: null for the original, else its translation. Read in composition. */
+    fun flippedView(message: ChatMessage): Flipped? {
+        flipVersion
+        return flips.view(message)
     }
 
-    fun translationOpen(id: String): Boolean {
-        translationVersion
-        return translations.isOpen(id)
-    }
-
-    /** Translate (or Hide) on a partner message; a failed one is fetched again. */
-    fun toggleTranslation(message: ChatMessage) {
-        if (message.fromWriter) return
-        val fetch = translations.toggle(message.id)
-        translationVersion++
+    /** A tap on a partner bubble: flips it to its translation, or back. */
+    fun flip(message: ChatMessage) {
+        val fetch = flips.flip(message)
+        flipVersion++
+        if (message.id in flips.flipped && translateHint) {
+            translateHint = false
+            preferences.translateHintSeen = true
+        }
         if (!fetch) return
         viewModelScope.launch {
-            translations.load(message.id, message.text)
-            translationVersion++
+            flips.load(message)
+            flipVersion++
         }
     }
 
@@ -335,44 +321,16 @@ class ChatViewModel(
     fun onCardState(state: CardState?) {
         if (send !is SendState.Checking) return
         when (state) {
-            is CardState.Done -> {
-                reviewed = state.result is CheckResult.Reviewed
-                handle(SendEvent.Checked(state.result))
-            }
-            is CardState.Failed -> {
-                reviewed = false
-                handle(SendEvent.CheckFailed)
-            }
+            is CardState.Done -> handle(SendEvent.Checked(state.result))
+            is CardState.Failed -> handle(SendEvent.CheckFailed)
             else -> Unit
         }
     }
 
-    /** Tapping a fix (in the text or the list) opens its reason; tapping it again closes it. */
-    fun focusFix(id: Int?) {
-        focusedFix = if (focusedFix == id) null else id
-    }
+    /** The card's Send: the text with whatever the writer accepted in [revision], as Apply would put it back. */
+    fun sendReviewed(revision: Revision) = handle(SendEvent.SendReviewed(revision))
 
-    /** Keeps or skips fix [id] for Send with fixes. */
-    fun toggleSkip(id: Int) {
-        skipped = if (id in skipped) skipped - id else skipped + id
-    }
-
-    fun showDetails(show: Boolean) {
-        details = show
-    }
-
-    /** Send with the fixes the writer kept (and anything accepted on the full card). */
-    fun sendWithFixes() {
-        val revision = draftCheck?.keepFixes(skipped)
-        if (revision == null) sendAsWritten() else handle(SendEvent.SendWithFixes(revision))
-    }
-
-    fun sendAsWritten() {
-        draftCheck?.clearAccepted()
-        handle(SendEvent.SendAsWritten)
-    }
-
-    /** Closes the review and goes back to the draft. */
+    /** Closes the card and goes back to the draft. */
     fun keepEditing() = handle(SendEvent.Edit)
 
     private fun handle(event: SendEvent) {
@@ -380,30 +338,18 @@ class ChatViewModel(
         send = transition.state
         when (val effect = transition.effect) {
             is Effect.StartCheck -> {
-                resetReview()
                 val language = Language.forCode(thread?.conversation?.language) ?: Language.Spanish
                 draftCheck?.start(effect.draft, language) ?: handle(SendEvent.CheckFailed)
             }
-            Effect.CancelCheck -> {
-                draftCheck?.stop()
-                resetReview()
-            }
-            is Effect.Deliver -> deliver(effect.outgoing, effect.record && reviewed)
+            Effect.CancelCheck -> draftCheck?.stop()
+            is Effect.Deliver -> deliver(effect.outgoing)
             null -> Unit
         }
     }
 
-    private fun resetReview() {
-        skipped = emptySet()
-        focusedFix = null
-        details = false
-        reviewed = false
-    }
-
-    private fun deliver(outgoing: Outgoing, record: Boolean) {
+    private fun deliver(outgoing: Outgoing) {
         val current = thread ?: return
-        val sessionId = draftCheck?.finish(outgoing.text, record)
-        resetReview()
+        val sessionId = draftCheck?.finish(outgoing.text)
         val message = outgoing.message(UUID.randomUUID().toString(), current.conversation.id, clock(), sessionId)
         draft = TextFieldValue()
         val withMessage = current.copy(
@@ -434,7 +380,7 @@ class ChatViewModel(
         replyJob = viewModelScope.launch {
             try {
                 val answer = partner.reply(language, history, needTitle, conversation.persona)
-                val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock())
+                val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
                 store.add(reply)
                 val title = if (needTitle) {
                     (answer.title ?: deriveTitle(current.messages.firstOrNull { it.fromWriter }?.text.orEmpty()))
@@ -465,20 +411,20 @@ class ChatViewModel(
     private suspend fun writeOpener(conversation: Conversation) {
         val language = Language.forCode(conversation.language) ?: Language.Spanish
         replying = true
-        val text = try {
+        val answer = try {
             partner.open(language, conversation.persona)
         } catch (e: CancellationException) {
             throw e
         } catch (e: CheckFailure) {
             if (e.reason == CheckFailure.Reason.NoKey) needsKey = true
-            fallbackOpener(language)
+            PartnerReply(fallbackOpener(language), null)
         } finally {
             replying = false
         }
         val now = thread ?: return
         // Another conversation, an opener already there, or a language changed while this one was written.
         if (now.conversation.id != conversation.id || now.messages.isNotEmpty() || now.conversation.language != conversation.language) return
-        val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, text, clock())
+        val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
         store.add(opener)
         thread = now.copy(messages = listOf(opener))
     }

@@ -5,7 +5,10 @@ import android.text.format.DateUtils
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +30,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -52,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.chat.ConversationSummary
+import com.evanaronson.linguize.core.chat.NewConversation
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeTextField
@@ -67,6 +72,8 @@ import java.util.Date
 @Composable
 internal fun ChatTopBar(
     title: String,
+    /** Who the writer is talking to, when the conversation has someone; shown under the title. */
+    persona: String?,
     language: String?,
     onOpenConversations: () -> Unit,
     onSelectLanguage: (String) -> Unit,
@@ -81,8 +88,13 @@ internal fun ChatTopBar(
                     modifier = Modifier.height(26.dp).semantics { heading() },
                 )
             } else {
-                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.semantics { heading() })
+                Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
+                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge)
+                    persona?.takeIf { it != title }?.let {
+                        Text(stringResource(R.string.lab_chat_talking_to, it), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         },
         navigationIcon = {
@@ -143,18 +155,20 @@ private fun LanguageButton(code: String, onSelect: (String) -> Unit) {
 internal fun ConversationDrawer(
     conversations: List<ConversationSummary>,
     currentId: String?,
-    /** People memory knows the writer writes to, offered in "Practise with…". */
+    /** People memory knows the writer writes to, suggested in the new-conversation sheet. */
     people: List<String>,
+    /** The open conversation's language, which the sheet starts with. */
+    language: String?,
     onLoadPeople: () -> Unit,
-    /** A new conversation; with a persona, the partner stands in for that person. */
-    onNew: (String?) -> Unit,
+    /** A new conversation: who the writer is talking to (null for the usual partner), and its language. */
+    onNew: (persona: String?, language: String?) -> Unit,
     onOpen: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
-    var practising by rememberSaveable { mutableStateOf(false) }
+    var starting by rememberSaveable { mutableStateOf(false) }
     ModalDrawerSheet(drawerContainerColor = Linguize.colors.ground) {
         Text(
             stringResource(R.string.lab_chat_conversations),
@@ -164,7 +178,7 @@ internal fun ConversationDrawer(
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = { onNew(null) })
+                .clickable(onClick = { onLoadPeople(); starting = true })
                 .heightIn(min = 56.dp)
                 .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -172,22 +186,6 @@ internal fun ConversationDrawer(
             Icon(painterResource(R.drawable.lab_chat_ic_add), contentDescription = null)
             Spacer(Modifier.width(16.dp))
             Text(stringResource(R.string.lab_chat_new), style = MaterialTheme.typography.bodyLarge)
-        }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = { onLoadPeople(); practising = true })
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(painterResource(R.drawable.lab_chat_ic_person), contentDescription = null)
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(stringResource(R.string.lab_chat_practise_with), style = MaterialTheme.typography.bodyLarge)
-                Text(stringResource(R.string.lab_chat_practise_with_summary), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
         }
         HorizontalDivider(color = Linguize.colors.rowDivider)
         LazyColumn {
@@ -212,44 +210,71 @@ internal fun ConversationDrawer(
             dismissButton = { LinguizeButton(stringResource(R.string.lab_chat_cancel), { deleting = null }, ButtonKind.Text) },
         )
     }
-    if (practising) {
-        PractiseWithDialog(people, onDismiss = { practising = false }, onStart = { practising = false; onNew(it) })
+    if (starting) {
+        NewConversationSheet(people, language, onDismiss = { starting = false }, onStart = { request ->
+            starting = false
+            onNew(request.persona, request.language)
+        })
     }
 }
 
-/** "Practise with…": someone memory knows the writer writes to, or anyone they describe. */
+/**
+ * The new-conversation sheet: who you are talking to, optionally (someone memory knows, or
+ * anyone you describe), and the language. Left empty, the usual partner starts.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PractiseWithDialog(people: List<String>, onDismiss: () -> Unit, onStart: (String) -> Unit) {
+private fun NewConversationSheet(
+    people: List<String>,
+    language: String?,
+    onDismiss: () -> Unit,
+    onStart: (NewConversation) -> Unit,
+) {
     var who by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.lab_chat_practise_with)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                people.take(MAX_PEOPLE).forEach { person ->
-                    Text(
-                        person,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClickLabel = stringResource(R.string.lab_chat_practise_start)) { onStart(person) }
-                            .heightIn(min = 48.dp)
-                            .padding(vertical = 12.dp, horizontal = 4.dp),
-                    )
-                }
+    var code by rememberSaveable { mutableStateOf(language) }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Linguize.colors.ground) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+        ) {
+            Text(stringResource(R.string.lab_chat_new), style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() })
+            Spacer(Modifier.height(12.dp))
+            LinguizeTextField(who, { who = it.take(com.evanaronson.linguize.llm.chat.ChatPrompt.MAX_PERSONA) },
+                label = stringResource(R.string.lab_chat_who_label),
+                placeholder = stringResource(R.string.lab_chat_who_placeholder), singleLine = true)
+            if (people.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                LinguizeTextField(who, { who = it.take(com.evanaronson.linguize.llm.chat.ChatPrompt.MAX_PERSONA) },
-                    label = stringResource(R.string.lab_chat_practise_who),
-                    placeholder = stringResource(R.string.lab_chat_practise_placeholder), minLines = 2)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    people.take(MAX_PEOPLE).forEach { person ->
+                        LinguizeButton(person.take(40), { who = person.take(com.evanaronson.linguize.llm.chat.ChatPrompt.MAX_PERSONA) },
+                            ButtonKind.Tonal)
+                    }
+                }
             }
-        },
-        confirmButton = {
-            LinguizeButton(stringResource(R.string.lab_chat_practise_start), { onStart(who.trim()) }, ButtonKind.Filled,
-                enabled = who.isNotBlank())
-        },
-        dismissButton = { LinguizeButton(stringResource(R.string.lab_chat_cancel), onDismiss, ButtonKind.Text) },
-    )
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.lab_chat_who_note), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.lab_chat_language_label), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Language.all.forEach { option ->
+                    val selected = code == option.code
+                    LinguizeButton(option.displayName(), { code = option.code },
+                        if (selected) ButtonKind.Filled else ButtonKind.Outlined,
+                        modifier = Modifier.semantics { this.selected = selected })
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                LinguizeButton(stringResource(R.string.lab_chat_cancel), onDismiss, ButtonKind.Text)
+                LinguizeButton(stringResource(R.string.lab_chat_start), { onStart(NewConversation.of(who, code)) }, ButtonKind.Filled)
+            }
+        }
+    }
 }
 
 private const val MAX_PEOPLE = 8

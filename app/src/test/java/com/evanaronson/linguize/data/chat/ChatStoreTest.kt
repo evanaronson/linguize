@@ -129,6 +129,28 @@ class ChatStoreTest {
         assertEquals("Old", upgraded.conversation("old")?.title)
         assertNull(upgraded.conversation("old")?.persona)
         assertNull(upgraded.messages("old").single().sessionId)
+        assertNull(upgraded.messages("old").single().translation)
+        upgraded.add(ChatMessage.partner("p", "old", "¿Qué tal?", 3, translation = "How are you?"))
+        assertEquals("How are you?", upgraded.messages("old").last().translation)
+        upgraded.close()
+    }
+
+    @Test fun aVersionTwoDatabaseGainsTheTranslationColumn() = runBlocking {
+        store.close()
+        context.deleteDatabase(ChatStore.DATABASE)
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(ChatStore.DATABASE), null).use { db ->
+            db.execSQL("CREATE TABLE conversations (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL DEFAULT '', language TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, title_custom INTEGER NOT NULL DEFAULT 0, learned_count INTEGER NOT NULL DEFAULT 0, persona TEXT)")
+            db.execSQL("CREATE TABLE messages (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, conversation TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE, from_writer INTEGER NOT NULL, raw TEXT NOT NULL, text TEXT NOT NULL, changes TEXT, checked TEXT NOT NULL DEFAULT 'none', at INTEGER NOT NULL, session_id TEXT)")
+            db.execSQL("INSERT INTO conversations VALUES ('c', 'Jordi', 'ca', 1, 2, 0, 0, 'Jordi')")
+            db.execSQL("INSERT INTO messages (id, conversation, from_writer, raw, text, changes, checked, at, session_id) VALUES ('p', 'c', 0, 'Bon dia', 'Bon dia', '[]', 'none', 2, NULL)")
+            db.version = 2
+        }
+        val upgraded = ChatStore(context)
+        val old = upgraded.messages("c").single()
+        assertEquals("Bon dia", old.text)
+        // An older reply has no translation of its own: it is fetched only if tapped.
+        assertNull(old.translation)
+        assertEquals("Jordi", upgraded.conversation("c")?.persona)
         upgraded.close()
     }
 }

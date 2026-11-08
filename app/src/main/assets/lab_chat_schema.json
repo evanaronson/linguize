@@ -2,8 +2,9 @@
   "type": "object",
   "properties": {
     "reply": {"type": "string"},
+    "translation": {"type": "string"},
     "title": {"type": "string"}
   },
-  "required": ["reply", "title"],
+  "required": ["reply", "translation", "title"],
   "additionalProperties": false
 }

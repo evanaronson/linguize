@@ -201,6 +201,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
             check = SentCheck.read(stringOrNull("checked")),
             at = long("at"),
             sessionId = stringOrNull("session_id"),
+            translation = stringOrNull("translation"),
         )
     }.onFailure { Log.w(TAG, "Skipped an unreadable message", it) }.getOrNull()
 
@@ -225,6 +226,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         put("checked", check.token)
         put("at", at)
         put("session_id", sessionId)
+        put("translation", translation)
     }
 
     private class Helper(context: Context, name: String?) : SQLiteOpenHelper(context, name, null, VERSION) {
@@ -259,10 +261,17 @@ class ChatStore(context: Context, name: String? = DATABASE) {
             )
             db.execSQL("CREATE INDEX messages_by_conversation ON messages(conversation, at)")
             upgradeTo2(db)
+            upgradeTo3(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) upgradeTo2(db)
+            if (oldVersion < 3) upgradeTo3(db)
+        }
+
+        /** Version 3: a partner message's translation, written with it. Older replies have none. */
+        private fun upgradeTo3(db: SQLiteDatabase) {
+            db.execSQL("ALTER TABLE messages ADD COLUMN translation TEXT")
         }
 
         /** Version 2: who the partner plays, and the History session each message was saved as. */
@@ -276,7 +285,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
     companion object {
         /** The database file's name. */
         const val DATABASE = "lab_chat"
-        private const val VERSION = 2
+        private const val VERSION = 3
 
         /** SQLite's default limit on bound arguments is 999. */
         private const val SQL_ARGS = 500

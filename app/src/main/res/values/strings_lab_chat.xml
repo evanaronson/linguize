@@ -13,20 +13,8 @@
     <string name="lab_chat_composer_placeholder">Write a message</string>
     <string name="lab_chat_send">Send</string>
     <string name="lab_chat_send_checked">Check and send message</string>
-    <string name="lab_chat_send_with_fixes">Send with fixes</string>
-    <string name="lab_chat_send_as_written">Send as written</string>
     <string name="lab_chat_keep_editing">Keep editing</string>
-    <string name="lab_chat_details">Details</string>
-    <string name="lab_chat_hide_details">Hide details</string>
     <string name="lab_chat_checking">Checking your message</string>
-    <plurals name="lab_chat_fix_count">
-        <item quantity="one">%d fix</item>
-        <item quantity="other">%d fixes</item>
-    </plurals>
-    <string name="lab_chat_fixes_withheld">Linguize couldn\'t offer every fix. Open Details to see more.</string>
-    <string name="lab_chat_skip_fix">Skip</string>
-    <string name="lab_chat_keep_fix">Keep</string>
-    <string name="lab_chat_show_reason">Show reason</string>
     <string name="lab_chat_typing">Writing a reply</string>
     <string name="lab_chat_looks_good">Looks good</string>
     <string name="lab_chat_as_written">Sent as written</string>
@@ -43,10 +31,7 @@
     <string name="lab_chat_you_said">You: %1$s</string>
     <string name="lab_chat_partner_said">Reply: %1$s</string>
     <string name="lab_chat_copy">Copy message</string>
-    <string name="lab_chat_translate">Translate</string>
-    <string name="lab_chat_hide_translation">Hide translation</string>
     <string name="lab_chat_translating">Translating</string>
-    <string name="lab_chat_note">%1$s: %2$s</string>
     <string name="lab_chat_no_reply">No reply yet</string>
     <string name="lab_chat_no_key_title">No API key</string>
     <string name="lab_chat_no_key_hint">Add one in settings to get replies and checks.</string>
@@ -61,11 +46,6 @@
     <string name="lab_chat_more">Rename or delete %1$s</string>
     <string name="lab_chat_row">%1$s, %2$s, %3$s</string>
     <string name="lab_chat_row_detail">%1$s, %2$s</string>
-    <string name="lab_chat_practise_with">Practise with…</string>
-    <string name="lab_chat_practise_with_summary">Chat with a stand-in for someone you write to</string>
-    <string name="lab_chat_practise_who">Who, and about what</string>
-    <string name="lab_chat_practise_placeholder">My kid\'s teacher, about a sick day</string>
-    <string name="lab_chat_practise_start">Start</string>
     <string name="lab_chat_settings_header">Chat</string>
     <string name="lab_chat_open_to_chat">Open to chat</string>
     <string name="lab_chat_open_to_chat_summary">The app starts in a conversation. Off starts on Home.</string>
@@ -85,4 +65,17 @@
         <item quantity="other">%d corrected</item>
     </plurals>
     <string name="lab_chat_open_conversation">Open conversation</string>
+    <!-- v3: one new-conversation sheet, translations with every reply. -->
+    <string name="lab_chat_who_label">Who are you talking to?</string>
+    <string name="lab_chat_who_placeholder">My kid\'s teacher</string>
+    <string name="lab_chat_who_note">Optional. Leave it empty to chat with a friendly native speaker.</string>
+    <string name="lab_chat_language_label">Language</string>
+    <string name="lab_chat_start">Start</string>
+    <string name="lab_chat_talking_to">With %1$s</string>
+    <string name="lab_chat_tap_to_translate">Tap to translate</string>
+    <string name="lab_chat_tap_to_retry">Tap to try again</string>
+    <string name="lab_chat_show_translation">Show translation</string>
+    <string name="lab_chat_show_original">Show original</string>
+    <string name="lab_chat_translation_said">Reply, translated: %1$s</string>
+    <string name="lab_chat_copy_translation">Copy translation</string>
 </resources>

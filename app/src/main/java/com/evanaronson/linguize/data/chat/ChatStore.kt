@@ -102,8 +102,8 @@ class ChatStore(context: Context, name: String? = DATABASE) {
     }
 
     /**
-     * For each of [sessionIds] saved from a chat message, its conversation: what History shows
-     * as one row. Sessions from elsewhere are left out.
+     * For each of [sessionIds] saved from a chat message, its conversation: History labels the
+     * message with it and links to it. Sessions from elsewhere are left out.
      */
     suspend fun threads(sessionIds: Collection<String>): Map<String, ChatThreadInfo> = io("read chat threads", emptyMap()) { db ->
         if (sessionIds.isEmpty()) return@io emptyMap()

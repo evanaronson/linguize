@@ -48,9 +48,10 @@ chat too. History is "everything you wrote, with how it was corrected".
   tools), Progress and History; Back from any of them returns to the chat. The gear opens
   Settings. **Open to chat** (Settings, Chat, on by default) can switch to starting on
   Write. See [Home and navigation](home-ia.md).
-- **History.** Each conversation is one row in History ("Chat,
-  Weekend plans" over "5 messages, 2 corrected"); tap it to open the conversation. Checks
-  sent to other apps keep their own rows, so the chat never buries them.
+- **History.** Each sent message is one row in History, the same as a message checked
+  in another app, labelled "Chat · Weekend plans" where an app row says "WhatsApp". It
+  opens the saved check, which also offers **Open conversation**. The Chat chip filters
+  History to chat messages. See [One list of messages](history-flat.md).
 
 ## How it works
 
@@ -66,10 +67,11 @@ chat too. History is "everything you wrote, with how it was corrected".
   migrations were added to History. A message whose check failed, was unclear or in
   another language and is sent as written is not saved. With History off, nothing is
   saved; the chat still works from its own store.
-- **Threads.** The chat's database (`lab_chat`, version 2) notes each message's History
+- **Links.** The chat's database (`lab_chat`, version 2) notes each message's History
   session (`messages.session_id`). `ChatStore.threads` maps sessions to conversations;
-  History and Recent fold a conversation's rows into one where its newest message is
-  (`ui/history/ChatThreads.kt`). Recent reads extra rows as needed so it still shows five.
+  History uses it for a chat row's label and the saved check's Open conversation, and
+  deleting a conversation uses `sessionIds` to delete its sessions. History doesn't group
+  rows by conversation.
 - **Corpus.** There is no separate chat source any more: the History-based `check` source
   covers chat messages (raw text, accepted fixes as `corrected`, rewordings not), with
   `Utterance.origin = "chat"`. The "re-check of put-back text" rule doesn't apply to chat.
@@ -105,6 +107,7 @@ chat too. History is "everything you wrote, with how it was corrected".
 - Register gaps are a marker-word heuristic, not a classifier.
 - Two identical messages within ten minutes may reuse one answer; the corpus then counts
   that text once, like any repeated check.
-- A History row for a chat message deleted from History itself stays in the conversation
-  (the message is still there); its check is gone.
+- Deleting a chat message's row in History deletes only that History session: the
+  conversation and the message in it stay, and the message keeps a note of the deleted
+  session that nothing reads any more.
 - Check as I type was removed: one check-before-send flow keeps it simple.

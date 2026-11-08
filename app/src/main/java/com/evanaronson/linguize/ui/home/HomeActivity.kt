@@ -137,7 +137,6 @@ class HomeActivity : ComponentActivity() {
                                     historyOn = settings.state?.historyEnabled,
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,
-                                    onOpenThread = { com.evanaronson.linguize.ui.chat.ChatRequests.conversation = it; navigation = navigation.open(Screen.Chat) },
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
                                     navigation = navigation.open(Screen.SettingsChoice(it))
@@ -150,7 +149,7 @@ class HomeActivity : ComponentActivity() {
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
                                 is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenAssumptions = {
                                     navigation = navigation.open(Screen.DetailAssumptions(current.id))
-                                })
+                                }, onOpenConversation = { com.evanaronson.linguize.ui.chat.ChatRequests.conversation = it; navigation = navigation.open(Screen.Chat) })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
                                 Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }

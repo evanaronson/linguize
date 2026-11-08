@@ -107,8 +107,8 @@ data class Outgoing(
 }
 
 /**
- * Lab Chat in History: one conversation, shown as a single row in place of its messages'
- * saved checks. [messages] counts what the writer sent, [corrected] those sent with changes.
+ * Lab Chat in History: the conversation a saved chat message was sent in, for its row label
+ * ("Chat · title") and "Open conversation". [messages] counts what the writer sent, [corrected] those sent with changes.
  */
 data class ChatThreadInfo(
     val conversationId: String,

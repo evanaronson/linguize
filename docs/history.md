@@ -44,8 +44,10 @@ with the sent text as its final text, and it stays visible even when sent unchan
 (clean, or sent as written), because correct writing is evidence too. This needs no
 schema change (`origin` is text); the visibility rule and `Origin.keepsUnchanged` name
 the one exception. Which conversation a chat session belongs to is kept by the chat
-(`lab_chat`), and History shows each conversation as one row. Deleting a conversation
-deletes its sessions.
+(`lab_chat`). History shows a chat message like any other: one row, labelled with its
+conversation, opening its saved check, which links to the conversation. Deleting a
+conversation deletes its sessions; deleting a chat message's session from History leaves
+the conversation and its message in place.
 
 One card is one session, including retries, language changes, and settings changes.
 A session keeps the original text, source package when known, timestamps, app
@@ -186,7 +188,10 @@ including old enum names and language names, and removes old Try it sessions.
 Keep these migrations and stable tokens when reorganizing code.
 
 Recent shows five applied checks; History pages through older applied checks by
-timestamp and ID. Counts, oldest date, detail lookup, and export use the same
+timestamp and ID. The History page shows one row per session, whatever its origin, under
+day headers (Today, Yesterday, then a short date), with an optional source filter (All,
+each app among the loaded rows, Chat). Headers and the filter are built from the loaded
+rows; a filter that hides most of them keeps loading pages until the list fills or ends. Counts, oldest date, detail lookup, and export use the same
 eligibility rule: closed, undeleted, outcome `applied`, and a non-null final text
 different from the original (or, for origin `chat`, any final text). An empty final text is valid when the applied change
 deleted the original text. A later failed recheck does not exclude a session if

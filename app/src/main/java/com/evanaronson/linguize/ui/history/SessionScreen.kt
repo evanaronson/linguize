@@ -26,6 +26,7 @@ import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.ui.card.AssumptionList
@@ -51,14 +52,20 @@ private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
 /** Exact saved text and decisions; inspecting a past check cannot change it. */
 @Composable
-fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit, onOpenAssumptions: () -> Unit = {}) {
+fun SessionScreen(
+    session: SessionViewModel,
+    onDeleted: () -> Unit,
+    onOpenAssumptions: () -> Unit = {},
+    /** Lab Chat: opens a chat message's conversation; offered only on chat messages. */
+    onOpenConversation: ((String) -> Unit)? = null,
+) {
     val deletion = session.deletion
     val page = session.page
     LaunchedEffect(deletion) {
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
     ScreenColumn {
-        SavedSessionContent(page, session::retry) { Shown(it, onOpenAssumptions) }
+        SavedSessionContent(page, session::retry) { Shown(it, onOpenAssumptions, onOpenConversation) }
         if (deletion == SessionDeletion.Failed) {
             CardNote(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
         }
@@ -105,11 +112,15 @@ internal fun savedAssumptions(assumptions: List<Assumption>, settled: List<Settl
 }
 
 @Composable
-private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
+private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpenConversation: ((String) -> Unit)?) {
     val session = page.session
     val reviewed = page.card?.result as? CheckResult.Reviewed
     val settled = page.card?.settled.orEmpty()
-    SessionDetails(session, page.appLabel)
+    val resources = LocalResources.current
+    val chat = page.chat
+    val source = if (session.origin == Origin.Chat) chatSourceLabel(resources, chat) else page.appLabel
+    val openChat = if (chat != null && onOpenConversation != null) ({ onOpenConversation(chat.conversationId) }) else null
+    SessionDetails(session, source, openChat)
 
     SectionHeader(stringResource(R.string.history_before))
     SectionCard(contentPadding = BlockPadding) {
@@ -177,7 +188,7 @@ fun SessionAssumptionsScreen(session: SessionViewModel) {
 }
 
 @Composable
-private fun SessionDetails(session: SessionRecord, appLabel: String?) {
+private fun SessionDetails(session: SessionRecord, appLabel: String?, onOpenConversation: (() -> Unit)? = null) {
     val time = rememberTimeFormat()
     val resources = LocalResources.current
     SectionHeader(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true))
@@ -187,7 +198,16 @@ private fun SessionDetails(session: SessionRecord, appLabel: String?) {
         stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it))
     }
     val details = listOfNotNull(target, detected).joinToString("\n")
-    ListCard({ ListRow(appLabel ?: details, if (appLabel != null) details else null) })
+    // A chat message also offers its conversation: an extra, not a different kind of page.
+    ListCard(
+        { ListRow(appLabel ?: details, if (appLabel != null) details else null) },
+        onOpenConversation?.let { open ->
+            {
+                ListRow(stringResource(R.string.lab_chat_open_conversation), onClick = open,
+                    onClickLabel = stringResource(R.string.lab_chat_open_conversation))
+            }
+        },
+    )
 }
 
 @Composable

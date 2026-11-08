@@ -90,8 +90,14 @@ class ShortcutFocusRefreshTest {
         assertEquals(0, node.textReads)
         assertNull(retainedField())
         assertNull(ViewModelProvider(window)[CheckViewModel::class.java].state)
-        val reading = ViewModelProvider(window)[UnderstandViewModel::class.java].state
-        assertEquals("Bon dia", (reading as UnderstandState.Loading).text)
+        // The copied text went to Understand. Without a key the request can fail before this
+        // line runs, so either state proves it was sent; both carry the text that was sent.
+        val sent = when (val reading = ViewModelProvider(window)[UnderstandViewModel::class.java].state) {
+            is UnderstandState.Loading -> reading.text
+            is UnderstandState.Failed -> reading.text
+            else -> error("Expected an Understand request for the copied text, was $reading")
+        }
+        assertEquals("Bon dia", sent)
     }
 
     @Test fun focusedRootlessEditorStillStartsItsFieldCheck() {

@@ -83,6 +83,8 @@ internal fun ExplanationPanel(
     lesson: LessonTopic? = null,
     /** Lab Phrasebook: the phrase this change offers, saved with the star; null shows none. */
     phrase: PhraseDraft? = null,
+    /** Lab: the second opinion's badge for this change, under the change. */
+    badge: (@Composable () -> Unit)? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -106,6 +108,7 @@ internal fun ExplanationPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+        if (expanded) badge?.invoke()
         if (expanded) {
             why?.takeIf { it.isNotBlank() }?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium,

@@ -6,6 +6,7 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
 import com.evanaronson.linguize.ui.replycontext.ReplyContextActions
+import com.evanaronson.linguize.ui.secondopinion.SecondOpinionController
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -32,6 +33,8 @@ class CardActions(
     val replyContext: ReplyContextActions? = null,
     /** Lab, How it lands: null where the host doesn't offer it. */
     val howItLands: com.evanaronson.linguize.ui.tonecheck.LandsActions? = null,
+    /** Lab: asks a second model and compares; null where the card offers no second opinion. */
+    val secondOpinion: SecondOpinionController? = null,
 ) {
     companion object {
         /**
@@ -72,6 +75,7 @@ class CardActions(
             phraseOrigin = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
             replyContext = if (replyContext) ReplyContextActions.of(check) else null,
             howItLands = com.evanaronson.linguize.ui.tonecheck.LandsActions.of(check, context, canReplace, onClose, onOpenSettings),
+            secondOpinion = check.secondOpinion,
         )
     }
 }

@@ -18,6 +18,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.data.SecondOpinionPlan
 import com.evanaronson.linguize.history.Answer
 import com.evanaronson.linguize.history.CheckHistory
 import com.evanaronson.linguize.history.Kept
@@ -26,6 +27,8 @@ import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
+import com.evanaronson.linguize.ui.secondopinion.SecondOpinionController
+import com.evanaronson.linguize.ui.secondopinion.SecondOpinionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -74,6 +77,8 @@ class CheckViewModel(
     private val checker: () -> Checker,
     private val history: CheckHistory,
     private val keyRevision: (Provider) -> Long = { 0L },
+    /** Lab: whether and with what a second opinion can run; none by default. */
+    secondOpinionPlan: (CheckContext) -> SecondOpinionPlan = { SecondOpinionPlan.Off },
 ) : ViewModel() {
     private var text = ""
     private var language: Language? = null
@@ -129,6 +134,14 @@ class CheckViewModel(
             run(Run.Again)
         }
         return true
+    }
+
+    /** Lab: the same check asked of a second model and compared; never recorded in history. */
+    val secondOpinion = SecondOpinionController(viewModelScope, checker, secondOpinionPlan) {
+        val done = state as? CardState.Done
+        val first = done?.result as? CheckResult.Reviewed
+        val context = ranWith
+        if (first == null || context == null) null else SecondOpinionRequest(text, language, done.settled, context, first)
     }
 
     /** The text with accepted changes, or null when nothing has been accepted. */
@@ -406,6 +419,7 @@ class CheckViewModel(
                 CheckViewModel(
                     checker = { app.checker },
                     keyRevision = { app.keys.revision(it) },
+                    secondOpinionPlan = SecondOpinionController.plan(app),
                     history = CheckHistory(
                         store = app.history,
                         environment = app.historyEnvironment,

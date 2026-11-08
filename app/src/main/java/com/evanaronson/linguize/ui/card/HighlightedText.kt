@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
+import com.evanaronson.linguize.ui.secondopinion.secondOpinionBadge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -319,6 +320,7 @@ private fun ChangeExplanation(
         lesson = lessonTopic(change.from, replacement, change.why, LocalLessonSource.current?.language, sentence),
         phrase = phraseCandidate(change.from, replacement, change.why,
             if (rewording) EditKind.Natural else EditKind.Fix, LocalPhraseOrigin.current),
+        badge = secondOpinionBadge(change.id),
     )
 }
 

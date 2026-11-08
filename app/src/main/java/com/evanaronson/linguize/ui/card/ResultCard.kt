@@ -61,6 +61,7 @@ import com.evanaronson.linguize.ui.gaps.GapOffer
 import com.evanaronson.linguize.ui.gaps.GapOfferRow
 import com.evanaronson.linguize.ui.replycontext.ReplyContextFooter
 import com.evanaronson.linguize.ui.replycontext.ReplyContextHeader
+import com.evanaronson.linguize.ui.secondopinion.WithSecondOpinion
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
@@ -206,7 +207,7 @@ private fun ReviewPages(
                     onRemoveClarification = actions.onRemoveClarification,
                 )
             } else {
-                Suggestions(result, state.settled, actions)
+                WithSecondOpinion(actions.secondOpinion) { Suggestions(result, state.settled, actions) }
                 HearItBar(result.revision.workingText, Modifier.padding(top = 12.dp))
             }
         }

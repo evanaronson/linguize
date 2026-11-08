@@ -73,6 +73,11 @@ class App : Application() {
     /** Created off the main thread by the view models. */
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
+    val languageBridge by lazy {
+        LanguageBridge(settings, keys, clients) {
+            com.evanaronson.linguize.llm.lab.LanguageBridgePrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()

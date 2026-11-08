@@ -25,12 +25,18 @@ import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.languagebridge.BridgeFooterEntry
+import com.evanaronson.linguize.ui.languagebridge.BridgeHost
+import com.evanaronson.linguize.ui.languagebridge.BridgeTryItButton
+import com.evanaronson.linguize.ui.languagebridge.hostBridgeActions
+import com.evanaronson.linguize.ui.languagebridge.rememberBridgeViewModel
 
 /** A text box and the same card the selection menu shows, so checks can be tried here. */
 @Composable
 internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val initialSample = stringResource(R.string.try_it_sample)
+    val bridge = rememberBridgeViewModel()
     var sample by rememberSaveable { mutableStateOf(initialSample) }
 
     fun applyAndClose() {
@@ -60,6 +66,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
         onValueChange = {
             sample = it
             blank = false
+            bridge.close()
             // The card's suggestions are for the old text, and nothing of them was applied.
             check.dismiss(applied = false)
         },
@@ -79,8 +86,12 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             run(it)
         })
         LinguizeButton(stringResource(R.string.check), { run(Language.forCode(code)) }, ButtonKind.Filled)
+        BridgeTryItButton(bridge, sample.trim(), Language.forCode(code))
     }
 
+    val bridgeActions = hostBridgeActions(bridge, onReplace = { sample = it; check.dismiss(applied = false) },
+        onCheck = { text, language -> sample = text; code = language?.code; run(language) }, onOpenSettings)
+    BridgeHost(bridge, bridgeActions, Modifier.fillMaxWidth().padding(top = 12.dp), scrollable = false) {
     check.state?.let { state ->
         ResultCard(
             state = state,
@@ -89,7 +100,9 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             ),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             scrollable = false,
+            bridgeEntry = { BridgeFooterEntry(bridge, check, Language.forCode(code)) },
         )
+    }
     }
     Quiet(stringResource(R.string.try_it_note), Modifier.padding(top = 12.dp))
 }

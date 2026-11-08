@@ -28,6 +28,9 @@ internal sealed interface Screen {
     /** The assumptions of a past check. */
     data class DetailAssumptions(val id: String) : Screen
 
+    /** Lab: the reading of a photo of text. */
+    data object Photo : Screen
+
     /** For saved instance state. */
     val saved: String
         get() = when (this) {
@@ -38,6 +41,7 @@ internal sealed interface Screen {
             is SettingsChoice -> "settings:${page.token}"
             is Detail -> "detail:$id"
             is DetailAssumptions -> "assumptions:$id"
+            Photo -> "photo"
         }
 
     companion object {
@@ -51,6 +55,7 @@ internal sealed interface Screen {
             saved.startsWith("detail:") && saved.length > "detail:".length -> Detail(saved.removePrefix("detail:"))
             saved.startsWith("assumptions:") && saved.length > "assumptions:".length ->
                 DetailAssumptions(saved.removePrefix("assumptions:"))
+            saved == "photo" -> Photo
             else -> null
         }
     }

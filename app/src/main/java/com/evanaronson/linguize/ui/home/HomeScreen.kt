@@ -31,6 +31,7 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.RecentSection
+import com.evanaronson.linguize.ui.photo.UnderstandPhotoEntry
 
 /**
  * The launcher content below the app navigation: check something now, browse previous
@@ -47,6 +48,7 @@ fun HomeScreen(
     onOpen: (id: String) -> Unit,
     onViewHistory: () -> Unit,
     onSetUpAccessibility: () -> Unit,
+    onPhotoPicked: (android.net.Uri) -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -56,6 +58,7 @@ fun HomeScreen(
             SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
                 TryIt(check, onOpenSettings)
             }
+            UnderstandPhotoEntry(onPhotoPicked)
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({

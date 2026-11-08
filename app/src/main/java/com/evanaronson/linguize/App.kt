@@ -74,6 +74,9 @@ class App : Application() {
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
 
+    /** Lab: reads photos of text. Its own client and prompt; see docs/lab/share-photo.md. */
+    val photoUnderstander by lazy { PhotoUnderstander.create(this, settings, keys) }
+
     override fun onCreate() {
         super.onCreate()
         // onCreate runs once per process, so this does too. A session open in the database

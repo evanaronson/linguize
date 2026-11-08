@@ -28,6 +28,9 @@ import com.evanaronson.linguize.ui.history.HistoryScreen
 import com.evanaronson.linguize.ui.history.SessionAssumptionsScreen
 import com.evanaronson.linguize.ui.history.SessionScreen
 import com.evanaronson.linguize.ui.history.SessionViewModel
+import com.evanaronson.linguize.ui.photo.PhotoScreen
+import com.evanaronson.linguize.ui.photo.PhotoViewModel
+import com.evanaronson.linguize.ui.photo.understand
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -39,6 +42,7 @@ class HomeActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private val history: HistoryViewModel by viewModels { HistoryViewModel.factory(App.of(this)) }
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
+    private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +82,7 @@ class HomeActivity : ComponentActivity() {
                                     onOpen = ::open,
                                     onViewHistory = { navigation = navigation.open(Screen.History) },
                                     onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) },
+                                    onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -94,6 +99,7 @@ class HomeActivity : ComponentActivity() {
                                     navigation = navigation.open(Screen.DetailAssumptions(current.id))
                                 })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
+                                Screen.Photo -> PhotoScreen(photo, onOpenSettings = openSettings)
                             }
                         }
                     }
@@ -127,6 +133,7 @@ class HomeActivity : ComponentActivity() {
     private fun back() {
         if (navigation.current == Screen.Settings) {
             check.recheckIfStale()
+            photo.recheckIfStale()
         }
         navigation = navigation.back()
     }
@@ -158,4 +165,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.SettingsChoice -> stringResource(page.title)
     is Screen.Detail -> stringResource(R.string.saved_check)
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
+    Screen.Photo -> stringResource(R.string.lab_share_photo_title)
 }

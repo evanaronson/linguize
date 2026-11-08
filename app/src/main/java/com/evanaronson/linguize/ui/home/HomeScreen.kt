@@ -70,6 +70,7 @@ fun HomeScreen(
             }
             GapFillerEntry(onOpen = { onFillGaps(null) })
             UnderstandPhotoEntry(onPhotoPicked)
+            com.evanaronson.linguize.ui.writingpad.WritingPadEntry()
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             PhrasebookHomeSection(onOpenPhrasebook)
             com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)

@@ -93,6 +93,32 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Lab: share text to check or understand it, and share a photo of text to understand it. -->
+        <activity
+            android:name=".menu.ShareActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@style/Theme.Linguize.Overlay">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".menu.PhotoActivity"
+            android:exported="true"
+            android:label="@string/lab_share_photo_title">
+            <intent-filter android:label="@string/lab_share_photo_share_image_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
         <!-- The accessibility button, for apps whose selection menu doesn't show the entries above. -->
         <service
             android:name=".accessibility.LinguizeAccessibilityService"

@@ -36,6 +36,8 @@ internal sealed interface Screen {
     data object FillGaps : Screen
     /** Lab: Help me reply. */
     data object LabReply : Screen
+    /** Lab: the reading of a photo of text. */
+    data object Photo : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -51,6 +53,7 @@ internal sealed interface Screen {
             is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
             FillGaps -> "lab_gap_filler"
             LabReply -> "lab_reply"
+            Photo -> "photo"
         }
 
     companion object {
@@ -69,6 +72,7 @@ internal sealed interface Screen {
             saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))
             saved == "lab_gap_filler" -> FillGaps
             saved == "lab_reply" -> LabReply
+            saved == "photo" -> Photo
             else -> null
         }
     }

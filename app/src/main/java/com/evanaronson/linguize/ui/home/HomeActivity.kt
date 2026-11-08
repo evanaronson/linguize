@@ -38,6 +38,9 @@ import com.evanaronson.linguize.ui.phrasebook.PhrasebookScreen
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookViewModel
 import com.evanaronson.linguize.ui.gaps.GapFillScreen
 import com.evanaronson.linguize.ui.gaps.GapFillViewModel
+import com.evanaronson.linguize.ui.photo.PhotoScreen
+import com.evanaronson.linguize.ui.photo.PhotoViewModel
+import com.evanaronson.linguize.ui.photo.understand
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -52,6 +55,7 @@ class HomeActivity : ComponentActivity() {
     private val phrasebook: PhrasebookViewModel by viewModels { PhrasebookViewModel.factory(PhrasebookStore.of(this)) }
     private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
     private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
+    private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,6 +102,7 @@ class HomeActivity : ComponentActivity() {
                                         navigation = navigation.open(Screen.FillGaps)
                                     },
                                     onHelpReply = { navigation = navigation.open(Screen.LabReply) },
+                                    onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -121,6 +126,7 @@ class HomeActivity : ComponentActivity() {
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
                                 Screen.FillGaps -> GapFillScreen(gaps, onOpenSettings = openSettings)
                                 Screen.LabReply -> com.evanaronson.linguize.ui.reply.ReplyScreen(onOpenSettings = openSettings)
+                                Screen.Photo -> PhotoScreen(photo, onOpenSettings = openSettings)
                             }
                         }
                     }
@@ -156,6 +162,7 @@ class HomeActivity : ComponentActivity() {
         if (navigation.current == Screen.Settings) {
             check.recheckIfStale()
             gaps.retryIfFailed()
+            photo.recheckIfStale()
         }
         navigation = navigation.back()
     }
@@ -191,4 +198,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.AppVoice -> appVoiceTitle(app)
     Screen.FillGaps -> stringResource(R.string.lab_gap_filler_title)
     Screen.LabReply -> stringResource(R.string.lab_reply_drafter_help_me_reply)
+    Screen.Photo -> stringResource(R.string.lab_share_photo_title)
 }

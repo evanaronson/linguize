@@ -43,6 +43,8 @@ internal sealed interface Screen {
 
     /** Lab: one group of recurring fixes, by its stable token. */
     data class PatternDetail(val kind: String) : Screen
+    /** Lab: practice drills from applied fixes. */
+    data object Practice : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -61,6 +63,7 @@ internal sealed interface Screen {
             Photo -> "photo"
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
+            Practice -> "practice"
         }
 
     companion object {
@@ -82,6 +85,7 @@ internal sealed interface Screen {
             saved == "photo" -> Photo
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
+            saved == "practice" -> Practice
             else -> null
         }
     }

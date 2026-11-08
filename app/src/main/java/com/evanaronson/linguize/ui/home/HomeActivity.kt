@@ -46,6 +46,9 @@ import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
 import com.evanaronson.linguize.ui.patterns.PatternsScreen
 import com.evanaronson.linguize.ui.patterns.PatternsViewModel
 import com.evanaronson.linguize.ui.patterns.labelResource
+import com.evanaronson.linguize.ui.practice.PracticeEntry
+import com.evanaronson.linguize.ui.practice.PracticeScreen
+import com.evanaronson.linguize.ui.practice.PracticeViewModel
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -62,6 +65,7 @@ class HomeActivity : ComponentActivity() {
     private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
     private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
+    private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,6 +115,7 @@ class HomeActivity : ComponentActivity() {
                                     onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
                                     patterns = patterns,
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
+                                    practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -142,6 +147,7 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.PatternDetail -> PatternDetailScreen(
                                     patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
                                 )
+                                Screen.Practice -> PracticeScreen(practice, onDone = ::back)
                             }
                         }
                     }
@@ -216,4 +222,5 @@ private fun Screen.title(): String? = when (this) {
     Screen.Photo -> stringResource(R.string.lab_share_photo_title)
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
+    Screen.Practice -> stringResource(R.string.lab_practice_title)
 }

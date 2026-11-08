@@ -59,6 +59,7 @@ fun HomeScreen(
     onPhotoPicked: (android.net.Uri) -> Unit = {},
     patterns: PatternsViewModel? = null,
     onOpenPatterns: () -> Unit = {},
+    practice: @Composable () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -71,6 +72,7 @@ fun HomeScreen(
             GapFillerEntry(onOpen = { onFillGaps(null) })
             UnderstandPhotoEntry(onPhotoPicked)
             com.evanaronson.linguize.ui.writingpad.WritingPadEntry()
+            practice()
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             PhrasebookHomeSection(onOpenPhrasebook)
             com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)

@@ -77,6 +77,12 @@ data class ChatMessage(
     val at: Long,
     /** The History session the message was saved as (Origin.Chat); null when History was off or it wasn't checked. */
     val sessionId: String? = null,
+    /**
+     * A partner message in the writer's own language, written with it in the same answer;
+     * null for the writer's messages and for replies saved before translations came with them.
+     * Model output: never in History or the corpus.
+     */
+    val translation: String? = null,
 ) {
     init {
         require(changes.all { it.end <= raw.length && raw.substring(it.start, it.end) == it.from }) {
@@ -89,8 +95,9 @@ data class ChatMessage(
 
     companion object {
         /** A partner reply, or the opener. */
-        fun partner(id: String, conversationId: String, text: String, at: Long) =
-            ChatMessage(id, conversationId, fromWriter = false, raw = text, text = text, at = at)
+        fun partner(id: String, conversationId: String, text: String, at: Long, translation: String? = null) =
+            ChatMessage(id, conversationId, fromWriter = false, raw = text, text = text, at = at,
+                translation = translation?.trim()?.takeIf { it.isNotEmpty() })
     }
 }
 
@@ -134,4 +141,21 @@ fun deriveTitle(firstWriterText: String, maxChars: Int = 40): String {
     val cut = line.take(maxChars)
     val space = cut.lastIndexOf(' ')
     return (if (space >= maxChars / 2) cut.take(space) else cut).trimEnd(' ', ',', ';', ':') + "…"
+}
+
+/**
+ * What the new-conversation sheet starts: who the writer is talking to, when they said
+ * (the partner then plays them), and the language picked, if any. A persona is just an
+ * optional property of a conversation; empty means the usual partner.
+ */
+data class NewConversation(val persona: String?, val language: String?) {
+    companion object {
+        /** The longest description of who the writer is talking to. */
+        const val MAX_PERSONA = 300
+
+        fun of(who: String, language: String?) = NewConversation(
+            persona = who.trim().replace(Regex("\\s+"), " ").take(MAX_PERSONA).takeIf { it.isNotEmpty() },
+            language = language?.takeIf { it.isNotBlank() },
+        )
+    }
 }

@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.ui.chat
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -86,26 +89,35 @@ import com.evanaronson.linguize.ui.theme.Linguize
 private val BubbleMax = 300.dp
 
 /**
- * One message: the writer's on the right in ink, the partner's on the left on paper. The text
- * is selectable (long-press, with the system's Copy and other apps' actions); a long-press on
- * the bubble's edge, or the screen reader's actions, offer Copy and, for the partner, Translate.
+ * One message: the writer's on the right in ink, the partner's on the left on paper. A tap on
+ * a partner bubble flips it to its translation (tinted, with a short crossfade) and back. The
+ * text is selectable (long-press, with the system's Copy and other apps' actions); a long-press
+ * on the bubble's edge opens Copy message (and Copy translation while it shows). Screen readers
+ * get the same as actions.
  */
 @Composable
 internal fun MessageBubble(
     message: ChatMessage,
     expanded: Boolean,
     onToggle: () -> Unit,
-    translation: Translation?,
-    translationOpen: Boolean,
-    onTranslate: () -> Unit,
+    flipped: Flipped?,
+    onFlip: () -> Unit,
+    hint: Boolean,
 ) {
     val context = LocalContext.current
     val mine = message.fromWriter
-    val spoken = stringResource(if (mine) R.string.lab_chat_you_said else R.string.lab_chat_partner_said, message.text)
+    val shownText = (flipped as? Flipped.Text)?.translation
+    val spoken = when {
+        mine -> stringResource(R.string.lab_chat_you_said, message.text)
+        shownText != null -> stringResource(R.string.lab_chat_translation_said, shownText)
+        else -> stringResource(R.string.lab_chat_partner_said, message.text)
+    }
     val copyLabel = stringResource(R.string.lab_chat_copy)
-    val translateLabel = stringResource(if (translationOpen) R.string.lab_chat_hide_translation else R.string.lab_chat_translate)
+    val copyTranslationLabel = stringResource(R.string.lab_chat_copy_translation)
+    val flipLabel = stringResource(if (flipped != null) R.string.lab_chat_show_original else R.string.lab_chat_show_translation)
     var menu by remember { mutableStateOf(false) }
     val copy = { context.copyToClipboard(message.text) }
+    val tint = Linguize.colors.proof.copy(alpha = 0.08f)
     Column(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
@@ -116,86 +128,70 @@ internal fun MessageBubble(
                     topStart = 18.dp, topEnd = 18.dp,
                     bottomStart = if (mine) 18.dp else 4.dp, bottomEnd = if (mine) 4.dp else 18.dp,
                 ),
-                color = if (mine) MaterialTheme.colorScheme.primary else Linguize.colors.card,
+                color = when {
+                    mine -> MaterialTheme.colorScheme.primary
+                    flipped != null -> tint.compositeOver(Linguize.colors.card)
+                    else -> Linguize.colors.card
+                },
                 contentColor = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                border = if (mine) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                border = if (mine) null else BorderStroke(1.dp,
+                    if (flipped != null) Linguize.colors.proof.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier
                     .widthIn(max = BubbleMax)
                     .semantics(mergeDescendants = true) {
                         contentDescription = spoken
                         customActions = listOfNotNull(
+                            if (!mine) CustomAccessibilityAction(flipLabel) { onFlip(); true } else null,
                             CustomAccessibilityAction(copyLabel) { copy(); true },
-                            if (!mine) CustomAccessibilityAction(translateLabel) { onTranslate(); true } else null,
+                            shownText?.let { text -> CustomAccessibilityAction(copyTranslationLabel) { context.copyToClipboard(text); true } },
                         )
                     }
-                    // A long-press on the text selects it; one on the bubble's edge opens the menu.
-                    .pointerInput(Unit) { detectTapGestures(onLongPress = { menu = true }) },
+                    // A long-press on the text selects it; one on the bubble's edge opens the menu. A tap flips a reply.
+                    .pointerInput(mine) {
+                        detectTapGestures(onTap = { if (!mine) onFlip() }, onLongPress = { menu = true })
+                    },
             ) {
-                SelectionContainer {
-                    Text(message.text, style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp).clearAndSetSemantics {})
+                Crossfade(targetState = flipped, animationSpec = tween(180), label = "translation") { side ->
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp).clearAndSetSemantics {}) {
+                        when (side) {
+                            null -> SelectionContainer { Text(message.text, style = MaterialTheme.typography.bodyLarge) }
+                            is Flipped.Text -> SelectionContainer {
+                                Column {
+                                    Text(side.translation, style = MaterialTheme.typography.bodyLarge)
+                                    side.notes.forEach { note ->
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(note, style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                            Flipped.Loading -> Text(stringResource(R.string.lab_chat_translating), style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            is Flipped.Failed -> Column {
+                                Text(stringResource(side.failure.reason.titleResource), style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.lab_chat_tap_to_retry), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
                 }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(copyLabel) }, onClick = { menu = false; copy() })
-                if (!mine) DropdownMenuItem(text = { Text(translateLabel) }, onClick = { menu = false; onTranslate() })
+                shownText?.let { text ->
+                    DropdownMenuItem(text = { Text(copyTranslationLabel) }, onClick = { menu = false; context.copyToClipboard(text) })
+                }
             }
         }
         if (mine) {
             CheckMark(message, expanded, onToggle)
             if (expanded && message.changes.isNotEmpty()) Changes(message)
-        } else {
-            TranslateRow(translation, translationOpen, onTranslate)
+        } else if (hint && flipped == null) {
+            Text(stringResource(R.string.lab_chat_tap_to_translate), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
         }
     }
 }
-
-/** Under a partner message: a quiet Translate, and the translation once asked for. */
-@Composable
-private fun TranslateRow(translation: Translation?, open: Boolean, onTranslate: () -> Unit) {
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    Text(
-        stringResource(if (open) R.string.lab_chat_hide_translation else R.string.lab_chat_translate),
-        style = MaterialTheme.typography.labelMedium,
-        color = muted,
-        modifier = Modifier
-            .padding(top = 2.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onTranslate)
-            .heightIn(min = 32.dp)
-            .padding(horizontal = 6.dp, vertical = 8.dp),
-    )
-    when (translation) {
-        null -> Unit
-        Translation.Loading -> Text(stringResource(R.string.lab_chat_translating), style = MaterialTheme.typography.bodySmall, color = muted,
-            modifier = Modifier.padding(horizontal = 6.dp).semantics { liveRegion = LiveRegionMode.Polite })
-        is Translation.Failed -> Column(Modifier.padding(horizontal = 6.dp).semantics { liveRegion = LiveRegionMode.Polite }) {
-            Text(stringResource(translation.failure.reason.titleResource), style = MaterialTheme.typography.bodySmall, color = muted)
-            LinguizeButton(stringResource(R.string.retry), onTranslate, ButtonKind.Text)
-        }
-        is Translation.Shown -> Column(
-            Modifier
-                .widthIn(max = BubbleMax)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-                .semantics { liveRegion = LiveRegionMode.Polite },
-        ) {
-            SelectionContainer {
-                Column {
-                    Text(translation.understood.translation, style = MaterialTheme.typography.bodyMedium)
-                    translation.understood.notes.take(MAX_NOTES).forEach { note ->
-                        Spacer(Modifier.height(6.dp))
-                        Text(stringResource(R.string.lab_chat_note, note.quote, note.explanation),
-                            style = MaterialTheme.typography.bodySmall, color = muted)
-                    }
-                }
-            }
-        }
-    }
-}
-
-private const val MAX_NOTES = 3
 
 /** Under a sent message: how it was checked. A corrected one opens to show what changed. */
 @Composable
@@ -366,143 +362,23 @@ internal fun Composer(chat: ChatViewModel) {
 }
 
 /**
- * The draft's check, over the composer: the fixes marked in the writer's own text, each with
- * its reason a tap away and a Skip; then Send with fixes or Send as written. Details opens
- * the full card (Meaning, assumptions, rewordings).
+ * The check before sending: the same card as for a message in another app, with its Apply
+ * labelled Send. Reviewing is forced, accepting isn't: with nothing accepted, Send under the
+ * card sends the text as typed. A failed or unclear check offers Retry (or clarifying) and
+ * Keep editing, never a way round it.
  */
 @Composable
 internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: Dp, onOpenSettings: () -> Unit) {
-    val state = check.state
-    val reviewed = (state as? CardState.Done)?.result as? CheckResult.Reviewed
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Linguize.colors.popup)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
-            .heightIn(max = maxHeight)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        when {
-            chat.send is SendState.Checking -> {
-                Text(chat.draft.text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 4)
-                Spacer(Modifier.height(10.dp))
-                Progress(stringResource(R.string.lab_chat_checking))
-            }
-            chat.details && state != null -> ResultCard(state, cardActions(chat, check, onOpenSettings), Modifier.fillMaxWidth(), scrollable = false)
-            reviewed != null -> InlineFixes(chat, reviewed)
-            state != null -> ResultCard(state, cardActions(chat, check, onOpenSettings), Modifier.fillMaxWidth(), scrollable = false)
-        }
-        FlowRow(
-            Modifier.fillMaxWidth().padding(top = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            if (reviewed != null) {
-                LinguizeButton(stringResource(if (chat.details) R.string.lab_chat_hide_details else R.string.lab_chat_details),
-                    { chat.showDetails(!chat.details) }, ButtonKind.Text)
-            }
-            LinguizeButton(stringResource(R.string.lab_chat_keep_editing), chat::keepEditing, ButtonKind.Text)
-            LinguizeButton(stringResource(R.string.lab_chat_send_as_written), chat::sendAsWritten, ButtonKind.Outlined)
-            if (reviewed != null) {
-                val kept = reviewed.revision.edits(EditKind.Fix).count { it.id !in chat.skipped }
-                LinguizeButton(stringResource(if (kept > 0) R.string.lab_chat_send_with_fixes else R.string.lab_chat_send),
-                    chat::sendWithFixes, ButtonKind.Filled)
-            }
-        }
-    }
-}
-
-/** The fixes in the writer's own words: underlined where they go, listed with Skip. */
-@Composable
-private fun InlineFixes(chat: ChatViewModel, reviewed: CheckResult.Reviewed) {
-    val revision = reviewed.revision
-    val fixes = revision.edits(EditKind.Fix).sortedBy { it.start }
-    val proof = Linguize.colors.proof
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    if (fixes.isEmpty()) {
-        // Only possible when some fixes were withheld: say so, and offer the full card.
-        Text(stringResource(R.string.lab_chat_fixes_withheld), style = MaterialTheme.typography.bodyMedium)
-        return
-    }
-    Text(pluralStringResource(R.plurals.lab_chat_fix_count, fixes.size, fixes.size), style = MaterialTheme.typography.labelLarge,
-        color = proof, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-    Spacer(Modifier.height(6.dp))
-    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val text = buildAnnotatedString {
-        append(revision.original)
-        fixes.forEach { fix ->
-            val end = if (fix.end > fix.start) fix.end else minOf(fix.start + 1, revision.original.length)
-            val start = if (fix.end > fix.start) fix.start else maxOf(0, end - 1)
-            if (end <= start) return@forEach
-            val skippedFix = fix.id in chat.skipped
-            addStyle(
-                SpanStyle(
-                    color = if (skippedFix) muted else proof,
-                    textDecoration = if (skippedFix) TextDecoration.LineThrough else TextDecoration.Underline,
-                    background = if (chat.focusedFix == fix.id) proof.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color.Unspecified,
-                ),
-                start, end,
-            )
-        }
-    }
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyLarge,
-        onTextLayout = { layout = it },
-        modifier = Modifier
-            .semantics { contentDescription = revision.original }
-            .pointerInput(fixes) {
-                detectTapGestures { position ->
-                    val offset = layout?.getOffsetForPosition(position) ?: return@detectTapGestures
-                    fixes.firstOrNull { offset in it.start..maxOf(it.start, it.end - 1) }?.let { chat.focusFix(it.id) }
-                }
-            },
-    )
-    fixes.forEach { fix -> FixRow(fix, skipped = fix.id in chat.skipped, open = chat.focusedFix == fix.id || fixes.size == 1,
-        onOpen = { chat.focusFix(fix.id) }, onSkip = { chat.toggleSkip(fix.id) }) }
-}
-
-@Composable
-private fun FixRow(fix: Edit, skipped: Boolean, open: Boolean, onOpen: () -> Unit, onSkip: () -> Unit) {
-    val change = changeText(fix.from, fix.replacement)
-    val showReason = stringResource(R.string.lab_chat_show_reason)
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                change,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (skipped) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                textDecoration = if (skipped) TextDecoration.LineThrough else null,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable(onClickLabel = showReason, onClick = onOpen)
-                    .heightIn(min = 40.dp)
-                    .padding(vertical = 8.dp),
-            )
-            LinguizeButton(stringResource(if (skipped) R.string.lab_chat_keep_fix else R.string.lab_chat_skip_fix), onSkip, ButtonKind.Text,
-                modifier = Modifier.semantics { stateDescription = change })
-        }
-        if (open) fix.why?.takeIf { it.isNotBlank() }?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-/** The full card's actions: accept, undo and clarify update the same check that Send uses. */
-@Composable
-private fun cardActions(chat: ChatViewModel, check: CheckViewModel, onOpenSettings: () -> Unit): CardActions {
     val context = LocalContext.current
-    return CardActions(
+    val state = check.state
+    val revision = ((state as? CardState.Done)?.result as? CheckResult.Reviewed)?.revision
+    val actions = CardActions(
         onCopy = { text, kind -> context.copyToClipboard(text); check.copied(kind) },
         review = ReviewActions(
             onAccept = check::accept,
             onAcceptAll = { check.acceptAll(it) },
             onUndo = check::undo,
-            onApply = chat::sendWithFixes,
+            onApply = { revision?.let(chat::sendReviewed) },
             applyLabel = R.string.lab_chat_send,
         ),
         onRetry = check::recheck,
@@ -513,4 +389,21 @@ private fun cardActions(chat: ChatViewModel, check: CheckViewModel, onOpenSettin
         onRemoveClarification = check::removeMeaning,
         language = { check.pinnedLanguage },
     )
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+        if (state != null) {
+            ResultCard(state, actions, Modifier.fillMaxWidth().heightIn(max = maxHeight), scrollable = true)
+        } else {
+            Progress(stringResource(R.string.lab_chat_checking))
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        ) {
+            LinguizeButton(stringResource(R.string.lab_chat_keep_editing), chat::keepEditing, ButtonKind.Text)
+            // With something accepted, the card's own row says "N changes accepted  Undo  Send".
+            if (revision != null && !revision.canUndo) {
+                LinguizeButton(stringResource(R.string.lab_chat_send), { chat.sendReviewed(revision) }, ButtonKind.Filled)
+            }
+        }
+    }
 }

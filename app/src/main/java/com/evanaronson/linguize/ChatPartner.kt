@@ -37,8 +37,8 @@ class ChatPartner(
     fun hasKey(): Boolean = !keys.get(settings.provider).isNullOrBlank()
 
     /** A new conversation's opener in [language]; with [persona], that person's first message. Throws [CheckFailure]. */
-    suspend fun open(language: Language, persona: String? = null): String =
-        ask(language, persona) { setting -> prompt.openRequest(setting) }.reply
+    suspend fun open(language: Language, persona: String? = null): PartnerReply =
+        ask(language, persona) { setting -> prompt.openRequest(setting) }
 
     /** The answer to the last turn of [history] in [language]; with [needTitle], a title too. Throws [CheckFailure]. */
     suspend fun reply(language: Language, history: List<Turn>, needTitle: Boolean, persona: String? = null): PartnerReply =

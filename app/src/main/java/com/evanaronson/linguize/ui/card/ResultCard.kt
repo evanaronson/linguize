@@ -55,6 +55,8 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
+import com.evanaronson.linguize.ui.replycontext.ReplyContextFooter
+import com.evanaronson.linguize.ui.replycontext.ReplyContextHeader
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.text.localizedText
@@ -104,6 +106,7 @@ fun ResultCard(
             }
         } else null,
     ) {
+        ReplyContextHeader(actions.replyContext)
         when (state) {
             is CardState.Loading -> {
                 if (state.retainedRevision?.canUndo == true) {
@@ -152,6 +155,7 @@ fun ResultCard(
                 }
             }
         }
+        ReplyContextFooter(actions.replyContext, state, hidden = showingUnderstanding)
     }
 }
 

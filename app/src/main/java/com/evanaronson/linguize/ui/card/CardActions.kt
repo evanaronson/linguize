@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.card
 import android.content.Context
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.ui.copyToClipboard
+import com.evanaronson.linguize.ui.replycontext.ReplyContextActions
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -21,6 +22,8 @@ class CardActions(
     val onClarify: ((answer: String) -> Unit)? = null,
     /** Retracts the writer's meaning clarification; null for a past check. */
     val onRemoveClarification: (() -> Unit)? = null,
+    /** Lab: the message being replied to; null for a past check or a host that shows it itself. */
+    val replyContext: ReplyContextActions? = null,
 ) {
     companion object {
         /**
@@ -35,6 +38,7 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
+            replyContext: Boolean = true,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
@@ -56,6 +60,7 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
+            replyContext = if (replyContext) ReplyContextActions.of(check) else null,
         )
     }
 }

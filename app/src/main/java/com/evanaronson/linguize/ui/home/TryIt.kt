@@ -25,6 +25,7 @@ import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.replycontext.TryItReplyContext
 
 /** A text box and the same card the selection menu shows, so checks can be tried here. */
 @Composable
@@ -55,6 +56,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
         }
     }
 
+    TryItReplyContext(check, Modifier.padding(bottom = 12.dp))
     LinguizeTextField(
         value = sample,
         onValueChange = {
@@ -85,7 +87,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
         ResultCard(
             state = state,
             actions = CardActions.of(
-                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
+                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings, replyContext = false,
             ),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             scrollable = false,

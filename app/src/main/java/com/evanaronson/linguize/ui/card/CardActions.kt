@@ -86,4 +86,6 @@ class ReviewActions(
     val onUndo: () -> Unit,
     /** Closes the card, handing back the accepted changes. */
     val onApply: () -> Unit,
+    /** Lab Chat: what the Apply button says where applying means something else ("Send"). */
+    @param:androidx.annotation.StringRes val applyLabel: Int = com.evanaronson.linguize.R.string.apply,
 )

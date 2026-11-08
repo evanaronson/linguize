@@ -27,6 +27,7 @@ Each experiment has its own page in this folder.
 | Learning over time | [Phrasebook](phrasebook.md): star natural phrasings and keep them | Change explanation; Home |
 | Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Home; History |
 | Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Home |
+| Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes | App start; Home; Settings |
 
 ## What Linguize is, from first principles
 

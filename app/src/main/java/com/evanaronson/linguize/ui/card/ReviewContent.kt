@@ -61,7 +61,7 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
     val review = actions.review
     if (review != null && result.revision.canUndo) {
         SectionDivider()
-        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply)
+        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel)
     }
 }
 
@@ -73,7 +73,7 @@ private fun looksGoodDetail(kinds: List<EditKind>) = when {
 
 /** "3 changes accepted   Undo  [Apply]": Apply is the card's one filled action. */
 @Composable
-internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?) {
+internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?, applyLabel: Int = R.string.apply) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             pluralStringResource(R.plurals.changes_accepted_count, count, count),
@@ -82,7 +82,7 @@ internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?)
             modifier = Modifier.weight(1f),
         )
         LinguizeButton(stringResource(R.string.undo), onUndo, ButtonKind.Text)
-        onApply?.let { LinguizeButton(stringResource(R.string.apply), it, ButtonKind.Filled) }
+        onApply?.let { LinguizeButton(stringResource(applyLabel), it, ButtonKind.Filled) }
     }
 }
 
@@ -143,7 +143,7 @@ internal fun SectionDivider() {
 internal fun RetainedChanges(revision: Revision?, review: ReviewActions?, canApply: Boolean = false) {
     if (revision == null || !revision.canUndo) return
     SectionDivider()
-    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply })
+    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply }, applyLabel = review.applyLabel)
     else Text(
         pluralStringResource(R.plurals.changes_accepted_count, revision.acceptedCount, revision.acceptedCount),
         style = MaterialTheme.typography.labelLarge,

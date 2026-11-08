@@ -66,6 +66,9 @@ class HomeActivity : ComponentActivity() {
     private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
+    private val vocabGaps: com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel by viewModels {
+        com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel.factory(App.of(this))
+    }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,6 +119,7 @@ class HomeActivity : ComponentActivity() {
                                     patterns = patterns,
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                     practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
+                                    vocabGaps = { com.evanaronson.linguize.ui.vocabgaps.VocabGapsHomeEntry { navigation = navigation.open(Screen.VocabGaps) } },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -148,6 +152,7 @@ class HomeActivity : ComponentActivity() {
                                     patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
                                 )
                                 Screen.Practice -> PracticeScreen(practice, onDone = ::back)
+                                Screen.VocabGaps -> com.evanaronson.linguize.ui.vocabgaps.VocabGapsScreen(vocabGaps)
                             }
                         }
                     }
@@ -223,4 +228,5 @@ private fun Screen.title(): String? = when (this) {
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
     Screen.Practice -> stringResource(R.string.lab_practice_title)
+    Screen.VocabGaps -> stringResource(R.string.lab_vocab_gaps_title)
 }

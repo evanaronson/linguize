@@ -60,6 +60,8 @@ fun HomeScreen(
     patterns: PatternsViewModel? = null,
     onOpenPatterns: () -> Unit = {},
     practice: @Composable () -> Unit = {},
+    /** Lab: Vocabulary gaps. */
+    vocabGaps: @Composable () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -77,6 +79,7 @@ fun HomeScreen(
             PhrasebookHomeSection(onOpenPhrasebook)
             com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)
             patterns?.let { PatternsHomeCard(it, onOpenPatterns) }
+            vocabGaps()
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

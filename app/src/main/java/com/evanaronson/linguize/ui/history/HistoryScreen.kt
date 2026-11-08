@@ -50,6 +50,8 @@ fun HistoryScreen(
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPatterns: (() -> Unit)? = null,
+    /** Lab: Your words' row, above the list. */
+    wordsRow: (@Composable () -> Unit)? = null,
 ) {
     val page by history.historyList.collectAsState()
     val list = rememberLazyListState()
@@ -90,6 +92,7 @@ fun HistoryScreen(
             LazyColumn(state = list, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                 item(key = "history-title", contentType = "title") { title?.let { SectionHeader(it) } }
                 onOpenPatterns?.let { open -> item(key = "history-patterns", contentType = "patterns") { PatternsHistoryRow(open) } }
+                wordsRow?.let { row -> item(key = "history-words", contentType = "words") { row() } }
                 if (historyOn == false) item(key = "history-off", contentType = "notice") {
                     SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
                 }

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: What Linguize knows. Short notes about the writer, learned from chats or typed in. -->
+    <string name="lab_memory_title">What Linguize knows</string>
+
+    <!-- Settings: the section and the row that opens the screen. -->
+    <string name="lab_memory_settings_header">About you</string>
+    <string name="lab_memory_settings_empty">Nothing yet</string>
+    <string name="lab_memory_settings_off">Off</string>
+    <plurals name="lab_memory_count">
+        <item quantity="one">%1$d note</item>
+        <item quantity="other">%1$d notes</item>
+    </plurals>
+
+    <string name="lab_memory_switch">Remember things about me</string>
+    <string name="lab_memory_switch_on">Linguize notes what you tell it in chats.</string>
+    <string name="lab_memory_switch_off">Nothing new is noted. Notes stay until you delete them.</string>
+
+    <string name="lab_memory_empty">Notes about you from chats appear here. You can also add your own.</string>
+    <string name="lab_memory_add">Add note</string>
+    <string name="lab_memory_field_note">Note</string>
+    <string name="lab_memory_field_note_hint">Lives in Gràcia, Barcelona</string>
+    <string name="lab_memory_field_category">About</string>
+    <string name="lab_memory_added">Note added</string>
+    <string name="lab_memory_deleted">Note deleted</string>
+
+    <!-- Category headings, also the choices when adding or editing a note. -->
+    <string name="lab_memory_category_about">You</string>
+    <string name="lab_memory_category_people">People you write to</string>
+    <string name="lab_memory_category_goals">Situations and goals</string>
+    <string name="lab_memory_category_preferences">Preferences</string>
+
+    <!-- Where a note came from. %1$s is a short date such as 8 Nov. -->
+    <string name="lab_memory_from_you">Added by you</string>
+    <string name="lab_memory_from_chat">From a chat on %1$s</string>
+    <string name="lab_memory_from_chat_edited">From a chat on %1$s, edited by you</string>
+    <string name="lab_memory_from_other">Noted on %1$s</string>
+    <string name="lab_memory_from_other_edited">Noted on %1$s, edited by you</string>
+    <plurals name="lab_memory_from_chats">
+        <item quantity="one">From %1$d chat, latest on %2$s</item>
+        <item quantity="other">From %1$d chats, latest on %2$s</item>
+    </plurals>
+    <plurals name="lab_memory_from_chats_edited">
+        <item quantity="one">From %1$d chat, latest on %2$s, edited by you</item>
+        <item quantity="other">From %1$d chats, latest on %2$s, edited by you</item>
+    </plurals>
+    <string name="lab_memory_edited">Edited by you</string>
+
+    <!-- A note's actions. Screen readers read the labels. -->
+    <string name="lab_memory_edit">Edit</string>
+    <string name="lab_memory_delete">Delete</string>
+    <string name="lab_memory_edit_note">Edit note</string>
+    <string name="lab_memory_delete_note">Delete note</string>
+    <string name="lab_memory_show_actions">Show note actions</string>
+    <string name="lab_memory_hide_actions">Hide note actions</string>
+
+    <string name="lab_memory_forget_all">Forget everything</string>
+    <string name="lab_memory_forget_all_summary">Delete every note</string>
+    <string name="lab_memory_forget_all_question">Forget everything?</string>
+    <string name="lab_memory_forget_all_description">Every note about you is deleted. This can\'t be undone.</string>
+    <string name="lab_memory_forget_all_confirm">Delete all</string>
+
+    <string name="lab_memory_privacy">Notes stay on this phone. Chats send them to the service you set up.</string>
+</resources>

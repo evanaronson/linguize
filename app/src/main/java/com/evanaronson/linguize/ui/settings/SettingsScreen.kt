@@ -50,6 +50,8 @@ fun SettingsScreen(
     settings: SettingsViewModel,
     onOpen: (SettingsPage) -> Unit,
     appVoiceRow: @Composable () -> Unit = {},
+    /** Lab: What Linguize knows. */
+    memoryRow: @Composable () -> Unit = {},
 ) {
     // The saved settings load in a moment; showing defaults first would flash the wrong choices.
     val state = settings.state ?: return
@@ -79,6 +81,7 @@ fun SettingsScreen(
             { ListRow(stringResource(R.string.punctuation), punctuation, onClick = { onOpen(SettingsPage.Punctuation) }) },
         )
         appVoiceRow()
+        memoryRow()
 
         SectionHeader(stringResource(R.string.popup))
         val position = stringResource(state.popupPosition.labelResource)

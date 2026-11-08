@@ -45,6 +45,8 @@ internal sealed interface Screen {
     data class PatternDetail(val kind: String) : Screen
     /** Lab: practice drills from applied fixes. */
     data object Practice : Screen
+    /** Lab: what Linguize remembers about the writer. */
+    data object Memory : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -64,6 +66,7 @@ internal sealed interface Screen {
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
             Practice -> "practice"
+            Memory -> "lab_memory"
         }
 
     companion object {
@@ -86,6 +89,7 @@ internal sealed interface Screen {
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             saved == "practice" -> Practice
+            saved == "lab_memory" -> Memory
             else -> null
         }
     }

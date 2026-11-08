@@ -47,6 +47,7 @@ fun HomeScreen(
     onOpen: (id: String) -> Unit,
     onViewHistory: () -> Unit,
     onSetUpAccessibility: () -> Unit,
+    onHelpReply: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -57,6 +58,7 @@ fun HomeScreen(
                 TryIt(check, onOpenSettings)
             }
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
+            com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

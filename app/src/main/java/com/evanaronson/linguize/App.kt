@@ -74,6 +74,13 @@ class App : Application() {
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
 
+    /** Lab: Help me reply. Its own prompt asset, read on first use. */
+    val replyDrafter by lazy {
+        ReplyDrafter(settings, keys, clients) {
+            com.evanaronson.linguize.llm.reply.ReplyPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // onCreate runs once per process, so this does too. A session open in the database

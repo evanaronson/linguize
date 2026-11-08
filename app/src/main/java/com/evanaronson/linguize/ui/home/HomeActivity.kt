@@ -78,6 +78,7 @@ class HomeActivity : ComponentActivity() {
                                     onOpen = ::open,
                                     onViewHistory = { navigation = navigation.open(Screen.History) },
                                     onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) },
+                                    onHelpReply = { navigation = navigation.open(Screen.LabReply) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -94,6 +95,7 @@ class HomeActivity : ComponentActivity() {
                                     navigation = navigation.open(Screen.DetailAssumptions(current.id))
                                 })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
+                                Screen.LabReply -> com.evanaronson.linguize.ui.reply.ReplyScreen(onOpenSettings = openSettings)
                             }
                         }
                     }
@@ -158,4 +160,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.SettingsChoice -> stringResource(page.title)
     is Screen.Detail -> stringResource(R.string.saved_check)
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
+    Screen.LabReply -> stringResource(R.string.lab_reply_drafter_help_me_reply)
 }

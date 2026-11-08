@@ -13,6 +13,8 @@ import com.evanaronson.linguize.llm.OpenAIClient
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.data.Exports
+import com.evanaronson.linguize.data.lab.PatternNotes
+import com.evanaronson.linguize.llm.lab.PatternsPrompt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +76,13 @@ class App : Application() {
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
 
+    /** Lab: Your patterns, derived from History and kept in its own `lab_patterns` store. */
+    val patterns by lazy {
+        PatternsLab(history, PatternNotes(this), settings, keys, clients, {
+            PatternsPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        })
+    }
+
     override fun onCreate() {
         super.onCreate()
         // onCreate runs once per process, so this does too. A session open in the database
@@ -88,6 +97,8 @@ class App : Application() {
             // Housekeeping; the store logs its own failures and never throws.
             history.markAbandoned(System.currentTimeMillis())
         }
+        // Lab: a saved patterns explanation is deleted as soon as a check it used is.
+        appScope.launch { patterns.watch() }
     }
 
     companion object {

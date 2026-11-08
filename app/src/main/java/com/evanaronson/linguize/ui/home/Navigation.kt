@@ -28,6 +28,12 @@ internal sealed interface Screen {
     /** The assumptions of a past check. */
     data class DetailAssumptions(val id: String) : Screen
 
+    /** Lab: recurring fixes from saved checks. */
+    data object Patterns : Screen
+
+    /** Lab: one group of recurring fixes, by its stable token. */
+    data class PatternDetail(val kind: String) : Screen
+
     /** For saved instance state. */
     val saved: String
         get() = when (this) {
@@ -38,6 +44,8 @@ internal sealed interface Screen {
             is SettingsChoice -> "settings:${page.token}"
             is Detail -> "detail:$id"
             is DetailAssumptions -> "assumptions:$id"
+            Patterns -> "patterns"
+            is PatternDetail -> "pattern:$kind"
         }
 
     companion object {
@@ -51,6 +59,8 @@ internal sealed interface Screen {
             saved.startsWith("detail:") && saved.length > "detail:".length -> Detail(saved.removePrefix("detail:"))
             saved.startsWith("assumptions:") && saved.length > "assumptions:".length ->
                 DetailAssumptions(saved.removePrefix("assumptions:"))
+            saved == "patterns" -> Patterns
+            saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             else -> null
         }
     }

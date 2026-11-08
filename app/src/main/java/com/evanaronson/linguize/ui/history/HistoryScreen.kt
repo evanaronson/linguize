@@ -34,6 +34,7 @@ import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.cardSegment
+import com.evanaronson.linguize.ui.patterns.PatternsHistoryRow
 import com.evanaronson.linguize.ui.settings.HistoryDataCard
 import com.evanaronson.linguize.ui.settings.HistoryExportEffect
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -48,6 +49,7 @@ fun HistoryScreen(
     historyOn: Boolean?,
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPatterns: (() -> Unit)? = null,
 ) {
     val page by history.historyList.collectAsState()
     val list = rememberLazyListState()
@@ -87,6 +89,7 @@ fun HistoryScreen(
             val hasFooter = page.loading || page.failed || page.next != null
             LazyColumn(state = list, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                 item(key = "history-title", contentType = "title") { title?.let { SectionHeader(it) } }
+                onOpenPatterns?.let { open -> item(key = "history-patterns", contentType = "patterns") { PatternsHistoryRow(open) } }
                 if (historyOn == false) item(key = "history-off", contentType = "notice") {
                     SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
                 }

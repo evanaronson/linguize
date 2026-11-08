@@ -28,6 +28,11 @@ import com.evanaronson.linguize.ui.history.HistoryScreen
 import com.evanaronson.linguize.ui.history.SessionAssumptionsScreen
 import com.evanaronson.linguize.ui.history.SessionScreen
 import com.evanaronson.linguize.ui.history.SessionViewModel
+import com.evanaronson.linguize.history.patterns.PatternKind
+import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
+import com.evanaronson.linguize.ui.patterns.PatternsScreen
+import com.evanaronson.linguize.ui.patterns.PatternsViewModel
+import com.evanaronson.linguize.ui.patterns.labelResource
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -39,6 +44,7 @@ class HomeActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private val history: HistoryViewModel by viewModels { HistoryViewModel.factory(App.of(this)) }
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
+    private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,12 +84,15 @@ class HomeActivity : ComponentActivity() {
                                     onOpen = ::open,
                                     onViewHistory = { navigation = navigation.open(Screen.History) },
                                     onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) },
+                                    patterns = patterns,
+                                    onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
                                     historyOn = settings.state?.historyEnabled,
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,
+                                    onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
                                     navigation = navigation.open(Screen.SettingsChoice(it))
@@ -94,6 +103,12 @@ class HomeActivity : ComponentActivity() {
                                     navigation = navigation.open(Screen.DetailAssumptions(current.id))
                                 })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
+                                Screen.Patterns -> PatternsScreen(patterns, settings.state?.historyEnabled, onOpenPattern = {
+                                    navigation = navigation.open(Screen.PatternDetail(it.token))
+                                }, onOpenSettings = openSettings)
+                                is Screen.PatternDetail -> PatternDetailScreen(
+                                    patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
+                                )
                             }
                         }
                     }
@@ -158,4 +173,6 @@ private fun Screen.title(): String? = when (this) {
     is Screen.SettingsChoice -> stringResource(page.title)
     is Screen.Detail -> stringResource(R.string.saved_check)
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
+    Screen.Patterns -> stringResource(R.string.lab_patterns_title)
+    is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
 }

@@ -96,7 +96,20 @@ class CheckViewModel(
 
     /** The text with accepted changes, or null when nothing has been accepted. */
     val workingText: String?
-        get() = revision?.takeIf { it.acceptedCount > 0 }?.workingText
+        get() = chosenVersion ?: revision?.takeIf { it.acceptedCount > 0 }?.workingText
+
+    /** Lab, How it lands: a whole version the writer chose, tied to the card state it was chosen on. */
+    private var chosen by mutableStateOf<Pair<CardState, String>?>(null)
+
+    /** The chosen version while the card is unchanged; accepting, undoing or checking again drops it. */
+    val chosenVersion: String? get() = chosen?.takeIf { it.first === state }?.second
+
+    /** Uses [version] as the text to put back, or null to go back to the accepted changes. */
+    fun useVersion(version: String?) {
+        val current = state ?: return
+        chosen = version?.trim()?.takeIf { it.isNotEmpty() }?.let { current to it }
+        if (chosen != null) hasReviewed = true
+    }
 
     /**
      * Checks [text] as [language], or detects the language when it's null, starting afresh.

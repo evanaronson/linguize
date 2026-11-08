@@ -21,6 +21,8 @@ class CardActions(
     val onClarify: ((answer: String) -> Unit)? = null,
     /** Retracts the writer's meaning clarification; null for a past check. */
     val onRemoveClarification: (() -> Unit)? = null,
+    /** Lab, How it lands: null where the host doesn't offer it. */
+    val howItLands: com.evanaronson.linguize.ui.tonecheck.LandsActions? = null,
 ) {
     companion object {
         /**
@@ -56,6 +58,7 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
+            howItLands = com.evanaronson.linguize.ui.tonecheck.LandsActions.of(check, context, canReplace, onClose, onOpenSettings),
         )
     }
 }

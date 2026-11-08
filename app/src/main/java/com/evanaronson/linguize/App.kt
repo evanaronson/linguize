@@ -74,6 +74,13 @@ class App : Application() {
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
 
+    /** Lab, "How it lands": its own prompt asset, the same clients and key. */
+    val landing by lazy {
+        LandingChecker(settings, keys, clients) {
+            com.evanaronson.linguize.llm.lab.LandingPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // onCreate runs once per process, so this does too. A session open in the database

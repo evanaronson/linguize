@@ -80,6 +80,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
         })
         LinguizeButton(stringResource(R.string.check), { run(Language.forCode(code)) }, ButtonKind.Filled)
     }
+    com.evanaronson.linguize.ui.tonecheck.TryItLands(sample, onUse = { sample = it; check.dismiss(applied = false) }, onOpenSettings)
 
     check.state?.let { state ->
         ResultCard(

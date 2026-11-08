@@ -50,6 +50,7 @@ class HomeActivity : ComponentActivity() {
                 ?: if (intent.getBooleanExtra(OPEN_SETTINGS, false)) Navigation().open(Screen.Settings).saved else null,
         )
         navigation.current.sessionId?.let(session::load)
+        com.evanaronson.linguize.ui.quicktile.QuickLaunch.publishInBackground(this)
         setContent {
             AppTheme {
                 val current = navigation.current

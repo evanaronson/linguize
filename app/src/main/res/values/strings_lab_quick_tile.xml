@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quick Settings tile: the label is the app name; this line sits under it. -->
+    <string name="lab_quick_tile_tile_subtitle">Copied text</string>
+    <string name="lab_quick_tile_tile_description">Check or understand copied text</string>
+
+    <!-- Launcher shortcuts (long-press the icon). Short labels fit about 10 characters. -->
+    <string name="lab_quick_tile_shortcut_check">Check copied</string>
+    <string name="lab_quick_tile_shortcut_check_long">Check copied text</string>
+    <string name="lab_quick_tile_shortcut_understand">Understand</string>
+    <string name="lab_quick_tile_shortcut_understand_long">Understand copied text</string>
+    <string name="lab_quick_tile_shortcut_try_it">Try it</string>
+    <string name="lab_quick_tile_shortcut_try_it_long">Try it</string>
+
+    <!-- The tile's card: whose words were copied decides the job. -->
+    <string name="lab_quick_tile_choose_caption">Check your own writing, or understand a message you got.</string>
+    <string name="lab_quick_tile_check_mine">Check my text</string>
+    <string name="lab_quick_tile_understand_it">Understand it</string>
+
+    <!-- Nothing usable on the clipboard. Titles are states; hints say what to do. -->
+    <string name="lab_quick_tile_empty">Nothing copied</string>
+    <string name="lab_quick_tile_empty_hint">Copy some text, then retry.</string>
+    <string name="lab_quick_tile_not_text">Copied item isn\'t text</string>
+    <string name="lab_quick_tile_not_text_hint">Copy the words themselves, then retry.</string>
+    <string name="lab_quick_tile_unavailable">Couldn\'t read copied text</string>
+    <string name="lab_quick_tile_unavailable_hint">Copy it again, then retry.</string>
+
+    <!-- Toasts after the card closes with accepted changes: there was no field to put them back in. -->
+    <string name="lab_quick_tile_copied_with_changes">Copied with your changes. Paste it where you need it.</string>
+    <string name="lab_quick_tile_copy_failed">Couldn\'t copy your changes. Try again.</string>
+</resources>

@@ -29,6 +29,10 @@ import com.evanaronson.linguize.ui.gaps.GapFillViewModel
 import com.evanaronson.linguize.ui.gaps.PopupGapsOrCheck
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.home.HomeActivity
+import com.evanaronson.linguize.ui.languagebridge.BridgeFooterEntry
+import com.evanaronson.linguize.ui.languagebridge.BridgeHost
+import com.evanaronson.linguize.ui.languagebridge.BridgeViewModel
+import com.evanaronson.linguize.ui.languagebridge.hostBridgeActions
 import com.evanaronson.linguize.ui.theme.AppTheme
 
 /**
@@ -47,12 +51,17 @@ class CheckActivity : ComponentActivity() {
     private var returningFromApp = false
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
+    // Lab language bridge: the other-language text the card moved onto, and one put back as is.
+    private val bridge: BridgeViewModel by viewModels { BridgeViewModel.factory(App.of(this)) }
+    private var bridged: String? = null
+    private var bridgedOut: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         popupPosition = App.of(this).settings.popupPosition
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
+        bridged = savedInstanceState?.getString(KEY_BRIDGED)
         // Exported aliases are callable by any app. Reject malformed launches before
         // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.
         if (intent.action != Intent.ACTION_PROCESS_TEXT) return finish()
@@ -93,20 +102,34 @@ class CheckActivity : ComponentActivity() {
             AppTheme {
                 val state = if (limited) CardState.Failed(Reason.TooMany, getString(R.string.menu_check_not_sent)) else check.state
                 state?.let {
+                    val bridgeActions = hostBridgeActions(bridge,
+                        onReplace = if (canReplace) { text -> bridgedOut = text; finish() } else null,
+                        onCheck = { text, picked ->
+                            bridged = text
+                            language = picked
+                            check.check(text, picked, Origin.Menu, callingPackage)
+                        },
+                        onOpenSettings = null, useLabel = R.string.lab_language_bridge_put_back,
+                        checkNote = if (canReplace) R.string.lab_language_bridge_check_note else null)
                     FloatingPopup(::finish, ::openApp, popupPosition, header = {
-                        LanguagePicker(language, onSelect = { selected ->
+                        if (bridge.state == null) LanguagePicker(language, onSelect = { selected ->
                             language = selected
                             if (gaps.state != null) gaps.changeLanguage(selected)
                             else if (!limited) check.changeLanguage(selected)
                         }, modifier = Modifier.weight(1f, fill = false))
                         AppVoiceChip(voice, onChanged = { if (!limited) check.recheck() }, Modifier.weight(1f, fill = false))
                     }) { modifier ->
-                        PopupGapsOrCheck(
-                            gaps, source = gaps.source(selection.text, check.workingText).takeIf { !limited },
-                            language, canReplace, onPutBack = ::finish,
-                            onCheck = { filled -> check.check(filled, language, Origin.Menu, callingPackage) },
-                            onOpenSettings = null, modifier,
-                        ) { offer -> ResultCard(it, actions, modifier, gapOffer = offer) }
+                        BridgeHost(bridge, bridgeActions, modifier) {
+                            PopupGapsOrCheck(
+                                gaps, source = gaps.source(selection.text, check.workingText).takeIf { !limited },
+                                language, canReplace, onPutBack = ::finish,
+                                onCheck = { filled -> check.check(filled, language, Origin.Menu, callingPackage) },
+                                onOpenSettings = null, modifier,
+                            ) { offer ->
+                                ResultCard(it, actions, modifier, gapOffer = offer,
+                                    bridgeEntry = { BridgeFooterEntry(bridge, check, language) })
+                            }
+                        }
                     }
                 }
             }
@@ -125,6 +148,7 @@ class CheckActivity : ComponentActivity() {
         if (returningFromApp) {
             returningFromApp = false
             check.recheckIfStale()
+            bridge.retryIfFailed()
         }
     }
 
@@ -133,6 +157,7 @@ class CheckActivity : ComponentActivity() {
         outState.putBoolean(KEY_LIMITED, limited)
         outState.putBoolean(KEY_RETURNING, returningFromApp)
         outState.putString(KEY_LANGUAGE, language?.code)
+        outState.putString(KEY_BRIDGED, bridged)
     }
 
     /**
@@ -147,8 +172,10 @@ class CheckActivity : ComponentActivity() {
      * only matters when the database is slow to open, and then the write goes on alone.
      */
     override fun finish() {
+        // Put back from the bridge or from a fill goes as is; after either's Check it, the
+        // checked text is the base.
         val checkWorking = check.workingText
-        val accepted = gaps.replacement(checkWorking)
+        val accepted = bridgedOut ?: gaps.replacement(checkWorking ?: bridged)
         val selection = selection
         val handedBack = if (canReplace && accepted != null && selection != null) {
             setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, selection.with(accepted)))
@@ -156,7 +183,7 @@ class CheckActivity : ComponentActivity() {
         } else {
             false
         }
-        check.dismiss(applied = gaps.checkApplied(handedBack, checkWorking), waitMs = CLOSE_WAIT_MS)
+        check.dismiss(applied = gaps.checkApplied(handedBack && bridgedOut == null, checkWorking), waitMs = CLOSE_WAIT_MS)
         super.finish()
     }
 
@@ -164,6 +191,7 @@ class CheckActivity : ComponentActivity() {
         const val KEY_LIMITED = "limited"
         const val KEY_RETURNING = "returningFromApp"
         const val KEY_LANGUAGE = "language"
+        const val KEY_BRIDGED = "labLanguageBridgeText"
 
         /** How long finishing may wait for the session's close to be written. */
         const val CLOSE_WAIT_MS = 500L

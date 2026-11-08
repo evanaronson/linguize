@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {"type": "string", "enum": ["ok", "same_language", "unclear"]},
+    "source_language": {"type": "string"},
+    "text": {"type": "string"},
+    "pairs": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {"type": "string"},
+          "target": {"type": "string"},
+          "kind": {"type": "string", "enum": ["same", "close", "different", "false_friend"]},
+          "note": {"type": "string"}
+        },
+        "required": ["source", "target", "kind", "note"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["status", "source_language", "text", "pairs"],
+  "additionalProperties": false
+}

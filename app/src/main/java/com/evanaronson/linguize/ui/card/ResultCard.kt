@@ -83,6 +83,8 @@ fun ResultCard(
     onUnderstandCopiedText: (() -> Unit)? = null,
     /** Lab: offers Fill the gaps when the text has gaps; null hides it. */
     gapOffer: GapOffer? = null,
+    /** Lab: an extra footer row under Meaning on a reviewed result ("Say it in Catalan"). */
+    bridgeEntry: (@Composable () -> Unit)? = null,
 ) {
     val done = state as? CardState.Done
     val reviewed = done?.result as? CheckResult.Reviewed
@@ -100,6 +102,7 @@ fun ResultCard(
             {
                 if (reviewed != null && !showingUnderstanding) {
                     UnderstandingEntry(onOpen = { showingUnderstanding = true })
+                    bridgeEntry?.invoke()
                 }
                 if (!showingUnderstanding) gapOffer?.let { GapOfferRow(it) }
                 onUnderstandCopiedText?.let { open ->

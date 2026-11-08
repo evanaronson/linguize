@@ -21,6 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.appvoice.AppVoiceListScreen
+import com.evanaronson.linguize.ui.appvoice.AppVoiceRuleScreen
+import com.evanaronson.linguize.ui.appvoice.AppVoiceSettingsRow
+import com.evanaronson.linguize.ui.appvoice.AppVoiceSettingsViewModel
+import com.evanaronson.linguize.ui.appvoice.appVoiceTitle
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.components.AppNavigation
 import com.evanaronson.linguize.ui.history.HistoryViewModel
@@ -43,6 +48,7 @@ class HomeActivity : ComponentActivity() {
     private val history: HistoryViewModel by viewModels { HistoryViewModel.factory(App.of(this)) }
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
     private val phrasebook: PhrasebookViewModel by viewModels { PhrasebookViewModel.factory(PhrasebookStore.of(this)) }
+    private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +98,8 @@ class HomeActivity : ComponentActivity() {
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
                                     navigation = navigation.open(Screen.SettingsChoice(it))
+                                }, appVoiceRow = {
+                                    AppVoiceSettingsRow(appVoice) { navigation = navigation.open(Screen.AppVoice()) }
                                 })
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
@@ -100,6 +108,8 @@ class HomeActivity : ComponentActivity() {
                                 })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
                                 Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
+                                is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
+                                    ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
                             }
                         }
                     }
@@ -111,6 +121,7 @@ class HomeActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         settings.refresh()
+        appVoice.refresh()
         navigation.current.sessionId?.let(session::load)
     }
 
@@ -165,4 +176,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.Detail -> stringResource(R.string.saved_check)
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
     Screen.Phrasebook -> stringResource(R.string.lab_phrasebook_title)
+    is Screen.AppVoice -> appVoiceTitle(app)
 }

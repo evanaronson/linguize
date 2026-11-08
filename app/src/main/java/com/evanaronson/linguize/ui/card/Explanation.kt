@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.teachme.LessonTopic
+import com.evanaronson.linguize.ui.teachme.TeachMe
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ClarifyLink
 import com.evanaronson.linguize.ui.components.LinguizeButton
@@ -74,6 +76,8 @@ internal fun ExplanationPanel(
     expanded: Boolean = true,
     onToggle: (() -> Unit)? = null,
     onToggleLabel: String? = null,
+    /** Lab: the decision "Teach me" explains; null offers no lesson. */
+    lesson: LessonTopic? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -112,6 +116,7 @@ internal fun ExplanationPanel(
             )
         }
         if (expanded) WeightMeters(assessment, Modifier.padding(top = 8.dp))
+        if (expanded) TeachMe(lesson)
         if (expanded && (assumptions.isNotEmpty() || answers.isNotEmpty())) {
             HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             Column(Modifier.padding(top = 4.dp)) {

@@ -329,7 +329,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
                                 PopupGapsOrCheck(
                                     gaps, selection?.let { gaps.source(it.text, check.workingText) }, language,
                                     canReplace = field != null && selection != null, onPutBack = close,
-                                    onCheck = { check.check(it, language, Origin.Button, field?.packageName?.toString()) },
+                                    onCheck = {
+                                        com.evanaronson.linguize.ui.words.markNotTyped(this@LinguizeAccessibilityService, it)
+                                        check.check(it, language, Origin.Button, field?.packageName?.toString())
+                                    },
                                     onOpenSettings = openSettings, modifier,
                                 ) { offer ->
                                     ResultCard(state, actions, modifier, onUnderstandCopiedText = ::switchToUnderstand, gapOffer = offer)

@@ -45,6 +45,10 @@ internal sealed interface Screen {
     data class PatternDetail(val kind: String) : Screen
     /** Lab: practice drills from applied fixes. */
     data object Practice : Screen
+    /** Lab: every word the writer typed. */
+    data object Words : Screen
+    /** Lab: one word form (or dictionary form, when [lemma]) in [language]. */
+    data class WordDetail(val language: String?, val key: String, val lemma: Boolean) : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -64,6 +68,8 @@ internal sealed interface Screen {
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
             Practice -> "practice"
+            Words -> "words"
+            is WordDetail -> "word:${if (lemma) "l" else "f"}:${language.orEmpty()}:$key"
         }
 
     companion object {
@@ -86,6 +92,9 @@ internal sealed interface Screen {
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             saved == "practice" -> Practice
+            saved == "words" -> Words
+            saved.startsWith("word:") -> saved.split(':', limit = 4).takeIf { it.size == 4 && it[3].isNotEmpty() }
+                ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1] == "l") }
             else -> null
         }
     }

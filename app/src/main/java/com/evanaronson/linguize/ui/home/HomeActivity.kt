@@ -66,6 +66,7 @@ class HomeActivity : ComponentActivity() {
     private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
+    private val words: com.evanaronson.linguize.ui.words.WordsViewModel by viewModels { com.evanaronson.linguize.ui.words.WordsViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,6 +117,7 @@ class HomeActivity : ComponentActivity() {
                                     patterns = patterns,
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                     practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
+                                    words = { com.evanaronson.linguize.ui.words.WordsHomeCard(words) { navigation = navigation.open(Screen.Words) } },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -123,6 +125,7 @@ class HomeActivity : ComponentActivity() {
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
+                                    wordsRow = { com.evanaronson.linguize.ui.words.WordsHistoryRow { navigation = navigation.open(Screen.Words) } },
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
                                     navigation = navigation.open(Screen.SettingsChoice(it))
@@ -148,6 +151,12 @@ class HomeActivity : ComponentActivity() {
                                     patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
                                 )
                                 Screen.Practice -> PracticeScreen(practice, onDone = ::back)
+                                Screen.Words -> com.evanaronson.linguize.ui.words.WordsScreen(words, settings.state?.historyEnabled) { language, key, lemma ->
+                                    navigation = navigation.open(Screen.WordDetail(language, key, lemma))
+                                }
+                                is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
+                                    words, current.language, current.key, current.lemma, onOpenCheck = ::open,
+                                )
                             }
                         }
                     }
@@ -223,4 +232,6 @@ private fun Screen.title(): String? = when (this) {
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
     Screen.Practice -> stringResource(R.string.lab_practice_title)
+    Screen.Words -> stringResource(R.string.lab_words_title)
+    is Screen.WordDetail -> key
 }

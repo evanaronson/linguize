@@ -104,6 +104,7 @@ class App : Application() {
      */
     val corpus by lazy {
         com.evanaronson.linguize.core.corpus.Corpus(listOf<com.evanaronson.linguize.core.corpus.CorpusSource>(
+            com.evanaronson.linguize.history.corpus.CheckCorpusSource(history, com.evanaronson.linguize.data.lab.NotTypedTexts(this)::hashes),
         ))
     }
 

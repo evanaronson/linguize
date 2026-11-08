@@ -107,6 +107,7 @@ class CheckActivity : ComponentActivity() {
                         onCheck = { text, picked ->
                             bridged = text
                             language = picked
+                            com.evanaronson.linguize.ui.words.markNotTyped(this@CheckActivity, text)
                             check.check(text, picked, Origin.Menu, callingPackage)
                         },
                         onOpenSettings = null, useLabel = R.string.lab_language_bridge_put_back,
@@ -123,7 +124,10 @@ class CheckActivity : ComponentActivity() {
                             PopupGapsOrCheck(
                                 gaps, source = gaps.source(selection.text, check.workingText).takeIf { !limited },
                                 language, canReplace, onPutBack = ::finish,
-                                onCheck = { filled -> check.check(filled, language, Origin.Menu, callingPackage) },
+                                onCheck = { filled ->
+                                    com.evanaronson.linguize.ui.words.markNotTyped(this@CheckActivity, filled)
+                                    check.check(filled, language, Origin.Menu, callingPackage)
+                                },
                                 onOpenSettings = null, modifier,
                             ) { offer ->
                                 ResultCard(it, actions, modifier, gapOffer = offer,

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Your words. Counts only what the writer typed themselves. -->
+    <string name="lab_words_title">Your words</string>
+    <string name="lab_words_open">Open your words</string>
+    <plurals name="lab_words_home_summary">
+        <item quantity="one">%1$d word you\'ve written in %2$s</item>
+        <item quantity="other">%1$d words you\'ve written in %2$s</item>
+    </plurals>
+    <string name="lab_words_history_summary">Every word you typed, counted</string>
+    <string name="lab_words_other_language">Other</string>
+
+    <string name="lab_words_language">Language</string>
+    <string name="lab_words_stat_distinct">Words</string>
+    <string name="lab_words_stat_lemmas">Dictionary forms</string>
+    <string name="lab_words_stat_total">Words written</string>
+    <string name="lab_words_stat_month">This month</string>
+    <plurals name="lab_words_new_this_month">
+        <item quantity="one">%1$d new word this month.</item>
+        <item quantity="other">%1$d new words this month.</item>
+    </plurals>
+    <string name="lab_words_growth">Words over time</string>
+    <string name="lab_words_growth_description">Words you\'ve used grew from %1$d on %2$s to %3$d on %4$s</string>
+    <string name="lab_words_growth_one_day">All %1$d words so far are from %2$s.</string>
+
+    <string name="lab_words_list">Word list</string>
+    <string name="lab_words_search">Search words</string>
+    <string name="lab_words_sort_most_used">Most used</string>
+    <string name="lab_words_sort_newest">Newest</string>
+    <string name="lab_words_sort_az">A–Z</string>
+    <string name="lab_words_sort_tried">Not yet right</string>
+    <string name="lab_words_by_form">Words</string>
+    <string name="lab_words_by_lemma">Dictionary forms</string>
+    <string name="lab_words_no_match">No words match</string>
+    <string name="lab_words_no_tried">Every word you tried, you\'ve also used right.</string>
+    <plurals name="lab_words_uses">
+        <item quantity="one">%1$d use</item>
+        <item quantity="other">%1$d uses</item>
+    </plurals>
+    <plurals name="lab_words_row_used">
+        <item quantity="one">Used in %1$d message</item>
+        <item quantity="other">Used in %1$d messages</item>
+    </plurals>
+    <plurals name="lab_words_row_tried">
+        <item quantity="one">Tried once, not yet right</item>
+        <item quantity="other">Tried %1$d times, not yet right</item>
+    </plurals>
+    <plurals name="lab_words_row_fixed">
+        <item quantity="one">fixed once</item>
+        <item quantity="other">fixed %1$d times</item>
+    </plurals>
+    <!-- "Used in 3 messages, fixed once" -->
+    <string name="lab_words_row_pair">%1$s, %2$s</string>
+    <string name="lab_words_open_word">Open word</string>
+    <plurals name="lab_words_names">
+        <item quantity="one">%1$d name left out: %2$s</item>
+        <item quantity="other">%1$d names left out: %2$s</item>
+    </plurals>
+    <string name="lab_words_export">Export CSV</string>
+    <string name="lab_words_export_chooser">Export your words</string>
+    <string name="lab_words_export_failed">Couldn\'t export your words</string>
+
+    <string name="lab_words_empty_title">No words yet</string>
+    <string name="lab_words_empty">Words from the checks you put back show up here.</string>
+    <string name="lab_words_how_header">How it\'s counted</string>
+    <string name="lab_words_how">Only words you typed yourself count, from your saved checks. Words Linguize suggested never count.</string>
+    <string name="lab_words_how_tried">A word a fix replaced counts as tried, not as right. Rewordings don\'t count against you.</string>
+    <string name="lab_words_how_delete">Delete a check and its words leave this list.</string>
+
+    <string name="lab_words_detail_right">Used right</string>
+    <string name="lab_words_detail_tried">Tried</string>
+    <string name="lab_words_detail_first">First used</string>
+    <string name="lab_words_detail_last">Last used</string>
+    <string name="lab_words_detail_messages">Messages</string>
+    <string name="lab_words_detail_lemmas">Dictionary form</string>
+    <string name="lab_words_detail_forms">Forms you used</string>
+    <string name="lab_words_contexts">Where you used it</string>
+    <plurals name="lab_words_contexts_newest">
+        <item quantity="one">The newest %1$d of %2$d uses.</item>
+        <item quantity="other">The newest %1$d of %2$d uses.</item>
+    </plurals>
+    <!-- "Nov 3, Saved check" -->
+    <string name="lab_words_context_caption">%1$s, %2$s</string>
+    <string name="lab_words_context_tried">%1$s, %2$s, fixed</string>
+    <string name="lab_words_source_check">Saved check</string>
+    <string name="lab_words_source_chat">Conversation</string>
+    <string name="lab_words_open_check">Open check</string>
+    <string name="lab_words_gone">This word isn\'t in your words anymore.</string>
+</resources>

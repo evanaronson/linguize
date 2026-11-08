@@ -56,6 +56,7 @@ fun HomeScreen(
             SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
                 TryIt(check, onOpenSettings)
             }
+            com.evanaronson.linguize.ui.writingpad.WritingPadEntry()
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({

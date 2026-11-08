@@ -98,6 +98,25 @@ class App : Application() {
         }
     }
 
+    /**
+     * Lab: everything the writer typed themselves, before corrections (docs/lab/corpus.md).
+     * Each feature that holds writer input adds its source here, one per line.
+     */
+    val corpus by lazy {
+        com.evanaronson.linguize.core.corpus.Corpus(listOf<com.evanaronson.linguize.core.corpus.CorpusSource>(
+        ))
+    }
+
+    /** Lab: word forms to dictionary forms. Identity until a feature supplies morphology. */
+    val lemmatizer: com.evanaronson.linguize.core.corpus.Lemmatizer by lazy {
+        com.evanaronson.linguize.core.corpus.Lemmatizer.Identity
+    }
+
+    /** Lab: what Linguize remembers about the writer. Remembers nothing until a feature supplies it. */
+    val userMemory: com.evanaronson.linguize.core.memory.UserMemory by lazy {
+        com.evanaronson.linguize.core.memory.UserMemory.None
+    }
+
     /** Lab: Say it in another language. Its own prompt asset, read on first use. */
     val languageBridge by lazy {
         LanguageBridge(settings, keys, clients) {

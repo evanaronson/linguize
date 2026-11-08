@@ -25,6 +25,8 @@ data class PracticeItem(
     /** The recorded reason, in the writer's own language; null when none was saved. */
     val why: String? = null,
     val assessment: SuggestionAssessment? = null,
+    /** Where the source check came from: History's origin token ("chat" for Lab Chat), null when unknown. */
+    val origin: String? = null,
 ) {
     val wrong: String get() = sentence.substring(wrongStart, wrongEnd)
 

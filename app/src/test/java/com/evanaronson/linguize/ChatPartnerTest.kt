@@ -62,6 +62,19 @@ class ChatPartnerTest {
         }
     }
 
+    @Test fun practiceTargetsAndAStandInGoWithEveryRequest() = runBlocking {
+        val http = FakeHttp { _, _ -> 200 to payload(Provider.Gemini, """{"reply":"Bon dia. Li escric per la caldera.","title":""}""") }
+        val asked = mutableListOf<String>()
+        val partner = ChatPartner(FakePreferences(), ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client, checkPrompt)),
+            { memory }, targets = { language -> asked += language.code; "- Verb forms they rarely or never write: future, I." }) { chatPrompt }
+        partner.open(Language.Catalan, persona = "Jordi, my landlord, formal")
+        val body = http.body(0)
+        assertEquals(listOf("ca"), asked)
+        assertTrue(body.contains("## Practice targets"))
+        assertTrue(body.contains("future, I."))
+        assertTrue(body.contains("Jordi, my landlord, formal"))
+    }
+
     @Test fun noKeyFailsBeforeAnythingIsSent() = runBlocking {
         val http = FakeHttp { _, _ -> error("nothing should be sent") }
         val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, mapOf(Provider.Gemini to GeminiClient(http.client, checkPrompt)),

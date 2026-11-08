@@ -29,6 +29,10 @@ data class ChatSetting(
     val native: String,
     /** [com.evanaronson.linguize.core.memory.UserMemory.forPrompt], or "". */
     val memory: String,
+    /** The practice targets block ([com.evanaronson.linguize.core.chat.PracticeTargets.render]), or "". */
+    val targets: String = "",
+    /** Who the partner plays, for a stand-in conversation; null for the usual partner. */
+    val persona: String? = null,
 )
 
 /**
@@ -39,10 +43,13 @@ data class ChatSetting(
 class ChatPrompt(private val instructions: String, schemaJson: String) {
     private val schema: JsonObject = json.parseToJsonElement(schemaJson).jsonObject
 
-    /** The instructions, with what memory holds about the writer at the end. */
-    fun system(memory: String): String {
+    /** The instructions, with what memory holds about the writer and what to steer toward at the end. */
+    fun system(memory: String, targets: String = ""): String = buildString {
+        append(instructions)
         val notes = memory.trim().take(MAX_MEMORY)
-        return if (notes.isEmpty()) instructions else "$instructions\n\n## What you remember about the learner\n\n$notes\n"
+        if (notes.isNotEmpty()) append("\n\n## What you remember about the learner\n\n").append(notes).append('\n')
+        val steer = targets.trim().take(MAX_TARGETS)
+        if (steer.isNotEmpty()) append("\n\n## Practice targets\n\n").append(steer).append('\n')
     }
 
     /** A new conversation's opener. */
@@ -53,7 +60,7 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         request(TASK_REPLY, setting, trim(history), needTitle)
 
     private fun request(task: String, setting: ChatSetting, history: List<Turn>, needTitle: Boolean) = GenerationRequest(
-        system = system(setting.memory),
+        system = system(setting.memory, setting.targets),
         user = userMessage(task, setting, history, needTitle),
         schema = schema,
         name = "chat_reply",
@@ -66,6 +73,7 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         put("language", setting.language)
         put("variety", setting.variety)
         put("native", setting.native)
+        put("persona", setting.persona?.trim()?.take(MAX_PERSONA).orEmpty())
         putJsonArray("history") {
             history.forEach { turn ->
                 add(buildJsonObject {
@@ -107,6 +115,8 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         const val MAX_HISTORY_CHARS = 12_000
         const val MAX_TURNS = 40
         private const val MAX_MEMORY = 4_000
+        private const val MAX_TARGETS = 1_500
+        const val MAX_PERSONA = 300
         private const val MAX_OUTPUT_TOKENS = 1024
         private const val MAX_ANSWER = 16_384
         private const val MAX_REPLY = 2_000

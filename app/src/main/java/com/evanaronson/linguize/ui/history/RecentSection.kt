@@ -62,6 +62,8 @@ fun RecentSection(
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onViewAll: () -> Unit,
+    /** Lab Chat: opens a chat conversation's row; null opens its newest saved message. */
+    onOpenThread: ((String) -> Unit)? = null,
 ) {
     val rows by history.recent.collectAsState()
     val time = rememberTimeFormat()
@@ -80,11 +82,16 @@ fun RecentSection(
         }
         val now = System.currentTimeMillis()
         shown.take(HistoryViewModel.PREVIEW_SIZE).forEachIndexed { index, row ->
-            key(row.summary.id) {
+            key(row.key) {
                 if (index > 0 || historyOn == false) RowDivider()
-                val delete = { history.delete(row.summary.id) }
-                SwipeToDelete(onDelete = delete) {
-                    SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                val thread = row.thread
+                if (thread != null) {
+                    ThreadRow(row, now, time) { onOpenThread?.invoke(thread.conversationId) ?: onOpen(row.summary.id) }
+                } else {
+                    val delete = { history.delete(row.summary.id) }
+                    SwipeToDelete(onDelete = delete) {
+                        SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                    }
                 }
             }
         }

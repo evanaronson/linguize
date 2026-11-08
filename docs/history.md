@@ -37,6 +37,16 @@ permission to save; switching it on again does not resume that card.
 Older unapplied records remain stored, but are hidden from History, its counts,
 detail pages and exports. No migration deletes those records.
 
+**Origins.** `menu` and `button` are checks of text from other apps; `tester` (Try
+it) is never recorded. Lab adds `chat`: a message written to the Lab Chat partner,
+checked before it was sent. It is saved through the same path as an applied check,
+with the sent text as its final text, and it stays visible even when sent unchanged
+(clean, or sent as written), because correct writing is evidence too. This needs no
+schema change (`origin` is text); the visibility rule and `Origin.keepsUnchanged` name
+the one exception. Which conversation a chat session belongs to is kept by the chat
+(`lab_chat`), and History shows each conversation as one row. Deleting a conversation
+deletes its sessions.
+
 One card is one session, including retries, language changes, and settings changes.
 A session keeps the original text, source package when known, timestamps, app
 version, and a random installation ID. Each completed attempt keeps its raw answer
@@ -178,7 +188,7 @@ Keep these migrations and stable tokens when reorganizing code.
 Recent shows five applied checks; History pages through older applied checks by
 timestamp and ID. Counts, oldest date, detail lookup, and export use the same
 eligibility rule: closed, undeleted, outcome `applied`, and a non-null final text
-different from the original. An empty final text is valid when the applied change
+different from the original (or, for origin `chat`, any final text). An empty final text is valid when the applied change
 deleted the original text. A later failed recheck does not exclude a session if
 the host successfully applied its retained accepted changes.
 

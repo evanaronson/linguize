@@ -81,7 +81,8 @@ fun HomeScreen(
             UnderstandPhotoEntry(onPhotoPicked)
             com.evanaronson.linguize.ui.writingpad.WritingPadEntry()
             practice()
-            RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
+            RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory,
+                onOpenThread = onOpenChat?.let { open -> { id -> com.evanaronson.linguize.ui.chat.ChatRequests.conversation = id; open() } })
             PhrasebookHomeSection(onOpenPhrasebook)
             com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)
             patterns?.let { PatternsHomeCard(it, onOpenPatterns) }

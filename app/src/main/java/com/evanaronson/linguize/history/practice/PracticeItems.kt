@@ -111,6 +111,7 @@ object PracticeItems {
             right = right,
             why = fix.why?.takeIf { it.isNotBlank() },
             assessment = fix.assessment,
+            origin = session.origin?.token,
         )
     }
 

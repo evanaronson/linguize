@@ -9,6 +9,7 @@ import android.util.Log
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.chat.ChatChange
 import com.evanaronson.linguize.core.chat.ChatMessage
+import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.SentCheck
@@ -94,6 +95,42 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         put("learned_count", count)
     }
 
+    /** The History sessions [conversationId]'s messages were saved as. */
+    suspend fun sessionIds(conversationId: String): List<String> = io("read a conversation's checks", emptyList()) { db ->
+        db.rawQuery("SELECT session_id FROM messages WHERE conversation = ? AND session_id IS NOT NULL", arrayOf(conversationId))
+            .use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+    }
+
+    /**
+     * For each of [sessionIds] saved from a chat message, its conversation: what History shows
+     * as one row. Sessions from elsewhere are left out.
+     */
+    suspend fun threads(sessionIds: Collection<String>): Map<String, ChatThreadInfo> = io("read chat threads", emptyMap()) { db ->
+        if (sessionIds.isEmpty()) return@io emptyMap()
+        val byConversation = HashMap<String, ChatThreadInfo>()
+        val out = HashMap<String, ChatThreadInfo>()
+        sessionIds.distinct().chunked(SQL_ARGS).forEach { chunk ->
+            val marks = chunk.joinToString(",") { "?" }
+            db.rawQuery(
+                """SELECT m.session_id, c.id, c.title, c.persona, c.language,
+                     (SELECT COUNT(*) FROM messages w WHERE w.conversation = c.id AND w.from_writer = 1) AS sent,
+                     (SELECT COUNT(*) FROM messages w WHERE w.conversation = c.id AND w.from_writer = 1 AND w.checked = '${SentCheck.Corrected.token}') AS corrected
+                   FROM messages m JOIN conversations c ON c.id = m.conversation
+                   WHERE m.session_id IN ($marks)""",
+                chunk.toTypedArray(),
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val conversation = cursor.getString(1)
+                    out[cursor.getString(0)] = byConversation.getOrPut(conversation) {
+                        ChatThreadInfo(conversation, cursor.getString(2), cursor.stringOrNull("persona"), cursor.getString(4),
+                            cursor.getInt(5), cursor.getInt(6))
+                    }
+                }
+            }
+        }
+        out
+    }
+
     /** Deletes [id] and its messages; returns them, so the deletion can be undone with [restore]. */
     suspend fun delete(id: String): Pair<Conversation, List<ChatMessage>>? = io("delete a conversation", null) { db ->
         db.transaction {
@@ -146,6 +183,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         updatedAt = long("updated_at"),
         titleIsCustom = int("title_custom") != 0,
         learnedCount = int("learned_count"),
+        persona = stringOrNull("persona"),
     )
 
     /** Null for a row this build can't read, which is skipped rather than failing the list. */
@@ -162,6 +200,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
             changes = changes,
             check = SentCheck.read(stringOrNull("checked")),
             at = long("at"),
+            sessionId = stringOrNull("session_id"),
         )
     }.onFailure { Log.w(TAG, "Skipped an unreadable message", it) }.getOrNull()
 
@@ -173,6 +212,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         put("updated_at", updatedAt)
         put("title_custom", if (titleIsCustom) 1 else 0)
         put("learned_count", learnedCount)
+        put("persona", persona)
     }
 
     private fun ChatMessage.values() = ContentValues().apply {
@@ -184,6 +224,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         put("changes", json.encodeToString(changeList, changes.map { StoredChange(it.kind.token, it.start, it.end, it.from, it.to, it.why) }))
         put("checked", check.token)
         put("at", at)
+        put("session_id", sessionId)
     }
 
     private class Helper(context: Context, name: String?) : SQLiteOpenHelper(context, name, null, VERSION) {
@@ -217,15 +258,28 @@ class ChatStore(context: Context, name: String? = DATABASE) {
                 )""",
             )
             db.execSQL("CREATE INDEX messages_by_conversation ON messages(conversation, at)")
+            upgradeTo2(db)
         }
 
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+            if (oldVersion < 2) upgradeTo2(db)
+        }
+
+        /** Version 2: who the partner plays, and the History session each message was saved as. */
+        private fun upgradeTo2(db: SQLiteDatabase) {
+            db.execSQL("ALTER TABLE conversations ADD COLUMN persona TEXT")
+            db.execSQL("ALTER TABLE messages ADD COLUMN session_id TEXT")
+            db.execSQL("CREATE INDEX messages_by_session ON messages(session_id)")
+        }
     }
 
     companion object {
         /** The database file's name. */
         const val DATABASE = "lab_chat"
-        private const val VERSION = 1
+        private const val VERSION = 2
+
+        /** SQLite's default limit on bound arguments is 999. */
+        private const val SQL_ARGS = 500
         private const val CONVERSATIONS = "conversations"
         private const val MESSAGES = "messages"
         private const val TAG = "LabChat"

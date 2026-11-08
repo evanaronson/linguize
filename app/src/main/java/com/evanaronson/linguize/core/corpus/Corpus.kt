@@ -21,6 +21,11 @@ data class Utterance(
     val corrected: List<Span> = emptyList(),
     /** When it was written, epoch milliseconds. */
     val at: Long,
+    /**
+     * Where, within its source, it was written: for "check", History's origin token ("menu",
+     * "button", "chat"), so analyses can compare writing to people with chat practice. Null when unknown.
+     */
+    val origin: String? = null,
 ) {
     init {
         require(corrected.all { it.end <= text.length }) { "Corrected spans must lie within the text" }

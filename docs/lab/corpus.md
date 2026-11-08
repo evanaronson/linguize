@@ -22,8 +22,13 @@ correction. It is the evidence for what they know.
   `CorpusSource` over its own storage and adds one line to `App.corpus`. Ids are
   `"<source>:<its own id>"`.
 
-Sources today: `check` (History: original text of applied checks) and `chat`
-(conversations: each message as typed, before pre-send corrections).
+Sources today: `check` (History: the original text of every saved check). Lab Chat
+messages are History records (origin `chat`), so `check` covers them too: each message
+as typed, with its accepted fixes as `corrected`; partner replies never enter. There is
+no separate `chat` source, so nothing is counted twice. `Utterance.origin` carries
+History's origin (`menu`, `button`, `chat`), so analyses can compare writing to people
+with chat practice. A chat message is never skipped as a re-check of put-back text: it
+is always newly typed.
 
 ## Word forms, lexemes and lemmas
 

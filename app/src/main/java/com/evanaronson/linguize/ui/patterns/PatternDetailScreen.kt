@@ -142,7 +142,8 @@ private fun Examples(examples: List<PatternExample>, showBasis: Boolean, onOpenC
                     .padding(vertical = 12.dp)
                     .semantics(mergeDescendants = true) { },
             ) {
-                Text(listOfNotNull(date, group, basis).joinToString(stringResource(R.string.status_separator)),
+                val from = stringResource(com.evanaronson.linguize.ui.chat.originLabel(example.origin))
+                Text(listOfNotNull(date, from, group, basis).joinToString(stringResource(R.string.status_separator)),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(change, style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.semantics { contentDescription = spoken })

@@ -29,7 +29,7 @@ Each experiment has its own page in this folder.
 | Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Home |
 | Learning over time | [What Linguize knows](memory.md): short notes about you, learned from chats or added, all editable | Settings |
 | Learning over time | [Your words](words.md): every word you typed, counted, with tried words kept apart | Home; History |
-| Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes | App start; Home; Settings |
+| Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; Home; History; Settings |
 | Learning over time | [Vocabulary gaps](vocab-gaps.md): common words you have used and not yet, by month | Home |
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Home |
 

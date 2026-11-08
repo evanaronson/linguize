@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
+import com.evanaronson.linguize.ui.secondopinion.secondOpinionBadge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -299,6 +300,7 @@ private fun ChangeExplanation(
         expanded = expanded,
         onToggle = onToggle,
         onToggleLabel = whyLabel(change.from, replacement, from, to),
+        badge = secondOpinionBadge(change.id),
     )
 }
 

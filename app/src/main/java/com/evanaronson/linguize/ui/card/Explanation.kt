@@ -74,6 +74,8 @@ internal fun ExplanationPanel(
     expanded: Boolean = true,
     onToggle: (() -> Unit)? = null,
     onToggleLabel: String? = null,
+    /** Lab: the second opinion's badge for this change, under the change. */
+    badge: (@Composable () -> Unit)? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -97,6 +99,7 @@ internal fun ExplanationPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+        if (expanded) badge?.invoke()
         if (expanded) {
             why?.takeIf { it.isNotBlank() }?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium,

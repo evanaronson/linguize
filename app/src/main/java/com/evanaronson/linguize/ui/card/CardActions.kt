@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.card
 import android.content.Context
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.ui.copyToClipboard
+import com.evanaronson.linguize.ui.secondopinion.SecondOpinionController
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -21,6 +22,8 @@ class CardActions(
     val onClarify: ((answer: String) -> Unit)? = null,
     /** Retracts the writer's meaning clarification; null for a past check. */
     val onRemoveClarification: (() -> Unit)? = null,
+    /** Lab: asks a second model and compares; null where the card offers no second opinion. */
+    val secondOpinion: SecondOpinionController? = null,
 ) {
     companion object {
         /**
@@ -56,6 +59,7 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
+            secondOpinion = check.secondOpinion,
         )
     }
 }

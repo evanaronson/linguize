@@ -31,6 +31,7 @@ Each experiment has its own page in this folder.
 | Learning over time | [Your words](words.md): every word you typed, counted, with tried words kept apart | Home; History |
 | Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes | App start; Home; Settings |
 | Learning over time | [Vocabulary gaps](vocab-gaps.md): common words you have used and not yet, by month | Home |
+| Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Home |
 
 ## What Linguize is, from first principles
 

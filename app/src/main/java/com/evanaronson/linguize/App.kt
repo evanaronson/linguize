@@ -109,10 +109,13 @@ class App : Application() {
         ))
     }
 
-    /** Lab: word forms to dictionary forms. Identity until a feature supplies morphology. */
+    /** Lab: word forms to dictionary forms (lexemes), from the Spanish and Catalan morphology. */
     val lemmatizer: com.evanaronson.linguize.core.corpus.Lemmatizer by lazy {
-        com.evanaronson.linguize.core.corpus.Lemmatizer.Identity
+        com.evanaronson.linguize.core.morphology.MorphologyLemmatizer(morphology)
     }
+
+    /** Lab: Spanish and Catalan morphology; its tables are built on first use, off the main thread. */
+    val morphology by lazy { com.evanaronson.linguize.core.morphology.Morphology() }
 
     /** Lab: what Linguize remembers about the writer (docs/lab/memory.md). */
     val userMemory: com.evanaronson.linguize.core.memory.UserMemory by lazy {

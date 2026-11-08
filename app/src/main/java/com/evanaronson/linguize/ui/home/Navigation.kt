@@ -59,6 +59,10 @@ internal sealed interface Screen {
     data object Chat : Screen
     /** Lab: common words used and not yet used. */
     data object VocabGaps : Screen
+    /** Lab: your conjugations. */
+    data object Conjugations : Screen
+    /** Lab: one cell of the conjugation grid, by language and cell token. */
+    data class ConjugationCell(val language: String, val cell: String) : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -83,6 +87,8 @@ internal sealed interface Screen {
             is WordDetail -> "word:$level:${language.orEmpty()}:$key"
             Chat -> "lab_chat"
             VocabGaps -> "vocab_gaps"
+            Conjugations -> "conjugations"
+            is ConjugationCell -> "conjugation:$language:$cell"
         }
 
     companion object {
@@ -112,6 +118,9 @@ internal sealed interface Screen {
                 ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1]) }
             saved == "lab_chat" -> Chat
             saved == "vocab_gaps" -> VocabGaps
+            saved == "conjugations" -> Conjugations
+            saved.startsWith("conjugation:") -> saved.removePrefix("conjugation:").split(':', limit = 2)
+                .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }
             else -> null
         }
     }

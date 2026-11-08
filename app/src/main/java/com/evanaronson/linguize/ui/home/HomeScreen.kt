@@ -66,6 +66,7 @@ fun HomeScreen(
     onOpenChat: (() -> Unit)? = null,
     /** Lab: Vocabulary gaps. */
     vocabGaps: @Composable () -> Unit = {},
+    onOpenConjugations: (() -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -86,6 +87,7 @@ fun HomeScreen(
             patterns?.let { PatternsHomeCard(it, onOpenPatterns) }
             words()
             vocabGaps()
+            onOpenConjugations?.let { com.evanaronson.linguize.ui.conjugations.ConjugationsHomeEntry(it) }
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

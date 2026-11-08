@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Phrasebook. Phrases the writer saves from fixes and rewordings, or types in. -->
+    <string name="lab_phrasebook_title">Phrasebook</string>
+    <string name="lab_phrasebook_home_row">Your phrases</string>
+    <string name="lab_phrasebook_home_empty">Tap the star on a fix or rewording to save it</string>
+    <plurals name="lab_phrasebook_count">
+        <item quantity="one">%1$d phrase saved</item>
+        <item quantity="other">%1$d phrases saved</item>
+    </plurals>
+
+    <!-- The star on a change's explanation. TalkBack reads the label, then Saved or Not saved. -->
+    <string name="lab_phrasebook_save_phrase">Save %1$s in Phrasebook</string>
+    <string name="lab_phrasebook_saved">Saved</string>
+    <string name="lab_phrasebook_not_saved">Not saved</string>
+
+    <string name="lab_phrasebook_search">Search phrases</string>
+    <string name="lab_phrasebook_empty">Phrases you save from a check appear here.</string>
+    <string name="lab_phrasebook_no_match">No phrases match</string>
+    <string name="lab_phrasebook_other_language">Other</string>
+
+    <string name="lab_phrasebook_add">Add phrase</string>
+    <string name="lab_phrasebook_field_phrase">Phrase</string>
+    <string name="lab_phrasebook_field_phrase_hint">How a native would say it</string>
+    <string name="lab_phrasebook_field_replaced">Instead of</string>
+    <string name="lab_phrasebook_field_replaced_hint">What you used to write (optional)</string>
+    <string name="lab_phrasebook_field_meaning">Meaning or note</string>
+    <string name="lab_phrasebook_field_meaning_hint">In your own language (optional)</string>
+    <string name="lab_phrasebook_field_language">Language</string>
+    <string name="lab_phrasebook_save">Save phrase</string>
+    <string name="lab_phrasebook_added">Phrase saved</string>
+
+    <string name="lab_phrasebook_instead_of">Instead of “%1$s”</string>
+    <string name="lab_phrasebook_from_fix">From a fix</string>
+    <string name="lab_phrasebook_from_rewording">From a rewording</string>
+    <string name="lab_phrasebook_from_you">Added by you</string>
+
+    <string name="lab_phrasebook_show_actions">Show phrase actions</string>
+    <string name="lab_phrasebook_hide_actions">Hide phrase actions</string>
+    <string name="lab_phrasebook_copy">Copy</string>
+    <string name="lab_phrasebook_copy_phrase">Copy %1$s</string>
+    <string name="lab_phrasebook_open_check">Open check</string>
+    <string name="lab_phrasebook_delete">Delete</string>
+    <string name="lab_phrasebook_delete_phrase">Delete phrase</string>
+    <string name="lab_phrasebook_deleted">Phrase deleted</string>
+
+    <string name="lab_phrasebook_export">Export as text</string>
+    <string name="lab_phrasebook_export_summary">Share every phrase with another app</string>
+    <string name="lab_phrasebook_export_chooser">Export phrasebook</string>
+    <string name="lab_phrasebook_export_heading">Linguize phrasebook</string>
+</resources>

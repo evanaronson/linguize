@@ -48,7 +48,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
+import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.ui.phrasebook.LocalPhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.phraseCandidate
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
@@ -224,6 +227,7 @@ fun HighlightedText(
                 onToggle = { selectedId = if (selectedId == change.id) null else change.id },
                 modifier = if (selectedId == change.id) Modifier.bringIntoViewRequester(explanation) else Modifier,
                 onSettle = onSettle,
+                rewording = dotted,
             )
         }
 
@@ -251,6 +255,7 @@ fun HighlightedText(
                     edge,
                     onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
                     onSettle = onSettle,
+                    rewording = dotted,
                 )
             }
         }
@@ -275,6 +280,7 @@ private fun ChangeExplanation(
     onToggle: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onSettle: ((String, String) -> Unit)? = null,
+    rewording: Boolean = false,
 ) {
     val from = change.from.visibleValue()
     val to = replacement.visibleValue()
@@ -299,6 +305,8 @@ private fun ChangeExplanation(
         expanded = expanded,
         onToggle = onToggle,
         onToggleLabel = whyLabel(change.from, replacement, from, to),
+        phrase = phraseCandidate(change.from, replacement, change.why,
+            if (rewording) EditKind.Natural else EditKind.Fix, LocalPhraseOrigin.current),
     )
 }
 

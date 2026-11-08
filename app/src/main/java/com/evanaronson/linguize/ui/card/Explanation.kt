@@ -43,6 +43,8 @@ import com.evanaronson.linguize.core.SuggestionAssessment
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ClarifyLink
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.data.phrasebook.PhraseDraft
+import com.evanaronson.linguize.ui.phrasebook.SavePhraseButton
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
@@ -74,6 +76,8 @@ internal fun ExplanationPanel(
     expanded: Boolean = true,
     onToggle: (() -> Unit)? = null,
     onToggleLabel: String? = null,
+    /** Lab Phrasebook: the phrase this change offers, saved with the star; null shows none. */
+    phrase: PhraseDraft? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -104,7 +108,15 @@ internal fun ExplanationPanel(
                     modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
             }
         }
-        onAccept?.let {
+        if (phrase != null && expanded) {
+            Row(Modifier.align(Alignment.End).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                SavePhraseButton(phrase)
+                onAccept?.let {
+                    LinguizeButton(stringResource(R.string.accept), onClick = it,
+                        kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal)
+                }
+            }
+        } else onAccept?.let {
             LinguizeButton(
                 stringResource(R.string.accept), onClick = it,
                 kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal,

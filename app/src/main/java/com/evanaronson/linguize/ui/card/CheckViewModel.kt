@@ -90,6 +90,11 @@ class CheckViewModel(
     private var ranWith: CheckContext? = null
     private var ranWithKeyRevision: Long? = null
 
+    /** Lab Phrasebook: the check's language code (asked for, else detected) and source app. */
+    var phraseLanguage: String? = null
+        private set
+    val sourceApp: String? get() = hostApp
+
     /** Null before the first check and after [dismiss]. */
     var state by mutableStateOf<CardState?>(null)
         private set
@@ -248,6 +253,7 @@ class CheckViewModel(
                 // Undo can change the retained revision while the request is in flight.
                 val retained = state?.retainedRevision
                 val result = answer.value.result
+                phraseLanguage = language?.code ?: com.evanaronson.linguize.ui.phrasebook.answerLanguage(answer.value.raw)
                 val kept = if (result is CheckResult.Reviewed) {
                     result.copy(revision = result.revision.acceptMatching(retained?.acceptedEdits.orEmpty()))
                 } else {

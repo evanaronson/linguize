@@ -38,6 +38,8 @@ import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.theme.Linguize
+import com.evanaronson.linguize.ui.phrasebook.LocalPhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.phraseCandidate
 
 /** History-only recovery: saved decisions remain readable without raw answers or valid spans. */
 internal fun savedSuggestions(detail: SessionDetail): List<SuggestionRecord> {
@@ -145,6 +147,7 @@ private fun SavedSuggestion(
                 answers = emptyList(),
                 accent = Linguize.colors.proof,
                 modifier = Modifier.padding(bottom = 12.dp),
+                phrase = phraseCandidate(row.fromText, row.toText, row.why, row.kind, LocalPhraseOrigin.current),
             )
         }
     }

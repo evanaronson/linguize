@@ -42,6 +42,8 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.titleResource
+import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
 
 private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
@@ -143,8 +145,10 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
     SectionHeader(stringResource(R.string.history_after))
     SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
 
-    SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-        reviewed = reviewed, settled = settled)
+    ProvidePhraseOrigin(PhraseOrigin.of(session)) {
+        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+            reviewed = reviewed, settled = settled)
+    }
 }
 
 /** The readings a past check's suggestions rested on, and the writer's answers, read-only. */

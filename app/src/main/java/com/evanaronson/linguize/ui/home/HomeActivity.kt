@@ -41,6 +41,11 @@ import com.evanaronson.linguize.ui.gaps.GapFillViewModel
 import com.evanaronson.linguize.ui.photo.PhotoScreen
 import com.evanaronson.linguize.ui.photo.PhotoViewModel
 import com.evanaronson.linguize.ui.photo.understand
+import com.evanaronson.linguize.history.patterns.PatternKind
+import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
+import com.evanaronson.linguize.ui.patterns.PatternsScreen
+import com.evanaronson.linguize.ui.patterns.PatternsViewModel
+import com.evanaronson.linguize.ui.patterns.labelResource
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -56,6 +61,7 @@ class HomeActivity : ComponentActivity() {
     private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
     private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
     private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
+    private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,12 +109,15 @@ class HomeActivity : ComponentActivity() {
                                     },
                                     onHelpReply = { navigation = navigation.open(Screen.LabReply) },
                                     onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
+                                    patterns = patterns,
+                                    onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
                                     historyOn = settings.state?.historyEnabled,
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,
+                                    onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                 )
                                 Screen.Settings -> SettingsScreen(settings, onOpen = {
                                     navigation = navigation.open(Screen.SettingsChoice(it))
@@ -127,6 +136,12 @@ class HomeActivity : ComponentActivity() {
                                 Screen.FillGaps -> GapFillScreen(gaps, onOpenSettings = openSettings)
                                 Screen.LabReply -> com.evanaronson.linguize.ui.reply.ReplyScreen(onOpenSettings = openSettings)
                                 Screen.Photo -> PhotoScreen(photo, onOpenSettings = openSettings)
+                                Screen.Patterns -> PatternsScreen(patterns, settings.state?.historyEnabled, onOpenPattern = {
+                                    navigation = navigation.open(Screen.PatternDetail(it.token))
+                                }, onOpenSettings = openSettings)
+                                is Screen.PatternDetail -> PatternDetailScreen(
+                                    patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
+                                )
                             }
                         }
                     }
@@ -199,4 +214,6 @@ private fun Screen.title(): String? = when (this) {
     Screen.FillGaps -> stringResource(R.string.lab_gap_filler_title)
     Screen.LabReply -> stringResource(R.string.lab_reply_drafter_help_me_reply)
     Screen.Photo -> stringResource(R.string.lab_share_photo_title)
+    Screen.Patterns -> stringResource(R.string.lab_patterns_title)
+    is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
 }

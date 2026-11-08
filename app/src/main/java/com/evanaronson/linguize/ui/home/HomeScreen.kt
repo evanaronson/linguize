@@ -34,6 +34,8 @@ import com.evanaronson.linguize.ui.history.RecentSection
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookHomeSection
 import com.evanaronson.linguize.ui.gaps.GapFillerEntry
 import com.evanaronson.linguize.ui.photo.UnderstandPhotoEntry
+import com.evanaronson.linguize.ui.patterns.PatternsHomeCard
+import com.evanaronson.linguize.ui.patterns.PatternsViewModel
 
 /**
  * The launcher content below the app navigation: check something now, browse previous
@@ -55,6 +57,8 @@ fun HomeScreen(
     onFillGaps: (text: String?) -> Unit = {},
     onHelpReply: () -> Unit = {},
     onPhotoPicked: (android.net.Uri) -> Unit = {},
+    patterns: PatternsViewModel? = null,
+    onOpenPatterns: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -69,6 +73,7 @@ fun HomeScreen(
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
             PhrasebookHomeSection(onOpenPhrasebook)
             com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)
+            patterns?.let { PatternsHomeCard(it, onOpenPatterns) }
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

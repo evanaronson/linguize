@@ -38,6 +38,11 @@ internal sealed interface Screen {
     data object LabReply : Screen
     /** Lab: the reading of a photo of text. */
     data object Photo : Screen
+    /** Lab: recurring fixes from saved checks. */
+    data object Patterns : Screen
+
+    /** Lab: one group of recurring fixes, by its stable token. */
+    data class PatternDetail(val kind: String) : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -54,6 +59,8 @@ internal sealed interface Screen {
             FillGaps -> "lab_gap_filler"
             LabReply -> "lab_reply"
             Photo -> "photo"
+            Patterns -> "patterns"
+            is PatternDetail -> "pattern:$kind"
         }
 
     companion object {
@@ -73,6 +80,8 @@ internal sealed interface Screen {
             saved == "lab_gap_filler" -> FillGaps
             saved == "lab_reply" -> LabReply
             saved == "photo" -> Photo
+            saved == "patterns" -> Patterns
+            saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             else -> null
         }
     }

@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Home row and screen title. -->
-    <string name="lab_vocab_gaps_title">Vocabulary gaps</string>
-    <string name="lab_vocab_gaps_home_summary">Common words you\'ve used, and the ones you haven\'t</string>
-    <string name="lab_vocab_gaps_open">Open vocabulary gaps</string>
-
-    <!-- Picking a language and deck. -->
-    <string name="lab_vocab_gaps_intro">Only words you typed yourself count. Words a fix replaced don\'t.</string>
-    <string name="lab_vocab_gaps_language">Language</string>
+    <!-- Words: the frequency decks (formerly Vocabulary gaps). Picking a deck. -->
     <string name="lab_vocab_gaps_deck">Deck</string>
     <string name="lab_vocab_gaps_bundled_deck">Most common words</string>
     <plurals name="lab_vocab_gaps_deck_size">
@@ -16,10 +9,8 @@
     </plurals>
     <string name="lab_vocab_gaps_loading">Counting your words</string>
     <string name="lab_vocab_gaps_failed">Linguize couldn\'t read this deck</string>
-    <string name="lab_vocab_gaps_retry">Retry</string>
 
     <!-- Coverage. -->
-    <string name="lab_vocab_gaps_coverage">Coverage</string>
     <string name="lab_vocab_gaps_level_common">You\'ve used %1$d%% of the %2$d most common words</string>
     <string name="lab_vocab_gaps_level_deck">You\'ve used %1$d%% of the first %2$d words in this deck</string>
     <string name="lab_vocab_gaps_level_caveat">A count of words you\'ve written, not a level. The deck is approximate.</string>
@@ -29,25 +20,6 @@
     <string name="lab_vocab_gaps_bar_description">%1$s: %2$d of %3$d used</string>
     <string name="lab_vocab_gaps_empty_title">Nothing written in %1$s yet</string>
     <string name="lab_vocab_gaps_empty">Text you write in checks and chats will count here.</string>
-    <plurals name="lab_vocab_gaps_counted">
-        <item quantity="one">From %1$d message, %2$d words counted</item>
-        <item quantity="other">From %1$d messages, %2$d words counted</item>
-    </plurals>
-    <plurals name="lab_vocab_gaps_tried">
-        <item quantity="one">%1$d word skipped because a fix replaced it</item>
-        <item quantity="other">%1$d words skipped because a fix replaced them</item>
-    </plurals>
-
-    <!-- Over time. -->
-    <string name="lab_vocab_gaps_over_time">Over time</string>
-    <string name="lab_vocab_gaps_trend_caption">Top %1$d words used so far, by month</string>
-    <string name="lab_vocab_gaps_trend_description">Top %1$d words used: %2$d in %3$s, %4$d in %5$s</string>
-    <plurals name="lab_vocab_gaps_month_words">
-        <item quantity="one">%1$d word</item>
-        <item quantity="other">%1$d words</item>
-    </plurals>
-    <string name="lab_vocab_gaps_month_summary">%1$s, %2$d%% rarer</string>
-    <string name="lab_vocab_gaps_rarer_note">Rarer words are beyond the 2,000 most common, or not in the deck.</string>
 
     <!-- Words to try next. -->
     <string name="lab_vocab_gaps_try_next">Words to try next</string>
@@ -63,9 +35,7 @@
     <string name="lab_vocab_gaps_all_used">You\'ve used every word in this deck.</string>
 
     <!-- The full list. -->
-    <string name="lab_vocab_gaps_words">Words</string>
     <string name="lab_vocab_gaps_filter_all">All</string>
-    <string name="lab_vocab_gaps_filter_unused">Not yet used</string>
     <string name="lab_vocab_gaps_filter_used">Used</string>
     <string name="lab_vocab_gaps_filter_count">%1$s (%2$d)</string>
     <string name="lab_vocab_gaps_not_yet">Not yet</string>
@@ -74,14 +44,6 @@
         <item quantity="other">Used %1$d times</item>
     </plurals>
     <string name="lab_vocab_gaps_last_used">Last %1$s</string>
-    <string name="lab_vocab_gaps_open_word">Show your sentences</string>
-    <string name="lab_vocab_gaps_none_in_filter">No words here</string>
-
-    <!-- One word. -->
-    <string name="lab_vocab_gaps_word_used">%1$s, last on %2$s</string>
-    <string name="lab_vocab_gaps_your_sentences">Your sentences</string>
-    <string name="lab_vocab_gaps_sentence_gone">This message is no longer saved.</string>
-    <string name="lab_vocab_gaps_close">Close</string>
 
     <!-- Decks. -->
     <string name="lab_vocab_gaps_your_decks">Your decks</string>
@@ -110,11 +72,6 @@
     <string name="lab_vocab_gaps_deck_summary">%1$s, %2$s</string>
 
     <!-- Lexeme or lemma. -->
-    <string name="lab_vocab_gaps_count_by">Count by</string>
-    <string name="lab_vocab_gaps_by_lexeme">By lexeme</string>
-    <string name="lab_vocab_gaps_by_lemma">By lemma</string>
-    <string name="lab_vocab_gaps_by_lexeme_note">“Como” the verb and “como” the conjunction count separately.</string>
-    <string name="lab_vocab_gaps_by_lemma_note">Every use of a dictionary word counts once, whatever its role.</string>
     <string name="lab_vocab_gaps_level_forms">You\'ve used %1$d%% of the %2$d most common word forms</string>
     <string name="lab_vocab_gaps_forms_only">This list counts word forms. “Vaig” and “anar” are separate entries until Linguize can group them.</string>
     <plurals name="lab_vocab_gaps_by_spelling">
@@ -122,25 +79,11 @@
         <item quantity="other">%1$d words matched by spelling, without their part of speech</item>
     </plurals>
     <string name="lab_vocab_gaps_matched_by_spelling">Matched by spelling</string>
-    <string name="lab_vocab_gaps_pos_noun">noun</string>
-    <string name="lab_vocab_gaps_pos_verb">verb</string>
-    <string name="lab_vocab_gaps_pos_adj">adjective</string>
-    <string name="lab_vocab_gaps_pos_adv">adverb</string>
-    <string name="lab_vocab_gaps_pos_pron">pronoun</string>
-    <string name="lab_vocab_gaps_pos_det">determiner</string>
-    <string name="lab_vocab_gaps_pos_art">article</string>
-    <string name="lab_vocab_gaps_pos_prep">preposition</string>
-    <string name="lab_vocab_gaps_pos_conj">conjunction</string>
-    <string name="lab_vocab_gaps_pos_num">number</string>
-    <string name="lab_vocab_gaps_pos_interj">interjection</string>
-    <string name="lab_vocab_gaps_pos_other">other</string>
 
     <!-- About the bundled lists (attribution required by CC BY-SA). -->
     <string name="lab_vocab_gaps_about_lists">About these lists</string>
     <string name="lab_vocab_gaps_attribution">Adapted from OpenSubtitles2018 frequency lists by hermitdave/FrequencyWords and doozan/spanish_data, CC BY-SA 4.0. Subtitles reflect spoken, informal language: a guide, not a syllabus.</string>
 
     <!-- How it works. -->
-    <string name="lab_vocab_gaps_how">How it works</string>
     <string name="lab_vocab_gaps_how_text">Linguize matches each word you typed to its dictionary form and part of speech, so “casas” counts toward “casa”. When the part of speech isn\'t known, it matches by spelling.</string>
-    <string name="lab_vocab_gaps_how_ambiguous">A word that could be more than one entry counts toward each of them. “Fue” counts toward both “ser” and “ir”.</string>
 </resources>

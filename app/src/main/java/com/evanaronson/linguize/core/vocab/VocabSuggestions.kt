@@ -15,8 +15,11 @@ object VocabSuggestions {
     private val GROUPS = listOf(Pos.Verb, Pos.Noun, Pos.Adjective, Pos.Adverb).map { it.token }
 
     /** The highest-ranked unused rows: verbs, nouns, adjectives, adverbs, then the rest. */
-    fun next(deck: VocabDeck, report: VocabReport, perGroup: Int = 5): List<NextWords> {
-        val unused = deck.entries.filter { it.key !in report.used }
+    fun next(deck: VocabDeck, report: VocabReport, perGroup: Int = 5): List<NextWords> = next(deck, report.used.keys, perGroup)
+
+    /** The same, for rows whose keys are in [used]. */
+    fun next(deck: VocabDeck, used: Set<String>, perGroup: Int = 5): List<NextWords> {
+        val unused = deck.entries.filter { it.key !in used }
         if (!deck.hasLexemes) {
             return listOf(NextWords(NextWords.ALL, unused.take(perGroup * 2))).filter { it.entries.isNotEmpty() }
         }
@@ -29,8 +32,11 @@ object VocabSuggestions {
      * A few words to bring into a conversation: the top unused verbs, nouns and adjectives,
      * taken in turn so the set is varied, in deck order, each lemma once.
      */
-    fun targets(deck: VocabDeck, report: VocabReport, count: Int = 5): List<DeckEntry> {
-        val unused = deck.entries.filter { it.key !in report.used && !it.isPhrase }.distinctBy { it.lemma }
+    fun targets(deck: VocabDeck, report: VocabReport, count: Int = 5): List<DeckEntry> = targets(deck, report.used.keys, count)
+
+    /** The same, for rows whose keys are in [used]. */
+    fun targets(deck: VocabDeck, used: Set<String>, count: Int = 5): List<DeckEntry> {
+        val unused = deck.entries.filter { it.key !in used && !it.isPhrase }.distinctBy { it.lemma }
         val content = unused.filter { it.pos in GROUPS }.ifEmpty { unused }
         val byGroup = content.groupBy { it.pos }.values.map { it.iterator() }
         val picked = ArrayList<DeckEntry>()

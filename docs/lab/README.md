@@ -30,9 +30,8 @@ Settings behind the gear.
 | Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Progress |
 | Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Progress |
 | Learning over time | [What Linguize knows](memory.md): short notes about you, learned from chats or added, all editable | Settings, About you |
-| Learning over time | [Your words](words.md): every word you typed, counted, with tried words kept apart | Progress |
+| Learning over time | [Words](words.md): a frequency list and every word you typed, in one list: used, not yet, tried; coverage over time ([decks](vocab-gaps.md)) | Progress |
 | Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |
-| Learning over time | [Vocabulary gaps](vocab-gaps.md): common words you have used and not yet, by month | Progress |
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 
 ## What Linguize is, from first principles

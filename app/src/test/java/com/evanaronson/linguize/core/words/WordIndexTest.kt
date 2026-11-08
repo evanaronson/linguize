@@ -259,20 +259,20 @@ class WordIndexTest {
     fun csvHasOneRowPerLexemeWithItsPartOfSpeech() {
         val ca = build(utterance("a", "la casa", day("2026-11-01")), utterance("b", "hola", day("2026-11-02")), lemmatizer = lexicon)
             .language("ca")!!
-        val lines = WordViews.csv(ca, utc).trimEnd().split("\r\n")
-        assertEquals("word,lemma,lexeme_pos,count,tried,first,last", lines[0])
-        assertTrue("la,el,art,1,0,2026-11-01,2026-11-01" in lines)
-        assertTrue("la,ella,pron,1,0,2026-11-01,2026-11-01" in lines)
-        assertTrue("casa,casa,n,1,0,2026-11-01,2026-11-01" in lines)
-        assertTrue("hola,hola,,1,0,2026-11-02,2026-11-02" in lines)
+        val lines = WordViews.csv(ca, zone = utc).trimEnd().split("\r\n")
+        assertEquals("word,lemma,lexeme_pos,deck_rank,count,tried,first,last", lines[0])
+        assertTrue("la,el,art,,1,0,2026-11-01,2026-11-01" in lines)
+        assertTrue("la,ella,pron,,1,0,2026-11-01,2026-11-01" in lines)
+        assertTrue("casa,casa,n,,1,0,2026-11-01,2026-11-01" in lines)
+        assertTrue("hola,hola,,,1,0,2026-11-02,2026-11-02" in lines)
         assertEquals(5, lines.size)
     }
 
     @Test
     fun lexemeSearchAndSortUseTheLemma() {
         val ca = build(utterance("a", "la la la veig", 1), lemmatizer = lexicon).language("ca")!!
-        assertEquals(listOf("ella/pron"), WordViews.arrange(ca.lexemes, WordSort.MostUsed, query = "ella").map { it.key })
-        assertEquals(listOf("el", "ella", "veure"), WordViews.arrange(ca.lexemes, WordSort.Alphabetical).map { it.label })
+        assertEquals(listOf("w:ella/pron"), WordList.arrange(WordList.rows(ca, null, WordLevel.Lexemes), WordFilter.All, WordSort.MostUsed, query = "ella").map { it.key })
+        assertEquals(listOf("el", "ella", "veure"), WordList.arrange(WordList.rows(ca, null, WordLevel.Lexemes), WordFilter.All, WordSort.Alphabetical).map { it.label })
     }
 
     @Test
@@ -311,11 +311,17 @@ class WordIndexTest {
             utterance("c", "zebra", day("2026-11-05")),
         )
         val words = index.language("ca")!!.words
-        assertEquals("bé", WordViews.arrange(words, WordSort.MostUsed).first().key)
-        assertEquals("zebra", WordViews.arrange(words, WordSort.Newest).first().key)
-        assertEquals(listOf("àvia", "bé", "ça", "cotxe"), WordViews.arrange(words, WordSort.Alphabetical, locale = Locale.forLanguageTag("ca")).take(4).map { it.key })
-        assertEquals(listOf("perque"), WordViews.arrange(words, WordSort.Tried).map { it.key })
-        assertEquals(listOf("àvia"), WordViews.arrange(words, WordSort.MostUsed, query = "avia").map { it.key })
+        val rows = WordList.rows(index.language("ca")!!, null, WordLevel.Forms)
+        fun keys(filter: WordFilter, sort: WordSort, query: String = "") = WordList.arrange(rows, filter, sort, query, Locale.forLanguageTag("ca")).map { it.label }
+        assertEquals(words.size, rows.size)
+        assertEquals("bé", keys(WordFilter.All, WordSort.MostUsed).first())
+        assertEquals("zebra", keys(WordFilter.All, WordSort.Newest).first())
+        assertEquals(listOf("àvia", "bé", "ça", "cotxe"), keys(WordFilter.All, WordSort.Alphabetical).take(4))
+        assertEquals(listOf("perque"), keys(WordFilter.Tried, WordSort.MostUsed))
+        assertEquals(keys(WordFilter.All, WordSort.MostUsed) - "perque", keys(WordFilter.Used, WordSort.MostUsed))
+        // Without a deck there is nothing "not yet".
+        assertTrue(keys(WordFilter.NotYet, WordSort.MostUsed).isEmpty())
+        assertEquals(listOf("àvia"), keys(WordFilter.All, WordSort.MostUsed, "avia"))
     }
 
     @Test
@@ -348,11 +354,11 @@ class WordIndexTest {
             utterance("a", "bon dia", day("2026-10-01")),
             utterance("b", "bon vespre", day("2026-11-02"), corrected = listOf(Span(4, 10))),
         )
-        val csv = WordViews.csv(index.language("ca")!!, utc)
+        val csv = WordViews.csv(index.language("ca")!!, zone = utc)
         val lines = csv.trimEnd().split("\r\n")
-        assertEquals("word,lemma,lexeme_pos,count,tried,first,last", lines[0])
-        assertEquals("bon,bon,,2,0,2026-10-01,2026-11-02", lines[1])
-        assertTrue("vespre,vespre,,0,1,2026-11-02,2026-11-02" in lines)
+        assertEquals("word,lemma,lexeme_pos,deck_rank,count,tried,first,last", lines[0])
+        assertEquals("bon,bon,,,2,0,2026-10-01,2026-11-02", lines[1])
+        assertTrue("vespre,vespre,,,0,1,2026-11-02,2026-11-02" in lines)
         assertEquals(4, lines.size)
     }
 }

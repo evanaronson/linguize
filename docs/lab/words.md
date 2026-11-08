@@ -1,74 +1,109 @@
-# Your words
+# Words
 
-Your words is a log of every word the writer has typed in each language, counted from
-their own input only. It shows how many different words they use, how that number grew,
-and, for each word, how often they used it right, how often they tried it and got it
-fixed, when they first and last used it, and the sentences they used it in.
+Words is one page per language that holds both halves of the writer's vocabulary: every
+word of a frequency list, and every word the writer has typed. The words they know are a
+subset of all the words, so it's one list. The page shows how much of the common words they
+already use, how that grew, which common words they haven't used yet, and, for any word
+they used, how often they used it right, how often a fix replaced it, and the sentences
+they used it in.
+
+It replaces two earlier pages, Your words and Vocabulary gaps. The deck and import details
+are in [Frequency decks](vocab-gaps.md).
 
 ## The moment it serves
 
-Not mid-message. The writer has a minute and wonders "how much Catalan do I actually
-use?" or "which words do I keep reaching for and getting wrong?" History answers one
-check at a time; Your patterns groups the fixes. Your words is the other half of the
-evidence: what the writer already says on their own. It serves "slowly needing the check
-less" from the [Lab README](README.md), and it is the first consumer of the shared
-[writer corpus](corpus.md), so it lights up for every feature that adds a corpus source.
+Not mid-message. The writer has a minute later and wonders "how much Catalan do I actually
+use?", "what am I not saying?" or "which words do I keep getting wrong?" History answers
+one check at a time. Your patterns groups the fixes. Words is the rest of the evidence: what
+the writer already says on their own, and what they get around. A frequency list can show
+avoidance that no check can: if "aunque" or "quedar" never appears, the writer is probably
+avoiding it. It serves "slowly needing the check less" from the [Lab README](README.md), and
+it reads the shared [writer corpus](corpus.md).
 
 ## How to use it
 
-- **Progress**: a "Your words" row under Your writing: "312 words you've written in
-  Catalan" for the language on the switch. It opens on that language.
-- **Your words page**: a language switch (when more than one language has words), the
-  headline numbers (words, plus lexemes and lemmas when morphology is known; words
-  written, this month), "N new words this month", a chart of distinct words over time,
-  then the word list with search and four orders: Most used, Newest, A–Z (Catalan or
-  Spanish collation) and Not yet right (words only ever tried inside a fix). Names left
-  out are listed under the list. Export CSV shares
-  `word,lemma,lexeme_pos,count,tried,first,last` through the share sheet.
-- **Three levels.** When the lemmatizer knows morphology (it returns any part of speech
-  other than unknown), a "Word forms / Lexemes / Lemmas" switch appears:
-  - *Word forms*: spellings as written ("vaig", "la"). An ambiguous form says what it
-    could be: "could be el (art), ella (pron)".
-  - *Lexemes*: a lemma with its part of speech, shown as "veure (verb)", with the forms
-    used under it ("Forms: veig, veus"). Homographs stay apart: "la" counts toward
-    "el (art)" and "ella (pron)".
-  - *Lemmas*: every lexeme with the same dictionary form, with their parts of speech and
-    forms ("art, pron. Forms: el, la").
-  With `Lemmatizer.Identity` (every word unknown) the switch and the extra numbers stay
-  hidden. Part-of-speech labels are short and localized (noun, verb, adj, adv, pron, det,
-  art, prep, conj, num, interj, other).
-- **A word's page**: used right, tried, messages, first and last used; for a form, the
-  lexemes it could be; for a lexeme, its forms and which of them are ambiguous; for a
-  lemma, its lexemes and forms. Then the newest 30 sentences it appears in, with the word
-  underlined (struck through in the proof colour where a fix replaced it). A sentence
-  from a saved check opens that check.
+Progress → **Words** (under Your writing): "312 words you've written in Catalan" for the
+language on the switch. It opens on that language.
+
+- **Header.** For the chosen deck, a coverage sentence ("You've used 62% of the 500 most
+  common words") and bars for the top 100, 500, 1,000, 2,000 and 5,000 (each only when the
+  deck is larger, then the whole deck). It's a count of words used, not a level. Then the
+  writer's totals: words, plus lexemes and lemmas when morphology is known, words written,
+  this month, and "N new words this month".
+- **Deck.** Spanish and Catalan lists are bundled. Imported decks appear beside them, and a
+  choice shows when there is more than one.
+- **Words over time.** One chart with two lines on one axis: all the writer's distinct
+  words at the level shown, and how many of the deck's top 1,000 (or the whole deck, if
+  smaller) they had used by then. The second line is a subset of the first.
+- **Count by.** When the lemmatizer knows morphology, a "Word forms / Lexemes / Lemmas"
+  switch:
+  - *Lexemes* (the default): a lemma with its part of speech, so "la" the article and
+    "la" the pronoun stay apart. Deck rows are lexemes too.
+  - *Lemmas*: every lexeme with the same dictionary form. The deck is viewed by lemma.
+  - *Word forms*: spellings as written ("vaig", "la"). Each form shows the best deck rank
+    it reached. Deck rows no form reached appear as Not yet.
+  With `Lemmatizer.Identity` (every word unknown) only word forms show.
+- **The list.** One list over the deck and the writer's own words. Filters: **All**,
+  **Used** (used right at least once), **Not yet** (deck words not yet used right) and
+  **Tried** (replaced by a fix, never yet right), each with its count. Each row shows the
+  deck rank, the word with its part of speech (short labels: noun, verb, adj…) and gloss
+  when the deck has one, and "Used 4 times, Last Nov 3", "Tried once" or "Not yet". Words of
+  the writer's that the deck doesn't have appear under All and Used with "not in list".
+  Search (accent-insensitive) and four orders: Rank (the default with a deck; words not in
+  the list come last), Most used, Newest and A–Z (Catalan or Spanish collation).
+- **Words to try next** tops the Not yet filter: the highest-ranked unused verbs, nouns,
+  adjectives, adverbs and other words. **Copy 5 words** puts a varied handful on the
+  clipboard ("Words I want to use: …").
+- **A word's page** (any word with a use): deck rank, part of speech and gloss; used right,
+  tried, messages, first and last used; for a form, the lexemes it could be; for a lexeme,
+  its forms and which are ambiguous; for a lemma, its lexemes and forms; for a deck row,
+  the forms that reached it. Then the newest 30 sentences it appears in, the word underlined
+  (struck through in the proof colour where a fix replaced it). A sentence from a saved
+  check opens that check.
+- **Under the list.** Names left out; **Export CSV** (`word,lemma,lexeme_pos,deck_rank,
+  count,tried,first,last` through the share sheet); **Your decks** (import, delete); **How
+  it's counted**; **About these lists** (the CC BY-SA attribution).
 
 **The ambiguity rule.** A form that could be more than one lexeme counts toward every
-candidate lexeme, with its full counts, and is marked ambiguous there (in the row's
-"ambiguous:" list and on the lexeme's page). At the lemma level it counts once toward each
-candidate lemma. So lexeme and lemma totals can add up to more than the words written;
-the page says so under the switch, and "How it's counted" repeats it. Words written and
-word-form counts are never inflated. In the CSV an ambiguous form has one row per
-candidate lexeme, each with the form's counts.
+candidate lexeme, with its full counts, and is marked ambiguous ("ambiguous: la" on the
+row and on the lexeme's page). At the lemma level it counts once toward each candidate
+lemma. A form that reaches several deck rows counts toward each ("fue" toward ser and ir).
+So lexeme, lemma and deck totals can add up to more than the words written. The page says
+so under the switch, and "How it's counted" repeats it. Words written and word-form counts
+are never inflated. In the CSV an ambiguous form has one row per candidate lexeme, each with
+the form's counts.
 
 ## How it works
 
 | Piece | Where | Layer |
 |---|---|---|
 | Tokenizer | `core/words/WordTokenizer.kt` | core (pure Kotlin) |
-| Index, fingerprint, cache | `core/words/WordIndex.kt` | core (pure Kotlin) |
-| Sorting, search, contexts, CSV | `core/words/WordViews.kt` | core (pure Kotlin) |
+| Word index, fingerprint, cache | `core/words/WordIndex.kt` | core (pure Kotlin) |
+| A deck against the index | `core/words/DeckCoverage.kt` | core (pure Kotlin) |
+| The one list: rows, filters, sorts, chart | `core/words/WordList.kt` | core (pure Kotlin) |
+| Contexts, CSV | `core/words/WordViews.kt` | core (pure Kotlin) |
+| Decks, parsing, matching rules, suggestions | `core/vocab/` ([Frequency decks](vocab-gaps.md)) | core |
 | The `check` corpus source | `history/corpus/CheckCorpusSource.kt` | history |
 | Texts Linguize wrote (hashes only) | `data/lab/NotTypedTexts.kt` (`lab_words` preferences) | data |
-| View model, screens, entries | `ui/words/` | ui |
+| Bundled and imported decks, selection | `data/vocabgaps/VocabGapsStore.kt`, `DeckLibrary.kt` (root) | data, root |
+| View model, screens, deck section | `ui/words/` | ui |
+
+**One pass.** The corpus is read once into the word index. `WordIndexCache` keeps the last
+index under a fingerprint of every utterance's id, language, time, text and corrected spans
+(and the month), so an unchanged corpus isn't recounted, and a deleted check or chat leaves
+the counts at once. The chosen deck is measured against that index, not against the corpus
+again: each written form goes through the deck's matching rules once (`DeckIndex.match`:
+lexemes with a known part of speech, then the deck's own forms column, then spelling and
+folding), and multi-word rows ("a menudo") are found in the writer's texts. The coverage is
+kept under the index fingerprint, deck and level. Reports are no longer saved to disk.
 
 **Only input counts.** The `check` source gives each visible saved check's *original*
 text, exactly as typed, never the text that was put back. `Utterance.corrected` holds the
 spans of fixes the writer accepted, plus fixes a rewording they accepted took over
 (`retired`). Accepted rewordings are not marked: the original was right, only less
-natural. Undone, ignored and copied fixes are not marked either: the writer kept their
-words. Words in a corrected span count as **tried**, never as known; words, lexemes and
-lemmas count only entries used right at least once.
+natural. Undone, ignored and copied fixes are not marked either. Words in a corrected span
+count as **tried**, never as used. Coverage counts a deck row as used only when some use
+was outside a corrected span.
 
 **What is left out.**
 - A check that reused another saved check's answer: the same text, counted once.
@@ -79,39 +114,36 @@ lemmas count only entries used right at least once.
   saved checks with that `textHash`.
 - Shared text can't be put back, so it never reaches visible History; Understand and
   Try it are never saved.
+- Names: a capital in mid-sentence, or after an elided article (L'Hospitalet). A capital at
+  the start of a sentence counts as a word unless that form only ever appears capitalized.
 
 **Tokenizer.** Accents, ñ, ç and the Catalan l·l (also typed l.l, l•l, ŀl) stay inside a
 word. Elisions split off (l'home is l' + home, d'aquí, m'agrada, n'hi), as do enclitics
 (compra'l, digues-li, dóna-m'ho is dóna + m' + ho, anar-se'n). Other hyphenated words stay
 whole (porta-avions). Numbers, words with digits, links, emails, @mentions, #hashtags,
 emoji and laughter are skipped. Words are lowercased (NFC, one apostrophe) and keep their
-character spans. A capital in mid-sentence, or after an elided article (L'Hospitalet),
-marks a name. A capital at the start of a sentence or line counts as a word unless that
-form only ever appears capitalized and at least once in mid-sentence. Shouted text says
-nothing about names.
+character spans.
 
-**Index.** Per language: each form's right and tried counts, first and last use, first
-right use, distinct messages and newest 30 uses. Each form's lexemes come from
-`App.lemmatizer.lexemes()`; lexeme entries (keyed `lemma/pos`, e.g. `el/art`) and lemma
-entries gather the uses of their forms by the ambiguity rule above, so a verb form with
-two lemmas ("fuimos": ir/v, ser/v) counts toward both. Growth is the cumulative number of
-forms by the day each was first used right.
+**The one list** (`WordList.rows`). At the lexeme and lemma levels: every deck row with the
+writer's use (or none), then the writer's entries none of whose forms reached the deck
+("not in list"). At the form level: every form the writer typed, ranked by the best deck row
+it reached, then the deck rows no form reached. Without a deck: just the writer's entries.
 
-**Derived, never copied.** The index is rebuilt from `App.corpus` when the screen opens and
-after every History write. `WordIndexCache` keys the last index by a fingerprint of every
-utterance's id, language, time, text and corrected spans (and the month), so an unchanged
-corpus isn't recounted and a deleted check leaves the counts at once. Nothing is stored
-except the not-typed hashes; the CSV is written to the export cache folder the
-FileProvider shares and replaced by the next one.
+**Storage.** Nothing is copied from the corpus. `lab_words` keeps the not-typed hashes.
+`filesDir/lab_vocab_gaps/` keeps imported decks and the last language and deck. The CSV is
+written to the export cache folder the FileProvider shares and replaced by the next one.
 
 ## Limits
 
 - Only the newest 3,000 saved checks are read.
-- Checks saved before this build that were of filled-gap or translated text can't be told
-  apart from typed text and are counted.
+- Checks saved before the not-typed hashes existed, of filled-gap or translated text, can't
+  be told apart from typed text and are counted.
 - Name detection is a heuristic: a word capitalized for emphasis mid-sentence is left out,
   and a name only ever used at the start of a sentence is counted as a word.
 - No spelling dictionary: a misspelling no fix caught counts as a word.
-- A gap-filled text is left out whole, including the parts the writer typed.
-- Contexts link to saved checks. Other sources (for example a `chat` source) show their
-  name without a link until their screen can be opened by id.
+- Matching by spelling (when no part of speech is known) over-counts homographs. The header
+  says how many forms were matched that way.
+- Subtitle frequencies favour spoken language. The lists are a guide, not a syllabus.
+- The chart counts a word on the day it was first used right. It doesn't show words that
+  fell out of use.
+- Contexts link to saved checks. Chat sentences show "Conversation" without a link.

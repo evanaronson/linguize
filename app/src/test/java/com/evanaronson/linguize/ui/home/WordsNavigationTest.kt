@@ -22,6 +22,20 @@ class WordsNavigationTest {
     }
 
     @Test
+    fun vocabularyGapsRestoresToWords() {
+        assertEquals(Screen.Words, Screen.restore("vocab_gaps"))
+        val restored = Navigation.restore(listOf("lab_chat", "progress", "vocab_gaps"))
+        assertEquals(Screen.Words, restored.current)
+        assertEquals(Screen.Progress, restored.back().current)
+    }
+
+    @Test
+    fun deckRowKeysRoundTrip() {
+        val row = Screen.WordDetail("es", "d:a menudo/adv", "x")
+        assertEquals(row, Screen.restore(row.saved))
+    }
+
+    @Test
     fun anEmptyWordOrUnknownLevelIsNotRestored() {
         assertNull(Screen.restore("word:f:ca:"))
         assertNull(Screen.restore("word:"))

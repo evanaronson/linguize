@@ -51,7 +51,10 @@ import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.teachme.lessonTopic
 import com.evanaronson.linguize.ui.teachme.sentenceAround
 import com.evanaronson.linguize.core.Assumption
+import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.ui.phrasebook.LocalPhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.phraseCandidate
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
@@ -228,6 +231,7 @@ fun HighlightedText(
                 modifier = if (selectedId == change.id) Modifier.bringIntoViewRequester(explanation) else Modifier,
                 onSettle = onSettle,
                 sentence = sentenceAround(text, change.range.first, change.range.last + 1),
+                rewording = dotted,
             )
         }
 
@@ -260,6 +264,7 @@ fun HighlightedText(
                     onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
                     onSettle = onSettle,
                     sentence = lastSentence[0],
+                    rewording = dotted,
                 )
             }
         }
@@ -286,6 +291,7 @@ private fun ChangeExplanation(
     onSettle: ((String, String) -> Unit)? = null,
     /** Lab: the sentence the change sits in, for its lesson. */
     sentence: String? = null,
+    rewording: Boolean = false,
 ) {
     val from = change.from.visibleValue()
     val to = replacement.visibleValue()
@@ -311,6 +317,8 @@ private fun ChangeExplanation(
         onToggle = onToggle,
         onToggleLabel = whyLabel(change.from, replacement, from, to),
         lesson = lessonTopic(change.from, replacement, change.why, LocalLessonSource.current?.language, sentence),
+        phrase = phraseCandidate(change.from, replacement, change.why,
+            if (rewording) EditKind.Natural else EditKind.Fix, LocalPhraseOrigin.current),
     )
 }
 

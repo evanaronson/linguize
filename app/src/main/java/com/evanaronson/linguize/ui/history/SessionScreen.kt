@@ -44,6 +44,8 @@ import com.evanaronson.linguize.ui.teachme.LessonSource
 import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.titleResource
+import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
 
 private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
@@ -146,8 +148,10 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
     SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
 
     CompositionLocalProvider(LocalLessonSource provides LessonSource(session.targetLanguage ?: session.detectedLanguage, session.text)) {
-        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-            reviewed = reviewed, settled = settled)
+        ProvidePhraseOrigin(PhraseOrigin.of(session)) {
+            SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+                reviewed = reviewed, settled = settled)
+        }
     }
 }
 

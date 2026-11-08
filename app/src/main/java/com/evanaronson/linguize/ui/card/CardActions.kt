@@ -4,6 +4,7 @@ import android.content.Context
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.ui.copyToClipboard
+import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -24,6 +25,8 @@ class CardActions(
     val onRemoveClarification: (() -> Unit)? = null,
     /** The language the check was pinned to, for Hear it; null for auto-detect. */
     val language: () -> Language? = { null },
+    /** Lab Phrasebook: where saved phrases come from; null shows no save control. */
+    val phraseOrigin: PhraseOrigin? = null,
 ) {
     companion object {
         /**
@@ -60,6 +63,7 @@ class CardActions(
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
             language = { check.pinnedLanguage },
+            phraseOrigin = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
         )
     }
 }

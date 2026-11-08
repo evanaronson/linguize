@@ -40,6 +40,8 @@ import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.theme.Linguize
 import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.teachme.savedLessonTopic
+import com.evanaronson.linguize.ui.phrasebook.LocalPhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.phraseCandidate
 
 /** History-only recovery: saved decisions remain readable without raw answers or valid spans. */
 internal fun savedSuggestions(detail: SessionDetail): List<SuggestionRecord> {
@@ -148,6 +150,7 @@ private fun SavedSuggestion(
                 accent = Linguize.colors.proof,
                 modifier = Modifier.padding(bottom = 12.dp),
                 lesson = savedLessonTopic(row, LocalLessonSource.current),
+                phrase = phraseCandidate(row.fromText, row.toText, row.why, row.kind, LocalPhraseOrigin.current),
             )
         }
     }

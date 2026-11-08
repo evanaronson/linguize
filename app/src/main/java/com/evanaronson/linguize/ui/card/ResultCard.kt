@@ -59,6 +59,7 @@ import com.evanaronson.linguize.ui.hearit.HearItBar
 import com.evanaronson.linguize.ui.hearit.ProvideHearIt
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
+import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
 import com.evanaronson.linguize.ui.text.localizedText
 import com.evanaronson.linguize.ui.text.titleResource
 import com.evanaronson.linguize.ui.theme.Linguize
@@ -120,8 +121,8 @@ fun ResultCard(
                 RetainedChanges(state.retainedRevision, actions.review)
             }
             is CardState.Done -> when (val result = state.result) {
-                is CheckResult.Reviewed -> ReviewPages(result, state, actions, showingUnderstanding) {
-                    showingUnderstanding = it
+                is CheckResult.Reviewed -> ProvidePhraseOrigin(actions.phraseOrigin) {
+                    ReviewPages(result, state, actions, showingUnderstanding) { showingUnderstanding = it }
                 }
                 CheckResult.Unclear -> {
                     Outcome(

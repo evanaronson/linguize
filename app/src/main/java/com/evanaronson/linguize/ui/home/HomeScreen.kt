@@ -31,6 +31,7 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.RecentSection
+import com.evanaronson.linguize.ui.phrasebook.PhrasebookHomeSection
 
 /**
  * The launcher content below the app navigation: check something now, browse previous
@@ -47,6 +48,7 @@ fun HomeScreen(
     onOpen: (id: String) -> Unit,
     onViewHistory: () -> Unit,
     onSetUpAccessibility: () -> Unit,
+    onOpenPhrasebook: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -57,6 +59,7 @@ fun HomeScreen(
                 TryIt(check, onOpenSettings)
             }
             RecentSection(history, historyOn, snackbar, onOpen, onOpenSettings, onViewHistory)
+            PhrasebookHomeSection(onOpenPhrasebook)
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

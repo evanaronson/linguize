@@ -70,6 +70,9 @@ class HomeActivity : ComponentActivity() {
         com.evanaronson.linguize.ui.memory.MemoryViewModel.factory(App.of(this).memoryStore)
     }
     private val words: com.evanaronson.linguize.ui.words.WordsViewModel by viewModels { com.evanaronson.linguize.ui.words.WordsViewModel.factory(App.of(this)) }
+    private val vocabGaps: com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel by viewModels {
+        com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel.factory(App.of(this))
+    }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,6 +126,7 @@ class HomeActivity : ComponentActivity() {
                                     practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
                                     words = { com.evanaronson.linguize.ui.words.WordsHomeCard(words) { navigation = navigation.open(Screen.Words) } },
                                     onOpenChat = { navigation = navigation.open(Screen.Chat) },
+                                    vocabGaps = { com.evanaronson.linguize.ui.vocabgaps.VocabGapsHomeEntry { navigation = navigation.open(Screen.VocabGaps) } },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -168,6 +172,7 @@ class HomeActivity : ComponentActivity() {
                                 Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(
                                     onOpenHome = { navigation = navigation.open(Screen.Home) }, onOpenSettings = openSettings,
                                 )
+                                Screen.VocabGaps -> com.evanaronson.linguize.ui.vocabgaps.VocabGapsScreen(vocabGaps)
                             }
                         }
                     }
@@ -247,4 +252,5 @@ private fun Screen.title(): String? = when (this) {
     Screen.Words -> stringResource(R.string.lab_words_title)
     is Screen.WordDetail -> if (level == "x") key.substringBeforeLast('/') else key
     Screen.Chat -> stringResource(R.string.lab_chat_title)
+    Screen.VocabGaps -> stringResource(R.string.lab_vocab_gaps_title)
 }

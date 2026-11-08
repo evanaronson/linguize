@@ -57,6 +57,8 @@ internal sealed interface Screen {
     }
     /** Lab: the chat, which the app opens to unless that is switched off. */
     data object Chat : Screen
+    /** Lab: common words used and not yet used. */
+    data object VocabGaps : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -80,6 +82,7 @@ internal sealed interface Screen {
             Words -> "words"
             is WordDetail -> "word:$level:${language.orEmpty()}:$key"
             Chat -> "lab_chat"
+            VocabGaps -> "vocab_gaps"
         }
 
     companion object {
@@ -108,6 +111,7 @@ internal sealed interface Screen {
                 .takeIf { it.size == 4 && it[3].isNotEmpty() && it[1] in WordDetail.LEVELS }
                 ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1]) }
             saved == "lab_chat" -> Chat
+            saved == "vocab_gaps" -> VocabGaps
             else -> null
         }
     }

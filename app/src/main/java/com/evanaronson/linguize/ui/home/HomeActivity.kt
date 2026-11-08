@@ -66,6 +66,9 @@ class HomeActivity : ComponentActivity() {
     private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
+    private val memory: com.evanaronson.linguize.ui.memory.MemoryViewModel by viewModels {
+        com.evanaronson.linguize.ui.memory.MemoryViewModel.factory(App.of(this).memoryStore)
+    }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,6 +131,8 @@ class HomeActivity : ComponentActivity() {
                                     navigation = navigation.open(Screen.SettingsChoice(it))
                                 }, appVoiceRow = {
                                     AppVoiceSettingsRow(appVoice) { navigation = navigation.open(Screen.AppVoice()) }
+                                }, memoryRow = {
+                                    com.evanaronson.linguize.ui.memory.MemorySettingsRow { navigation = navigation.open(Screen.Memory) }
                                 })
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
@@ -148,6 +153,7 @@ class HomeActivity : ComponentActivity() {
                                     patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
                                 )
                                 Screen.Practice -> PracticeScreen(practice, onDone = ::back)
+                                Screen.Memory -> com.evanaronson.linguize.ui.memory.MemoryScreen(memory)
                             }
                         }
                     }
@@ -223,4 +229,5 @@ private fun Screen.title(): String? = when (this) {
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
     Screen.Practice -> stringResource(R.string.lab_practice_title)
+    Screen.Memory -> stringResource(R.string.lab_memory_title)
 }

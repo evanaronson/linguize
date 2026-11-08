@@ -112,9 +112,16 @@ class App : Application() {
         com.evanaronson.linguize.core.corpus.Lemmatizer.Identity
     }
 
-    /** Lab: what Linguize remembers about the writer. Remembers nothing until a feature supplies it. */
+    /** Lab: what Linguize remembers about the writer (docs/lab/memory.md). */
     val userMemory: com.evanaronson.linguize.core.memory.UserMemory by lazy {
-        com.evanaronson.linguize.core.memory.UserMemory.None
+        LabUserMemory(settings, keys, clients, memoryStore) {
+            com.evanaronson.linguize.llm.memory.MemoryPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        }
+    }
+
+    /** Lab: the facts behind [userMemory], in `lab_memory.json`. Nothing is read until first use. */
+    val memoryStore by lazy {
+        com.evanaronson.linguize.data.memory.MemoryStore(java.io.File(filesDir, com.evanaronson.linguize.data.memory.MemoryStore.FILE_NAME))
     }
 
     /** Lab: Say it in another language. Its own prompt asset, read on first use. */

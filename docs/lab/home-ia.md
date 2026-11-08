@@ -32,7 +32,7 @@ what a person comes to do. It doesn't add features.
 | Write or check one specific thing | Several times a week | Try it, Writing pad, Fill the gaps; card rows: How it lands, Say it in Catalan, Replying to, Hear it, Second opinion |
 | Understand something someone sent, and answer it | Weekly | Help me reply, Understand a photo; share sheet; Understand copied text |
 | See how I'm doing | Weekly | Practice, Your patterns, Your words, Your conjugations, Vocabulary gaps, Phrasebook |
-| Look back at what I wrote | Weekly | History (chat threads as one row) |
+| Look back at what I wrote | Weekly | History (one row per message, any source) |
 | Set up | Once, then rarely | Keys and model, languages, selection menu, accessibility button, popup, per-app voice, What Linguize knows, Open to chat, History switch |
 | In another app, before sending | Many times a day, outside this app | Selection menu, accessibility button, Quick tile, launcher shortcuts, share |
 
@@ -51,7 +51,7 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
   Catalan"), Your conjugations ("12 of 40 forms used"), Vocabulary gaps. Opening one opens
   it on that language. **Fixes and phrases**, across languages: Your patterns (top groups
   and a sparkline once there's enough), Phrasebook (count).
-- **History**: the list, nothing above it.
+- **History**: the list, with only a source filter above it (see [One list of messages](history-flat.md)).
 - **Settings** (gear): AI service and Second opinion; Checking (What to suggest); Writing
   preferences and Per-app voice; About you (What Linguize knows); **In other apps**:
   Selection menu, Accessibility button, Popup position; Chat (Open to chat); History.
@@ -60,7 +60,7 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 
 | Entry | Before | After | Why |
 |---|---|---|---|
-| Chat | App start; Home row; History threads | App start (default); bottom bar; History threads | A tab, so the Home row and the chat bar's house button are redundant |
+| Chat | App start; Home row; History threads | App start (default); bottom bar; Open conversation on a chat message's saved check | A tab, so the Home row and the chat bar's house button are redundant |
 | Try it | Home, top | Write, top | The core "check this" job |
 | Add an API key strip | Home | Write (the chat has its own) | Where the first check happens |
 | Writing pad | Home, own section | Write › More ways to write | Same job as Try it, longer text |

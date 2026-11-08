@@ -47,6 +47,8 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.theme.Linguize
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DecimalStyle
 
@@ -87,8 +89,12 @@ internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: Snackb
     }
 }
 
+/**
+ * One recorded message, the same for every source: time, where it was written ("WhatsApp",
+ * "Chat · Weekend plans"), language; the text; what came of it. The day is in the header above.
+ */
 @Composable
-internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
+internal fun SessionRow(row: RecentRow, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
     val summary = row.summary
     val resources = LocalResources.current
     val deleteLabel = stringResource(R.string.delete_check)
@@ -110,7 +116,10 @@ internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCl
             .padding(vertical = 12.dp),
     ) {
         Text(
-            listOfNotNull(relativeDate(resources, summary.startedAt, now, time), row.appLabel, targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage)).joinToString(stringResource(R.string.status_separator)),
+            listOfNotNull(
+                time.format(Instant.ofEpochMilli(summary.startedAt).atZone(ZoneId.systemDefault())),
+                row.sourceLabel(resources),
+                targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage)).joinToString(stringResource(R.string.status_separator)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

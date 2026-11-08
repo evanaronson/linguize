@@ -55,6 +55,8 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
+import com.evanaronson.linguize.ui.hearit.HearItBar
+import com.evanaronson.linguize.ui.hearit.ProvideHearIt
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.text.localizedText
@@ -85,7 +87,7 @@ fun ResultCard(
     if (LocalOnBackPressedDispatcherOwner.current != null) {
         BackHandler(enabled = showingUnderstanding) { showingUnderstanding = false }
     }
-    ResultSurface(
+    ProvideHearIt(state, actions.language()) { ResultSurface(
         modifier,
         scrollable,
         navigationKey = showingUnderstanding,
@@ -152,7 +154,7 @@ fun ResultCard(
                 }
             }
         }
-    }
+    } }
 }
 
 @Composable
@@ -187,6 +189,7 @@ private fun ReviewPages(
                 )
             } else {
                 Suggestions(result, state.settled, actions)
+                HearItBar(result.revision.workingText, Modifier.padding(top = 12.dp))
             }
         }
     }

@@ -43,6 +43,7 @@ import com.evanaronson.linguize.core.SuggestionAssessment
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ClarifyLink
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.hearit.HearItChange
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
@@ -104,6 +105,7 @@ internal fun ExplanationPanel(
                     modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
             }
         }
+        if (to.isNotBlank()) HearItChange(to)
         onAccept?.let {
             LinguizeButton(
                 stringResource(R.string.accept), onClick = it,

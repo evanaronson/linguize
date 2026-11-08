@@ -41,6 +41,7 @@ import com.evanaronson.linguize.ui.components.InsetShape
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.TextBlock
+import com.evanaronson.linguize.ui.hearit.HearItMeaning
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /** The way into Meaning: an edge-to-edge footer row. */
@@ -127,6 +128,7 @@ internal fun MeaningSection(
         )
         Spacer(Modifier.height(8.dp))
         TextBlock(meaning)
+        HearItMeaning(meaning)
         if (clarification != null || onClarify != null) Spacer(Modifier.height(8.dp))
     }
     key(meaning) {

@@ -90,6 +90,9 @@ class CheckViewModel(
     private var ranWith: CheckContext? = null
     private var ranWithKeyRevision: Long? = null
 
+    /** The language the latest check was pinned to; null for auto-detect. */
+    val pinnedLanguage: Language? get() = language
+
     /** Null before the first check and after [dismiss]. */
     var state by mutableStateOf<CardState?>(null)
         private set

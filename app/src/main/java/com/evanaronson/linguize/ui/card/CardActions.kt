@@ -2,6 +2,7 @@ package com.evanaronson.linguize.ui.card
 
 import android.content.Context
 import com.evanaronson.linguize.core.EditKind
+import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.ui.copyToClipboard
 
 /** What the card's buttons do; supplied by the screen hosting it. */
@@ -21,6 +22,8 @@ class CardActions(
     val onClarify: ((answer: String) -> Unit)? = null,
     /** Retracts the writer's meaning clarification; null for a past check. */
     val onRemoveClarification: (() -> Unit)? = null,
+    /** The language the check was pinned to, for Hear it; null for auto-detect. */
+    val language: () -> Language? = { null },
 ) {
     companion object {
         /**
@@ -56,6 +59,7 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
+            language = { check.pinnedLanguage },
         )
     }
 }

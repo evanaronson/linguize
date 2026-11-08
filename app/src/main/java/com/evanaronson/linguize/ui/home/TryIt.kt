@@ -25,6 +25,7 @@ import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.hearit.DictateButton
 
 /** A text box and the same card the selection menu shows, so checks can be tried here. */
 @Composable
@@ -79,6 +80,11 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
             run(it)
         })
         LinguizeButton(stringResource(R.string.check), { run(Language.forCode(code)) }, ButtonKind.Filled)
+        DictateButton(Language.forCode(code), sample, initialSample, onText = {
+            sample = it
+            blank = false
+            check.dismiss(applied = false)
+        })
     }
 
     check.state?.let { state ->

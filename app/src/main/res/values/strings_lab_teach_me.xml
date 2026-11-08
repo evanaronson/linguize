@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Teach me. A one-minute lesson for one change, opened from its explanation. -->
+    <string name="lab_teach_me_open">Teach me</string>
+    <string name="lab_teach_me_open_action">Open a short lesson on this change</string>
+    <string name="lab_teach_me_loading">Writing your lesson</string>
+    <string name="lab_teach_me_title">Lesson</string>
+    <string name="lab_teach_me_hide">Hide lesson</string>
+    <string name="lab_teach_me_your_version">Your version</string>
+    <string name="lab_teach_me_examples">Examples</string>
+    <string name="lab_teach_me_trap">Common trap</string>
+    <string name="lab_teach_me_quiz">Quick quiz</string>
+    <string name="lab_teach_me_question">Question %1$d of %2$d</string>
+    <string name="lab_teach_me_right">Right</string>
+    <string name="lab_teach_me_not_quite">Not quite</string>
+    <string name="lab_teach_me_right_answer">Right answer</string>
+    <string name="lab_teach_me_unanswered">Not answered</string>
+    <string name="lab_teach_me_score">%1$d of %2$d right</string>
+    <string name="lab_teach_me_again">Try again</string>
+    <string name="lab_teach_me_retry">Retry</string>
+</resources>

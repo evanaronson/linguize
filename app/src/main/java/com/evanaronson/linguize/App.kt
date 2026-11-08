@@ -74,6 +74,13 @@ class App : Application() {
     val checker by lazy { Checker(settings, keys, prompt, clients) }
     val understander by lazy { Understander(settings, keys, clients) }
 
+    /** Lab: "Teach me" lessons, saved in their own file. */
+    val teacher by lazy {
+        Teacher(settings, keys, clients, com.evanaronson.linguize.data.teachme.LessonStore(java.io.File(filesDir, com.evanaronson.linguize.data.teachme.LessonStore.FILE_NAME))) {
+            com.evanaronson.linguize.llm.teachme.LessonPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // onCreate runs once per process, so this does too. A session open in the database

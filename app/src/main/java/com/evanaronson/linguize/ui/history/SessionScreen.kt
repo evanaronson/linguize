@@ -40,6 +40,8 @@ import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
+import com.evanaronson.linguize.ui.teachme.LessonSource
+import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.titleResource
 
@@ -143,8 +145,10 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
     SectionHeader(stringResource(R.string.history_after))
     SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
 
-    SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-        reviewed = reviewed, settled = settled)
+    CompositionLocalProvider(LocalLessonSource provides LessonSource(session.targetLanguage ?: session.detectedLanguage, session.text)) {
+        SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+            reviewed = reviewed, settled = settled)
+    }
 }
 
 /** The readings a past check's suggestions rested on, and the writer's answers, read-only. */

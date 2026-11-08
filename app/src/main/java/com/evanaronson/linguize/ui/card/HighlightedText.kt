@@ -47,6 +47,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.ui.teachme.LocalLessonSource
+import com.evanaronson.linguize.ui.teachme.lessonTopic
+import com.evanaronson.linguize.ui.teachme.sentenceAround
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.SuggestionAssessment
 import kotlinx.coroutines.delay
@@ -224,6 +227,7 @@ fun HighlightedText(
                 onToggle = { selectedId = if (selectedId == change.id) null else change.id },
                 modifier = if (selectedId == change.id) Modifier.bringIntoViewRequester(explanation) else Modifier,
                 onSettle = onSettle,
+                sentence = sentenceAround(text, change.range.first, change.range.last + 1),
             )
         }
 
@@ -240,7 +244,11 @@ fun HighlightedText(
         // with it: the change can leave because another one was accepted (a rewording retires
         // the fixes it touches), and then its range no longer fits the shorter text.
         val lastShown = remember { arrayOfNulls<Pair<Highlight, String>>(1) }
-        if (shown != null) lastShown[0] = shown to text.substring(shown.range)
+        val lastSentence = remember { arrayOfNulls<String>(1) }
+        if (shown != null) {
+            lastShown[0] = shown to text.substring(shown.range)
+            lastSentence[0] = sentenceAround(text, shown.range.first, shown.range.last + 1)
+        }
         AnimatedVisibility(visible = shown != null) {
             val (change, replacement) = lastShown[0] ?: return@AnimatedVisibility
             Column(Modifier.bringIntoViewRequester(explanation)) {
@@ -251,6 +259,7 @@ fun HighlightedText(
                     edge,
                     onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
                     onSettle = onSettle,
+                    sentence = lastSentence[0],
                 )
             }
         }
@@ -275,6 +284,8 @@ private fun ChangeExplanation(
     onToggle: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onSettle: ((String, String) -> Unit)? = null,
+    /** Lab: the sentence the change sits in, for its lesson. */
+    sentence: String? = null,
 ) {
     val from = change.from.visibleValue()
     val to = replacement.visibleValue()
@@ -299,6 +310,7 @@ private fun ChangeExplanation(
         expanded = expanded,
         onToggle = onToggle,
         onToggleLabel = whyLabel(change.from, replacement, from, to),
+        lesson = lessonTopic(change.from, replacement, change.why, LocalLessonSource.current?.language, sentence),
     )
 }
 

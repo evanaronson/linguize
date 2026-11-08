@@ -52,9 +52,9 @@ internal sealed interface Screen {
     data object Practice : Screen
     /** Lab: what Linguize remembers about the writer. */
     data object Memory : Screen
-    /** Lab: every word the writer typed. */
+    /** Lab: Words, every word of a frequency deck and every word the writer typed. */
     data object Words : Screen
-    /** Lab: one row of Your words in [language]: [level] is the `WordLevel` token (form, lexeme or lemma). */
+    /** Lab: one row of Words in [language]: [level] is the `WordLevel` token (form, lexeme or lemma). */
     data class WordDetail(val language: String?, val key: String, val level: String) : Screen {
         companion object {
             val LEVELS = setOf("f", "x", "l")
@@ -62,8 +62,6 @@ internal sealed interface Screen {
     }
     /** Lab: the chat, which the app opens to unless that is switched off. */
     data object Chat : Screen
-    /** Lab: common words used and not yet used. */
-    data object VocabGaps : Screen
     /** Lab: your conjugations. */
     data object Conjugations : Screen
     /** Lab: one cell of the conjugation grid, by language and cell token. */
@@ -96,7 +94,6 @@ internal sealed interface Screen {
             Words -> "words"
             is WordDetail -> "word:$level:${language.orEmpty()}:$key"
             Chat -> "lab_chat"
-            VocabGaps -> "vocab_gaps"
             Conjugations -> "conjugations"
             is ConjugationCell -> "conjugation:$language:$cell"
             Progress -> "progress"
@@ -131,7 +128,8 @@ internal sealed interface Screen {
                 .takeIf { it.size == 4 && it[3].isNotEmpty() && it[1] in WordDetail.LEVELS }
                 ?.let { WordDetail(it[2].ifEmpty { null }, it[3], it[1]) }
             saved == "lab_chat" -> Chat
-            saved == "vocab_gaps" -> VocabGaps
+            // Vocabulary gaps became part of Words.
+            saved == "vocab_gaps" -> Words
             saved == "conjugations" -> Conjugations
             saved.startsWith("conjugation:") -> saved.removePrefix("conjugation:").split(':', limit = 2)
                 .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }

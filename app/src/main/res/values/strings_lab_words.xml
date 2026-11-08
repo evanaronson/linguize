@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Lab: Your words. Counts only what the writer typed themselves. -->
-    <string name="lab_words_title">Your words</string>
-    <string name="lab_words_open">Open your words</string>
+    <string name="lab_words_title">Words</string>
+    <string name="lab_words_open">Open words</string>
     <plurals name="lab_words_home_summary">
         <item quantity="one">%1$d word you\'ve written in %2$s</item>
         <item quantity="other">%1$d words you\'ve written in %2$s</item>
     </plurals>
-    <string name="lab_words_history_summary">Every word you typed, counted</string>
+    <string name="lab_words_history_summary">Common words you\'ve used, and the ones you haven\'t</string>
     <string name="lab_words_other_language">Other</string>
 
     <string name="lab_words_language">Language</string>
@@ -22,37 +22,31 @@
     </plurals>
     <string name="lab_words_growth">Words over time</string>
     <string name="lab_words_growth_description">Words you\'ve used grew from %1$d on %2$s to %3$d on %4$s</string>
-    <string name="lab_words_growth_one_day">All %1$d words so far are from %2$s.</string>
+    <string name="lab_words_growth_both_description">Words you\'ve used grew from %1$d on %2$s to %3$d on %4$s. Of the top %5$d, %6$d used.</string>
+    <string name="lab_words_growth_words_legend">All your words: %1$d</string>
+    <string name="lab_words_growth_top_legend">Of the top %2$d: %1$d</string>
 
     <string name="lab_words_list">Word list</string>
     <string name="lab_words_search">Search words</string>
     <string name="lab_words_sort_most_used">Most used</string>
     <string name="lab_words_sort_newest">Newest</string>
     <string name="lab_words_sort_az">A–Z</string>
-    <string name="lab_words_sort_tried">Not yet right</string>
+    <string name="lab_words_sort_rank">Rank</string>
+    <string name="lab_words_sort">Sort</string>
+    <string name="lab_words_filter">Show</string>
+    <string name="lab_words_filter_tried">Tried</string>
+    <string name="lab_words_not_in_list">not in list</string>
+    <string name="lab_words_detail_rank">Rank in %1$s</string>
+    <string name="lab_words_detail_not_used">You haven\'t used this word yet.</string>
     <string name="lab_words_by_form">Word forms</string>
     <string name="lab_words_by_lexeme">Lexemes</string>
     <string name="lab_words_by_lemma">Lemmas</string>
     <string name="lab_words_no_match">No words match</string>
-    <string name="lab_words_no_tried">Every word you tried, you\'ve also used right.</string>
-    <plurals name="lab_words_uses">
-        <item quantity="one">%1$d use</item>
-        <item quantity="other">%1$d uses</item>
-    </plurals>
-    <plurals name="lab_words_row_used">
-        <item quantity="one">Used in %1$d message</item>
-        <item quantity="other">Used in %1$d messages</item>
-    </plurals>
     <plurals name="lab_words_row_tried">
         <item quantity="one">Tried once, not yet right</item>
         <item quantity="other">Tried %1$d times, not yet right</item>
     </plurals>
-    <plurals name="lab_words_row_fixed">
-        <item quantity="one">fixed once</item>
-        <item quantity="other">fixed %1$d times</item>
-    </plurals>
     <!-- "Used in 3 messages, fixed once" -->
-    <string name="lab_words_row_pair">%1$s, %2$s</string>
     <string name="lab_words_open_word">Open word</string>
     <plurals name="lab_words_names">
         <item quantity="one">%1$d name left out: %2$s</item>
@@ -96,7 +90,6 @@
     <string name="lab_words_row_forms">Forms: %1$s</string>
     <string name="lab_words_row_forms_ambiguous">Forms: %1$s (ambiguous: %2$s)</string>
     <!-- "art, pron. Forms: el, la" -->
-    <string name="lab_words_row_lemma">%1$s. Forms: %2$s</string>
     <string name="lab_words_row_could_be">could be %1$s</string>
     <string name="lab_words_ambiguous_note">An ambiguous form counts toward every word it could be, so these counts can add up to more than the words you wrote.</string>
     <string name="lab_words_how_levels">Word forms are spellings as you wrote them. A lexeme is a word with its part of speech, so la the article and la the pronoun stay apart. A lemma groups every lexeme with the same dictionary form.</string>

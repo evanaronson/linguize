@@ -73,9 +73,6 @@ class HomeActivity : ComponentActivity() {
         com.evanaronson.linguize.ui.memory.MemoryViewModel.factory(App.of(this).memoryStore)
     }
     private val words: com.evanaronson.linguize.ui.words.WordsViewModel by viewModels { com.evanaronson.linguize.ui.words.WordsViewModel.factory(App.of(this)) }
-    private val vocabGaps: com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel by viewModels {
-        com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel.factory(App.of(this))
-    }
     private val conjugations: com.evanaronson.linguize.ui.conjugations.ConjugationsViewModel by viewModels {
         com.evanaronson.linguize.ui.conjugations.ConjugationsViewModel.factory(App.of(this))
     }
@@ -130,7 +127,7 @@ class HomeActivity : ComponentActivity() {
                                     onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
                                 )
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
-                                    practice, patterns, words, conjugations, vocabGaps,
+                                    practice, patterns, words, conjugations,
                                 ) { view -> navigation = navigation.open(view.screen) }
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -172,7 +169,6 @@ class HomeActivity : ComponentActivity() {
                                     words, current.language, current.key, current.level, onOpenCheck = ::open,
                                 )
                                 Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(onOpenSettings = openSettings)
-                                Screen.VocabGaps -> com.evanaronson.linguize.ui.vocabgaps.VocabGapsScreen(vocabGaps)
                                 Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(conjugations) { language, cell ->
                                     navigation = navigation.open(Screen.ConjugationCell(language, cell.token))
                                 }
@@ -254,7 +250,6 @@ private val ProgressView.screen: Screen
         ProgressView.Practice -> Screen.Practice
         ProgressView.Words -> Screen.Words
         ProgressView.Conjugations -> Screen.Conjugations
-        ProgressView.VocabGaps -> Screen.VocabGaps
         ProgressView.Patterns -> Screen.Patterns
         ProgressView.Phrasebook -> Screen.Phrasebook
     }
@@ -280,9 +275,8 @@ private fun Screen.title(): String? = when (this) {
     Screen.Practice -> stringResource(R.string.lab_practice_title)
     Screen.Memory -> stringResource(R.string.lab_memory_title)
     Screen.Words -> stringResource(R.string.lab_words_title)
-    is Screen.WordDetail -> if (level == "x") key.substringBeforeLast('/') else key
+    is Screen.WordDetail -> com.evanaronson.linguize.ui.words.wordTitle(key)
     Screen.Chat -> stringResource(R.string.lab_chat_title)
-    Screen.VocabGaps -> stringResource(R.string.lab_vocab_gaps_title)
     Screen.Conjugations -> stringResource(R.string.lab_conjugations_title)
     is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(cell)
         ?.let { com.evanaronson.linguize.ui.conjugations.conjugationCellTitle(language, it) }

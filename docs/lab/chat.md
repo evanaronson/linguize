@@ -10,7 +10,7 @@ The chat is a stand-in for real conversations when real life doesn't produce eno
 writing. There are no separate worlds: everything you write and commit to, to a person or
 to the chat partner, is the same kind of evidence. So a chat message is saved in History
 exactly like a check put back in another app, and everything that learns from History
-(Your words, Vocabulary gaps, Your conjugations, Your patterns, Practice) learns from the
+(Words, Your conjugations, Your patterns, Practice) learns from the
 chat too. History is "everything you wrote, with how it was corrected".
 
 The chat is the same as checking a real message. The only difference is that its entry

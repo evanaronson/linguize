@@ -54,7 +54,7 @@ class TabNavigationTest {
 
     @Test fun progressAndItsViewsRestore() {
         for (start in starts) {
-            listOf(Screen.Practice, Screen.Words, Screen.Conjugations, Screen.VocabGaps, Screen.Patterns, Screen.Phrasebook).forEach { view ->
+            listOf(Screen.Practice, Screen.Words, Screen.Conjugations, Screen.Patterns, Screen.Phrasebook).forEach { view ->
                 val path = start.open(Screen.Progress).open(view)
                 assertEquals(path, Navigation.restore(path.saved))
                 assertEquals(Screen.Progress, path.back().current)

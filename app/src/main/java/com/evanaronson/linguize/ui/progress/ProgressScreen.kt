@@ -40,19 +40,18 @@ import com.evanaronson.linguize.ui.patterns.Sparkline
 import com.evanaronson.linguize.ui.patterns.patternsSummary
 import com.evanaronson.linguize.ui.practice.PracticeViewModel
 import com.evanaronson.linguize.ui.text.displayName
-import com.evanaronson.linguize.ui.vocabgaps.VocabGapsViewModel
 import com.evanaronson.linguize.ui.words.WordsViewModel
 import com.evanaronson.linguize.ui.words.languageLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** A page Progress opens. The per-language ones open on the language shown on the switch. */
-enum class ProgressView { Practice, Words, Conjugations, VocabGaps, Patterns, Phrasebook }
+enum class ProgressView { Practice, Words, Conjugations, Patterns, Phrasebook }
 
 /**
  * Progress, one of the four destinations: how the writer is doing, all read from History.
- * Practice is the thing to do; the rest are views. Your words, Your conjugations and
- * Vocabulary gaps are per language and share one switch; Your patterns and the Phrasebook
+ * Practice is the thing to do; the rest are views. Words and Your conjugations are per
+ * language and share one switch; Your patterns and the Phrasebook
  * cover every language. Rows that only count are cheap; nothing here asks a model.
  */
 @Composable
@@ -61,7 +60,6 @@ fun ProgressScreen(
     patterns: PatternsViewModel,
     words: WordsViewModel,
     conjugations: ConjugationsViewModel,
-    vocabGaps: VocabGapsViewModel,
     onOpen: (ProgressView) -> Unit,
 ) {
     val practiceState by practice.state.collectAsState()
@@ -79,7 +77,6 @@ fun ProgressScreen(
         when (view) {
             ProgressView.Words -> words.selectLanguage(language)
             ProgressView.Conjugations -> conjugations.select(language)
-            ProgressView.VocabGaps -> vocabGaps.selectLanguage(language)
             else -> Unit
         }
         onOpen(view)
@@ -121,14 +118,6 @@ fun ProgressScreen(
                     } ?: stringResource(R.string.lab_conjugations_home_summary),
                     onClick = { open(ProgressView.Conjugations) },
                     onClickLabel = stringResource(R.string.lab_conjugations_open),
-                )
-            },
-            {
-                ListRow(
-                    stringResource(R.string.lab_vocab_gaps_title),
-                    stringResource(R.string.lab_vocab_gaps_home_summary),
-                    onClick = { open(ProgressView.VocabGaps) },
-                    onClickLabel = stringResource(R.string.lab_vocab_gaps_open),
                 )
             },
         )

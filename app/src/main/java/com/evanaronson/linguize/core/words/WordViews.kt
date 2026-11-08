@@ -2,24 +2,9 @@ package com.evanaronson.linguize.core.words
 
 import com.evanaronson.linguize.core.Sentences
 import com.evanaronson.linguize.core.corpus.Pos
-import java.text.Collator
 import java.text.Normalizer
 import java.time.Instant
 import java.time.ZoneId
-import java.util.Locale
-
-/** How the word list is ordered. [Tried] also filters to words not yet used right. */
-enum class WordSort(val token: String) {
-    MostUsed("most_used"),
-    Newest("newest"),
-    Alphabetical("az"),
-    Tried("tried"),
-    ;
-
-    companion object {
-        fun read(token: String?): WordSort = entries.firstOrNull { it.token == token } ?: MostUsed
-    }
-}
 
 /** The writer's sentence around one use, with the word at [start] until [end]. */
 data class WordContext(val use: WordUse, val sentence: String, val start: Int, val end: Int, val cutBefore: Boolean, val cutAfter: Boolean)
@@ -28,25 +13,6 @@ object WordViews {
     /** Longest sentence shown whole; longer ones are cut to the words around the word. */
     const val MAX_SENTENCE = 200
     private const val AROUND = 80
-
-    /**
-     * [rows] filtered by [query] (accent-insensitive, anywhere in the word) and ordered by [sort].
-     * A–Z follows [locale]'s collation, so ç sorts with c and l·l with l.
-     */
-    fun <T : WordCounts> arrange(rows: List<T>, sort: WordSort, query: String = "", locale: Locale = Locale.ROOT): List<T> {
-        val needle = fold(query.trim())
-        val matching = if (needle.isEmpty()) rows else rows.filter { fold(it.label).contains(needle) }
-        return when (sort) {
-            WordSort.MostUsed -> matching.sortedWith(compareByDescending<T> { it.uses }.thenByDescending { it.lastAt }.thenBy { it.key })
-            WordSort.Newest -> matching.sortedWith(compareByDescending<T> { it.firstAt }.thenBy { it.key })
-            WordSort.Alphabetical -> {
-                val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
-                matching.sortedWith { a, b -> collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.key.compareTo(b.key) }
-            }
-            WordSort.Tried -> matching.filter { it.tried > 0 && !it.known }
-                .sortedWith(compareByDescending<T> { it.tried }.thenByDescending { it.lastAt }.thenBy { it.key })
-        }
-    }
 
     /** Lowercase without accents, for search: "aqui" finds "aquí". */
     fun fold(text: String): String =
@@ -89,19 +55,22 @@ object WordViews {
     }
 
     /**
-     * CSV of every form: word, lemma, lexeme_pos, count, tried, first, last. A form that could be
+     * CSV of every form: word, lemma, lexeme_pos, deck_rank, count, tried, first, last. A form that could be
      * more than one lexeme has one row per lexeme, each with the form's full counts (an
      * ambiguous form counts toward every candidate). lexeme_pos is the part-of-speech token
-     * ("v", "art"), empty when unknown. Dates are local, yyyy-mm-dd.
+     * ("v", "art"), empty when unknown. deck_rank is that lexeme's rank in [coverage]'s deck (its
+     * row, else its lemma's best row), empty when it isn't in the deck or no deck is chosen.
+     * Dates are local, yyyy-mm-dd.
      */
-    fun csv(words: LanguageWords, zone: ZoneId = ZoneId.systemDefault()): String = buildString {
-        append("word,lemma,lexeme_pos,count,tried,first,last\r\n")
+    fun csv(words: LanguageWords, coverage: DeckCoverage? = null, zone: ZoneId = ZoneId.systemDefault()): String = buildString {
+        append("word,lemma,lexeme_pos,deck_rank,count,tried,first,last\r\n")
         for (entry in words.words.sortedWith(compareByDescending<WordEntry> { it.uses }.thenBy { it.form })) {
             for (lexeme in entry.lexemes.sortedWith(compareBy({ it.lemma }, { it.pos.ordinal }))) {
                 val fields = listOf(
                     entry.form,
                     lexeme.lemma,
                     lexeme.pos.takeIf { it != Pos.Unknown }?.token.orEmpty(),
+                    (coverage?.rankOf(lexeme) ?: coverage?.rankOfForm(entry.form))?.toString().orEmpty(),
                     entry.right.toString(),
                     entry.tried.toString(),
                     day(entry.firstAt, zone),

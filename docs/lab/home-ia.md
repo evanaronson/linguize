@@ -15,8 +15,8 @@ what a person comes to do. It doesn't add features.
 3. **One clear home per thing.** Where two entries led to the same page, keep the one that
    matches the job. Context entries stay where the person already is: the card rows act on
    the text in front of them, so they stay.
-4. **Stats are one place.** Patterns, Practice, Your words, Your conjugations and
-   Vocabulary gaps all read the same History. They're one area, Progress, with Practice as
+4. **Stats are one place.** Patterns, Practice, Words and Your conjugations all read the
+   same History. They're one area, Progress, with Practice as
    the thing to do and the rest as views, and one language switch for the views that
    depend on language.
 5. **Nothing becomes unreachable.** Every experiment still has a path. Rarely used tools
@@ -31,7 +31,7 @@ what a person comes to do. It doesn't add features.
 | Talk and practise | Daily, the main reason to open the app | Chat (conversations, Practise with…) |
 | Write or check one specific thing | Several times a week | Try it, Writing pad, Fill the gaps; card rows: How it lands, Say it in Catalan, Replying to, Hear it, Second opinion |
 | Understand something someone sent, and answer it | Weekly | Help me reply, Understand a photo; share sheet; Understand copied text |
-| See how I'm doing | Weekly | Practice, Your patterns, Your words, Your conjugations, Vocabulary gaps, Phrasebook |
+| See how I'm doing | Weekly | Practice, Your patterns, Words, Your conjugations, Phrasebook |
 | Look back at what I wrote | Weekly | History (one row per message, any source) |
 | Set up | Once, then rarely | Keys and model, languages, selection menu, accessibility button, popup, per-app voice, What Linguize knows, Open to chat, History switch |
 | In another app, before sending | Many times a day, outside this app | Selection menu, accessibility button, Quick tile, launcher shortcuts, share |
@@ -47,8 +47,9 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
   its card rows); **More ways to write**: Writing pad, Fill the gaps; **Read and reply**:
   Help me reply, Understand a photo.
 - **Progress**: **Practice** (always shown here: "4 due" or "Nothing due"); **Your
-  writing**, with a Catalan/Spanish switch: Your words ("312 words you've written in
-  Catalan"), Your conjugations ("12 of 40 forms used"), Vocabulary gaps. Opening one opens
+  writing**, with a Catalan/Spanish switch: Words ("312 words you've written in Catalan":
+  the words you've used and the common ones you haven't, in one list), Your conjugations
+  ("12 of 40 forms used"). Opening one opens
   it on that language. **Fixes and phrases**, across languages: Your patterns (top groups
   and a sparkline once there's enough), Phrasebook (count).
 - **History**: the list, with only a source filter above it (see [One list of messages](history-flat.md)).
@@ -69,9 +70,9 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 | Understand a photo | Home, own section; share sheet | Write › Read and reply; share sheet unchanged | |
 | Practice | Home, only while due | Progress, always (count or Nothing due) | Pull, not push: visiting Progress is asking |
 | Your patterns | Home card once worth showing; row above History | Progress | One place for stats |
-| Your words | Home card; row above History | Progress, with the language switch | |
+| Your words | Home card; row above History | Progress › Words, with the language switch | Merged with Vocabulary gaps: the words you know are a subset of all the words |
 | Your conjugations | Home, own section | Progress, with the language switch | |
-| Vocabulary gaps | Home row | Progress, with the language switch | |
+| Vocabulary gaps | Home row | Progress › Words (Not yet filter, coverage in the header); its saved pages open Words | One list, not two |
 | Phrasebook | Home, own section; star on the card | Progress › Fixes and phrases; star unchanged | Things kept from your own writing |
 | Recent (last five) and View all | Home | Removed; History is a tab | A preview of a page that's one tap away |
 | History | View all on Home; Settings › History | Bottom bar; Settings › History unchanged | |

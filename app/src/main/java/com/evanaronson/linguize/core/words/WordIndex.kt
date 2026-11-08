@@ -151,7 +151,16 @@ data class LanguageWords(
     val growth: List<GrowthPoint>,
     /** The writer's own texts, by utterance id, for contexts. */
     val texts: Map<String, Utterance>,
+    /** Every use of each form, oldest first: what a deck's coverage is counted from. */
+    val uses: Map<String, List<WordUse>> = emptyMap(),
 ) {
+    companion object {
+        /** A language with a deck but nothing written in it yet. */
+        fun empty(language: String?) = LanguageWords(
+            language, emptyList(), emptyList(), emptyList(), emptyList(), 0, 0, 0, 0, emptyList(), emptyMap(),
+        )
+    }
+
     /** Forms used right at least once. */
     val distinctWords: Int get() = words.count { it.known }
     val distinctLexemes: Int get() = lexemes.count { it.known }
@@ -210,7 +219,9 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
             return WordIndex(languages, CorpusFingerprint.of(utterances))
         }
 
-        private class Occurrence(val utterance: Utterance, val token: WordToken, val tried: Boolean)
+        private class Occurrence(val utterance: Utterance, val token: WordToken, val tried: Boolean) {
+            fun use() = WordUse(utterance.id, utterance.source, utterance.at, token.start, token.end, tried)
+        }
 
         private fun buildLanguage(
             language: String?,
@@ -293,6 +304,7 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
                 messages = words.map { it.utterance.id }.toSet().size,
                 growth = growth,
                 texts = utterances.associateBy { it.id },
+                uses = words.groupBy({ it.token.form }) { it.use() },
             )
         }
 
@@ -312,7 +324,7 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
                 messages = uses.map { it.utterance.id }.toSet().size,
                 recent = uses.sortedWith(compareByDescending<Occurrence> { it.utterance.at }.thenBy { it.token.start })
                     .take(MAX_EXAMPLES)
-                    .map { WordUse(it.utterance.id, it.utterance.source, it.utterance.at, it.token.start, it.token.end, it.tried) },
+                    .map { it.use() },
             )
         }
     }

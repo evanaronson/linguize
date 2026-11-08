@@ -66,6 +66,9 @@ class HomeActivity : ComponentActivity() {
     private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
+    private val conjugations: com.evanaronson.linguize.ui.conjugations.ConjugationsViewModel by viewModels {
+        com.evanaronson.linguize.ui.conjugations.ConjugationsViewModel.factory(App.of(this))
+    }
     private var navigation by mutableStateOf(Navigation())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,6 +119,7 @@ class HomeActivity : ComponentActivity() {
                                     patterns = patterns,
                                     onOpenPatterns = { navigation = navigation.open(Screen.Patterns) },
                                     practice = { PracticeEntry(practice) { navigation = navigation.open(Screen.Practice) } },
+                                    onOpenConjugations = { navigation = navigation.open(Screen.Conjugations) },
                                 )
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -148,6 +152,12 @@ class HomeActivity : ComponentActivity() {
                                     patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
                                 )
                                 Screen.Practice -> PracticeScreen(practice, onDone = ::back)
+                                Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(conjugations) { language, cell ->
+                                    navigation = navigation.open(Screen.ConjugationCell(language, cell.token))
+                                }
+                                is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(current.cell)?.let {
+                                    com.evanaronson.linguize.ui.conjugations.ConjugationCellScreen(conjugations, current.language, it)
+                                }
                             }
                         }
                     }
@@ -223,4 +233,8 @@ private fun Screen.title(): String? = when (this) {
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
     Screen.Practice -> stringResource(R.string.lab_practice_title)
+    Screen.Conjugations -> stringResource(R.string.lab_conjugations_title)
+    is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(cell)
+        ?.let { com.evanaronson.linguize.ui.conjugations.conjugationCellTitle(language, it) }
+        ?: stringResource(R.string.lab_conjugations_title)
 }

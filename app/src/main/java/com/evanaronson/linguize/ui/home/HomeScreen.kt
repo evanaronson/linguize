@@ -60,6 +60,7 @@ fun HomeScreen(
     patterns: PatternsViewModel? = null,
     onOpenPatterns: () -> Unit = {},
     practice: @Composable () -> Unit = {},
+    onOpenConjugations: (() -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     Box(Modifier.fillMaxSize()) {
@@ -77,6 +78,7 @@ fun HomeScreen(
             PhrasebookHomeSection(onOpenPhrasebook)
             com.evanaronson.linguize.ui.reply.ReplyHomeEntry(onHelpReply)
             patterns?.let { PatternsHomeCard(it, onOpenPatterns) }
+            onOpenConjugations?.let { com.evanaronson.linguize.ui.conjugations.ConjugationsHomeEntry(it) }
             SectionHeader(stringResource(R.string.selection_menu_unavailable))
             ListCard({
                 ListRow(

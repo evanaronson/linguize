@@ -45,6 +45,10 @@ internal sealed interface Screen {
     data class PatternDetail(val kind: String) : Screen
     /** Lab: practice drills from applied fixes. */
     data object Practice : Screen
+    /** Lab: your conjugations. */
+    data object Conjugations : Screen
+    /** Lab: one cell of the conjugation grid, by language and cell token. */
+    data class ConjugationCell(val language: String, val cell: String) : Screen
 
     /** For saved instance state. */
     val saved: String
@@ -64,6 +68,8 @@ internal sealed interface Screen {
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
             Practice -> "practice"
+            Conjugations -> "conjugations"
+            is ConjugationCell -> "conjugation:$language:$cell"
         }
 
     companion object {
@@ -86,6 +92,9 @@ internal sealed interface Screen {
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             saved == "practice" -> Practice
+            saved == "conjugations" -> Conjugations
+            saved.startsWith("conjugation:") -> saved.removePrefix("conjugation:").split(':', limit = 2)
+                .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }
             else -> null
         }
     }

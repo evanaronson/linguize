@@ -52,4 +52,27 @@ class CorpusTest {
     fun correctedSpansMustFitTheText() {
         Utterance("check:1", "check", "es", "hola", listOf(Span(0, 9)), at = 1)
     }
+
+    @Test
+    fun identityLemmatizerKnowsNoPartOfSpeech() {
+        assertEquals(setOf(Lexeme("llama", Pos.Unknown)), Lemmatizer.Identity.lexemes("llama", "es"))
+        assertEquals(setOf("llama"), Lemmatizer.Identity.lemmas("llama", "es"))
+    }
+
+    @Test
+    fun lemmasDropPartOfSpeechButKeepHomographsApart() {
+        val l = Lemmatizer { _, _ -> setOf(Lexeme("el", Pos.Article), Lexeme("ella", Pos.Pronoun), Lexeme("el", Pos.Pronoun)) }
+        assertEquals(setOf("el", "ella"), l.lemmas("la", "es"))
+        assertEquals(3, l.lexemes("la", "es").size)
+    }
+
+    @Test
+    fun posTokensMatchTheSpanishDeck() {
+        listOf("n", "v", "adj", "adv", "pron", "prep", "conj", "num", "interj", "art").forEach {
+            assertEquals(it, Pos.of(it).token)
+        }
+        assertEquals(Pos.Determiner, Pos.of("determiner"))
+        assertEquals(Pos.Other, Pos.of("other"))
+        assertEquals(Pos.Unknown, Pos.of("zzz"))
+    }
 }

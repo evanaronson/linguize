@@ -97,6 +97,7 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit, onFillGaps
         })
         BridgeTryItButton(bridge, sample.trim(), Language.forCode(code))
     }
+    com.evanaronson.linguize.ui.tonecheck.TryItLands(sample, onUse = { sample = it; check.dismiss(applied = false) }, onOpenSettings)
 
     val bridgeActions = hostBridgeActions(bridge, onReplace = { sample = it; check.dismiss(applied = false) },
         onCheck = { text, language -> sample = text; code = language?.code; run(language) }, onOpenSettings)

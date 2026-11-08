@@ -96,6 +96,10 @@ fun ResultCard(
     if (LocalOnBackPressedDispatcherOwner.current != null) {
         BackHandler(enabled = showingUnderstanding) { showingUnderstanding = false }
     }
+    // Lab: How it lands is a page of its own for the accepted text.
+    var showingLands by rememberSaveable(reviewed, settled) { mutableStateOf(false) }
+    if (com.evanaronson.linguize.ui.tonecheck.showLandsPage(actions.howItLands, reviewed?.revision?.workingText,
+            showingLands, { showingLands = it }, modifier, scrollable)) return
     ProvideHearIt(state, actions.language()) { ResultSurface(
         modifier,
         scrollable,
@@ -105,6 +109,7 @@ fun ResultCard(
                 if (reviewed != null && !showingUnderstanding) {
                     UnderstandingEntry(onOpen = { showingUnderstanding = true })
                     bridgeEntry?.invoke()
+                    actions.howItLands?.let { com.evanaronson.linguize.ui.tonecheck.LandsEntry(it) { showingLands = true } }
                 }
                 if (!showingUnderstanding) gapOffer?.let { GapOfferRow(it) }
                 onUnderstandCopiedText?.let { open ->

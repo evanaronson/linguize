@@ -96,8 +96,6 @@ class CheckViewModel(
     private var ranWith: CheckContext? = null
     private var ranWithKeyRevision: Long? = null
 
-    /** The language the latest check was pinned to; null for auto-detect. */
-    val pinnedLanguage: Language? get() = language
     /** Lab Phrasebook: the check's language code (asked for, else detected) and source app. */
     var phraseLanguage: String? = null
         private set

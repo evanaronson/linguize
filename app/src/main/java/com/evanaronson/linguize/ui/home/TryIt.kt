@@ -25,7 +25,6 @@ import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
-import com.evanaronson.linguize.ui.hearit.DictateButton
 import com.evanaronson.linguize.ui.gaps.GapOffer
 import com.evanaronson.linguize.ui.languagebridge.BridgeFooterEntry
 import com.evanaronson.linguize.ui.languagebridge.BridgeHost
@@ -90,11 +89,6 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit, onFillGaps
             run(it)
         })
         LinguizeButton(stringResource(R.string.check), { run(Language.forCode(code)) }, ButtonKind.Filled)
-        DictateButton(Language.forCode(code), sample, initialSample, onText = {
-            sample = it
-            blank = false
-            check.dismiss(applied = false)
-        })
         BridgeTryItButton(bridge, sample.trim(), Language.forCode(code))
     }
     com.evanaronson.linguize.ui.tonecheck.TryItLands(sample, onUse = { sample = it; check.dismiss(applied = false) }, onOpenSettings)

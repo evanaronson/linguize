@@ -2,7 +2,6 @@ package com.evanaronson.linguize.ui.card
 
 import android.content.Context
 import com.evanaronson.linguize.core.EditKind
-import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
 import com.evanaronson.linguize.ui.replycontext.ReplyContextActions
@@ -25,8 +24,6 @@ class CardActions(
     val onClarify: ((answer: String) -> Unit)? = null,
     /** Retracts the writer's meaning clarification; null for a past check. */
     val onRemoveClarification: (() -> Unit)? = null,
-    /** The language the check was pinned to, for Hear it; null for auto-detect. */
-    val language: () -> Language? = { null },
     /** Lab Phrasebook: where saved phrases come from; null shows no save control. */
     val phraseOrigin: PhraseOrigin? = null,
     /** Lab: the message being replied to; null for a past check or a host that shows it itself. */
@@ -71,7 +68,6 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
-            language = { check.pinnedLanguage },
             phraseOrigin = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
             replyContext = if (replyContext) ReplyContextActions.of(check) else null,
             howItLands = com.evanaronson.linguize.ui.tonecheck.LandsActions.of(check, context, canReplace, onClose, onOpenSettings),

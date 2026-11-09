@@ -100,7 +100,7 @@ class ChatReplyContextTest {
             store.add(partner("1", "¿Le va bien el martes?", now - 10))
         }
         chat.draftCheck = card
-        chat.start(requested = "c")
+        chat.open("c")
         val until = System.currentTimeMillis() + 5_000
         while (chat.thread?.messages?.isEmpty() != false && System.currentTimeMillis() < until) {
             shadowOf(Looper.getMainLooper()).idle()

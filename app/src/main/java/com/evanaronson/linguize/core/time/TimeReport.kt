@@ -1,0 +1,126 @@
+package com.evanaronson.linguize.core.time
+
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
+
+/** Time over some set of messages; writing split into measured and estimated. */
+data class TimeTotals(
+    val messages: Int = 0,
+    val measuredWritingMs: Long = 0,
+    val estimatedWritingMs: Long = 0,
+    val reviewMs: Long = 0,
+    /** Messages whose writing was estimated. */
+    val estimatedMessages: Int = 0,
+) {
+    val writingMs: Long get() = measuredWritingMs + estimatedWritingMs
+    val totalMs: Long get() = writingMs + reviewMs
+    val measuredMs: Long get() = measuredWritingMs + reviewMs
+    val isEmpty: Boolean get() = messages == 0
+
+    /** Average writing and review per message; null with no messages. */
+    val perMessageMs: Long? get() = if (messages == 0) null else totalMs / messages
+
+    operator fun plus(other: TimeTotals) = TimeTotals(
+        messages + other.messages,
+        measuredWritingMs + other.measuredWritingMs,
+        estimatedWritingMs + other.estimatedWritingMs,
+        reviewMs + other.reviewMs,
+        estimatedMessages + other.estimatedMessages,
+    )
+}
+
+/** One week, Monday first. */
+data class WeekTime(val start: LocalDate, val totals: TimeTotals)
+
+data class LanguageTime(
+    val language: String,
+    val totals: TimeTotals,
+    /** Measured chat writing speed in this language, ms per word; null until there's some. */
+    val msPerWord: Long?,
+    /** What another app's message in this language is estimated with. */
+    val estimateBasis: EstimateBasis,
+)
+
+/**
+ * Lab, Time spent: everything the Time page shows, from the stored measurements. Pure.
+ *
+ * - **Time per message**: writing (measured or estimated) plus review, over messages.
+ * - **Seconds per word**: measured chat writing time over its words. Nothing estimated enters it.
+ * - **Time per change**: review time over changes offered, counting only messages whose card
+ *   offered at least one change (a clean message has nothing to review per change).
+ * - **Weeks**: the last [WEEKS] calendar weeks, Monday first, in the phone's time zone.
+ */
+data class TimeReport(
+    val allTime: TimeTotals,
+    val thisWeek: TimeTotals,
+    val weeks: List<WeekTime>,
+    val languages: List<LanguageTime>,
+    /** Measured chat writing, ms per word; null with no measured words. */
+    val msPerWord: Long?,
+    /** Review time per change offered; null when no card offered a change. */
+    val msPerChange: Long?,
+    /** Changes offered and accepted, for the explanation. */
+    val changesShown: Int,
+    val changesAccepted: Int,
+    /** What a message from another app with no language is estimated with. */
+    val defaultBasis: EstimateBasis,
+) {
+    val isEmpty: Boolean get() = allTime.isEmpty
+
+    companion object {
+        const val WEEKS = 8
+
+        fun of(records: List<TimeRecord>, now: Long, zone: ZoneId = ZoneId.systemDefault()): TimeReport {
+            val estimator = WritingEstimator(records)
+            fun totals(of: List<TimeRecord>) = of.fold(TimeTotals()) { sum, record -> sum + record.totals(estimator) }
+            val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+            val thisMonday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val byWeek = records.groupBy { weekOf(it.at, zone) }
+            val weeks = (WEEKS - 1 downTo 0).map { back ->
+                val start = thisMonday.minusWeeks(back.toLong())
+                WeekTime(start, totals(byWeek[start].orEmpty()))
+            }
+            val languages = records.filter { it.language != null }.groupBy { it.language!! }
+                .map { (language, group) ->
+                    LanguageTime(language, totals(group), msPerWord(group), estimator.speed(language).second)
+                }
+                .sortedByDescending { it.totals.totalMs }
+            val reviewed = records.filter { it.changesShown > 0 }
+            val shown = reviewed.sumOf { it.changesShown }
+            return TimeReport(
+                allTime = totals(records),
+                thisWeek = totals(byWeek[thisMonday].orEmpty()),
+                weeks = weeks,
+                languages = languages,
+                msPerWord = msPerWord(records),
+                msPerChange = if (shown == 0) null else reviewed.sumOf { it.reviewMs } / shown,
+                changesShown = shown,
+                changesAccepted = records.sumOf { it.changesAccepted },
+                defaultBasis = estimator.speed(null).second,
+            )
+        }
+
+        private fun msPerWord(records: List<TimeRecord>): Long? {
+            val measured = records.filter { it.writingMs != null }
+            val words = measured.sumOf { it.words }
+            return if (words == 0) null else measured.sumOf { it.writingMs!! } / words
+        }
+
+        private fun weekOf(at: Long, zone: ZoneId): LocalDate =
+            Instant.ofEpochMilli(at).atZone(zone).toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+        private fun TimeRecord.totals(estimator: WritingEstimator): TimeTotals {
+            val estimated = if (writingMs == null) estimator.estimate(words, language).ms else 0L
+            return TimeTotals(
+                messages = 1,
+                measuredWritingMs = writingMs ?: 0L,
+                estimatedWritingMs = estimated,
+                reviewMs = reviewMs,
+                estimatedMessages = if (writingMs == null) 1 else 0,
+            )
+        }
+    }
+}

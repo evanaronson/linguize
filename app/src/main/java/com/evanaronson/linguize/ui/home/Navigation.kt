@@ -62,6 +62,8 @@ internal sealed interface Screen {
     data class ConjugationCell(val language: String, val cell: String) : Screen
     /** Progress: Practice and every view learned from History, in one place. */
     data object Progress : Screen
+    /** Lab: Time spent writing and reviewing. */
+    data object TimeSpent : Screen
 
     /** A bottom-bar destination: opening one replaces the path above the start destination. */
     val isTab: Boolean get() = this in tabs
@@ -88,6 +90,7 @@ internal sealed interface Screen {
             Conjugations -> "conjugations"
             is ConjugationCell -> "conjugation:$language:$cell"
             Progress -> "progress"
+            TimeSpent -> "lab_time_spent"
         }
 
     companion object {
@@ -125,6 +128,7 @@ internal sealed interface Screen {
             saved.startsWith("conjugation:") -> saved.removePrefix("conjugation:").split(':', limit = 2)
                 .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }
             saved == "progress" -> Progress
+            saved == "lab_time_spent" -> TimeSpent
             else -> null
         }
     }

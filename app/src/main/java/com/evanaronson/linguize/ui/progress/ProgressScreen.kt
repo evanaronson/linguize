@@ -46,7 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** A page Progress opens. The per-language ones open on the language shown on the switch. */
-enum class ProgressView { Practice, Words, Conjugations, Patterns, Phrasebook }
+enum class ProgressView { Practice, Words, Conjugations, Patterns, Phrasebook, Time }
 
 /**
  * Progress, one of the four destinations: how the writer is doing, all read from History.
@@ -150,6 +150,8 @@ fun ProgressScreen(
                 )
             },
         )
+
+        com.evanaronson.linguize.ui.time.TimeSpentSection { open(ProgressView.Time) }
     }
 }
 

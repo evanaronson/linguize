@@ -31,6 +31,7 @@ Settings behind the gear.
 | Learning over time | [Words](words.md): a frequency list and every word you typed, in one list: used, not yet, tried; coverage over time ([decks](vocab-gaps.md)) | Progress |
 | Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
+| Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |
 
 ## What Linguize is, from first principles

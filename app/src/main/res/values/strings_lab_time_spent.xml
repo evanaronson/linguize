@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Time spent. How long the writer spends writing and reviewing messages. -->
+    <string name="lab_time_spent_title">Time spent</string>
+    <string name="lab_time_spent_section">Time</string>
+    <string name="lab_time_spent_open">Open time spent</string>
+    <string name="lab_time_spent_row_summary">%1$s this week</string>
+    <string name="lab_time_spent_row_empty">How long you spend writing and reviewing</string>
+
+    <string name="lab_time_spent_seconds">%1$d s</string>
+    <string name="lab_time_spent_minutes">%1$d min</string>
+    <string name="lab_time_spent_hours">%1$d h %2$d min</string>
+    <string name="lab_time_spent_per_word_value">%1$s s</string>
+
+    <string name="lab_time_spent_this_week">This week</string>
+    <string name="lab_time_spent_all_time">All time</string>
+    <plurals name="lab_time_spent_messages">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
+    <string name="lab_time_spent_writing">Writing</string>
+    <string name="lab_time_spent_reviewing">Reviewing</string>
+    <string name="lab_time_spent_measured">Measured</string>
+    <string name="lab_time_spent_estimated">Estimated</string>
+    <string name="lab_time_spent_writing_split">%1$s measured, %2$s estimated</string>
+    <string name="lab_time_spent_split_description">Writing %1$s, reviewing %2$s</string>
+
+    <string name="lab_time_spent_averages">Averages</string>
+    <string name="lab_time_spent_per_message">Per message</string>
+    <string name="lab_time_spent_per_word">Per word, writing in the chat</string>
+    <string name="lab_time_spent_per_change">Per change reviewed</string>
+    <string name="lab_time_spent_not_yet">Not yet</string>
+
+    <string name="lab_time_spent_languages">By language</string>
+    <string name="lab_time_spent_language_summary">%1$s, %2$s</string>
+    <string name="lab_time_spent_basis_language">Other apps estimated from your chat speed in this language</string>
+    <string name="lab_time_spent_basis_all">Other apps estimated from your chat speed in all languages</string>
+    <string name="lab_time_spent_basis_default">Other apps estimated at a typical speed until you write more in the chat</string>
+
+    <string name="lab_time_spent_weeks">Last 8 weeks</string>
+    <string name="lab_time_spent_weeks_description">Time by week, from %1$s to %2$s this week</string>
+
+    <string name="lab_time_spent_how">How this is counted</string>
+    <string name="lab_time_spent_how_writing">Writing in the chat is measured from your first keystroke to Send. Pauses count up to a minute, and nothing counts while the app isn\'t on screen.</string>
+    <string name="lab_time_spent_how_review">Reviewing is measured while a result is on the card, in the chat or over another app, until you send or put the text back. Waiting for the check doesn\'t count, and a card left alone counts up to two minutes.</string>
+    <string name="lab_time_spent_how_estimate">Writing in other apps can\'t be seen, so it\'s estimated: its words times your own speed in the chat, in that language when there\'s enough, or a typical 4 s a word until there is.</string>
+    <string name="lab_time_spent_how_limits">Only messages you sent or put back count, and only while History is on. Thinking before you type and reading replies aren\'t counted. Deleting a message from History deletes its time.</string>
+
+    <string name="lab_time_spent_empty_title">Nothing timed yet</string>
+    <string name="lab_time_spent_empty">Send a message in the chat, or put a checked message back in another app, and the time shows here.</string>
+    <string name="lab_time_spent_history_off">History is off, so new messages aren\'t timed.</string>
+</resources>

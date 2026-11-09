@@ -152,6 +152,9 @@ class App : Application() {
         })
     }
 
+    /** Lab, Time spent: measured writing and review time, in its own `lab_time_spent` database. */
+    val timeStore by lazy { com.evanaronson.linguize.data.time.TimeStore(this, appScope) }
+
     /** Lab, "How it lands": its own prompt asset, the same clients and key. */
     val landing by lazy {
         LandingChecker(settings, keys, clients) {

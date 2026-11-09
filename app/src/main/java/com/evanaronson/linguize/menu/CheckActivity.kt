@@ -142,6 +142,17 @@ class CheckActivity : ComponentActivity() {
         }
     }
 
+    // Lab, Time spent: the card's review time doesn't count while it's off screen.
+    override fun onStart() {
+        super.onStart()
+        check.timing.visible(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        check.timing.visible(false)
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_LIMITED, limited)

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Share text to Linguize. See docs/lab/share-text.md. -->
+
+    <!-- Shared text: choose a job. -->
+    <string name="lab_share_text_shared_text">Shared text</string>
+    <string name="lab_share_text_check_it">Check it</string>
+    <string name="lab_share_text_check_it_subtitle">Fixes and rewordings for your writing</string>
+    <string name="lab_share_text_understand_it">Understand it</string>
+    <string name="lab_share_text_understand_it_subtitle">Translate and explain a message you got</string>
+    <string name="lab_share_text_no_text">No text to check</string>
+</resources>

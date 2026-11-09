@@ -25,14 +25,11 @@ fun UnderstandCard(
     modifier: Modifier = Modifier,
     onOpenSettings: (() -> Unit)? = null,
     onBackToCheck: (() -> Unit)? = null,
-    /** Lab: Help me reply, offered once the message is understood. */
-    onHelpReply: (() -> Unit)? = null,
-    scrollable: Boolean = true,
 ) {
     if (LocalOnBackPressedDispatcherOwner.current != null) {
         BackHandler(enabled = onBackToCheck != null) { onBackToCheck?.invoke() }
     }
-    ResultSurface(modifier, scrollable = scrollable) {
+    ResultSurface(modifier) {
         onBackToCheck?.let { back ->
             PageHeader(stringResource(R.string.understand_copied_text), back)
         }
@@ -74,7 +71,6 @@ fun UnderstandCard(
                         SelectionContainer { Text(note.explanation, style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
-                onHelpReply?.let { com.evanaronson.linguize.ui.reply.HelpMeReplyButton(it) }
             }
             is UnderstandState.Failed -> Failure(
                 state.failure.reason, state.failure.userMessage, state.failure.detail, onRetry, onOpenSettings,

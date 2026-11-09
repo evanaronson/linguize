@@ -1,6 +1,5 @@
 package com.evanaronson.linguize.ui.home
 
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,12 +26,11 @@ import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.openExternal
-import com.evanaronson.linguize.ui.photo.rememberPhotoPicker
 import com.evanaronson.linguize.ui.writingpad.writingPadIntent
 
 /**
  * Write, one of the four destinations: check something now (Try it), then the tools for a
- * specific piece of writing or reading. Until a key is saved ([needsKey]), a strip at the
+ * specific piece of writing. Until a key is saved ([needsKey]), a strip at the
  * top leads to it. Progress, History and Settings have places of their own.
  */
 @Composable
@@ -42,11 +40,8 @@ internal fun WriteScreen(
     onOpenSettings: () -> Unit,
     /** Opens Fill the gaps, with Try it's text when it came from its card. */
     onFillGaps: (text: String?) -> Unit,
-    onHelpReply: () -> Unit,
-    onPhotoPicked: (Uri) -> Unit,
 ) {
     val context = LocalContext.current
-    val pickPhoto = rememberPhotoPicker(onPhotoPicked)
     ScreenColumn {
         if (needsKey) AddKeyStrip(onOpenSettings)
         SectionHeader(stringResource(R.string.check_your_text))
@@ -73,24 +68,6 @@ internal fun WriteScreen(
             },
         )
 
-        SectionHeader(stringResource(R.string.lab_home_ia_read_and_reply))
-        ListCard(
-            {
-                ListRow(
-                    stringResource(R.string.lab_reply_drafter_help_me_reply),
-                    stringResource(R.string.lab_reply_drafter_home_summary),
-                    onClick = onHelpReply,
-                )
-            },
-            {
-                ListRow(
-                    stringResource(R.string.lab_share_photo_home_row),
-                    stringResource(R.string.lab_share_photo_home_row_summary),
-                    onClick = pickPhoto,
-                    onClickLabel = stringResource(R.string.lab_share_photo_choose_label),
-                )
-            },
-        )
     }
 }
 

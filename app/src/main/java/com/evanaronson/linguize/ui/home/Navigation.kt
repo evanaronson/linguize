@@ -16,7 +16,7 @@ import com.evanaronson.linguize.ui.settings.SettingsPage
  * and History. Everything else opens above one of them.
  */
 internal sealed interface Screen {
-    /** Write: check something now (Try it) and the other writing and reading tools. Saved as "home", its old name. */
+    /** Write: check something now (Try it) and the other writing tools. Saved as "home", its old name. */
     data object Write : Screen
     data object History : Screen
     data object Settings : Screen
@@ -39,10 +39,6 @@ internal sealed interface Screen {
     data class AppVoice(val app: String? = null) : Screen
     /** Lab: Fill the gaps. */
     data object FillGaps : Screen
-    /** Lab: Help me reply. */
-    data object LabReply : Screen
-    /** Lab: the reading of a photo of text. */
-    data object Photo : Screen
     /** Lab: recurring fixes from saved checks. */
     data object Patterns : Screen
 
@@ -85,8 +81,6 @@ internal sealed interface Screen {
             Phrasebook -> "phrasebook"
             is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
             FillGaps -> "lab_gap_filler"
-            LabReply -> "lab_reply"
-            Photo -> "photo"
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
             Practice -> "practice"
@@ -117,8 +111,8 @@ internal sealed interface Screen {
             saved == "appvoice" -> AppVoice()
             saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))
             saved == "lab_gap_filler" -> FillGaps
-            saved == "lab_reply" -> LabReply
-            saved == "photo" -> Photo
+            // Help me reply and Understand a photo were removed; their pages sat above Write.
+            saved == "lab_reply" || saved == "photo" -> Write
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             saved == "practice" -> Practice

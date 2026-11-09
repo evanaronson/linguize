@@ -96,7 +96,7 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Lab: share text to check or understand it, and share a photo of text to understand it. -->
+        <!-- Lab: share text to check or understand it. -->
         <activity
             android:name=".menu.ShareActivity"
             android:windowSoftInputMode="adjustResize"
@@ -108,17 +108,6 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-            </intent-filter>
-        </activity>
-
-        <activity
-            android:name=".menu.PhotoActivity"
-            android:exported="true"
-            android:label="@string/lab_share_photo_title">
-            <intent-filter android:label="@string/lab_share_photo_share_image_label">
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
 

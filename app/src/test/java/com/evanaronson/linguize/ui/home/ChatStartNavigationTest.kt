@@ -14,20 +14,20 @@ class ChatStartNavigationTest {
         assertNull(start.back().parent)
     }
 
-    @Test fun switchedOffTheAppStartsOnWrite() {
+    @Test fun switchedOffTheAppStartsOnNotes() {
         assertEquals(Navigation(), startNavigation(openToChat = false, openSettings = false))
-        assertEquals(Screen.Write, Navigation().current)
+        assertEquals(Screen.Notes, Navigation().current)
         assertEquals(Navigation().open(Screen.Settings), startNavigation(openToChat = false, openSettings = true))
     }
 
-    @Test fun writeOpensAboveTheChatAndBackReturnsToIt() {
-        val write = startNavigation(openToChat = true, openSettings = false).open(Screen.Write)
-        assertEquals(Screen.Write, write.current)
+    @Test fun notesOpensAboveTheChatAndBackReturnsToIt() {
+        val write = startNavigation(openToChat = true, openSettings = false).open(Screen.Notes)
+        assertEquals(Screen.Notes, write.current)
         assertEquals(Screen.Chat, write.parent)
         assertEquals(Screen.Chat, write.back().current)
-        // Opening Write again from deep inside another tab goes back to Write, still above the chat.
+        // Opening Notes again from deep inside another tab goes back to Notes, still above the chat.
         val deep = write.open(Screen.History).open(Screen.Detail("a"))
-        assertEquals(write, deep.open(Screen.Write))
+        assertEquals(write, deep.open(Screen.Notes))
     }
 
     @Test fun settingsIsOneTapFromTheChatAndReturnsToIt() {
@@ -44,9 +44,9 @@ class ChatStartNavigationTest {
         assertEquals(Navigation(Screen.Chat), deep.open(Screen.Chat))
     }
 
-    @Test fun theChatWhenWriteIsTheStartOpensAboveIt() {
+    @Test fun theChatWhenNotesIsTheStartOpensAboveIt() {
         val chat = Navigation().open(Screen.Chat)
-        assertEquals(Screen.Write, chat.parent)
+        assertEquals(Screen.Notes, chat.parent)
         assertEquals(Navigation(), chat.back())
     }
 
@@ -59,10 +59,10 @@ class ChatStartNavigationTest {
         assertEquals(Navigation(Screen.Chat).open(Screen.History), Navigation.restore(listOf("lab_chat", "home", "history")))
     }
 
-    @Test fun theTryItShortcutOpensWriteAboveEitherStart() {
-        val fromChat = startNavigation(openToChat = true, openSettings = false, tab = Screen.Write)
-        assertEquals(listOf("lab_chat", "home"), fromChat.saved)
-        assertEquals(Navigation(), startNavigation(openToChat = false, openSettings = false, tab = Screen.Write))
+    @Test fun theNotesShortcutOpensNotesAboveEitherStart() {
+        val fromChat = startNavigation(openToChat = true, openSettings = false, tab = Screen.Notes)
+        assertEquals(listOf("lab_chat", "notes"), fromChat.saved)
+        assertEquals(Navigation(), startNavigation(openToChat = false, openSettings = false, tab = Screen.Notes))
         // Only tabs can be asked for.
         assertEquals(startNavigation(openToChat = true, openSettings = false),
             startNavigation(openToChat = true, openSettings = false, tab = Screen.Practice))

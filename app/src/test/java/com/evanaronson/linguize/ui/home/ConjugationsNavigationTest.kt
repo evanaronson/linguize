@@ -12,7 +12,7 @@ class ConjugationsNavigationTest {
     fun conjugationScreensSurviveSavedState() {
         val token = Cell(Tense.PresentSubjunctive, Person.P1).token
         val path = Navigation().open(Screen.Progress).open(Screen.Conjugations).open(Screen.ConjugationCell("ca", token))
-        assertEquals(listOf("home", "progress", "conjugations", "conjugation:ca:present_subjunctive:1p"), path.saved)
+        assertEquals(listOf("notes", "progress", "conjugations", "conjugation:ca:present_subjunctive:1p"), path.saved)
         assertEquals(path, Navigation.restore(path.saved))
         assertEquals(Screen.Conjugations, path.back().current)
     }

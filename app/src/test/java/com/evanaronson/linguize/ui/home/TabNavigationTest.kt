@@ -12,7 +12,7 @@ class TabNavigationTest {
     private val starts = listOf(Navigation(Screen.Chat), Navigation())
 
     @Test fun theBottomBarHasFourDestinationsInOrder() {
-        assertEquals(listOf(Screen.Chat, Screen.Write, Screen.Progress, Screen.History), Screen.tabs)
+        assertEquals(listOf(Screen.Chat, Screen.Notes, Screen.Progress, Screen.History), Screen.tabs)
         assertTrue(Screen.tabs.all { it.isTab })
         assertFalse(Screen.Settings.isTab)
         assertFalse(Screen.Practice.isTab)
@@ -48,7 +48,7 @@ class TabNavigationTest {
     @Test fun theSelectedTabFollowsTheScreensOpenedFromIt() {
         val path = Navigation().open(Screen.Progress).open(Screen.Patterns).open(Screen.PatternDetail("accents"))
         assertEquals(Screen.Progress, path.tab)
-        assertEquals(Screen.Write, Navigation().open(Screen.Settings).tab)
+        assertEquals(Screen.Notes, Navigation().open(Screen.Settings).tab)
         assertEquals(Screen.Chat, Navigation(Screen.Chat).open(Screen.Settings).tab)
     }
 
@@ -74,13 +74,13 @@ class TabNavigationTest {
         assertEquals(Screen.Settings, Navigation.restore(choice.saved).back().current)
     }
 
-    @Test fun removedWriteToolsRestoreToWrite() {
+    @Test fun removedWriteToolsRestoreToNotes() {
         // Fill the gaps ("lab_gap_filler") became part of every check; Help me reply
         // ("lab_reply") and Understand a photo ("photo") were removed.
         listOf("lab_gap_filler", "lab_reply", "photo").forEach { removed ->
-            assertEquals(Screen.Write, Screen.restore(removed))
+            assertEquals(Screen.Notes, Screen.restore(removed))
             val restored = Navigation.restore(listOf("lab_chat", "home", removed))
-            assertEquals(Screen.Write, restored.current)
+            assertEquals(Screen.Notes, restored.current)
             assertEquals(Screen.Chat, restored.back().current)
         }
     }

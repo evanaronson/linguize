@@ -7,21 +7,21 @@ migrates or deletes Linguize's history, settings or encrypted API keys. Removing
 Lab removes only Lab's data. `main` is unchanged.
 
 Each experiment has its own page in this folder. [Home and navigation](home-ia.md)
-explains where things are: a bottom bar with Chat, Write, Progress and History, and
+explains where things are: a bottom bar with Chat, Notes, Progress and History, and
 Settings behind the gear.
 
 ## Experiments
 
 | Moment | Experiment | Where |
 |---|---|---|
-| Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Write |
+| Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Notes |
 | Before sending | [How it lands](tone-check.md): part of every check; how the message will come across, with tone fixes as ordinary rewordings | Card row, everywhere |
 | Before sending | [Replying to](reply-context.md): every chat check reads the draft as a reply to the partner's last message | Chat (automatic) |
 | Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
-| Writing a message | [Write](write.md): one editor with drafts, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Write |
+| Writing a message | [Notes](notes.md) (once Write): one editor with its notes, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Notes |
 | Anywhere | [Share text](share-text.md): share text in from another app to check it or understand it | Share sheet |
-| Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Write shortcut opens Write |
+| Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Notes shortcut opens Notes |
 | Learning over time | [Teach me](teach-me.md): a one-minute lesson and quiz for any change | Change explanation |
 | Learning over time | [Phrasebook](phrasebook.md): star natural phrasings and keep them | Change explanation; Progress |
 | Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Progress |
@@ -32,15 +32,17 @@ Settings behind the gear.
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 | Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |
-| Everywhere | [Language scope](language-scope.md): one current language in the top bar; Chat, Write, Progress and History follow it | Top bar |
+| Everywhere | [Language scope](language-scope.md): one language selector in the top bar (Linguize, Catalanize, Castilianize); Chat, Notes, Progress and History follow it. [Home and navigation](home-ia.md): one top bar on every tab | Top bar |
 
 ## Language scope
 
-The writer's current language is app-level context. One switch in the top bar (a flag and
-"▾") sets it; the Chat list and new conversations, Write's checks, every Progress section
-and History's default filter follow it. Checks from other apps aren't scoped: they detect
-the language and file under it. Data with no known language shows only under History's
-All languages. See [Language scope](language-scope.md).
+The writer's current language is app-level context. One selector in the top bar of the
+four tabs sets it: **Linguize** (Auto, the default: every language), **Catalanize** or
+**Castilianize**. The Chat list and new conversations, Notes' checks, Progress and History
+follow it; no screen has a language choice of its own. Checks from other apps aren't scoped:
+they detect the language (or use the Catalanize or Castilianize menu entry) and file under
+it. Data with no known language shows only under Linguize. See
+[Language scope](language-scope.md) and [Home and navigation](home-ia.md).
 
 ## What Linguize is, from first principles
 

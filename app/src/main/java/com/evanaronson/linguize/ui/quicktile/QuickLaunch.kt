@@ -53,7 +53,7 @@ object QuickLaunch {
             intent(context, ClipboardJob.Understand)),
         shortcut(context, SHORTCUT_TRY_IT, R.string.lab_quick_tile_shortcut_try_it,
             R.string.lab_quick_tile_shortcut_try_it_long, R.drawable.lab_quick_tile_try_it, rank = 2,
-            HomeActivity.writeIntent(context).setAction(Intent.ACTION_VIEW)),
+            HomeActivity.notesIntent(context).setAction(Intent.ACTION_VIEW)),
     )
 
     /** [publish], off the main thread so it never delays the app's first frame. */

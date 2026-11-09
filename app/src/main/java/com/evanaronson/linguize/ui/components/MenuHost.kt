@@ -1,7 +1,5 @@
 package com.evanaronson.linguize.ui.components
 
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -61,9 +59,7 @@ fun MenuHost(state: MenuState, content: @Composable () -> Unit) {
             val menu = state.content
             if (menu != null) {
                 // Activities use their dispatcher; the accessibility window calls dismiss itself.
-                if (LocalOnBackPressedDispatcherOwner.current != null) {
-                    BackHandler { state.dismiss() }
-                }
+                NavigationBackHandler { state.dismiss() }
                 Box(Modifier.matchParentSize().clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

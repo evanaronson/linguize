@@ -18,7 +18,7 @@ import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
  * The bottom bar: the four places someone comes to the app for. Talk (Chat), write or read
- * something specific (Write), see how they're doing (Progress), and look back (History).
+ * something specific (Notes), see how they're doing (Progress), and look back (History).
  * Settings stays the gear in each top bar.
  */
 @Composable
@@ -52,7 +52,7 @@ private val Screen.tabIcon: Int
         Screen.Chat -> R.drawable.lab_home_ia_ic_chat
         Screen.Progress -> R.drawable.lab_home_ia_ic_progress
         Screen.History -> R.drawable.lab_home_ia_ic_history
-        else -> R.drawable.lab_home_ia_ic_write
+        else -> R.drawable.lab_home_ia_ic_notes
     }
 
 @Composable
@@ -60,5 +60,5 @@ private fun Screen.tabLabel(): String = when (this) {
     Screen.Chat -> stringResource(R.string.lab_chat_title)
     Screen.Progress -> stringResource(R.string.lab_home_ia_progress)
     Screen.History -> stringResource(R.string.history)
-    else -> stringResource(R.string.lab_home_ia_write)
+    else -> stringResource(R.string.lab_consistency_notes)
 }

@@ -103,9 +103,9 @@ class ChatViewModel(
     /** Outlives the screen: learning, forgetting and deleting finish even after it closes. */
     private val appScope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
-    /** Lab, Language scope: the app's current language, which new conversations start in. */
+    /** Lab, Language scope: the app's current language, which new conversations start in; null (Linguize) uses the start language. */
     private val currentLanguage: () -> String? = { null },
-    /** Lab, Language scope: a conversation in this language opened, so it is the app's language now. */
+    /** Lab, Language scope: a conversation in this language opened; the app follows it unless it is on Linguize (Auto). */
     private val onLanguage: (String) -> Unit = {},
 ) : ViewModel() {
     var conversations by mutableStateOf<List<ConversationSummary>>(emptyList())
@@ -555,7 +555,7 @@ class ChatViewModel(
                     warmTargets = { app.chatTargets.warm(it) },
                     appScope = app.appScope,
                     currentLanguage = { language.current.value },
-                    onLanguage = { language.select(it) },
+                    onLanguage = { language.follow(it) },
                 )
             }
         }

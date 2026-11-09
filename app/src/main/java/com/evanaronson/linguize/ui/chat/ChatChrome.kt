@@ -33,8 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +51,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.NewConversation
 import com.evanaronson.linguize.ui.components.LinguizeButton
@@ -61,8 +58,10 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
-import com.evanaronson.linguize.ui.components.FilterDropdown
+import com.evanaronson.linguize.ui.components.AppNavigation
+import com.evanaronson.linguize.ui.components.TopBar
 import com.evanaronson.linguize.ui.language.LanguageFlag
+import com.evanaronson.linguize.ui.language.LanguageIcon
 import com.evanaronson.linguize.ui.language.LanguageOption
 import com.evanaronson.linguize.ui.language.scopeLanguageName
 import com.evanaronson.linguize.ui.text.languageDisplayName
@@ -70,47 +69,26 @@ import com.evanaronson.linguize.ui.theme.Linguize
 import java.util.Date
 
 /**
- * A conversation's bar: Back to the list of conversations, the title (and who the partner
- * plays), the app's language switch and Settings. There is no drawer: the list is the Chat
- * tab's own top level, one Back away.
+ * A conversation's bar: the app's page bar (Back to the list of conversations, the title,
+ * and who the partner plays under it). Like every page opened from a tab, it has no
+ * language selector (a conversation's language is fixed once created) and no Settings gear.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChatTopBar(
     title: String,
     /** Who the writer is talking to, when the conversation has someone; shown under the title. */
     persona: String?,
     onBack: () -> Unit,
-    languageSwitch: @Composable () -> Unit,
-    onOpenSettings: () -> Unit,
 ) {
-    TopAppBar(
-        title = {
-            Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
-                Text(title.ifEmpty { stringResource(R.string.lab_chat_untitled) }, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleLarge)
-                persona?.takeIf { it != title }?.let {
-                    Text(stringResource(R.string.lab_chat_talking_to, it), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(painterResource(R.drawable.ic_back),
-                    contentDescription = stringResource(R.string.back_to, stringResource(R.string.lab_chat_conversations)))
-            }
-        },
-        actions = {
-            languageSwitch()
-            IconButton(onClick = onOpenSettings) {
-                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Linguize.colors.ground,
-            scrolledContainerColor = Linguize.colors.ground,
+    AppNavigation(
+        bar = TopBar.Page(
+            title.ifEmpty { stringResource(R.string.lab_chat_untitled) },
+            persona?.takeIf { it != title }?.let { stringResource(R.string.lab_chat_talking_to, it) },
         ),
+        onBack = onBack,
+        backLabel = stringResource(R.string.lab_chat_conversations),
+        onOpenSettings = {},
+        languageSelector = {},
     )
 }
 
@@ -122,12 +100,14 @@ internal fun ChatTopBar(
 @Composable
 internal fun ConversationList(
     conversations: List<ConversationSummary>,
-    /** The app's current language, which the list shows and the sheet starts with. */
+    /** The app's current language, which the list shows and new conversations start in; null is Linguize (all). */
     language: String?,
+    /** The selector's languages, for each row's flag under Linguize. */
+    languageOptions: List<LanguageOption> = emptyList(),
     /** People memory knows the writer writes to, suggested in the new-conversation sheet. */
     people: List<String>,
     onLoadPeople: () -> Unit,
-    /** A new conversation: who the writer is talking to (null for the usual partner), and its language. */
+    /** A new conversation: who the writer is talking to (null for the usual partner), and its language (the app's). */
     onNew: (persona: String?, language: String?) -> Unit,
     onOpen: (String) -> Unit,
     onRename: (String, String) -> Unit,
@@ -142,7 +122,7 @@ internal fun ConversationList(
                 val name = language?.let { scopeLanguageName(it) }
                 Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp)) {
                     Text(
-                        if (name != null) stringResource(R.string.lab_language_scope_chat_empty, name) else stringResource(R.string.lab_chat_conversations),
+                        if (name != null) stringResource(R.string.lab_language_scope_chat_empty, name) else stringResource(R.string.lab_consistency_chat_empty),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Spacer(Modifier.height(4.dp))
@@ -151,7 +131,11 @@ internal fun ConversationList(
                 }
             }
             items(conversations, key = { it.conversation.id }) { summary ->
-                ConversationRow(summary, { onOpen(summary.conversation.id) },
+                // Under Linguize the list mixes languages, so each row shows its flag.
+                val flag = if (language == null) summary.conversation.language.let { code ->
+                    languageOptions.firstOrNull { it.code == code } ?: LanguageOption(code)
+                } else null
+                ConversationRow(summary, flag, { onOpen(summary.conversation.id) },
                     onRename = { renaming = summary.conversation.id }, onDelete = { deleting = summary.conversation.id })
             }
         }
@@ -189,7 +173,9 @@ internal fun ConversationList(
 
 /**
  * The new-conversation sheet: who you are talking to, optionally (someone memory knows, or
- * anyone you describe), and the language. Left empty, the usual partner starts.
+ * anyone you describe). Left empty, the usual partner starts. There is no language choice
+ * here (Lab, Consistency): a conversation starts in the app's language, or under Linguize
+ * (Auto) in the chat's start language; a line says which, and the selector at the top changes it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,8 +186,9 @@ private fun NewConversationSheet(
     onStart: (NewConversation) -> Unit,
 ) {
     var who by rememberSaveable { mutableStateOf("") }
-    var code by rememberSaveable { mutableStateOf(language?.takeIf { Language.forCode(it) != null }) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Linguize.colors.ground) {
+        // Back closes the keyboard first, then the sheet.
+        com.evanaronson.linguize.ui.components.KeyboardBackHandler()
         Column(
             Modifier
                 .fillMaxWidth()
@@ -228,23 +215,18 @@ private fun NewConversationSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.lab_chat_language_label), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LanguageIcon(language?.let { LanguageOption(it) })
                 Spacer(Modifier.width(8.dp))
-                val codes = Language.all.map { it.code }
-                FilterDropdown(
-                    selected = code?.takeIf { it in codes } ?: codes.first(),
-                    options = codes,
-                    label = { scopeLanguageName(it) },
-                    description = stringResource(R.string.lab_chat_language_label),
-                    onSelect = { code = it },
-                    leading = { LanguageFlag(LanguageOption(it)) },
+                Text(
+                    if (language != null) stringResource(R.string.lab_consistency_new_in, scopeLanguageName(language))
+                    else stringResource(R.string.lab_consistency_new_auto),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 LinguizeButton(stringResource(R.string.lab_chat_cancel), onDismiss, ButtonKind.Text)
-                LinguizeButton(stringResource(R.string.lab_chat_start), { onStart(NewConversation.of(who, code)) }, ButtonKind.Filled)
+                LinguizeButton(stringResource(R.string.lab_chat_start), { onStart(NewConversation.of(who, null)) }, ButtonKind.Filled)
             }
         }
     }
@@ -255,6 +237,8 @@ private const val MAX_PEOPLE = 8
 @Composable
 private fun ConversationRow(
     summary: ConversationSummary,
+    /** The conversation's language, shown as a flag when the list mixes languages. */
+    flag: LanguageOption?,
     onOpen: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
@@ -280,6 +264,10 @@ private fun ConversationRow(
                 Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+                flag?.let {
+                    LanguageFlag(it)
+                    Spacer(Modifier.width(8.dp))
+                }
                 Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             conversation.persona?.takeIf { it != title }?.let {

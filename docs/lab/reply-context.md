@@ -41,9 +41,9 @@ the message as evidence:
   message in the conversation (trimmed; a very long one keeps its end), and `ChatViewModel`
   passes it to the card's check (`DraftCheck.start` → `CheckViewModel.check(…, replyingTo)`).
   The first message in a conversation that has no partner message yet goes without context.
-- **Not elsewhere.** The selection menu, the accessibility popup and Write check the text
+- **Not elsewhere.** The selection menu, the accessibility popup and Notes check the text
   alone: they don't know what it answers, and guessing from the clipboard was a manual step
-  that is gone. The card has no "Replying to" header or entry, and Write has none.
+  that is gone. The card has no "Replying to" header or entry, and Notes has none.
 
 ## Privacy and History
 

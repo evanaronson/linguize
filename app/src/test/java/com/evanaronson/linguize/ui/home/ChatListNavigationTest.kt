@@ -32,11 +32,11 @@ class ChatListNavigationTest {
         assertEquals(Screen.ChatThread(null), Screen.restore("lab_chat_thread"))
         assertNull(Screen.restore("lab_chat_thread:"))
         assertEquals(Navigation(Screen.Chat), Navigation.restore(listOf("lab_chat")))
-        // With Write as the start, the chat's list and a conversation sit above it.
-        val aboveWrite = Navigation().open(Screen.Chat).open(Screen.ChatThread("c2"))
-        assertEquals(listOf("home", "lab_chat", "lab_chat_thread:c2"), aboveWrite.saved)
-        assertEquals(aboveWrite, Navigation.restore(aboveWrite.saved))
-        assertEquals(Navigation(), aboveWrite.back().back())
+        // With Notes as the start, the chat's list and a conversation sit above it.
+        val aboveNotes = Navigation().open(Screen.Chat).open(Screen.ChatThread("c2"))
+        assertEquals(listOf("notes", "lab_chat", "lab_chat_thread:c2"), aboveNotes.saved)
+        assertEquals(aboveNotes, Navigation.restore(aboveNotes.saved))
+        assertEquals(Navigation(), aboveNotes.back().back())
         assertFalse(Screen.ChatThread("c2").isTab)
     }
 
@@ -66,7 +66,7 @@ class ChatListNavigationTest {
     }
 
     @Test fun shortcutsAndSettingsDontOpenAConversation() {
-        assertEquals(listOf("lab_chat", "home"), startNavigation(openToChat = true, openSettings = false, tab = Screen.Write).saved)
+        assertEquals(listOf("lab_chat", "notes"), startNavigation(openToChat = true, openSettings = false, tab = Screen.Notes).saved)
         assertEquals(listOf("lab_chat", "settings"), startNavigation(openToChat = true, openSettings = true).saved)
         assertEquals(Navigation(), startNavigation(openToChat = false, openSettings = false))
     }

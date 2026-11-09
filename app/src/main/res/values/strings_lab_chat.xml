@@ -71,7 +71,6 @@
     <string name="lab_chat_who_label">Who are you talking to?</string>
     <string name="lab_chat_who_placeholder">My kid\'s teacher</string>
     <string name="lab_chat_who_note">Optional. Leave it empty to chat with a friendly native speaker.</string>
-    <string name="lab_chat_language_label">Language</string>
     <string name="lab_chat_start">Start</string>
     <string name="lab_chat_talking_to">With %1$s</string>
     <string name="lab_chat_tap_to_translate">Tap to translate</string>

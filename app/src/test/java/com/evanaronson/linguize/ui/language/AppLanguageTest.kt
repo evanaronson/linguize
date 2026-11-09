@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.ui.language
 
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.WritingProfile
@@ -8,8 +10,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
-/** The app's current language: kept once chosen, the chat's start language until then. */
+/** The app's one language selector: Linguize (Auto) by default, then Catalanize and Castilianize; a choice is kept. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
 class AppLanguageTest {
     private class Choice(override var current: String? = null) : LanguageChoice
 
@@ -18,34 +25,37 @@ class AppLanguageTest {
         WritingProfile.defaultFor(Language.Spanish).copy(variety = "Mexican"),
     )
 
-    private fun language(choice: Choice, fallback: String = "es", data: List<String> = emptyList()) =
-        AppLanguage(choice, { fallback }, { profiles }, { data })
+    private fun language(choice: Choice, data: List<String> = emptyList()) = AppLanguage(choice, { profiles }, { data })
 
-    @Test fun withoutAChoiceItIsTheChatsStartLanguageAndNothingIsStored() = runBlocking {
+    @Test fun linguizeIsTheDefaultAndNothingIsStoredUntilAChoice() = runBlocking {
         val choice = Choice()
-        val app = language(choice, fallback = "ca")
+        val app = language(choice)
         assertNull(app.current.value)
         app.load()
-        assertEquals("ca", app.current.value)
+        assertNull(app.current.value)
         assertNull(choice.current)
     }
 
-    @Test fun aSwitchIsKeptAndWinsNextTime() = runBlocking {
+    @Test fun aLanguageStoredBeforeAutoExistedIsKeptAsItIs() {
+        assertEquals("ca", language(Choice("ca")).current.value)
+    }
+
+    @Test fun aChoiceIsKeptAndWinsNextTimeIncludingLinguize() = runBlocking {
         val choice = Choice()
-        val app = language(choice, fallback = "es")
-        app.load()
+        val app = language(choice)
         app.select("ca")
         assertEquals("ca", app.current.value)
         assertEquals("ca", choice.current)
+        assertEquals("ca", language(choice).current.value)
 
-        // A new start reads the choice at once, before anything is loaded.
-        val again = language(choice, fallback = "es")
-        assertEquals("ca", again.current.value)
-        again.load()
-        assertEquals("ca", again.current.value)
+        app.select(null)
+        assertNull(app.current.value)
+        assertEquals("auto", choice.current)
+        // A new start reads Linguize at once.
+        assertNull(language(choice).current.value)
     }
 
-    @Test fun theSwitchOffersProfileLanguagesWithTheirVarietyThenOthersInTheData() = runBlocking {
+    @Test fun theSelectorOffersCatalanizeCastilianizeWithTheVarietyThenOthersInTheData() = runBlocking {
         val app = language(Choice("es"), data = listOf("es", "en"))
         app.load()
         assertEquals(listOf(LanguageOption("ca", "standard Central Catalan"), LanguageOption("es", "Mexican"), LanguageOption("en")),
@@ -55,6 +65,26 @@ class AppLanguageTest {
         // Not a language code: ignored.
         app.select("Catalan")
         assertEquals("fr", app.current.value)
+    }
+
+    @Test fun aConversationsLanguageIsFollowedOnlyWhenALanguageIsChosen() {
+        val auto = language(Choice())
+        auto.follow("es")
+        assertNull(auto.current.value)
+        val catalan = language(Choice("ca"))
+        catalan.follow("es")
+        assertEquals("es", catalan.current.value)
+    }
+
+    @Test fun theChoicesAreCalledByTheirBrandNames() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        fun name(code: String?) = brandNameResource(code)?.let(context::getString)
+        assertEquals("Linguize", name(null))
+        assertEquals("Catalanize", name("ca"))
+        assertEquals("Castilianize", name("es"))
+        // Any other language is called by its own name, with a code badge.
+        assertNull(brandNameResource("en"))
+        assertNull(flagFor("en", null))
     }
 
     @Test fun flagsFollowTheProfilesVarietyAndOtherLanguagesGetABadge() {

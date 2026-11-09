@@ -18,8 +18,8 @@ point forces the check, because there is no selection menu to choose it from.
 
 ## How to use it
 
-- **Open the app.** It opens to the current conversation in the app's current language (the
-  latest one, unless it went quiet more than six hours ago), with the list of
+- **Open the app.** It opens to the current conversation in the app's current language (any
+  language under Linguize; the latest one, unless it went quiet more than six hours ago), with the list of
   conversations one Back away. With none, it opens on the list. A new conversation's
   partner writes a short opener.
 - **Write and tap Send.** Linguize checks the message first, always. With nothing to
@@ -45,14 +45,14 @@ point forces the check, because there is no selection menu to choose it from.
   system's Copy and other apps' text actions. A long-press on the bubble's edge opens Copy
   message (and Copy translation while it shows). Screen readers get Show translation or
   Show original, Copy message and Copy translation as actions.
-- **Language.** The app's language switch in the top bar (a flag and "▾") sets the current
-  language for the whole app ([Language scope](language-scope.md)). The list shows that
-  language's conversations, and new ones start in it. A conversation keeps its language
-  once created: switching while one is open goes back to the list. Opening a conversation
-  in another language (from History) makes that the current language. Before the first
-  switch, the current language is the one you last used in the chat; failing that, the
-  only language your selection menu names; then the language you check most in History;
-  then Spanish.
+- **Language.** The app's one language selector, in the top bar of the Chat list (and the
+  other three tabs), sets the current language for the whole app
+  ([Language scope](language-scope.md)). Under **Linguize** (Auto, the default) the list
+  shows every conversation, each with its language's flag; under **Catalanize** or
+  **Castilianize** it shows that language's. A conversation keeps its language once
+  created, so its own bar has no selector. Opening a conversation in another language (from
+  History) makes that the current language, unless the app is on Linguize, which already
+  covers it.
 - **Conversations.** The Chat tab's top level is the list: each conversation with its
   title, who the partner plays, the last message and its time, newest first. Tap one to
   open it; its bar has Back to the list. Rename or delete from a row's menu. Delete asks
@@ -60,14 +60,18 @@ point forces the check, because there is no selection menu to choose it from.
   from it, for good.
 - **New conversation**, the button at the bottom of the list, opens a small sheet:
   optionally, who you are talking to (a person memory knows, offered as suggestions, or
-  anyone you describe: "my kid's teacher"), and the language (the current one to start
-  with). Left empty, the usual friendly partner starts. With someone, the partner plays
-  them, in their register, and still never corrects you; the title shows who.
-- **The rest of the app.** The bottom bar under the list and a conversation has Write (the
-  editor and the other tools), Progress and History; Back from any of them returns to the
-  chat. The gear opens
-  Settings. **Open to chat** (Settings, Chat, on by default) can switch to starting on
-  Write. See [Home and navigation](home-ia.md).
+  anyone you describe: "my kid's teacher"). There is no language choice in the sheet: the
+  conversation starts in the app's language, or, under Linguize, in the chat's start
+  language (the one you last used in the chat; failing that, the only language your
+  selection menu names; then the language you check most in History; then Spanish). A
+  line in the sheet says which, and that the selector at the top changes it. Left empty,
+  the usual friendly partner starts. With someone, the partner plays them, in their
+  register, and still never corrects you; the title shows who.
+- **The rest of the app.** The bottom bar under the list and a conversation has Notes (the
+  editor), Progress and History; Back from any of them returns to the chat. The gear on the
+  list (as on every tab) opens Settings; a conversation's bar is Back and its title only.
+  **Open to chat** (Settings, Chat, on by default) can switch to starting on Notes. See
+  [Home and navigation](home-ia.md).
 - **History.** Each sent message is one row in History, the same as a message checked
   in another app, labelled "Chat · Weekend plans" where an app row says "WhatsApp". It
   opens the saved check, which also offers **Open conversation**. The Chat chip filters

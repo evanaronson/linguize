@@ -8,7 +8,7 @@ class WordsNavigationTest {
     @Test
     fun wordScreensSurviveSavedState() {
         val path = Navigation().open(Screen.Progress).open(Screen.Words).open(Screen.WordDetail("ca", "l'", "f")).open(Screen.Detail("s1"))
-        assertEquals(listOf("home", "progress", "words", "word:f:ca:l'", "detail:s1"), path.saved)
+        assertEquals(listOf("notes", "progress", "words", "word:f:ca:l'", "detail:s1"), path.saved)
         assertEquals(path, Navigation.restore(path.saved))
     }
 

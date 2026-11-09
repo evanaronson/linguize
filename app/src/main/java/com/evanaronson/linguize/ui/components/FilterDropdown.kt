@@ -2,6 +2,7 @@ package com.evanaronson.linguize.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -53,11 +54,13 @@ fun <T> FilterDropdown(
     closed: (@Composable (T) -> Unit)? = null,
     /** Whether the closed control names what it chooses ("Sort: Newest"), for a row of several. */
     labelled: Boolean = false,
+    /** What an option means, under its name in the menu and after it for screen readers ("All languages"). */
+    detail: (@Composable (T) -> String?)? = null,
 ) {
     var open by rememberSaveable { mutableStateOf(false) }
     val name = label(selected)
     val chosen = if (labelled) "$description: $name" else name
-    val spoken = "$description: $name"
+    val spoken = "$description: $name" + (detail?.invoke(selected)?.let { ", $it" } ?: "")
     Box(modifier) {
         Row(
             Modifier
@@ -84,7 +87,14 @@ fun <T> FilterDropdown(
             options.forEach { option ->
                 val isSelected = option == selected
                 DropdownMenuItem(
-                    text = { Text(label(option)) },
+                    text = {
+                        val meaning = detail?.invoke(option)
+                        if (meaning == null) Text(label(option))
+                        else Column {
+                            Text(label(option))
+                            Text(meaning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    },
                     onClick = { open = false; if (!isSelected) onSelect(option) },
                     modifier = Modifier.semantics { this.selected = isSelected },
                     leadingIcon = leading?.let { { it(option) } },

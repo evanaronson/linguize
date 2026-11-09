@@ -6,7 +6,7 @@ import com.evanaronson.linguize.history.SessionSummary
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Lab, Language scope: History starts on the current language, with All languages beside it, and combines with the source. */
+/** Lab, Language scope: History shows the selected language, or every language under Linguize (Auto), combined with the source. */
 class HistoryLanguageTest {
     private fun row(id: String, language: String?, origin: Origin = Origin.Menu, app: String? = "com.whatsapp") = RecentRow(
         SessionSummary(id, 0, origin, app, "text $id", Outcome.Applied, 1, 0, 1, targetLanguage = language),
@@ -25,7 +25,7 @@ class HistoryLanguageTest {
         assertEquals(listOf("2"), historyRows(rows, HistoryFilter.All, "es").map { it.summary.id })
     }
 
-    @Test fun allLanguagesShowsEverythingIncludingUnknown() {
+    @Test fun linguizeShowsEverythingIncludingUnknown() {
         assertEquals(listOf("1", "2", "3", "4"), historyRows(rows, HistoryFilter.All, null).map { it.summary.id })
     }
 

@@ -7,8 +7,8 @@ import com.evanaronson.linguize.data.chat.ChatPreferences
  * Where the app starts. With "Open to chat" on (the default) the Chat tab is the start
  * destination, and the app opens straight into the current conversation above its list
  * ([Screen.ChatThread] with no id: resolved when shown, and closed to the list when there is
- * none), so the list is one Back away. Off, Write is the start. Every other tab sits above the
- * start, so Back returns to it. [tab] (the Write shortcut) opens one tab above the start, and
+ * none), so the list is one Back away. Off, Notes is the start. Every other tab sits above the
+ * start, so Back returns to it. [tab] (the Notes shortcut) opens one tab above the start, and
  * [openSettings] (a popup's "Open settings") puts Settings on top; neither opens a conversation.
  */
 internal fun startNavigation(openToChat: Boolean, openSettings: Boolean, tab: Screen? = null): Navigation {

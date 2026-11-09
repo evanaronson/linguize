@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notes (Linguize Lab, once Write): one editor on the Notes tab, with its notes, checked with the card. -->
+    <string name="lab_notes_header">Write and check</string>
+    <string name="lab_notes_placeholder">Write or paste a message</string>
+    <string name="lab_notes_copy">Copy</string>
+    <string name="lab_notes_share">Share</string>
+    <string name="lab_notes_new">New note</string>
+    <string name="lab_notes_footer">Notes stay on this phone. Checks here aren\'t saved in History. In other apps, select text and choose Linguize in the menu.</string>
+    <string name="lab_notes_others">Other notes</string>
+    <string name="lab_notes_open">Open note</string>
+    <string name="lab_notes_delete">Delete note</string>
+    <string name="lab_notes_deleted">Note deleted</string>
+</resources>

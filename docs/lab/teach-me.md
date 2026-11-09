@@ -16,7 +16,7 @@ Accept, and nothing loads until it is tapped.
 
 ## How to use it
 
-1. Check text as usual (selection menu, accessibility button or the editor on Write).
+1. Check text as usual (selection menu, accessibility button or the editor on Notes).
 2. Tap an underlined change to open its explanation.
 3. Tap **Teach me**. The lesson opens in place, inside the card:
    - **the rule**, in two or three plain sentences;

@@ -61,7 +61,7 @@ fun HistoryScreen(
     historyOn: Boolean?,
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    /** Lab, Language scope: the app's current language, which the list starts filtered to. */
+    /** Lab, Language scope: the app's current language, the only one the list shows; null (Linguize) is every language. */
     language: String? = null,
 ) {
     val page by history.historyList.collectAsState()
@@ -72,9 +72,8 @@ fun HistoryScreen(
     var filterToken by rememberSaveable { mutableStateOf(HistoryFilter.All.token) }
     val filter = HistoryFilter.read(filterToken)
     val choices = remember(page.rows, filter) { filterChoices(page.rows, filter) }
-    // The current language by default; "All languages" until the app's language changes.
-    var allLanguages by rememberSaveable(language) { mutableStateOf(false) }
-    val shownLanguage = language.takeUnless { allLanguages }
+    // Lab, Consistency: no language filter of its own; the selector at the top decides.
+    val shownLanguage = language
     val items = remember(page.rows, filter, shownLanguage) { historyItems(historyRows(page.rows, filter, shownLanguage)) }
     val shownCount by rememberUpdatedState(items.size)
     HistoryDeletionFeedback(history, snackbar)
@@ -114,13 +113,10 @@ fun HistoryScreen(
                 if (historyOn == false) item(key = "history-off", contentType = "notice") {
                     SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
                 }
-                item(key = "history-filter", contentType = "filter") {
+                // A source is only worth choosing when messages come from more than one place.
+                if (choices.size > 2 || filter != HistoryFilter.All) item(key = "history-filter", contentType = "filter") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        language?.let { LanguageFilter(it, allLanguages) { all -> allLanguages = all } }
-                        // A source is only worth choosing when messages come from more than one place.
-                        if (choices.size > 2 || filter != HistoryFilter.All) {
-                            SourceFilter(choices, filter, page.rows) { filterToken = it.token }
-                        }
+                        SourceFilter(choices, filter, page.rows) { filterToken = it.token }
                     }
                 }
                 if (items.isEmpty() && !hasFooter) item(key = "history-empty-${filter.token}-$shownLanguage", contentType = "notice") {
@@ -163,18 +159,6 @@ fun HistoryScreen(
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
-}
-
-/** "Catalan ▾" or "All languages ▾": the app's current language, or every language. */
-@Composable
-private fun LanguageFilter(language: String, all: Boolean, onSelect: (Boolean) -> Unit) {
-    FilterDropdown(
-        selected = all,
-        options = listOf(false, true),
-        label = { if (it) stringResource(R.string.lab_language_scope_all) else scopeLanguageName(language) },
-        description = stringResource(R.string.lab_language_scope_language),
-        onSelect = onSelect,
-    )
 }
 
 /** "All sources ▾", then each app and Chat. */

@@ -6,7 +6,7 @@ import org.junit.Test
 class PhrasebookNavigationTest {
     @Test fun phrasebookAndTheCheckItOpensSurviveRestore() {
         val navigation = Navigation().open(Screen.Progress).open(Screen.Phrasebook).open(Screen.Detail("s1"))
-        assertEquals(listOf("home", "progress", "phrasebook", "detail:s1"), navigation.saved)
+        assertEquals(listOf("notes", "progress", "phrasebook", "detail:s1"), navigation.saved)
         val restored = Navigation.restore(navigation.saved)
         assertEquals(Screen.Detail("s1"), restored.current)
         assertEquals(Screen.Phrasebook, restored.back().current)

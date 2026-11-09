@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.WindowManager.LayoutParams
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Spacer
@@ -72,7 +71,7 @@ class ShareActivity : ComponentActivity() {
         val actions = CardActions.of(check, context = this, onClose = ::finish, onOpenSettings = ::openSettings, canReplace = false)
         setContent {
             AppTheme {
-                BackHandler(enabled = job != ShareJob.Choose, onBack = ::backToChoice)
+                com.evanaronson.linguize.ui.components.NavigationBackHandler(enabled = job != ShareJob.Choose, onBack = ::backToChoice)
                 val state = check.state
                 when {
                     job == ShareJob.Check && state != null -> FloatingCard(state, actions, onDismiss = ::finish, onOpenApp = ::openApp) {

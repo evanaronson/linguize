@@ -40,8 +40,6 @@ internal fun WriteScreen(
     check: CheckViewModel,
     needsKey: Boolean,
     onOpenSettings: () -> Unit,
-    /** Opens Fill the gaps, with Try it's text when it came from its card. */
-    onFillGaps: (text: String?) -> Unit,
     onHelpReply: () -> Unit,
     onPhotoPicked: (Uri) -> Unit,
 ) {
@@ -51,7 +49,7 @@ internal fun WriteScreen(
         if (needsKey) AddKeyStrip(onOpenSettings)
         SectionHeader(stringResource(R.string.check_your_text))
         SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-            TryIt(check, onOpenSettings, onFillGaps)
+            TryIt(check, onOpenSettings)
         }
 
         SectionHeader(stringResource(R.string.lab_home_ia_more_ways))
@@ -62,13 +60,6 @@ internal fun WriteScreen(
                     stringResource(R.string.lab_writing_pad_home_summary),
                     onClick = { context.openExternal(writingPadIntent(context)) },
                     onClickLabel = stringResource(R.string.lab_writing_pad_open),
-                )
-            },
-            {
-                ListRow(
-                    stringResource(R.string.lab_gap_filler_title),
-                    stringResource(R.string.lab_gap_filler_home_summary),
-                    onClick = { onFillGaps(null) },
                 )
             },
         )

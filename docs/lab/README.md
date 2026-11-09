@@ -14,7 +14,7 @@ Settings behind the gear.
 
 | Moment | Experiment | Where |
 |---|---|---|
-| Stuck mid-sentence | [Fill the gaps](gap-filler.md): write with [native words] where stuck; only the gaps are filled | Write; card row when text has gaps |
+| Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Write |
 | Before sending | [How it lands](tone-check.md): warmth, directness, formality, and warmer or more polite versions | Card row; Try it (Write) |
 | Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Try it (Write) |
 | Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |

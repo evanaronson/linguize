@@ -108,10 +108,12 @@ was outside a corrected span.
 **What is left out.**
 - A check that reused another saved check's answer: the same text, counted once.
 - A check whose text is exactly what an earlier check put back: Linguize's words.
-- Text Linguize wrote and the writer then checked: a message with its gaps filled, or one
-  said in another language. The selection menu and accessibility button record the
-  16-character hash of such text (never the text) in `lab_words`, and the source skips
-  saved checks with that `textHash`.
+- Text Linguize wrote and the writer then checked: a message said in another language. The
+  selection menu records the 16-character hash of such text (never the text) in
+  `lab_words`, and the source skips saved checks with that `textHash`.
+- Gaps the writer left for the check to fill ([Gaps in every check](gaps-in-check.md)):
+  bracketed gaps are skipped, an accepted fill is a corrected span, and common English words
+  in a corrected span are left out.
 - Shared text can't be put back, so it never reaches visible History; Understand and
   Try it are never saved.
 - Names: a capital in mid-sentence, or after an elided article (L'Hospitalet). A capital at
@@ -136,7 +138,7 @@ written to the export cache folder the FileProvider shares and replaced by the n
 ## Limits
 
 - Only the newest 3,000 saved checks are read.
-- Checks saved before the not-typed hashes existed, of filled-gap or translated text, can't
+- Checks saved before the not-typed hashes existed, of translated text, can't
   be told apart from typed text and are counted.
 - Name detection is a heuristic: a word capitalized for emphasis mid-sentence is left out,
   and a name only ever used at the start of a sentence is counted as a word.

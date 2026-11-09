@@ -66,7 +66,7 @@ class TabNavigationTest {
     }
 
     @Test fun writeToolsAndSettingsPagesRestore() {
-        listOf(Screen.FillGaps, Screen.LabReply, Screen.Photo).forEach { tool ->
+        listOf(Screen.LabReply, Screen.Photo).forEach { tool ->
             val path = Navigation(Screen.Chat).open(Screen.Write).open(tool)
             assertEquals(path, Navigation.restore(path.saved))
             assertEquals(Screen.Write, path.back().current)

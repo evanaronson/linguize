@@ -57,8 +57,6 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.hearit.HearItBar
 import com.evanaronson.linguize.ui.hearit.ProvideHearIt
-import com.evanaronson.linguize.ui.gaps.GapOffer
-import com.evanaronson.linguize.ui.gaps.GapOfferRow
 import com.evanaronson.linguize.ui.replycontext.ReplyContextFooter
 import com.evanaronson.linguize.ui.replycontext.ReplyContextHeader
 import com.evanaronson.linguize.ui.secondopinion.WithSecondOpinion
@@ -84,8 +82,6 @@ fun ResultCard(
     scrollable: Boolean = true,
     /** Starts the separate clipboard job when this host supports it. */
     onUnderstandCopiedText: (() -> Unit)? = null,
-    /** Lab: offers Fill the gaps when the text has gaps; null hides it. */
-    gapOffer: GapOffer? = null,
     /** Lab: an extra footer row under Meaning on a reviewed result ("Say it in Catalan"). */
     bridgeEntry: (@Composable () -> Unit)? = null,
 ) {
@@ -105,14 +101,13 @@ fun ResultCard(
         modifier,
         scrollable,
         navigationKey = showingUnderstanding,
-        footer = if ((reviewed != null && !showingUnderstanding) || onUnderstandCopiedText != null || gapOffer != null) {
+        footer = if ((reviewed != null && !showingUnderstanding) || onUnderstandCopiedText != null) {
             {
                 if (reviewed != null && !showingUnderstanding) {
                     UnderstandingEntry(onOpen = { showingUnderstanding = true })
                     bridgeEntry?.invoke()
                     actions.howItLands?.let { com.evanaronson.linguize.ui.tonecheck.LandsEntry(it) { showingLands = true } }
                 }
-                if (!showingUnderstanding) gapOffer?.let { GapOfferRow(it) }
                 onUnderstandCopiedText?.let { open ->
                     FooterRow(
                         stringResource(R.string.understand_copied_text),

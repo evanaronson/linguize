@@ -12,7 +12,6 @@ import com.evanaronson.linguize.llm.GeminiClient
 import com.evanaronson.linguize.llm.OpenAIClient
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
-import com.evanaronson.linguize.llm.lab.GapPrompt
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
 import com.evanaronson.linguize.data.Exports
 import com.evanaronson.linguize.data.lab.PatternNotes
@@ -75,14 +74,16 @@ class App : Application() {
     }
 
     /** Created off the main thread by the view models. */
-    val checker by lazy { Checker(settings, keys, prompt, clients, replyPrompt = { replyPrompt }) }
+    val checker by lazy { Checker(settings, keys, prompt, clients, replyPrompt = { replyPrompt }, gapsInCheck = { gapsInCheck }) }
 
     /** Lab: the reply rules added to a check only when a message to reply to is attached. */
     val replyPrompt by lazy { ReplyPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } } }
-    val understander by lazy { Understander(settings, keys, clients) }
-    val gapFiller by lazy {
-        GapFiller(settings, keys, clients) { GapPrompt.load { assets.open(it).bufferedReader().use { r -> r.readText() } } }
+
+    /** Lab: the gap-filling rules added to every check. */
+    val gapsInCheck by lazy {
+        com.evanaronson.linguize.llm.lab.GapsInCheck.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
     }
+    val understander by lazy { Understander(settings, keys, clients) }
 
     /** Lab: "Teach me" lessons, saved in their own file. */
     val teacher by lazy {

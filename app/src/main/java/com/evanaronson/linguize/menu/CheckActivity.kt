@@ -25,8 +25,6 @@ import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.card.FloatingPopup
 import com.evanaronson.linguize.ui.card.ResultCard
-import com.evanaronson.linguize.ui.gaps.GapFillViewModel
-import com.evanaronson.linguize.ui.gaps.PopupGapsOrCheck
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.languagebridge.BridgeFooterEntry
@@ -43,7 +41,6 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
     private val voice: CardVoiceViewModel by viewModels { CardVoiceViewModel.factory(App.of(this)) }
-    private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
     private var readOnly = true
     private val canReplace: Boolean get() = !readOnly && callingActivity != null
@@ -115,24 +112,13 @@ class CheckActivity : ComponentActivity() {
                     FloatingPopup(::finish, ::openApp, popupPosition, header = {
                         if (bridge.state == null) LanguagePicker(language, onSelect = { selected ->
                             language = selected
-                            if (gaps.state != null) gaps.changeLanguage(selected)
-                            else if (!limited) check.changeLanguage(selected)
+                            if (!limited) check.changeLanguage(selected)
                         }, modifier = Modifier.weight(1f, fill = false))
                         AppVoiceChip(voice, onChanged = { if (!limited) check.recheck() }, Modifier.weight(1f, fill = false))
                     }) { modifier ->
                         BridgeHost(bridge, bridgeActions, modifier) {
-                            PopupGapsOrCheck(
-                                gaps, source = gaps.source(selection.text, check.workingText).takeIf { !limited },
-                                language, canReplace, onPutBack = ::finish,
-                                onCheck = { filled ->
-                                    com.evanaronson.linguize.ui.words.markNotTyped(this@CheckActivity, filled)
-                                    check.check(filled, language, Origin.Menu, callingPackage)
-                                },
-                                onOpenSettings = null, modifier,
-                            ) { offer ->
-                                ResultCard(it, actions, modifier, gapOffer = offer,
-                                    bridgeEntry = { BridgeFooterEntry(bridge, check, language) })
-                            }
+                            ResultCard(it, actions, modifier,
+                                bridgeEntry = { BridgeFooterEntry(bridge, check, language) })
                         }
                     }
                 }
@@ -176,10 +162,8 @@ class CheckActivity : ComponentActivity() {
      * only matters when the database is slow to open, and then the write goes on alone.
      */
     override fun finish() {
-        // Put back from the bridge or from a fill goes as is; after either's Check it, the
-        // checked text is the base.
-        val checkWorking = check.workingText
-        val accepted = bridgedOut ?: gaps.replacement(checkWorking ?: bridged)
+        // Put back from the bridge goes as is; after Check it, the bridged text is the base.
+        val accepted = bridgedOut ?: check.workingText ?: bridged
         val selection = selection
         val handedBack = if (canReplace && accepted != null && selection != null) {
             setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, selection.with(accepted)))
@@ -187,7 +171,7 @@ class CheckActivity : ComponentActivity() {
         } else {
             false
         }
-        check.dismiss(applied = gaps.checkApplied(handedBack && bridgedOut == null, checkWorking), waitMs = CLOSE_WAIT_MS)
+        check.dismiss(applied = handedBack && bridgedOut == null, waitMs = CLOSE_WAIT_MS)
         super.finish()
     }
 

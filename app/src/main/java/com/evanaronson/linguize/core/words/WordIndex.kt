@@ -4,6 +4,7 @@ import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.corpus.Lexeme
 import com.evanaronson.linguize.core.corpus.Pos
 import com.evanaronson.linguize.core.corpus.Utterance
+import com.evanaronson.linguize.core.corpus.WriterGaps
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -232,6 +233,8 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
         ): LanguageWords {
             val occurrences = utterances.flatMap { utterance ->
                 WordTokenizer.tokenize(utterance.text).map { Occurrence(utterance, it, utterance.isCorrected(it.start, it.end)) }
+                    // A corrected English word is most likely a gap the check filled, not a word tried.
+                    .filterNot { it.tried && WriterGaps.isEnglishOnly(it.token.form) }
             }
             // A form only ever capitalized, and capitalized in mid-sentence at least once, is a name
             // even at the start of a sentence. Mid-sentence capitals are names wherever they stand.

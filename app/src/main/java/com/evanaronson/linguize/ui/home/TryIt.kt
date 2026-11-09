@@ -26,7 +26,6 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.hearit.DictateButton
-import com.evanaronson.linguize.ui.gaps.GapOffer
 import com.evanaronson.linguize.ui.languagebridge.BridgeFooterEntry
 import com.evanaronson.linguize.ui.languagebridge.BridgeHost
 import com.evanaronson.linguize.ui.languagebridge.BridgeTryItButton
@@ -36,7 +35,7 @@ import com.evanaronson.linguize.ui.replycontext.TryItReplyContext
 
 /** A text box and the same card the selection menu shows, so checks can be tried here. */
 @Composable
-internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit, onFillGaps: ((String) -> Unit)? = null) {
+internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val initialSample = stringResource(R.string.try_it_sample)
     val bridge = rememberBridgeViewModel()
@@ -110,7 +109,6 @@ internal fun TryIt(check: CheckViewModel, onOpenSettings: () -> Unit, onFillGaps
             ),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             scrollable = false,
-            gapOffer = onFillGaps?.let { open -> GapOffer.of(sample.trim()) { open(sample.trim()) } },
             bridgeEntry = { BridgeFooterEntry(bridge, check, Language.forCode(code)) },
         )
     }

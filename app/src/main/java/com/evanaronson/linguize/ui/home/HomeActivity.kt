@@ -101,7 +101,7 @@ class HomeActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        // Typing (Try it, the chat composer) gets the room while the keyboard is up.
+                        // Typing (the Write editor, the chat composer) gets the room while the keyboard is up.
                         if (current.isTab && !imeVisible()) AppTabs(navigation.tab) { navigation = navigation.open(it) }
                     },
                 ) { padding ->
@@ -213,7 +213,7 @@ class HomeActivity : ComponentActivity() {
         fun homeIntent(context: Context) = Intent(context, HomeActivity::class.java)
         fun settingsIntent(context: Context) = homeIntent(context).putExtra(OPEN_SETTINGS, true)
 
-        /** Opens Write, where Try it is (the Try it launcher shortcut), above whichever tab the app starts on. */
+        /** Opens Write and its editor (the Write launcher shortcut), above whichever tab the app starts on. */
         fun writeIntent(context: Context) = homeIntent(context).putExtra(OPEN_TAB, Screen.Write.saved)
 
         /** The bottom-bar destination an intent asks for, if any. */

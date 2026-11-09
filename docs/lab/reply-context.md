@@ -18,12 +18,12 @@ it, or to quote it), so the copied text is already the context.
   a message?* offers **Use copied text**, which attaches what is on the clipboard in one tap,
   and **Type it**, which opens a field to paste or type the message. The card checks again
   in context. Accepted changes that still apply stay accepted.
-- **In Try it** on Write: the same entry sits above the text box, so a message can be
+- **In the editor** on Write: the same entry sits above the text box, so a message can be
   attached before the first check, or while a card is open (which checks again).
 - Once attached, the message shows compactly above the result (two lines; tap to show all)
   with **Remove**. Removing it checks again without context.
 
-The attached message stays with the card (or Try it) until removed or the card closes.
+The attached message stays with the card (or the Write editor) until removed or the card closes.
 It is not saved anywhere: not in History, not in Lab storage.
 
 If the clipboard is empty or can't be read (the accessibility overlay doesn't always have

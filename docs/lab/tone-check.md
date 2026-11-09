@@ -16,10 +16,10 @@ sounds like them. They do not want to be told that casual writing is wrong.
 
 ## How to use it
 
-- **On the check card** (selection menu, accessibility button, and Try it on Write), a
+- **On the check card** (selection menu, accessibility button, and the editor on Write), a
   reviewed check has a footer row **How it lands** under **Meaning**. It opens a page
   for the text as it stands now: the original with the changes you have accepted.
-- **On Write**, under Try it, a **How it lands** button reads the text in the box
+- **On Write**, under the editor, a **How it lands** button reads the text in the box
   without checking it first.
 
 The page shows:
@@ -35,7 +35,7 @@ The page shows:
 5. **Other versions.** Up to two, each with a short aim ("More polite", "Warmer") and
    what changed. **Copy** copies it. **Use this** makes it the text that Replace puts
    back. The page then shows *Using this version* with **Undo** and **Replace**, and the
-   footer row says *Using another version*. In Try it, **Use this** replaces the text
+   footer row says *Using another version*. In the Write editor, **Use this** replaces the text
    in the box.
 
 ## How it works
@@ -54,14 +54,14 @@ The page shows:
 - `ui/tonecheck/LandsController` runs one reading at a time, drops an answer for text
   that has since changed, and keeps a few readings in memory while the card is up,
   so going back and forth doesn't ask again.
-- `ui/tonecheck/LandsPage` is the page, the footer row and the Try it entry.
+- `ui/tonecheck/LandsPage` is the page, the footer row and the Write editor entry.
   `ResultCard` calls it with a few lines. `CardActions.howItLands` carries what it can
   do in each host.
 - Using a version: `CheckViewModel.useVersion` records the chosen text together
   with the card state it was chosen on. `workingText` returns it while that state is
   unchanged, so accepting, undoing or checking again quietly drops it. Every host
   already puts back `workingText`, so no host changed. History records the version as
-  the final text, as for any applied check. Try it is never recorded.
+  the final text, as for any applied check. Checks on Write are never recorded.
 
 ## Respecting the writer
 

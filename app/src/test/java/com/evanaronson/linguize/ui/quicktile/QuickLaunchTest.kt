@@ -57,7 +57,7 @@ class QuickLaunchTest {
         assertEquals(ClipboardJob.Understand, ClipboardJob.of(shortcuts[1].intent))
         val tryIt = shortcuts[2].intent!!
         assertEquals(HomeActivity::class.java.name, tryIt.component?.className)
-        // Try it is on Write, whichever tab the app starts on.
+        // The Write editor is on Write, whichever tab the app starts on.
         assertEquals(Screen.Write, HomeActivity.requestedTab(tryIt))
         assertNull(HomeActivity.requestedTab(HomeActivity.homeIntent(context)))
         assertNull(HomeActivity.requestedTab(HomeActivity.homeIntent(context).putExtra("openTab", "practice")))

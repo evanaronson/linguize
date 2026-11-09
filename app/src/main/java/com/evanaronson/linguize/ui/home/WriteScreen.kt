@@ -13,24 +13,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeButton
-import com.evanaronson.linguize.ui.components.ListCard
-import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
-import com.evanaronson.linguize.ui.openExternal
-import com.evanaronson.linguize.ui.writingpad.writingPadIntent
+import com.evanaronson.linguize.ui.write.WriteDraftList
+import com.evanaronson.linguize.ui.write.WriteEditor
+import com.evanaronson.linguize.ui.write.rememberWriteViewModel
 
 /**
- * Write, one of the four destinations: check something now (Try it), then the tools for a
- * specific piece of writing. Until a key is saved ([needsKey]), a strip at the
+ * Write, one of the four destinations: an editor with drafts, checked with the same card as
+ * everywhere else (which also fills [gaps]). Until a key is saved ([needsKey]), a strip at the
  * top leads to it. Progress, History and Settings have places of their own.
  */
 @Composable
@@ -39,25 +37,14 @@ internal fun WriteScreen(
     needsKey: Boolean,
     onOpenSettings: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val write = rememberWriteViewModel()
     ScreenColumn {
         if (needsKey) AddKeyStrip(onOpenSettings)
-        SectionHeader(stringResource(R.string.check_your_text))
+        SectionHeader(stringResource(R.string.lab_write_header))
         SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-            TryIt(check, onOpenSettings)
+            WriteEditor(write, check, onOpenSettings)
         }
-
-        SectionHeader(stringResource(R.string.lab_home_ia_more_ways))
-        ListCard(
-            {
-                ListRow(
-                    stringResource(R.string.lab_writing_pad_title),
-                    stringResource(R.string.lab_writing_pad_home_summary),
-                    onClick = { context.openExternal(writingPadIntent(context)) },
-                    onClickLabel = stringResource(R.string.lab_writing_pad_open),
-                )
-            },
-        )
+        WriteDraftList(write, onOpened = { check.dismiss(applied = false) })
 
     }
 }

@@ -15,14 +15,14 @@ Settings behind the gear.
 | Moment | Experiment | Where |
 |---|---|---|
 | Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Write |
-| Before sending | [How it lands](tone-check.md): warmth, directness, formality, and warmer or more polite versions | Card row; Try it (Write) |
-| Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Try it (Write) |
+| Before sending | [How it lands](tone-check.md): warmth, directness, formality, and warmer or more polite versions | Card row; Write editor |
+| Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Write editor |
 | Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
-| Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Try it (Write) |
-| Composing longer text | [Writing pad](writing-pad.md): drafts checked as you pause, with inline underlines | Write |
+| Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Write editor |
+| Writing a message | [Write](write.md): one editor with drafts, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Write |
 | Anywhere | [Share text](share-text.md): share text in from another app to check it or understand it | Share sheet |
-| Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Try it shortcut opens Write |
+| Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Write shortcut opens Write |
 | Learning over time | [Teach me](teach-me.md): a one-minute lesson and quiz for any change | Change explanation |
 | Learning over time | [Phrasebook](phrasebook.md): star natural phrasings and keep them | Change explanation; Progress |
 | Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Progress |

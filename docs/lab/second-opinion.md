@@ -15,7 +15,7 @@ which is often why they checked.
 
 1. Have a key for both Gemini and OpenAI, or choose a second model from the same service
    in **Settings › Second opinion** (under the Model card).
-2. Check text as usual: selection menu, accessibility button or Try it.
+2. Check text as usual: selection menu, accessibility button or the editor on Write.
 3. Under the suggestions, **Second opinion** offers **Ask OpenAI** (or Gemini, or the
    chosen model). Tap it.
 4. The card adds:

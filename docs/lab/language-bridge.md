@@ -28,7 +28,7 @@ Catalan acostar-se means to come closer. For going to bed, say ficar-se al llit.
 - **From the check card.** Under a reviewed result, below Meaning, a row reads
   **Say it in Catalan** (or Spanish). It picks the other language: the one you didn't
   pin, or the one your text doesn't look like. Accepted changes are included.
-- **From Try it, on Write.** Next to **Check**, a **Say it in …** button follows what you
+- **From the editor on Write.** Next to **Check**, a **Say it in …** button follows what you
   type. Write Spanish and it offers Catalan.
 
 The page shows the result, your text, and **Word by word**. When the message was read
@@ -37,7 +37,7 @@ gives you three ways to use the result:
 
 - **Copy** copies the result.
 - **Put back** (in the selection-menu popup, when the app lets Linguize replace text)
-  replaces your selection with the result and returns you to the app. In Try it this
+  replaces your selection with the result and returns you to the app. In the Write editor this
   is **Use this**, which replaces the text in the box.
 - **Check it** runs the normal check on the result in the target language. In the
   popup, the checked version is then what goes back to the app when the card closes.
@@ -60,7 +60,7 @@ Back returns to the check.
 - `LanguageBridge.kt` (root) picks the provider, model, key and target profile and sends
   the request through the existing Gemini and OpenAI clients (`ProviderClient.generate`).
 - `ui/languagebridge/`: `BridgeViewModel` (one request at a time, and late answers are
-  discarded), `BridgeCard` (the page), and `BridgeEntry` (the card footer row, the Try it
+  discarded), `BridgeCard` (the page), and `BridgeEntry` (the card footer row, the Write editor
   button and the host glue). Hooks into shared files are small: an optional
   `bridgeEntry` slot on `ResultCard`, a few lines in `TryIt.kt` and `CheckActivity.kt`,
   and one lazy service in `App.kt`.
@@ -78,11 +78,11 @@ that check is of the other-language text.
 - The default target uses a cheap guess when no language is pinned. If the guess is
   wrong, the page says the text is already in that language and offers the other one.
 - The accessibility-button popup doesn't offer the bridge yet: it runs in a service
-  without a view model owner. Use the selection menu or Try it.
+  without a view model owner. Use the selection menu or the editor on Write.
 - Correspondences are the model's reading. They're anchored to exact text in both
   versions but aren't a dictionary. Notes on false friends may be missing or
   imperfect.
-- The Try it button's label changes as the guess changes while you type.
+- The Write editor button's label changes as the guess changes while you type.
 
 Tests: `core/languagebridge/BridgedTest`, `llm/lab/LanguageBridgePromptTest`,
 `llm/lab/LanguageBridgeTransportTest` (fake HTTP for both providers), and

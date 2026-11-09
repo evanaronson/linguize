@@ -15,16 +15,12 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class WriteNavigationTest {
-    @Test fun writeAndThePagesItOpensRestoreFromSavedState() {
+    @Test fun writeRestoresFromSavedState() {
+        // Write opens no pages of its own any more; removed ones are covered in TabNavigationTest.
         for (start in listOf(Navigation(Screen.Chat), Navigation())) {
             val write = start.open(Screen.Write)
             assertEquals(write, Navigation.restore(write.saved))
-            listOf(Screen.FillGaps, Screen.LabReply, Screen.Photo).forEach { page ->
-                val opened = Navigation.restore(write.open(page).saved)
-                assertEquals(page, opened.current)
-                assertEquals(Screen.Write, opened.tab)
-                assertEquals(write, opened.back())
-            }
+            assertEquals(Screen.Write, write.tab)
         }
     }
 

@@ -23,7 +23,7 @@ everywhere, so copy, pull down the shade, tap **Linguize Lab**.
   Shortcuts can be dragged to the home screen. They appear after the app has been
   opened once.
 - **Accepted changes go on the clipboard.** There's no field to put changes back
-  into. When the card closes through Apply, Back or a tap outside, the copied text is
+  into. When the card closes through Replace, Back or a tap outside, the copied text is
   replaced on the clipboard with the accepted changes, and a toast says "Copied with
   your changes. Paste it where you need it." Closing without accepting anything
   leaves the clipboard as it was.

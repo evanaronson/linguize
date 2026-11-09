@@ -362,9 +362,9 @@ internal fun Composer(chat: ChatViewModel) {
 }
 
 /**
- * The check before sending: the same card as for a message in another app, with its Apply
- * labelled Send. Reviewing is forced, accepting isn't: with nothing accepted, Send under the
- * card sends the text as typed. A failed or unclear check offers Retry (or clarifying) and
+ * The check before sending: the same card as for a message in another app, with its Replace
+ * labelled Send. Reviewing is forced, accepting isn't: with nothing accepted, Send as written
+ * under the card sends the text as typed. A failed or unclear check offers Retry (or clarifying) and
  * Keep editing, never a way round it.
  */
 @Composable
@@ -402,7 +402,7 @@ internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: 
             LinguizeButton(stringResource(R.string.lab_chat_keep_editing), chat::keepEditing, ButtonKind.Text)
             // With something accepted, the card's own row says "N changes accepted  Undo  Send".
             if (revision != null && !revision.canUndo) {
-                LinguizeButton(stringResource(R.string.lab_chat_send), { chat.sendReviewed(revision) }, ButtonKind.Filled)
+                LinguizeButton(stringResource(R.string.lab_chat_send_as_written), { chat.sendReviewed(revision) }, ButtonKind.Filled)
             }
         }
     }

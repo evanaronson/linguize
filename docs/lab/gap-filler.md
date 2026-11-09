@@ -30,7 +30,7 @@ help only where they asked for it. The writer still writes the message; Linguize
   footer row ("2 gaps in brackets", "Some words look like English"). The check still runs
   as usual, so nothing is lost by ignoring it. Tapping it swaps the card for the fill:
   - **Put back** closes the card and replaces the selection with the filled text.
-  - **Check it** runs the normal check on the filled text, in the same card. Apply then puts
+  - **Check it** runs the normal check on the filled text, in the same card. Replace then puts
     back the filled text with any accepted fixes, and closing without accepting anything
     still puts back the filled text.
   - **Copy**, or the back arrow to return to the check.

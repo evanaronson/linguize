@@ -33,8 +33,8 @@ The page shows:
 3. **What shapes it.** Exact words from the message and what each does for the reader.
 4. **Good to know.** Up to three pragmatic or cultural notes.
 5. **Other versions.** Up to two, each with a short aim ("More polite", "Warmer") and
-   what changed. **Copy** copies it. **Use this** makes it the text that Apply puts
-   back. The page then shows *Using this version* with **Undo** and **Apply**, and the
+   what changed. **Copy** copies it. **Use this** makes it the text that Replace puts
+   back. The page then shows *Using this version* with **Undo** and **Replace**, and the
    footer row says *Using another version*. In Try it, **Use this** replaces the text
    in the box.
 

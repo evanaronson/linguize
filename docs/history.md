@@ -151,7 +151,7 @@ A saved page always shows the exact checked text as Before, and the recorded
 from proposals. Legacy copy-only sessions remain stored but are hidden from History.
 Suggestions come directly from the final non-superseded revision's
 saved rows, including applied proposals. Tapping a row reveals its recorded reason
-and assessment; ignored/undone means Not applied, not rejected. Retired means
+and assessment; ignored/undone means Not accepted, not rejected. Retired means
 Covered by a rewording, which may have been applied or copied.
 When same-attempt replay has one exact structural match for a row, its explanation
 can also show the unresolved assumptions that change depends on, without clarification

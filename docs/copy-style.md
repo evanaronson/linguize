@@ -29,6 +29,7 @@ One word per idea, everywhere.
 | Either of the two | **change**, changes | edit, suggestion (in counts) |
 | Saying yes to a change on the card | **accept**, accepted | apply, take, taken |
 | Text going back into the other app | **put back** | applied, sent, went back |
+| The card's last button | **Replace**; **Send** in the chat | Apply, Done, OK |
 | Text kept on the phone | **saved**; the feature and the Home list are **History** | kept, remembered, recorded |
 | Removing it | **delete** | clear, remove |
 | The user's credential | **API key** in titles and field labels, then **key** | token, secret |
@@ -48,13 +49,15 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 
 **Buttons.** A verb, plus an object when the verb alone is unclear. Three words at most: "Accept all", "Copy with fixes", "Open settings", "Delete key".
 
+**The card's last step.** The card is the same everywhere, so its actions are worded the same everywhere. Only the verb for what finally happens differs, and it says what will happen: **Replace** where the checked text goes back in place of what you wrote (another app's field, the clipboard, Try it), **Send** in the chat, where the message goes. Same row, same place: "2 changes accepted, Undo, Replace" or "… Send". Accept, Accept all, Undo and the counts never change. With nothing accepted, the chat offers "Send as written", matching the "Sent as written" it shows afterwards. History records both the same way: a change is Accepted or Not accepted.
+
 **Captions and helper text.** One idea, about 12 words or fewer. Don't repeat the heading.
 
 **Case and punctuation.** Sentence case everywhere. No period on titles, labels, buttons or single-phrase status lines. Periods on full sentences, and on any toast or caption with two sentences. Use a comma between parallel facts ("3 fixes, 1 rewording"); no middle dots. Use a colon for "and here's the thing" ("Didn't work: …"). No semicolons, no exclamation marks, no emoji.
 
 **Counts.** Number first, singular and plural: "1 fix", "2 fixes". The same noun in headers, status lines and History.
 
-**True in every state.** A label must be true in every state it can show in, including loading, off, empty and failed. If one line can't be true in all of them, write one line per state. Before "Apply", changes are *accepted*, not put back.
+**True in every state.** A label must be true in every state it can show in, including loading, off, empty and failed. If one line can't be true in all of them, write one line per state. Before "Replace", changes are *accepted*, not put back.
 
 **No blame.** Describe what Linguize could not do, without blaming the writer or deflecting to the model: "Linguize couldn't tell what this means". "No text to check", not "Type something first".
 
@@ -74,13 +77,15 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 | Before | After | Why |
 |---|---|---|
 | Can't tell what this means | Linguize couldn't tell what this means / Check a full sentence in Catalan or Spanish | Own the limitation and give a next step. |
-| 2 changes applied | 2 changes accepted | Nothing is put back until Apply. |
+| 2 changes applied | 2 changes accepted | Nothing is put back until Replace. |
 | 1 way to sound more natural | 1 rewording | Same name as in Settings and History. |
 | Add an API key | No API key / Add one in settings | A title is a state, and History shows it too. |
 | Rate limited / Try again in a moment | Service usage limit reached / Wait a minute, then retry | Jargon, and too close to "Too many checks". |
 | Checks you make will show up here. | Changes you apply in other apps will appear here. | Analysis and Copy alone are not saved; Try it remains excluded. |
 | 3 fixes, 1 rewording, 2 taken | 3 fixes, 1 rewording, 2 accepted | One verb for accepting. |
 | Sent | Put back in the app | "Sent" reads as "message sent". |
+| Apply | Replace (Send in the chat) | Say what will happen to the text. |
+| Applied / Not applied (History) | Accepted / Not accepted | One verb for accepting, true for checks and chat messages. |
 | Kept on this phone only, so Linguize can later show you the mistakes you tend to make. | Your text and the suggestions are saved on this phone only. | Promised a feature that doesn't exist. |
 | Fields for passwords, codes, numbers and email addresses are never read. | It skips fields that look like passwords, codes, numbers or email addresses. | The check is a guess. Don't overclaim. |
 
@@ -88,6 +93,6 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 
 Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. A full-width row with a chevron opens clarification ("Not what you mean ›", "Assumed you meant: The meeting is tomorrow ›"). Readings use upright text; the chevron and tap target distinguish interactive rows from read-only information. A colon separates UI framing from the model's reading, preserving its capitalization and tense in live results and History. Proofmark red also identifies destructive actions: the swipe-to-delete background and every Delete or Remove action, including confirmation buttons. The swipe background uses the theme's contrasting foreground.
 
-A checkmark with text identifies a completed review: "Sounds natural" or "All changes accepted". Accepted changes are still waiting for Apply; the checkmark does not imply they were put back in the source app. Clarification updates the result directly without a separate confirmation banner.
+A checkmark with text identifies a completed review: "Sounds natural" or "All changes accepted". Accepted changes are still waiting for Replace (Send in the chat); the checkmark does not imply they were put back in the source app. Clarification updates the result directly without a separate confirmation banner.
 
 An incomplete check groups its explanation and Check again action above the available suggestions. This describes unusable parts of the model's reply, not failure to apply the writer's accepted changes. Keep the notice neutral and usable suggestions available.

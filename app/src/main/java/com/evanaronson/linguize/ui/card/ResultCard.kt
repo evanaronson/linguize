@@ -55,8 +55,6 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
-import com.evanaronson.linguize.ui.hearit.HearItBar
-import com.evanaronson.linguize.ui.hearit.ProvideHearIt
 import com.evanaronson.linguize.ui.gaps.GapOffer
 import com.evanaronson.linguize.ui.gaps.GapOfferRow
 import com.evanaronson.linguize.ui.replycontext.ReplyContextFooter
@@ -101,7 +99,7 @@ fun ResultCard(
     var showingLands by rememberSaveable(reviewed, settled) { mutableStateOf(false) }
     if (com.evanaronson.linguize.ui.tonecheck.showLandsPage(actions.howItLands, reviewed?.revision?.workingText,
             showingLands, { showingLands = it }, modifier, scrollable)) return
-    ProvideHearIt(state, actions.language()) { ResultSurface(
+    ResultSurface(
         modifier,
         scrollable,
         navigationKey = showingUnderstanding,
@@ -173,7 +171,7 @@ fun ResultCard(
             }
         }
         ReplyContextFooter(actions.replyContext, state, hidden = showingUnderstanding)
-    } }
+    }
 }
 
 @Composable
@@ -208,7 +206,6 @@ private fun ReviewPages(
                 )
             } else {
                 WithSecondOpinion(actions.secondOpinion) { Suggestions(result, state.settled, actions) }
-                HearItBar(result.revision.workingText, Modifier.padding(top = 12.dp))
             }
         }
     }

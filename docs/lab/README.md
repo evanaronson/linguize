@@ -21,7 +21,6 @@ Settings behind the gear.
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
 | Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Try it (Write) |
 | Composing longer text | [Writing pad](writing-pad.md): drafts checked as you pause, with inline underlines | Write |
-| Hearing and speaking | [Hear it](hear-it.md): play text, changes and Meaning aloud; dictate into Try it | Card; Try it (Write) |
 | Reading what arrives | [Help me reply](reply-drafter.md): from Understand, draft a simple glossed reply | Understand card; Write |
 | Reading what arrives | [Share and photo](share-photo.md): share text in; understand a photo of a letter or sign | Share sheet; Write |
 | Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Try it shortcut opens Write |

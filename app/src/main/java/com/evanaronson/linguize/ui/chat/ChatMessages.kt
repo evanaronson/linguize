@@ -387,7 +387,6 @@ internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: 
         onRemoveChoice = check::removeChoice,
         onClarify = check::clarifyMeaning,
         onRemoveClarification = check::removeMeaning,
-        language = { check.pinnedLanguage },
     )
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         if (state != null) {

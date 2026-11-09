@@ -29,7 +29,7 @@ what a person comes to do. It doesn't add features.
 | Job | How often | What serves it |
 |---|---|---|
 | Talk and practise | Daily, the main reason to open the app | Chat (conversations, Practise with…) |
-| Write or check one specific thing | Several times a week | Try it, Writing pad, Fill the gaps; card rows: How it lands, Say it in Catalan, Replying to, Hear it, Second opinion |
+| Write or check one specific thing | Several times a week | Try it, Writing pad, Fill the gaps; card rows: How it lands, Say it in Catalan, Replying to, Second opinion |
 | Understand something someone sent, and answer it | Weekly | Help me reply, Understand a photo; share sheet; Understand copied text |
 | See how I'm doing | Weekly | Practice, Your patterns, Words, Your conjugations, Phrasebook |
 | Look back at what I wrote | Weekly | History (one row per message, any source) |
@@ -83,7 +83,7 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 | Try it launcher shortcut | Opened the start page (the chat, by default) | Opens Write above the start | It promised Try it |
 | Practice's last button | Back to Home | Back to Progress | Where Back goes |
 | What Linguize knows, Per-app voice, Second opinion | Settings | Settings | Set up, edited rarely |
-| Card rows (Meaning, How it lands, Say it in…, Fill the gaps, Hear it, Second opinion, Replying to, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
+| Card rows (Meaning, How it lands, Say it in…, Fill the gaps, Second opinion, Replying to, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
 | Selection menu, accessibility button, Quick tile, Check and Understand shortcuts, share text, share photo, popup's app button | System | System | Unchanged; the app button and "Open settings" still open the app and Settings |
 
 ## Navigation model

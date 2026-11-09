@@ -91,13 +91,6 @@ class App : Application() {
         }
     }
 
-    /** Lab: Help me reply. Its own prompt asset, read on first use. */
-    val replyDrafter by lazy {
-        ReplyDrafter(settings, keys, clients) {
-            com.evanaronson.linguize.llm.reply.ReplyPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
-        }
-    }
-
     /**
      * Lab: everything the writer typed themselves, before corrections (docs/lab/corpus.md).
      * Each feature that holds writer input adds its source here, one per line.
@@ -150,9 +143,6 @@ class App : Application() {
             com.evanaronson.linguize.llm.lab.LanguageBridgePrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
         }
     }
-
-    /** Lab: reads photos of text. Its own client and prompt; see docs/lab/share-photo.md. */
-    val photoUnderstander by lazy { PhotoUnderstander.create(this, settings, keys) }
 
     /** Lab: Your patterns, derived from History and kept in its own `lab_patterns` store. */
     val patterns by lazy {

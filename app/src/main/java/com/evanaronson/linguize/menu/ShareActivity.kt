@@ -56,7 +56,7 @@ class ShareActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         text = SharedContent.text(intent) ?: run {
-            Toast.makeText(this, R.string.lab_share_photo_no_text, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.lab_share_text_no_text, Toast.LENGTH_SHORT).show()
             return finish()
         }
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
@@ -87,17 +87,17 @@ class ShareActivity : ComponentActivity() {
                     else -> FloatingPopup(onDismiss = ::finish, onOpenApp = ::openApp) { modifier ->
                         ResultSurface(modifier, footer = {
                             FooterRow(
-                                stringResource(R.string.lab_share_photo_check_it),
-                                stringResource(R.string.lab_share_photo_check_it_subtitle),
+                                stringResource(R.string.lab_share_text_check_it),
+                                stringResource(R.string.lab_share_text_check_it_subtitle),
                                 onClick = ::startCheck,
                             )
                             FooterRow(
-                                stringResource(R.string.lab_share_photo_understand_it),
-                                stringResource(R.string.lab_share_photo_understand_it_subtitle),
+                                stringResource(R.string.lab_share_text_understand_it),
+                                stringResource(R.string.lab_share_text_understand_it_subtitle),
                                 onClick = ::startUnderstand,
                             )
                         }) {
-                            Text(stringResource(R.string.lab_share_photo_shared_text), style = MaterialTheme.typography.titleMedium,
+                            Text(stringResource(R.string.lab_share_text_shared_text), style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.semantics { heading() })
                             Spacer(Modifier.height(6.dp))
                             Text(text, style = MaterialTheme.typography.bodyLarge,

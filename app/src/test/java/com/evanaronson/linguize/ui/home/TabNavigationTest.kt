@@ -66,16 +66,24 @@ class TabNavigationTest {
     }
 
     @Test fun writeToolsAndSettingsPagesRestore() {
-        listOf(Screen.FillGaps, Screen.LabReply, Screen.Photo).forEach { tool ->
-            val path = Navigation(Screen.Chat).open(Screen.Write).open(tool)
-            assertEquals(path, Navigation.restore(path.saved))
-            assertEquals(Screen.Write, path.back().current)
-        }
+        val tool = Navigation(Screen.Chat).open(Screen.Write).open(Screen.FillGaps)
+        assertEquals(tool, Navigation.restore(tool.saved))
+        assertEquals(Screen.Write, tool.back().current)
         val setup = Navigation(Screen.Chat).open(Screen.Settings).open(Screen.AccessibilitySetup)
         assertEquals(setup, Navigation.restore(setup.saved))
         val memory = Navigation().open(Screen.Settings).open(Screen.Memory)
         assertEquals(memory, Navigation.restore(memory.saved))
         val choice = Navigation().open(Screen.Settings).open(Screen.SettingsChoice(SettingsPage.Menu))
         assertEquals(Screen.Settings, Navigation.restore(choice.saved).back().current)
+    }
+
+    @Test fun removedWriteToolsRestoreToWrite() {
+        // Help me reply ("lab_reply") and Understand a photo ("photo") were removed.
+        listOf("lab_reply", "photo").forEach { removed ->
+            assertEquals(Screen.Write, Screen.restore(removed))
+            val restored = Navigation.restore(listOf("lab_chat", "home", removed))
+            assertEquals(Screen.Write, restored.current)
+            assertEquals(Screen.Chat, restored.back().current)
+        }
     }
 }

@@ -41,9 +41,6 @@ import com.evanaronson.linguize.ui.phrasebook.PhrasebookScreen
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookViewModel
 import com.evanaronson.linguize.ui.gaps.GapFillScreen
 import com.evanaronson.linguize.ui.gaps.GapFillViewModel
-import com.evanaronson.linguize.ui.photo.PhotoScreen
-import com.evanaronson.linguize.ui.photo.PhotoViewModel
-import com.evanaronson.linguize.ui.photo.understand
 import com.evanaronson.linguize.history.patterns.PatternKind
 import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
 import com.evanaronson.linguize.ui.patterns.PatternsScreen
@@ -66,7 +63,6 @@ class HomeActivity : ComponentActivity() {
     private val phrasebook: PhrasebookViewModel by viewModels { PhrasebookViewModel.factory(PhrasebookStore.of(this)) }
     private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
     private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
-    private val photo: PhotoViewModel by viewModels { PhotoViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
     private val memory: com.evanaronson.linguize.ui.memory.MemoryViewModel by viewModels {
@@ -123,8 +119,6 @@ class HomeActivity : ComponentActivity() {
                                         if (text != null) { gaps.close(); gaps.draft = text }
                                         navigation = navigation.open(Screen.FillGaps)
                                     },
-                                    onHelpReply = { navigation = navigation.open(Screen.LabReply) },
-                                    onPhotoPicked = { photo.understand(this@HomeActivity, it); navigation = navigation.open(Screen.Photo) },
                                 )
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
                                     practice, patterns, words, conjugations,
@@ -152,8 +146,6 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
                                 Screen.FillGaps -> GapFillScreen(gaps, onOpenSettings = openSettings)
-                                Screen.LabReply -> com.evanaronson.linguize.ui.reply.ReplyScreen(onOpenSettings = openSettings)
-                                Screen.Photo -> PhotoScreen(photo, onOpenSettings = openSettings)
                                 Screen.Patterns -> PatternsScreen(patterns, settings.state?.historyEnabled, onOpenPattern = {
                                     navigation = navigation.open(Screen.PatternDetail(it.token))
                                 }, onOpenSettings = openSettings)
@@ -210,7 +202,6 @@ class HomeActivity : ComponentActivity() {
         if (navigation.current == Screen.Settings) {
             check.recheckIfStale()
             gaps.retryIfFailed()
-            photo.recheckIfStale()
         }
         navigation = navigation.back()
     }
@@ -268,8 +259,6 @@ private fun Screen.title(): String? = when (this) {
     Screen.Phrasebook -> stringResource(R.string.lab_phrasebook_title)
     is Screen.AppVoice -> appVoiceTitle(app)
     Screen.FillGaps -> stringResource(R.string.lab_gap_filler_title)
-    Screen.LabReply -> stringResource(R.string.lab_reply_drafter_help_me_reply)
-    Screen.Photo -> stringResource(R.string.lab_share_photo_title)
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
     Screen.Practice -> stringResource(R.string.lab_practice_title)

@@ -30,7 +30,7 @@ what a person comes to do. It doesn't add features.
 |---|---|---|
 | Talk and practise | Daily, the main reason to open the app | Chat (conversations, Practise with…) |
 | Write or check one specific thing | Several times a week | Try it, Writing pad, Fill the gaps; card rows: How it lands, Say it in Catalan, Replying to, Second opinion |
-| Understand something someone sent, and answer it | Weekly | Help me reply, Understand a photo; share sheet; Understand copied text |
+| Understand something someone sent | Weekly | Understand copied text; share sheet |
 | See how I'm doing | Weekly | Practice, Your patterns, Words, Your conjugations, Phrasebook |
 | Look back at what I wrote | Weekly | History (one row per message, any source) |
 | Set up | Once, then rarely | Keys and model, languages, selection menu, accessibility button, popup, per-app voice, What Linguize knows, Open to chat, History switch |
@@ -44,8 +44,7 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 
 - **Chat**: the conversation, with its own bar (conversations, language, Settings).
 - **Write**: the add-key strip until there is a key; **Check your text** (Try it, with
-  its card rows); **More ways to write**: Writing pad, Fill the gaps; **Read and reply**:
-  Help me reply, Understand a photo.
+  its card rows); **More ways to write**: Writing pad, Fill the gaps.
 - **Progress**: **Practice** (always shown here: "4 due" or "Nothing due"); **Your
   writing**, with a Catalan/Spanish switch: Words ("312 words you've written in Catalan":
   the words you've used and the common ones you haven't, in one list), Your conjugations
@@ -66,8 +65,8 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 | Add an API key strip | Home | Write (the chat has its own) | Where the first check happens |
 | Writing pad | Home, own section | Write › More ways to write | Same job as Try it, longer text |
 | Fill the gaps | Home row; card row when text has gaps | Write › More ways to write; card row unchanged | |
-| Help me reply | Home, own section; Understand card | Write › Read and reply; Understand card unchanged | Replying is writing |
-| Understand a photo | Home, own section; share sheet | Write › Read and reply; share sheet unchanged | |
+| Help me reply | Home, own section; Understand card | Removed; saved pages open Write | Interpretation, not part of the writing loop; another app does it |
+| Understand a photo | Home, own section; share sheet | Removed, with the image share target; saved pages open Write | Same: send the photo to a general assistant |
 | Practice | Home, only while due | Progress, always (count or Nothing due) | Pull, not push: visiting Progress is asking |
 | Your patterns | Home card once worth showing; row above History | Progress | One place for stats |
 | Your words | Home card; row above History | Progress › Words, with the language switch | Merged with Vocabulary gaps: the words you know are a subset of all the words |
@@ -84,7 +83,7 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 | Practice's last button | Back to Home | Back to Progress | Where Back goes |
 | What Linguize knows, Per-app voice, Second opinion | Settings | Settings | Set up, edited rarely |
 | Card rows (Meaning, How it lands, Say it in…, Fill the gaps, Second opinion, Replying to, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
-| Selection menu, accessibility button, Quick tile, Check and Understand shortcuts, share text, share photo, popup's app button | System | System | Unchanged; the app button and "Open settings" still open the app and Settings |
+| Selection menu, accessibility button, Quick tile, Check and Understand shortcuts, share text, popup's app button | System | System | Unchanged; the app button and "Open settings" still open the app and Settings |
 
 ## Navigation model
 
@@ -94,7 +93,8 @@ start destination; opening a tab replaces everything above the start with that t
 (`[Chat, Progress, Patterns, Pattern, Saved check]`). `Navigation.tab` is the bottom bar's
 selection. Saved state is the same list of tokens as before. Write keeps the token `home`,
 so a saved path from before restores. An old `[lab_chat, home, history]` restores as
-`[lab_chat, history]`. `HomeActivity.writeIntent` asks for Write. The Try it shortcut uses
+`[lab_chat, history]`. The tokens of removed pages above Write (`lab_reply`, `photo`)
+restore as Write. `HomeActivity.writeIntent` asks for Write. The Try it shortcut uses
 it.
 
 ## What didn't change

@@ -33,6 +33,15 @@ Settings behind the gear.
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 | Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |
+| Everywhere | [Language scope](language-scope.md): one current language in the top bar; Chat, Write, Progress and History follow it | Top bar |
+
+## Language scope
+
+The writer's current language is app-level context. One switch in the top bar (a flag and
+"▾") sets it; the Chat list and new conversations, Write's checks, every Progress section
+and History's default filter follow it. Checks from other apps aren't scoped: they detect
+the language and file under it. Data with no known language shows only under History's
+All languages. See [Language scope](language-scope.md).
 
 ## What Linguize is, from first principles
 

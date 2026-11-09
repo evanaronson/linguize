@@ -15,7 +15,8 @@ moment in the [Lab README](README.md) while keeping *evidence first, learning la
 
 ## How to use it
 
-- **Progress**: a "Your patterns" row under Fixes and phrases. Once there are at least 3
+- **Progress**: a "Your patterns" row under Fixes and phrases, for the app's current
+  language: only its checks are grouped ([Language scope](language-scope.md)). Once there are at least 3
   counted checks and one group seen in 2 of them, it names the top groups with a sparkline;
   until then, and again if deletions leave too little, it says what the page is for.
 - **Your patterns page**: recurring groups, each with a count ("5 times in 3 checks"), a

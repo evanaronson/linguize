@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.language.LanguageScope
 import com.evanaronson.linguize.data.phrasebook.Phrase
 import com.evanaronson.linguize.data.phrasebook.PhraseDraft
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
@@ -31,6 +32,8 @@ data class PhrasebookState(
     val query: String,
     /** The phrases that match [query], by language. */
     val sections: List<PhraseSection>,
+    /** Lab, Language scope: the language shown, which a phrase added by hand starts in; null is every language. */
+    val language: String? = null,
 ) {
     val matching get() = sections.sumOf { it.phrases.size }
 }
@@ -44,6 +47,10 @@ fun filterPhrases(phrases: List<Phrase>, query: String): List<Phrase> {
         terms.all { it in haystack }
     }
 }
+
+/** Lab, Language scope: the phrases in [language] (null: all). A phrase with no language shows only under all. */
+fun inLanguage(phrases: List<Phrase>, language: String?): List<Phrase> =
+    phrases.filter { LanguageScope.keeps(it.language, language) }
 
 /** Sections in the order the language pickers list languages, then any others, then unknown. */
 fun groupByLanguage(phrases: List<Phrase>): List<PhraseSection> {
@@ -92,15 +99,26 @@ class PhrasebookViewModel internal constructor(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val query = MutableStateFlow("")
+
+    /** Lab, Language scope: the language shown; null is every language. */
+    private val language = MutableStateFlow<String?>(null)
     private val deleted = MutableStateFlow<Phrase?>(null)
 
     /** The phrase that was just deleted, while its Undo can still bring it back. */
     val lastDeleted: StateFlow<Phrase?> = deleted.asStateFlow()
 
     /** Null until the phrasebook has been read. */
-    val state: StateFlow<PhrasebookState?> = combine(store.phrases, query) { phrases, query ->
-        phrases?.let { PhrasebookState(it.size, query, groupByLanguage(filterPhrases(it, query))) }
+    val state: StateFlow<PhrasebookState?> = combine(store.phrases, query, language) { phrases, query, language ->
+        phrases?.let { all ->
+            val scoped = inLanguage(all, language)
+            PhrasebookState(scoped.size, query, groupByLanguage(filterPhrases(scoped, query)), language)
+        }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Lab, Language scope: show only [language]'s phrases. */
+    fun setLanguage(language: String?) {
+        this.language.value = language
+    }
 
     init {
         viewModelScope.launch(io) { store.load() }

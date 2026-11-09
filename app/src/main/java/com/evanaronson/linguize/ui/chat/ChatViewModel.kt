@@ -99,6 +99,10 @@ class ChatViewModel(
     /** Outlives the screen: learning, forgetting and deleting finish even after it closes. */
     private val appScope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Lab, Language scope: the app's current language, which new conversations start in. */
+    private val currentLanguage: () -> String? = { null },
+    /** Lab, Language scope: a conversation in this language opened, so it is the app's language now. */
+    private val onLanguage: (String) -> Unit = {},
 ) : ViewModel() {
     var conversations by mutableStateOf<List<ConversationSummary>>(emptyList())
         private set
@@ -139,33 +143,45 @@ class ChatViewModel(
     var draftCheck: DraftCheck? = null
 
     private var replyJob: Job? = null
-    private var started = false
+    private var learnedQuiet = false
 
     /** Lab, Time spent: the draft's writing time, measured invisibly. */
     private val drafting = DraftTimer(clock)
 
-    /**
-     * The chat is showing: opens [requested] when History asked for a conversation, else the
-     * current one, or a new one, once.
-     */
-    fun start(requested: String? = null) {
+    /** The list of conversations is showing: reads it again. Memory learns from quiet ones, once. */
+    fun showList() {
         refreshSettings()
-        if (requested != null) {
-            started = true
-            open(requested)
-            return
-        }
-        if (started) return
-        started = true
+        viewModelScope.launch { readList() }
+    }
+
+    /**
+     * The app opened to "the current conversation" in [language]: the latest one in it while
+     * it is still going ([ChatStart.opening]), which opens. [onResolved] gets its id, or null
+     * when there is none (the list shows instead; nothing starts on its own).
+     */
+    fun openCurrent(language: String?, onResolved: (String?) -> Unit) {
+        refreshSettings()
         viewModelScope.launch {
-            val all = store.conversations()
-            conversations = visible(all, null)
-            learnQuiet(all)
-            when (val opening = ChatStart.opening(all.firstOrNull(), clock())) {
-                is ChatStart.Opening.Resume -> open(opening.id)
-                ChatStart.Opening.New -> newConversation()
+            val all = readList()
+            val latest = all.firstOrNull { language == null || it.conversation.language == language }
+            when (val opening = ChatStart.opening(latest, clock())) {
+                is ChatStart.Opening.Resume -> {
+                    open(opening.id)
+                    onResolved(opening.id)
+                }
+                ChatStart.Opening.New -> onResolved(null)
             }
         }
+    }
+
+    private suspend fun readList(): List<ConversationSummary> {
+        val all = store.conversations()
+        conversations = visible(all, thread?.conversation?.id)
+        if (!learnedQuiet) {
+            learnedQuiet = true
+            learnQuiet(all)
+        }
+        return all
     }
 
     /** Back from Settings or the background: the key may have changed. */
@@ -185,29 +201,37 @@ class ChatViewModel(
      * teacher"), which the partner then plays; empty means the usual partner. [language] is
      * the one picked in the sheet, else the usual start language.
      */
-    fun newConversation(persona: String? = null, language: String? = null) {
+    fun newConversation(persona: String? = null, language: String? = null): String {
         leave()
         val who = persona?.trim()?.take(ChatPrompt.MAX_PERSONA)?.takeIf { it.isNotEmpty() }
+        val id = UUID.randomUUID().toString()
+        val now = clock()
+        val title = who?.let { deriveTitle(it) }.orEmpty()
+        // Picked in the sheet, else the app's language: known now, so the thread shows at once.
+        val known = (language ?: currentLanguage())?.takeIf { Language.forCode(it) != null }
+        if (known != null) show(ChatThread(Conversation(id, title, known, now, now, persona = who), emptyList()))
         viewModelScope.launch {
-            val now = clock()
-            val language = language?.takeIf { Language.forCode(it) != null } ?: startLanguage()
-            val conversation = Conversation(UUID.randomUUID().toString(), who?.let { deriveTitle(it) }.orEmpty(), language, now, now,
-                persona = who)
+            val conversation = Conversation(id, title, known ?: startLanguage(), now, now, persona = who)
             if (!store.create(conversation)) return@launch
             // An unanswered opener holds nothing the writer typed: one is enough.
             store.conversations().filter { it.writerMessages == 0 && it.conversation.id != conversation.id }
                 .forEach { store.delete(it.conversation.id) }
-            show(ChatThread(conversation, emptyList()))
+            if (thread?.conversation?.id != id) show(ChatThread(conversation, emptyList()))
             writeOpener(conversation)
             reloadList()
         }
+        return id
     }
 
-    fun open(id: String) {
-        if (thread?.conversation?.id == id) return
+    /** Opens conversation [id]; [onMissing] when it no longer exists (deleted meanwhile). */
+    fun open(id: String, onMissing: () -> Unit = {}) {
+        thread?.takeIf { it.conversation.id == id }?.let {
+            onLanguage(it.conversation.language)
+            return
+        }
         leave()
         viewModelScope.launch {
-            val conversation = store.conversation(id) ?: return@launch newConversation()
+            val conversation = store.conversation(id) ?: return@launch onMissing()
             show(ChatThread(conversation, store.messages(id)))
             if (thread?.messages?.isEmpty() == true) writeOpener(conversation)
         }
@@ -224,6 +248,7 @@ class ChatViewModel(
         send = SendState.Composing
         thread = next
         preferences.lastLanguage = next.conversation.language
+        onLanguage(next.conversation.language)
         conversations = visible(conversations, next.conversation.id)
         Language.forCode(next.conversation.language)?.let(warmTargets)
     }
@@ -231,25 +256,6 @@ class ChatViewModel(
     /** Reads who memory knows the writer writes to, for the new-conversation sheet. */
     fun loadPeople() {
         viewModelScope.launch { knownPeople = runCatching { people() }.getOrDefault(emptyList()) }
-    }
-
-    /** The conversation's language; an untouched opener is written again in the new one. */
-    fun setLanguage(code: String) {
-        val current = thread ?: return
-        if (current.conversation.language == code || Language.forCode(code) == null) return
-        val conversation = current.conversation.copy(language = code)
-        thread = current.copy(conversation = conversation)
-        preferences.lastLanguage = code
-        Language.forCode(code)?.let(warmTargets)
-        viewModelScope.launch {
-            store.setLanguage(conversation.id, code)
-            if (current.writerMessages == 0) {
-                store.replaceMessages(conversation.id, emptyList())
-                thread = thread?.takeIf { it.conversation.id == conversation.id }?.copy(messages = emptyList())
-                writeOpener(conversation)
-            }
-            reloadList()
-        }
     }
 
     fun rename(id: String, title: String) {
@@ -282,12 +288,9 @@ class ChatViewModel(
                 runCatching { deleteSessions(sessions) }.onFailure { Log.w(TAG, "Couldn't delete a conversation's checks", it) }
                 runCatching { memory().forget(source(id)) }
             }
+            // Conversations are deleted from the list, so nothing opens in its place.
+            if (wasOpen && thread?.conversation?.id == id) thread = null
             reloadList()
-            if (wasOpen) {
-                thread = null
-                val next = store.conversations().firstOrNull { it.writerMessages > 0 }
-                if (next != null) open(next.conversation.id) else newConversation()
-            }
         }
     }
 
@@ -514,6 +517,7 @@ class ChatViewModel(
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val preferences = ChatPreferences(app)
+                val language = com.evanaronson.linguize.ui.language.AppLanguage.of(app)
                 ChatViewModel(
                     store = app.chatStore,
                     partner = app.chatPartner,
@@ -545,6 +549,8 @@ class ChatViewModel(
                     translate = { text -> app.understander.understand(text) },
                     warmTargets = { app.chatTargets.warm(it) },
                     appScope = app.appScope,
+                    currentLanguage = { language.current.value },
+                    onLanguage = { language.select(it) },
                 )
             }
         }

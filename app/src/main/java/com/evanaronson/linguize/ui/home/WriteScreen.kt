@@ -36,13 +36,15 @@ internal fun WriteScreen(
     check: CheckViewModel,
     needsKey: Boolean,
     onOpenSettings: () -> Unit,
+    /** Lab, Language scope: the app's current language, which the editor checks in. */
+    language: String? = null,
 ) {
     val write = rememberWriteViewModel()
     ScreenColumn {
         if (needsKey) AddKeyStrip(onOpenSettings)
         SectionHeader(stringResource(R.string.lab_write_header))
         SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-            WriteEditor(write, check, onOpenSettings)
+            WriteEditor(write, check, onOpenSettings, appLanguage = language)
         }
         WriteDraftList(write, onOpened = { check.dismiss(applied = false) })
 

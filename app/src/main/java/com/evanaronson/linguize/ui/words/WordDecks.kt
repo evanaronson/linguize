@@ -37,6 +37,7 @@ import com.evanaronson.linguize.core.vocab.DeckParse
 import com.evanaronson.linguize.core.vocab.Milestone
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ChoiceRow
+import com.evanaronson.linguize.ui.components.FilterDropdown
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.ListRow
@@ -63,21 +64,22 @@ internal val DECK_MIME_TYPES = arrayOf(
 internal fun deckName(deck: DeckChoice): String =
     if (deck.bundled) stringResource(R.string.lab_vocab_gaps_bundled_deck) else deck.name
 
+/** Which deck coverage is counted against: a filter, so a dropdown like every other one. */
 @Composable
 internal fun DeckPicker(decks: List<DeckChoice>, selected: String?, onDeck: (String) -> Unit) {
     if (decks.size < 2) return
-    SectionHeader(stringResource(R.string.lab_vocab_gaps_deck))
-    SectionCard(Modifier.selectableGroup()) {
-        decks.forEachIndexed { index, deck ->
-            if (index > 0) RowDivider()
-            ChoiceRow(
-                deckName(deck),
-                pluralStringResource(R.plurals.lab_vocab_gaps_deck_size, deck.size, deck.size),
-                selected = deck.id == selected,
-                onClick = { onDeck(deck.id) },
-            )
-        }
-    }
+    val chosen = decks.firstOrNull { it.id == selected } ?: decks.first()
+    FilterDropdown(
+        selected = chosen,
+        options = decks,
+        label = { deck ->
+            deckName(deck) + " · " + pluralStringResource(R.plurals.lab_vocab_gaps_deck_size, deck.size, deck.size)
+        },
+        description = stringResource(R.string.lab_vocab_gaps_deck),
+        onSelect = { onDeck(it.id) },
+        labelled = true,
+        modifier = Modifier.padding(top = 4.dp),
+    )
 }
 
 @Composable

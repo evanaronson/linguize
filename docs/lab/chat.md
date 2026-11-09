@@ -18,8 +18,10 @@ point forces the check, because there is no selection menu to choose it from.
 
 ## How to use it
 
-- **Open the app.** It opens to the current conversation, or starts a new one if the last
-  went quiet more than six hours ago. The partner writes a short opener.
+- **Open the app.** It opens to the current conversation in the app's current language (the
+  latest one, unless it went quiet more than six hours ago), with the list of
+  conversations one Back away. With none, it opens on the list. A new conversation's
+  partner writes a short opener.
 - **Write and tap Send.** Linguize checks the message first, always. With nothing to
   review it goes straight away, marked "Looks good". Otherwise the same card as in other
   apps opens: highlights, reasons, accept one change or Accept all, Meaning, clarifying.
@@ -40,20 +42,27 @@ point forces the check, because there is no selection menu to choose it from.
   system's Copy and other apps' text actions. A long-press on the bubble's edge opens Copy
   message (and Copy translation while it shows). Screen readers get Show translation or
   Show original, Copy message and Copy translation as actions.
-- **Language.** The language button in the bar (ES, CA) switches the conversation. A new
-  conversation starts in the language you last chose or used in the chat; failing that,
-  the only language your selection menu names; then the language you check most in
-  History; then Spanish.
-- **Conversations.** The menu button opens the list: New conversation, and each
-  conversation with its title, language and last message time. Rename or delete from a
-  row's menu. Delete asks first: it deletes the conversation, its saved checks in History
-  and what memory learned from it, for good.
-- **New conversation** opens a small sheet: optionally, who you are talking to (a person
-  memory knows, offered as suggestions, or anyone you describe: "my kid's teacher"), and
-  the language. Left empty, the usual friendly partner starts. With someone, the partner
-  plays them, in their register, and still never corrects you; the title shows who.
-- **The rest of the app.** The bottom bar under the chat has Write (the editor and the other
-  tools), Progress and History; Back from any of them returns to the chat. The gear opens
+- **Language.** The app's language switch in the top bar (a flag and "▾") sets the current
+  language for the whole app ([Language scope](language-scope.md)). The list shows that
+  language's conversations, and new ones start in it. A conversation keeps its language
+  once created: switching while one is open goes back to the list. Opening a conversation
+  in another language (from History) makes that the current language. Before the first
+  switch, the current language is the one you last used in the chat; failing that, the
+  only language your selection menu names; then the language you check most in History;
+  then Spanish.
+- **Conversations.** The Chat tab's top level is the list: each conversation with its
+  title, who the partner plays, the last message and its time, newest first. Tap one to
+  open it; its bar has Back to the list. Rename or delete from a row's menu. Delete asks
+  first: it deletes the conversation, its saved checks in History and what memory learned
+  from it, for good.
+- **New conversation**, the button at the bottom of the list, opens a small sheet:
+  optionally, who you are talking to (a person memory knows, offered as suggestions, or
+  anyone you describe: "my kid's teacher"), and the language (the current one to start
+  with). Left empty, the usual friendly partner starts. With someone, the partner plays
+  them, in their register, and still never corrects you; the title shows who.
+- **The rest of the app.** The bottom bar under the list and a conversation has Write (the
+  editor and the other tools), Progress and History; Back from any of them returns to the
+  chat. The gear opens
   Settings. **Open to chat** (Settings, Chat, on by default) can switch to starting on
   Write. See [Home and navigation](home-ia.md).
 - **History.** Each sent message is one row in History, the same as a message checked
@@ -109,8 +118,13 @@ point forces the check, because there is no selection menu to choose it from.
 - **Memory**: once a conversation has new messages and has been quiet for 20 minutes, or
   the writer leaves it, Chat calls `App.userMemory.learnFrom("chat:<id>", messages)`.
   Deleting a conversation calls `forget("chat:<id>")`.
-- **Start**: `ui/home/ChatStart.kt` makes the chat the navigation root when Open to chat
-  is on; the other tabs open above it.
+- **Start**: `ui/home/ChatStart.kt` makes the chat's list the navigation root when Open to
+  chat is on, with `ChatThread(null)` (the current conversation) above it; the other tabs
+  open above the list. `ChatListScreen` and `ChatThreadScreen` (`ui/chat/ChatScreen.kt`)
+  share one `ChatViewModel`: `showList`, `openCurrent(language)` (`ChatStart.opening` on the
+  latest conversation in that language), `open(id)` and `newConversation`, which returns
+  the new id so the list can open it. There is no drawer, and no way to change a
+  conversation's language (`setLanguage` was removed).
 
 ## Limits
 

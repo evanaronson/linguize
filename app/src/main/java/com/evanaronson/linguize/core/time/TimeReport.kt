@@ -73,8 +73,14 @@ data class TimeReport(
     companion object {
         const val WEEKS = 8
 
-        fun of(records: List<TimeRecord>, now: Long, zone: ZoneId = ZoneId.systemDefault()): TimeReport {
+        /**
+         * The report for [records]. With [language] (Lab, Language scope) it covers only that
+         * language's messages; estimates still use the writer's speed across all of them.
+         */
+        fun of(records: List<TimeRecord>, now: Long, zone: ZoneId = ZoneId.systemDefault(), language: String? = null): TimeReport {
             val estimator = WritingEstimator(records)
+            @Suppress("NAME_SHADOWING")
+            val records = if (language == null) records else records.filter { it.language == language }
             fun totals(of: List<TimeRecord>) = of.fold(TimeTotals()) { sum, record -> sum + record.totals(estimator) }
             val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
             val thisMonday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

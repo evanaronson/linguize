@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +34,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,7 +45,6 @@ import com.evanaronson.linguize.core.conjugations.ConjugationMap
 import com.evanaronson.linguize.core.conjugations.ConjugationReport
 import com.evanaronson.linguize.core.conjugations.MonthPoint
 import com.evanaronson.linguize.core.morphology.Person
-import com.evanaronson.linguize.core.morphology.Tense
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.CardNote
 import com.evanaronson.linguize.ui.components.LinguizeButton
@@ -74,9 +71,10 @@ fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: Stri
     val state by model.state.collectAsState()
     LaunchedEffect(model) { model.refresh() }
     ScreenColumn {
-        LanguageSwitch(state.shown, model::select)
+        // Lab, Language scope: the language is the app's, switched in the top bar.
         val report = state.report
         when {
+            state.shown !in CONJUGATION_LANGUAGES -> CardNote(stringResource(R.string.lab_language_scope_conjugations_unsupported))
             report == null && state.loading -> Loading()
             report == null -> {
                 CardNote(stringResource(R.string.lab_conjugations_failed))
@@ -88,26 +86,6 @@ fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: Stri
         SectionHeader(stringResource(R.string.lab_conjugations_how))
         SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
             Text(stringResource(R.string.lab_conjugations_how_body), style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
-private fun LanguageSwitch(current: String, onSelect: (String) -> Unit) {
-    val label = stringResource(R.string.lab_conjugations_language)
-    Row(
-        Modifier.fillMaxWidth().padding(top = 8.dp).selectableGroup().semantics { contentDescription = label },
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        CONJUGATION_LANGUAGES.forEach { language ->
-            val name = stringResource(if (language == "ca") R.string.lab_conjugations_catalan else R.string.lab_conjugations_spanish)
-            val isSelected = language == current
-            LinguizeButton(
-                text = name,
-                onClick = { onSelect(language) },
-                kind = if (isSelected) ButtonKind.Filled else ButtonKind.Outlined,
-                modifier = Modifier.weight(1f).semantics { selected = isSelected },
-            )
         }
     }
 }

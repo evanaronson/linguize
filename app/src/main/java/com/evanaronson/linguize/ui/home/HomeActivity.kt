@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
@@ -70,6 +72,7 @@ class HomeActivity : ComponentActivity() {
         com.evanaronson.linguize.ui.conjugations.ConjugationsViewModel.factory(App.of(this))
     }
     private var navigation by mutableStateOf(Navigation())
+    private val appLanguage by lazy { com.evanaronson.linguize.ui.language.AppLanguage.of(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,24 +88,38 @@ class HomeActivity : ComponentActivity() {
             AppTheme {
                 val current = navigation.current
                 val openSettings = { navigation = navigation.open(Screen.Settings) }
+                // Lab, Language scope: one current language for Chat, Write, Progress and History.
+                val language by appLanguage.current.collectAsState()
+                LaunchedEffect(Unit) { appLanguage.load() }
+                LaunchedEffect(language) { language?.let(::scopeTo) }
+                val languageSwitch: @Composable () -> Unit = {
+                    com.evanaronson.linguize.ui.language.LanguageSwitch(appLanguage) { code ->
+                        if (code != appLanguage.current.value) {
+                            appLanguage.select(code)
+                            navigation = navigation.afterLanguageSwitch()
+                        }
+                    }
+                }
                 BackHandler(enabled = navigation.parent != null, onBack = ::back)
                 val saved = rememberNavigationStateHolder(navigation)
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        // The chat draws its own bar (conversations, language, Settings).
-                        if (current != Screen.Chat) AppNavigation(
+                        // A conversation draws its own bar (Back to the list, its title, language, Settings).
+                        if (current !is Screen.ChatThread) AppNavigation(
                             title = current.title(),
                             // Tabs are siblings: Back from one returns to the start, but no arrow says so.
                             onBack = if (navigation.parent == null || current.isTab) null else ::back,
                             backLabel = navigation.parent?.let { it.title() ?: stringResource(R.string.lab_home_ia_write) }
                                 ?: stringResource(R.string.app_name),
                             onOpenSettings = if (current.isTab) openSettings else null,
+                            extraActions = if (current.isTab) languageSwitch else null,
                         )
                     },
                     bottomBar = {
                         // Typing (the Write editor, the chat composer) gets the room while the keyboard is up.
-                        if (current.isTab && !imeVisible()) AppTabs(navigation.tab) { navigation = navigation.open(it) }
+                        // The app opens into a conversation, so the other tabs stay one tap away there too.
+                        if ((current.isTab || current is Screen.ChatThread) && !imeVisible()) AppTabs(navigation.tab) { navigation = navigation.open(it) }
                     },
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
@@ -110,15 +127,17 @@ class HomeActivity : ComponentActivity() {
                             when (current) {
                                 Screen.Write -> WriteScreen(
                                     check,
+                                    language = language,
                                     needsKey = settings.state?.hasKey == false,
                                     onOpenSettings = openSettings,
                                 )
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
-                                    practice, patterns, words, conjugations,
+                                    practice, patterns, words, conjugations, language,
                                 ) { view -> navigation = navigation.open(view.screen) }
                                 Screen.History -> HistoryScreen(
                                     history, settings,
                                     historyOn = settings.state?.historyEnabled,
+                                    language = language,
                                     onOpen = ::open,
                                     onOpenSettings = openSettings,
                                 )
@@ -133,7 +152,7 @@ class HomeActivity : ComponentActivity() {
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
                                 is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenAssumptions = {
                                     navigation = navigation.open(Screen.DetailAssumptions(current.id))
-                                }, onOpenConversation = { com.evanaronson.linguize.ui.chat.ChatRequests.conversation = it; navigation = navigation.open(Screen.Chat) })
+                                }, onOpenConversation = { navigation = navigation.open(Screen.Chat).open(Screen.ChatThread(it)) })
                                 is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
                                 Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
@@ -152,14 +171,26 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
                                     words, current.language, current.key, current.level, onOpenCheck = ::open,
                                 )
-                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatScreen(onOpenSettings = openSettings)
+                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatListScreen(language) {
+                                    navigation = navigation.open(Screen.ChatThread(it))
+                                }
+                                is Screen.ChatThread -> com.evanaronson.linguize.ui.chat.ChatThreadScreen(
+                                    current.id, language, languageSwitch, onBack = ::back,
+                                    onResolved = { id ->
+                                        // Only while the app is still on "the current conversation".
+                                        if (navigation.current == Screen.ChatThread(null)) {
+                                            navigation = if (id != null) navigation.replace(Screen.ChatThread(id)) else navigation.back()
+                                        }
+                                    },
+                                    onOpenSettings = openSettings,
+                                )
                                 Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(conjugations) { language, cell ->
                                     navigation = navigation.open(Screen.ConjugationCell(language, cell.token))
                                 }
                                 is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(current.cell)?.let {
                                     com.evanaronson.linguize.ui.conjugations.ConjugationCellScreen(conjugations, current.language, it)
                                 }
-                                Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled)
+                                Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, language)
                             }
                         }
                     }
@@ -184,6 +215,15 @@ class HomeActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putStringArrayList(STACK, ArrayList(navigation.saved))
+    }
+
+    /** Lab, Language scope: every scoped view follows the app's current language. */
+    private fun scopeTo(language: String) {
+        practice.setLanguage(language)
+        patterns.setLanguage(language)
+        words.selectLanguage(language)
+        conjugations.select(language)
+        phrasebook.setLanguage(language)
     }
 
     private fun open(id: String) {
@@ -263,4 +303,5 @@ private fun Screen.title(): String? = when (this) {
         ?.let { com.evanaronson.linguize.ui.conjugations.conjugationCellTitle(language, it) }
         ?: stringResource(R.string.lab_conjugations_title)
     Screen.TimeSpent -> stringResource(R.string.lab_time_spent_title)
+    is Screen.ChatThread -> stringResource(R.string.lab_chat_title)
 }

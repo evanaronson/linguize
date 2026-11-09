@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.history
 import android.content.res.Resources
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.chat.ChatThreadInfo
+import com.evanaronson.linguize.core.language.LanguageScope
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
@@ -75,6 +76,13 @@ internal fun filterChoices(rows: List<RecentRow>, selected: HistoryFilter = Hist
     val chat = HistoryFilter.Chat in sources || selected == HistoryFilter.Chat
     return listOf(HistoryFilter.All) + apps + listOfNotNull(HistoryFilter.Chat.takeIf { chat })
 }
+
+/**
+ * Lab, Language scope: the rows History shows, newest first: those [filter] keeps, written in
+ * [language] (null is All languages). A row whose language wasn't known shows only under All.
+ */
+internal fun historyRows(rows: List<RecentRow>, filter: HistoryFilter, language: String?): List<RecentRow> =
+    rows.filter { filter.keeps(it) && LanguageScope.keeps(it.summary.targetLanguage, language) }
 
 /** An app chip's name: the app's label from any of its rows, else its package name. */
 internal fun appName(rows: List<RecentRow>, filter: HistoryFilter.App): String =

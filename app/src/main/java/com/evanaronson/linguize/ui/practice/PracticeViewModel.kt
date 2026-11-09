@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.core.language.LanguageScope
 import com.evanaronson.linguize.core.practice.AnswerResult
 import com.evanaronson.linguize.core.practice.Answers
 import com.evanaronson.linguize.core.practice.Deck
@@ -32,12 +33,17 @@ data class PracticeState(
     val now: Long = 0,
     val today: Long = 0,
     val run: PracticeRun? = null,
+    /** Lab, Language scope: the app's current language; only its items are due. Null is every language. */
+    val language: String? = null,
 ) {
-    /** Items due now, for "Practice, 4 due" on Home. */
-    val due: Int get() = items?.let { Deck.due(it, progress, now, today).size } ?: 0
+    /** The items in [language]; an item whose language isn't known is only in an unscoped deck. */
+    val scoped: List<PracticeItem>? get() = items?.filter { LanguageScope.keeps(it.language, language) }
+
+    /** Items due now, for "Practice, 4 due" on Progress. */
+    val due: Int get() = scoped?.let { Deck.due(it, progress, now, today).size } ?: 0
 
     /** When the next review falls due, for the end of a run. */
-    val nextDue: Long? get() = items?.let { Deck.nextDue(it, progress) }
+    val nextDue: Long? get() = scoped?.let { Deck.nextDue(it, progress) }
 
     /** Whether the current picking item shows the corrected sentence first. */
     fun correctFirst(item: PracticeItem): Boolean = Deck.correctFirst(item, progress)
@@ -84,7 +90,7 @@ class PracticeViewModel internal constructor(
     fun start() {
         tick()
         mutable.update { state ->
-            val items = state.items ?: return@update state
+            val items = state.scoped ?: return@update state
             val queue = Deck.session(items, state.progress, state.now, state.today)
             state.copy(run = PracticeRun(queue).takeIf { queue.isNotEmpty() } ?: state.run)
         }
@@ -121,6 +127,11 @@ class PracticeViewModel internal constructor(
         val now = state.value.now
         val today = state.value.today
         viewModelScope.launch { store.update { Deck.record(it, id, grade, now, today) } }
+    }
+
+    /** Lab, Language scope: practice only [language]'s items. An open run keeps going. */
+    fun setLanguage(language: String?) {
+        mutable.update { it.copy(language = language) }
     }
 
     fun next() {

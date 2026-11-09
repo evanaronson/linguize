@@ -52,13 +52,16 @@ class PatternsViewModel internal constructor(
     val state: StateFlow<PatternsState> = _state.asStateFlow()
 
     private val asked = MutableStateFlow(0)
+
+    /** Lab, Language scope: the language the report is for; null is every language. */
+    private val language = MutableStateFlow<String?>(null)
     private var explainJob: Job? = null
 
     init {
         viewModelScope.launch {
-            combine(revisions, asked) { revision, ask -> revision to ask }
+            combine(revisions, asked, language) { revision, ask, language -> Triple(revision, ask, language) }
                 .debounce(REBUILD_DELAY_MS)
-                .collectLatest { rebuild() }
+                .collectLatest { (_, _, language) -> rebuild(language) }
         }
     }
 
@@ -67,9 +70,17 @@ class PatternsViewModel internal constructor(
         asked.update { it + 1 }
     }
 
-    private suspend fun rebuild() {
+    /** Lab, Language scope: groups only [language]'s fixes. */
+    fun setLanguage(language: String?) {
+        if (this.language.value == language) return
+        // The old language's groups mustn't show under the new one while it's read.
+        _state.update { it.copy(snapshot = null, loading = true) }
+        this.language.value = language
+    }
+
+    private suspend fun rebuild(language: String?) {
         _state.update { it.copy(loading = it.snapshot == null, failed = false) }
-        val snapshot = lab.load()
+        val snapshot = lab.load(language)
         val canExplain = lab.canExplain()
         val provider = runCatching { lab.provider() }.getOrNull()
         _state.update {
@@ -90,7 +101,7 @@ class PatternsViewModel internal constructor(
         _state.update { it.copy(explaining = true, explainFailure = null) }
         explainJob = viewModelScope.launch {
             try {
-                val snapshot = lab.explain(report)
+                val snapshot = lab.explain(report, language.value)
                 _state.update { it.copy(snapshot = snapshot) }
             } catch (e: CheckFailure) {
                 _state.update { it.copy(explainFailure = ExplainFailure(e.reason, e.userMessage)) }

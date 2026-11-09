@@ -23,7 +23,8 @@ it reads the shared [writer corpus](corpus.md).
 ## How to use it
 
 Progress → **Words** (under Your writing): "312 words you've written in Catalan" for the
-language on the switch. It opens on that language.
+app's current language, which the page shows. Switch it in the top bar
+([Language scope](language-scope.md)).
 
 - **Header.** For the chosen deck, a coverage sentence ("You've used 62% of the 500 most
   common words") and bars for the top 100, 500, 1,000, 2,000 and 5,000 (each only when the
@@ -31,12 +32,13 @@ language on the switch. It opens on that language.
   writer's totals: words, plus lexemes and lemmas when morphology is known, words written,
   this month, and "N new words this month".
 - **Deck.** Spanish and Catalan lists are bundled. Imported decks appear beside them, and a
-  choice shows when there is more than one.
+  dropdown ("Deck: … ▾") shows when there is more than one.
 - **Words over time.** One chart with two lines on one axis: all the writer's distinct
   words at the level shown, and how many of the deck's top 1,000 (or the whole deck, if
   smaller) they had used by then. The second line is a subset of the first.
-- **Count by.** When the lemmatizer knows morphology, a "Word forms / Lexemes / Lemmas"
-  switch:
+- **Show, Sort, Count by.** Three dropdowns above the list ("Show: Used (40) ▾", "Sort:
+  Most used ▾"); filters are dropdowns, never buttons. When the lemmatizer knows
+  morphology, "Count by" chooses Word forms, Lexemes or Lemmas:
   - *Lexemes* (the default): a lemma with its part of speech, so "la" the article and
     "la" the pronoun stay apart. Deck rows are lexemes too.
   - *Lemmas*: every lexeme with the same dictionary form. The deck is viewed by lemma.
@@ -69,7 +71,7 @@ candidate lexeme, with its full counts, and is marked ambiguous ("ambiguous: la"
 row and on the lexeme's page). At the lemma level it counts once toward each candidate
 lemma. A form that reaches several deck rows counts toward each ("fue" toward ser and ir).
 So lexeme, lemma and deck totals can add up to more than the words written. The page says
-so under the switch, and "How it's counted" repeats it. Words written and word-form counts
+so under the list's controls, and "How it's counted" repeats it. Words written and word-form counts
 are never inflated. In the CSV an ambiguous form has one row per candidate lexeme, each with
 the form's counts.
 

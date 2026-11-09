@@ -65,10 +65,10 @@ private fun timeSpent(): TimeSpentViewModel? {
 
 /** Progress › Time: this week's total, with a small chart of the last weeks. Called with one line. */
 @Composable
-fun TimeSpentSection(onOpen: () -> Unit) {
+fun TimeSpentSection(language: String? = null, onOpen: () -> Unit) {
     val model = timeSpent() ?: return
     val state by model.state.collectAsState()
-    LaunchedEffect(model) { model.refresh() }
+    LaunchedEffect(model, language) { model.refresh(language) }
     val report = state.report
     SectionHeader(stringResource(R.string.lab_time_spent_section))
     ListCard({
@@ -91,10 +91,10 @@ fun TimeSpentSection(onOpen: () -> Unit) {
 
 /** The Time page: totals, the writing and reviewing split, averages, languages, weeks, and how it's counted. */
 @Composable
-fun TimeSpentScreen(historyOn: Boolean?) {
+fun TimeSpentScreen(historyOn: Boolean?, language: String? = null) {
     val model = timeSpent() ?: return
     val state by model.state.collectAsState()
-    LaunchedEffect(model) { model.refresh() }
+    LaunchedEffect(model, language) { model.refresh(language) }
     val report = state.report
     ScreenColumn {
         if (historyOn == false) {

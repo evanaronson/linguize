@@ -17,8 +17,13 @@ what a person comes to do. It doesn't add features.
    the text in front of them, so they stay.
 4. **Stats are one place.** Patterns, Practice, Words and Your conjugations all read the
    same History. They're one area, Progress, with Practice as
-   the thing to do and the rest as views, and one language switch for the views that
-   depend on language.
+   the thing to do and the rest as views.
+7. **The language is context, not a filter.** The writer's current language is set once,
+   in the top bar, and Chat, Write, Progress and History all follow it (see
+   [Language scope](language-scope.md)). No page has a language switch of its own.
+8. **Filters are not buttons.** Anything that chooses what a page shows is a quiet
+   dropdown ("Sort: Newest ▾"); buttons are only for actions (see
+   [Copy style](../copy-style.md)).
 5. **Nothing becomes unreachable.** Every experiment still has a path. Rarely used tools
    are a tap lower, not gone.
 6. **Back is predictable.** The start destination is the root. Every other tab sits right
@@ -38,22 +43,29 @@ what a person comes to do. It doesn't add features.
 
 ## Structure
 
-**Bottom bar: Chat, Write, Progress, History.** Shown on these four pages, hidden on the
-pages they open and while the keyboard is up. The app starts on Chat, or on Write when
-**Open to chat** is off (Settings, Chat).
+**Top bar.** The page title, the app's **language switch** (the current language's flag and
+"▾") and the Settings gear, on the four tabs and in a conversation.
 
-- **Chat**: the conversation, with its own bar (conversations, language, Settings).
+**Bottom bar: Chat, Write, Progress, History.** Shown on these four pages and in a
+conversation (the app opens there), hidden on the other pages they open and while the
+keyboard is up. The app starts on Chat, or on Write when **Open to chat** is off
+(Settings, Chat).
+
+- **Chat**: the list of conversations in the current language (title, who the partner
+  plays, last message, time), with **New conversation** at the bottom. A conversation opens
+  above the list with Back to it, its title and the same language switch. The app opens
+  straight into the current conversation, the list one Back away.
 - **Write**: the add-key strip until there is a key; **Write and check**: one editor
   that keeps drafts, checked with the same card as everywhere, with Copy, Share and New
   draft (see [Write](write.md)); **Drafts** when there are others.
-- **Progress**: **Practice** (always shown here: "4 due" or "Nothing due"); **Your
-  writing**, with a Catalan/Spanish switch: Words ("312 words you've written in Catalan":
-  the words you've used and the common ones you haven't, in one list), Your conjugations
-  ("12 of 40 forms used"). Opening one opens
-  it on that language. **Fixes and phrases**, across languages: Your patterns (top groups
-  and a sparkline once there's enough), Phrasebook (count). **Time**: Time spent (this
-  week's total and a sparkline; see [Time spent](time-spent.md)).
-- **History**: the list, with only a source filter above it (see [One list of messages](history-flat.md)).
+- **Progress**, all in the current language: **Practice** (always shown here: "4 due" or
+  "Nothing due"); **Your writing**: Words ("312 words you've written in Catalan": the words
+  you've used and the common ones you haven't, in one list), Your conjugations ("12 of 40
+  forms used"). **Fixes and phrases**: Your patterns (top groups and a sparkline once
+  there's enough), Phrasebook (count). **Time**: Time spent (this week's total and a
+  sparkline; see [Time spent](time-spent.md)).
+- **History**: the list, with a language dropdown (the current language, or All languages)
+  and a source dropdown above it (see [One list of messages](history-flat.md)).
 - **Settings** (gear): AI service and Second opinion; Checking (What to suggest); Writing
   preferences and Per-app voice; About you (What Linguize knows); **In other apps**:
   Selection menu, Accessibility button, Popup position; Chat (Open to chat); History.
@@ -63,6 +75,11 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 | Entry | Before | After | Why |
 |---|---|---|---|
 | Chat | App start; Home row; History threads | App start (default); bottom bar; Open conversation on a chat message's saved check | A tab, so the Home row and the chat bar's house button are redundant |
+| Conversation list | A drawer behind the chat bar's menu icon | The Chat tab's top level; a conversation opens above it with Back to the list; the drawer and its icon are gone | The list sat in the top nav and didn't read as part of the chat; a messaging app's list is its home |
+| New conversation | The drawer's first row | The list's main button, at the bottom; the sheet starts in the current language | The primary action of the list |
+| Language | Progress's Catalan/Spanish switch (Words and conjugations only); the chat bar's ES/CA button; Words' language chips; Your conjugations' switch | One switch in the top bar of every tab and conversation; Progress, Chat, Write and History follow it | The top of Progress followed the switch and the bottom didn't; the language is context for the whole app |
+| A conversation's language | Changeable from its bar | Fixed once created; switching the app's language goes back to the list | A conversation is in one language |
+| Filters (History source, Words' Show, Sort and Count by, deck choice, the new-conversation language) | Chips, outlined or filled buttons, radio rows | One quiet dropdown ("Sort: Newest ▾") | Filters must not look like actions |
 | Try it | Home, top | Write, top, as the Write editor (see [Write](write.md)) | The core "check this" job; merged with the Writing pad |
 | Add an API key strip | Home | Write (the chat has its own) | Where the first check happens |
 | Writing pad | Home, own section | Removed; its drafts open in the Write editor | Same job as Try it, with a second check experience ([Write](write.md)) |
@@ -93,7 +110,17 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
 start destination; opening a tab replaces everything above the start with that tab
 (`[Chat]`, `[Chat, Progress]`), and any other screen opens above the current one
 (`[Chat, Progress, Patterns, Pattern, Saved check]`). `Navigation.tab` is the bottom bar's
-selection. Saved state is the same list of tokens as before. Write keeps the token `home`,
+selection. Saved state is the same list of tokens as before.
+
+`Screen.Chat` is the list of conversations; `Screen.ChatThread(id)` is one conversation
+above it (`lab_chat_thread:<id>`). The app starts at `[Chat, ChatThread(null)]`: null is
+"the current conversation", resolved when shown (`Navigation.replace` swaps in its id, or
+Back returns to the list when there is none, so nothing starts on its own). Another
+conversation replaces the open one; the Chat tab from a conversation returns to the list;
+History's Open conversation is `open(Chat).open(ChatThread(id))`. A language switch with a
+conversation open is `afterLanguageSwitch()`: Back to the list. The Write shortcut and a
+popup's Open settings don't open a conversation. A saved `[lab_chat]` restores as the
+list. Write keeps the token `home`,
 so a saved path from before restores. An old `[lab_chat, home, history]` restores as
 `[lab_chat, history]`. The tokens of removed pages above Write (`lab_gap_filler`, `lab_reply`, `photo`)
 restore as Write. `HomeActivity.writeIntent` asks for Write. The Write shortcut uses
@@ -103,8 +130,8 @@ it.
 
 - Feature internals, view models, prompts, History data, the check card and its rows.
 - The selection-menu, accessibility and popup flows, and the share, tile and clipboard hosts.
-- Each feature page, its title and its own language switch. Progress only sets the
-  language before opening one.
+- Each feature page and its title. (Their own language switches are gone: see
+  [Language scope](language-scope.md).)
 - What Linguize knows stays in Settings. It's something you edit, not a view of progress.
 - There's no in-app page for the Quick tile. Android adds tiles from Quick Settings, and
   the tile's page explains that.
@@ -114,6 +141,5 @@ it.
 
 - Switching tabs doesn't keep each tab's inner path. Coming back to Progress opens its top,
   not the pattern you were reading.
-- Practice and Your patterns cover every language. They don't follow the switch.
 - Progress counts conjugations when it opens (on the phone, no model). That's the one
   view that reads the corpus there.

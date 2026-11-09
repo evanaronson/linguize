@@ -2,13 +2,11 @@ package com.evanaronson.linguize.ui.chat
 
 import android.text.format.DateFormat
 import android.text.format.DateUtils
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -26,12 +27,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
@@ -62,48 +61,48 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
-import com.evanaronson.linguize.ui.text.displayName
+import com.evanaronson.linguize.ui.components.FilterDropdown
+import com.evanaronson.linguize.ui.language.LanguageFlag
+import com.evanaronson.linguize.ui.language.LanguageOption
+import com.evanaronson.linguize.ui.language.scopeLanguageName
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.util.Date
 
-/** The chat's bar: conversations, the title, the language and Settings. The app's bottom bar holds the other places. */
+/**
+ * A conversation's bar: Back to the list of conversations, the title (and who the partner
+ * plays), the app's language switch and Settings. There is no drawer: the list is the Chat
+ * tab's own top level, one Back away.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChatTopBar(
     title: String,
     /** Who the writer is talking to, when the conversation has someone; shown under the title. */
     persona: String?,
-    language: String?,
-    onOpenConversations: () -> Unit,
-    onSelectLanguage: (String) -> Unit,
+    onBack: () -> Unit,
+    languageSwitch: @Composable () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     TopAppBar(
         title = {
-            if (title.isEmpty()) {
-                Image(
-                    painterResource(R.drawable.wordmark),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.height(26.dp).semantics { heading() },
-                )
-            } else {
-                Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
-                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge)
-                    persona?.takeIf { it != title }?.let {
-                        Text(stringResource(R.string.lab_chat_talking_to, it), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+            Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
+                Text(title.ifEmpty { stringResource(R.string.lab_chat_untitled) }, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleLarge)
+                persona?.takeIf { it != title }?.let {
+                    Text(stringResource(R.string.lab_chat_talking_to, it), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },
         navigationIcon = {
-            IconButton(onClick = onOpenConversations) {
-                Icon(painterResource(R.drawable.lab_chat_ic_menu), contentDescription = stringResource(R.string.lab_chat_open_conversations))
+            IconButton(onClick = onBack) {
+                Icon(painterResource(R.drawable.ic_back),
+                    contentDescription = stringResource(R.string.back_to, stringResource(R.string.lab_chat_conversations)))
             }
         },
         actions = {
-            language?.let { LanguageButton(it, onSelectLanguage) }
+            languageSwitch()
             IconButton(onClick = onOpenSettings) {
                 Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
             }
@@ -115,50 +114,18 @@ internal fun ChatTopBar(
     )
 }
 
-/** "ES ▾": the conversation's language, and a menu of the others. */
+/**
+ * The Chat tab's top level: the conversations in the current language, newest first, each
+ * with its title, last message and time; Rename and Delete from a row's menu; and New
+ * conversation, the main action, at the bottom.
+ */
 @Composable
-private fun LanguageButton(code: String, onSelect: (String) -> Unit) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    val name = languageDisplayName(code)
-    val description = stringResource(R.string.lab_chat_language, name)
-    Box {
-        Row(
-            Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .clickable { open = true }
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 10.dp)
-                .semantics(mergeDescendants = true) { contentDescription = description },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(code.uppercase(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.clearAndSetSemantics {})
-            Spacer(Modifier.width(4.dp))
-            Text(if (open) "▴" else "▾", Modifier.clearAndSetSemantics {})
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Language.all.forEach { language ->
-                DropdownMenuItem(
-                    text = { Text(language.displayName()) },
-                    onClick = { open = false; onSelect(language.code) },
-                    modifier = Modifier.semantics { selected = language.code == code },
-                    trailingIcon = if (language.code == code) {
-                        { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
-                    } else null,
-                )
-            }
-        }
-    }
-}
-
-/** The list of conversations, newest first, with New, Rename and Delete. */
-@Composable
-internal fun ConversationDrawer(
+internal fun ConversationList(
     conversations: List<ConversationSummary>,
-    currentId: String?,
+    /** The app's current language, which the list shows and the sheet starts with. */
+    language: String?,
     /** People memory knows the writer writes to, suggested in the new-conversation sheet. */
     people: List<String>,
-    /** The open conversation's language, which the sheet starts with. */
-    language: String?,
     onLoadPeople: () -> Unit,
     /** A new conversation: who the writer is talking to (null for the usual partner), and its language. */
     onNew: (persona: String?, language: String?) -> Unit,
@@ -169,31 +136,33 @@ internal fun ConversationDrawer(
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     var starting by rememberSaveable { mutableStateOf(false) }
-    ModalDrawerSheet(drawerContainerColor = Linguize.colors.ground) {
-        Text(
-            stringResource(R.string.lab_chat_conversations),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp).semantics { heading() },
-        )
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = { onLoadPeople(); starting = true })
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(painterResource(R.drawable.lab_chat_ic_add), contentDescription = null)
-            Spacer(Modifier.width(16.dp))
-            Text(stringResource(R.string.lab_chat_new), style = MaterialTheme.typography.bodyLarge)
-        }
-        HorizontalDivider(color = Linguize.colors.rowDivider)
-        LazyColumn {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)) {
+            if (conversations.isEmpty()) item(key = "empty") {
+                val name = language?.let { scopeLanguageName(it) }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp)) {
+                    Text(
+                        if (name != null) stringResource(R.string.lab_language_scope_chat_empty, name) else stringResource(R.string.lab_chat_conversations),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.lab_language_scope_chat_empty_hint), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             items(conversations, key = { it.conversation.id }) { summary ->
-                ConversationRow(summary, summary.conversation.id == currentId, { onOpen(summary.conversation.id) },
+                ConversationRow(summary, { onOpen(summary.conversation.id) },
                     onRename = { renaming = summary.conversation.id }, onDelete = { deleting = summary.conversation.id })
             }
         }
+        ExtendedFloatingActionButton(
+            onClick = { onLoadPeople(); starting = true },
+            icon = { Icon(painterResource(R.drawable.lab_chat_ic_add), contentDescription = null) },
+            text = { Text(stringResource(R.string.lab_chat_new)) },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        )
     }
     renaming?.let { id ->
         val current = conversations.firstOrNull { it.conversation.id == id }?.conversation?.title.orEmpty()
@@ -231,7 +200,7 @@ private fun NewConversationSheet(
     onStart: (NewConversation) -> Unit,
 ) {
     var who by rememberSaveable { mutableStateOf("") }
-    var code by rememberSaveable { mutableStateOf(language) }
+    var code by rememberSaveable { mutableStateOf(language?.takeIf { Language.forCode(it) != null }) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Linguize.colors.ground) {
         Column(
             Modifier
@@ -258,15 +227,19 @@ private fun NewConversationSheet(
             Text(stringResource(R.string.lab_chat_who_note), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.lab_chat_language_label), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Language.all.forEach { option ->
-                    val selected = code == option.code
-                    LinguizeButton(option.displayName(), { code = option.code },
-                        if (selected) ButtonKind.Filled else ButtonKind.Outlined,
-                        modifier = Modifier.semantics { this.selected = selected })
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.lab_chat_language_label), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                val codes = Language.all.map { it.code }
+                FilterDropdown(
+                    selected = code?.takeIf { it in codes } ?: codes.first(),
+                    options = codes,
+                    label = { scopeLanguageName(it) },
+                    description = stringResource(R.string.lab_chat_language_label),
+                    onSelect = { code = it },
+                    leading = { LanguageFlag(LanguageOption(it)) },
+                )
             }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
@@ -282,7 +255,6 @@ private const val MAX_PEOPLE = 8
 @Composable
 private fun ConversationRow(
     summary: ConversationSummary,
-    current: Boolean,
     onOpen: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
@@ -298,19 +270,24 @@ private fun ConversationRow(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(16.dp))
-            .then(if (current) Modifier.semantics { selected = true } else Modifier)
             .clickable(onClick = onOpen)
-            .heightIn(min = 64.dp)
+            .heightIn(min = 72.dp)
             .padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = row }) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = if (current) Linguize.colors.proof else MaterialTheme.colorScheme.onSurface)
-            Text(stringResource(R.string.lab_chat_row_detail, language, time), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        Column(Modifier.weight(1f).padding(vertical = 8.dp).semantics(mergeDescendants = true) { contentDescription = row }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+                Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+                Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+            conversation.persona?.takeIf { it != title }?.let {
+                Text(stringResource(R.string.lab_chat_talking_to, it), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             summary.lastText?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }

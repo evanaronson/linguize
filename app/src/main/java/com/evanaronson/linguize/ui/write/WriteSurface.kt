@@ -52,8 +52,6 @@ import com.evanaronson.linguize.ui.languagebridge.BridgeTryItButton
 import com.evanaronson.linguize.ui.languagebridge.hostBridgeActions
 import com.evanaronson.linguize.ui.languagebridge.rememberBridgeViewModel
 import com.evanaronson.linguize.ui.openExternal
-import com.evanaronson.linguize.ui.replycontext.TryItReplyContext
-import com.evanaronson.linguize.ui.tonecheck.TryItLands
 
 @Composable
 internal fun rememberWriteViewModel(): WriteViewModel =
@@ -100,7 +98,6 @@ internal fun WriteEditor(
         }
     }
 
-    TryItReplyContext(check, Modifier.padding(bottom = 12.dp))
     LinguizeTextField(
         value = write.text,
         onValueChange = { bridge.close(); replace(it) },
@@ -124,7 +121,6 @@ internal fun WriteEditor(
         LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
         BridgeTryItButton(bridge, write.text.trim(), language)
     }
-    TryItLands(write.text, onUse = ::replace, onOpenSettings)
 
     val bridgeActions = hostBridgeActions(bridge, onReplace = ::replace,
         onCheck = { text, picked -> replace(text); write.selectLanguage(picked?.code); run(picked) }, onOpenSettings)
@@ -133,7 +129,7 @@ internal fun WriteEditor(
             ResultCard(
                 state = state,
                 actions = CardActions.of(
-                    check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings, replyContext = false,
+                    check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
                 ),
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 scrollable = false,

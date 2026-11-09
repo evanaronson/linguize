@@ -155,6 +155,8 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpen
         }
     }
 
+    com.evanaronson.linguize.ui.tonecheck.SavedLandingSection(reviewed?.landing)
+
     SectionHeader(stringResource(R.string.history_after))
     SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
 

@@ -116,28 +116,10 @@ class CheckViewModel(
         private set
 
     /**
-     * Lab: the message this text replies to, or null. It stays across checks on this card
-     * (and in Try it) until removed; it is never recorded, only sent with each check.
+     * Lab: the message this text replies to (in the chat, the partner's last message), or null.
+     * Set by [check] and kept for this card's checks; never shown or recorded, only sent.
      */
-    var replyingTo by mutableStateOf<String?>(null)
-        private set
-
-    /**
-     * Lab: attaches [message] as what the text replies to (null removes it) and, with a card
-     * open, checks again in that context, keeping accepted changes that still apply.
-     * Returns false when [message] is blank or too long to attach.
-     */
-    fun replyTo(message: String?): Boolean {
-        val normalized = ReplyPrompt.normalize(message)
-        if (message != null && normalized == null) return false
-        if (normalized == replyingTo) return true
-        replyingTo = normalized
-        if (state != null) {
-            hasReviewed = true
-            run(Run.Again)
-        }
-        return true
-    }
+    private var replyingTo: String? = null
 
     /** Lab: the same check asked of a second model and compared; never recorded in history. */
     val secondOpinion = SecondOpinionController(viewModelScope, checker, secondOpinionPlan) {
@@ -149,26 +131,15 @@ class CheckViewModel(
 
     /** The text with accepted changes, or null when nothing has been accepted. */
     val workingText: String?
-        get() = chosenVersion ?: revision?.takeIf { it.acceptedCount > 0 }?.workingText
-
-    /** Lab, How it lands: a whole version the writer chose, tied to the card state it was chosen on. */
-    private var chosen by mutableStateOf<Pair<CardState, String>?>(null)
-
-    /** The chosen version while the card is unchanged; accepting, undoing or checking again drops it. */
-    val chosenVersion: String? get() = chosen?.takeIf { it.first === state }?.second
-
-    /** Uses [version] as the text to put back, or null to go back to the accepted changes. */
-    fun useVersion(version: String?) {
-        val current = state ?: return
-        chosen = version?.trim()?.takeIf { it.isNotEmpty() }?.let { current to it }
-        if (chosen != null) hasReviewed = true
-    }
+        get() = revision?.takeIf { it.acceptedCount > 0 }?.workingText
 
     /**
      * Checks [text] as [language], or detects the language when it's null, starting afresh.
      * [origin] and [hostApp] (the app the text came from, when known) go into history.
+     * Lab: [replyingTo] is the message the text answers (the chat passes the partner's last
+     * message); it is context for the model only, never shown on the card or recorded.
      */
-    fun check(text: String, language: Language?, origin: Origin, hostApp: String? = null) {
+    fun check(text: String, language: Language?, origin: Origin, hostApp: String? = null, replyingTo: String? = null) {
         // A new check replaces the card; whatever it had accepted was never applied.
         history.close(finalText = null)
         hasReviewed = false
@@ -176,6 +147,7 @@ class CheckViewModel(
         this.language = language
         this.origin = origin
         this.hostApp = hostApp
+        this.replyingTo = ReplyPrompt.normalize(replyingTo)
         settled = emptyList()
         run(Run.Fresh)
     }

@@ -55,8 +55,6 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
-import com.evanaronson.linguize.ui.replycontext.ReplyContextFooter
-import com.evanaronson.linguize.ui.replycontext.ReplyContextHeader
 import com.evanaronson.linguize.ui.secondopinion.WithSecondOpinion
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
@@ -91,10 +89,6 @@ fun ResultCard(
     if (LocalOnBackPressedDispatcherOwner.current != null) {
         BackHandler(enabled = showingUnderstanding) { showingUnderstanding = false }
     }
-    // Lab: How it lands is a page of its own for the accepted text.
-    var showingLands by rememberSaveable(reviewed, settled) { mutableStateOf(false) }
-    if (com.evanaronson.linguize.ui.tonecheck.showLandsPage(actions.howItLands, reviewed?.revision?.workingText,
-            showingLands, { showingLands = it }, modifier, scrollable)) return
     ResultSurface(
         modifier,
         scrollable,
@@ -104,7 +98,7 @@ fun ResultCard(
                 if (reviewed != null && !showingUnderstanding) {
                     UnderstandingEntry(onOpen = { showingUnderstanding = true })
                     bridgeEntry?.invoke()
-                    actions.howItLands?.let { com.evanaronson.linguize.ui.tonecheck.LandsEntry(it) { showingLands = true } }
+                    reviewed.landing?.let { com.evanaronson.linguize.ui.tonecheck.LandingFooter(it) }
                 }
                 onUnderstandCopiedText?.let { open ->
                     FooterRow(
@@ -116,7 +110,6 @@ fun ResultCard(
             }
         } else null,
     ) {
-        ReplyContextHeader(actions.replyContext)
         when (state) {
             is CardState.Loading -> {
                 if (state.retainedRevision?.canUndo == true) {
@@ -165,7 +158,6 @@ fun ResultCard(
                 }
             }
         }
-        ReplyContextFooter(actions.replyContext, state, hidden = showingUnderstanding)
     }
 }
 

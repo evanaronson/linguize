@@ -14,10 +14,12 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
+import com.evanaronson.linguize.llm.lab.CheckComposition
 import com.evanaronson.linguize.llm.lab.ComposedPromptClient
 import com.evanaronson.linguize.llm.lab.GapsInCheck
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
 import com.evanaronson.linguize.llm.lab.ReplyingClient
+import com.evanaronson.linguize.llm.lab.ToneInCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,9 +41,14 @@ class Checker(
     private val replyPrompt: () -> ReplyPrompt = { error("No reply prompt") },
     /** Lab: the gap rules added to every check, read on first use; null sends the shipped prompt alone. */
     private val gapsInCheck: (() -> GapsInCheck)? = null,
+    /** Lab: the tone rules and `landing` schema added to every check, read on first use; null leaves them out. */
+    private val toneInCheck: (() -> ToneInCheck)? = null,
 ) {
-    /** The instructions a check sends: the shipped prompt, plus the gap rules when given. */
-    private val checkPrompt: Prompt by lazy { gapsInCheck?.let { it().prompt(prompt) } ?: prompt }
+    private val gaps: GapsInCheck? by lazy { gapsInCheck?.invoke() }
+    private val tone: ToneInCheck? by lazy { toneInCheck?.invoke() }
+
+    /** The instructions and schema a check sends: the shipped prompt, plus the Lab rules when given ([CheckComposition]). */
+    private val checkPrompt: Prompt by lazy { CheckComposition.prompt(prompt, gaps, tone) }
 
     /** The settings a check started now would run with ([replyingTo]: Lab, the message the text answers). */
     suspend fun context(replyingTo: String? = null): CheckContext = failingAsCheckFailure { readContext(replyingTo) }
@@ -65,9 +72,10 @@ class Checker(
             val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native,
                 writingProfiles = used.writingProfiles)
             val provider = clients.getValue(used.provider)
+            // The answer is read with the shipped contract: Lab fields such as `landing` are never required.
             val client = when {
-                replyingTo != null -> ReplyingClient(provider, replyPrompt(), checkPrompt, replyingTo)
-                gapsInCheck != null -> ComposedPromptClient(provider, checkPrompt)
+                replyingTo != null -> ReplyingClient(provider, replyPrompt(), checkPrompt, replyingTo, reader = prompt)
+                checkPrompt !== prompt -> ComposedPromptClient(provider, checkPrompt, reader = prompt)
                 else -> provider
             }
             val key = key(used.provider)
@@ -92,7 +100,7 @@ class Checker(
     private fun checked(text: String, language: Language?, answer: ModelAnswer, context: CheckContext): Checked {
         val result = try {
             prompt.validateSize(answer.verdict)
-            interpret(text, answer.verdict, context.judgments, expectedLanguage = language?.name)
+            interpret(text, answer.verdict, context.judgments, expectedLanguage = language?.name).withLanding(answer.raw, text)
         } catch (e: CheckFailure) {
             throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = answer.raw, userMessage = e.userMessage)
         } catch (e: CancellationException) {
@@ -110,6 +118,7 @@ class Checker(
     suspend fun reuse(text: String, language: Language?, raw: String, context: CheckContext): Checked = failingAsCheckFailure {
         try {
             val result = interpret(text, prompt.parseVerdict(raw), context.judgments, expectedLanguage = language?.name)
+                .withLanding(raw, text)
             Checked(result, raw, context)
         } catch (e: CheckFailure) {
             throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw, userMessage = e.userMessage)
@@ -140,11 +149,14 @@ class Checker(
             punctuation = settings.punctuation,
             judgments = settings.judgments,
             native = settings.nativeLanguage,
-            promptHash = (replyingTo?.let { replyPrompt().hash(prompt, it) } ?: prompt.hash)
-                .let { hash -> gapsInCheck?.let { it().hash(hash) } ?: hash },
+            promptHash = CheckComposition.hash(prompt, gaps, tone, replyHash = replyingTo?.let { replyPrompt().hash(prompt, it) }),
             writingProfiles = settings.writingProfiles.distinctBy { it.language }.sortedBy { it.language }.toList(),
         )
     }
+
+    /** Lab, How it lands: the answer's optional `landing`, whatever asked for it (a kept answer may have one). */
+    private fun CheckResult.withLanding(raw: String, text: String): CheckResult =
+        if (this is CheckResult.Reviewed) copy(landing = ToneInCheck.landing(raw, text)) else this
 
     private fun key(provider: Provider): String {
         val key = keys.get(provider)?.takeUnless { it.isBlank() } ?: throw CheckFailure(CheckFailure.Reason.NoKey)

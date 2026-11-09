@@ -23,12 +23,13 @@ when grammar needs the word next to it, that word is part of the same change
 ## How it works
 
 - `assets/lab_gaps_in_check.md` holds the rules. `llm/lab/GapsInCheck` adds it after the
-  shipped `check_prompt.md` at request time, like [Replying to](reply-context.md) adds its
-  rules. The shipped prompt and schema are unchanged, and so is the user message: the answer
+  shipped `check_prompt.md` at request time, before the [How it lands](tone-check.md) rules
+  and, in the chat, the [reply](reply-context.md) rules (`llm/lab/CheckComposition` fixes the
+  order). The shipped prompt and schema are unchanged, and so is the user message: the answer
   is read by the shipped parser and placed by the edit engine.
 - `Checker` sends the composed prompt on every check (`ComposedPromptClient`, or
-  `ReplyingClient` on top of it when a message is attached). The context's `promptHash` is
-  `<shipped hash>-g<hash of the rules>` (after any reply suffix), so History never reuses an
+  `ReplyingClient` on top of it in the chat). The context's `promptHash` is
+  `<shipped hash>-g<hash of the rules>` (after any reply suffix, before the tone suffix), so History never reuses an
   answer from a check without them. Without the rules (tests, `testModel`) the shipped
   request goes out exactly as before.
 - In a check asked only for rewordings, fixes aren't shown, so the rules ask for fills as

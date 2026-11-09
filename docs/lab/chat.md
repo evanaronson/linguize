@@ -25,7 +25,10 @@ point forces the check, because there is no selection menu to choose it from.
   apps opens: highlights, reasons, accept one change or Accept all, Meaning, clarifying.
   Its last button says **Send** where other apps say **Replace**, and sends the text with
   whatever you accepted, exactly as Replace puts text back in another app. Accepting is up
-  to you: with nothing accepted, **Send as written** under the card sends what you typed. **Keep editing** goes back to the draft. When the
+  to you: with nothing accepted, **Send as written** under the card sends what you typed.
+  The check reads your message as a reply to the partner's last message, so it can catch a
+  *tú* answer to an *usted* question or a pronoun that doesn't match ([Replying to](reply-context.md));
+  the card also says [how it lands](tone-check.md). **Keep editing** goes back to the draft. When the
   check fails (no key, no connection) or can't read the message (unclear, another
   language), the card shows why, with Retry or clarifying; there is no way to send without
   a check.

@@ -15,8 +15,8 @@ Settings behind the gear.
 | Moment | Experiment | Where |
 |---|---|---|
 | Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Write |
-| Before sending | [How it lands](tone-check.md): warmth, directness, formality, and warmer or more polite versions | Card row; Write editor |
-| Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Write editor |
+| Before sending | [How it lands](tone-check.md): part of every check; how the message will come across, with tone fixes as ordinary rewordings | Card row, everywhere |
+| Before sending | [Replying to](reply-context.md): every chat check reads the draft as a reply to the partner's last message | Chat (automatic) |
 | Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
 | Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Write editor |

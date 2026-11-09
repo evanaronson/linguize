@@ -42,12 +42,17 @@ class GapsInCheck(val addendum: String) {
 }
 
 /**
- * Lab: [delegate] with its checks sent as [prompt] (the composed instructions) over the
- * delegate's own transport; everything else is the delegate's.
+ * Lab: [delegate] with its checks sent as [prompt] (the composed instructions and schema) over
+ * the delegate's own transport, and read with [reader]'s contract (the shipped one, so Lab-only
+ * answer fields are never required); everything else is the delegate's.
  */
-class ComposedPromptClient(private val delegate: ProviderClient, private val prompt: Prompt) : ProviderClient {
+class ComposedPromptClient(
+    private val delegate: ProviderClient,
+    private val prompt: Prompt,
+    private val reader: Prompt = prompt,
+) : ProviderClient {
     override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-        prompt.read(delegate.generate(key, model, prompt.generation(request)))
+        reader.read(delegate.generate(key, model, prompt.generation(request)))
 
     override suspend fun generate(key: String, model: String, request: GenerationRequest): String =
         delegate.generate(key, model, request)

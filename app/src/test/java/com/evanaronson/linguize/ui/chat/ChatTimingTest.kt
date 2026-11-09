@@ -67,7 +67,7 @@ class ChatTimingTest {
         var reviewSoFar = 0L
         var finished: Pair<String, DraftTiming?>? = null
         var stops = 0
-        override fun start(draft: String, language: Language) = Unit
+        override fun start(draft: String, language: Language, replyingTo: String?) = Unit
         override fun stop() { stops++ }
         override fun finish(sent: String, timing: DraftTiming?): String? {
             finished = sent to timing

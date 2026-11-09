@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Lab: How it lands. How a native reader would likely take a message. -->
+    <!-- Lab: How it lands. Part of every check: how a native reader would likely take the message. -->
     <string name="lab_tone_check_title">How it lands</string>
-    <string name="lab_tone_check_entry_subtitle">How a native reader would take it</string>
-    <string name="lab_tone_check_entry_subtitle_chosen">Using another version</string>
-    <string name="lab_tone_check_open">Show how your message lands</string>
-    <string name="lab_tone_check_loading">Reading how it lands</string>
-    <string name="lab_tone_check_risk_fine">Should land well</string>
-    <string name="lab_tone_check_risk_worth_a_look">Could land differently</string>
-    <string name="lab_tone_check_risk_risky">Could land badly</string>
-    <string name="lab_tone_check_read_as">Read as %1$s</string>
+    <string name="lab_tone_check_lands_well">Lands well</string>
+    <string name="lab_tone_check_could_land_differently">Could land differently</string>
+    <string name="lab_tone_check_could_land_badly">Could land badly</string>
+    <!-- The footer row's subtitle: the overall reading, then the model's one-line summary. -->
+    <string name="lab_tone_check_row_subtitle">%1$s · %2$s</string>
+    <string name="lab_tone_check_show">Show how it lands</string>
+    <string name="lab_tone_check_hide">Hide how it lands</string>
+    <string name="lab_tone_check_expanded">Expanded</string>
+    <string name="lab_tone_check_collapsed">Collapsed</string>
+    <string name="lab_tone_check_drivers">Highlighted words shape it most.</string>
+    <string name="lab_tone_check_drivers_description">What shapes it most: %1$s</string>
     <string name="lab_tone_check_warmth">Warmth</string>
     <string name="lab_tone_check_cold">Cold</string>
     <string name="lab_tone_check_warm">Warm</string>
@@ -20,15 +23,6 @@
     <string name="lab_tone_check_casual">Casual</string>
     <string name="lab_tone_check_formal">Formal</string>
     <string name="lab_tone_check_scale_description">%1$s: %2$d of %3$d, from %4$s to %5$s</string>
-    <string name="lab_tone_check_drivers">What shapes it</string>
-    <string name="lab_tone_check_quote">“%1$s”</string>
     <string name="lab_tone_check_notes">Good to know</string>
-    <string name="lab_tone_check_versions">Other versions</string>
-    <string name="lab_tone_check_no_versions">No other version needed</string>
-    <string name="lab_tone_check_use">Use this</string>
-    <string name="lab_tone_check_use_description">Use version: %1$s</string>
-    <string name="lab_tone_check_copy">Copy</string>
-    <string name="lab_tone_check_copy_description">Copy version: %1$s</string>
-    <string name="lab_tone_check_chosen">Using this version</string>
     <string name="lab_tone_check_caveat">A likely reading. People and places vary.</string>
 </resources>

@@ -5,12 +5,11 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Recomposer
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
@@ -23,10 +22,7 @@ import com.evanaronson.linguize.core.Edit
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.lab.Landing
-import com.evanaronson.linguize.core.lab.LandingDriver
-import com.evanaronson.linguize.core.lab.LandingRisk
-import com.evanaronson.linguize.core.lab.LandingVersion
-import com.evanaronson.linguize.llm.CheckFailure
+import com.evanaronson.linguize.core.lab.LandingOverall
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.ResultCard
@@ -36,7 +32,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -46,11 +44,11 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
 
-/** "How it lands" through the rendered check card: open, read, use a version, go back. */
+/** Lab, How it lands on the rendered check card: a footer row next to Meaning that opens in place. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class LandsCardTest {
+class LandingFooterTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java)
         .setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
@@ -60,28 +58,15 @@ class LandsCardTest {
     private val root = ComposeView(activity)
     private var frameTime = 0L
 
-    private val version = LandingVersion("More polite", "¿Me podrías enviar el contrato mañana?", "A question, not an order.")
     private val landing = Landing(
-        variety = "Spanish (Spain)", summary = "Reads as an order.", risk = LandingRisk.WorthALook,
-        warmth = 2, directness = 5, formality = 3,
-        drivers = listOf(LandingDriver("Quiero que", "Sounds like a demand")),
-        notes = listOf("Requests are usually softened."), versions = listOf(version),
+        text = "Quiero que me envíes el contrato.",
+        overall = LandingOverall.LandsWell,
+        summary = "friendly, a bit direct",
+        warmth = 3, directness = 4, formality = 2,
+        drivers = listOf("Quiero que"),
+        notes = listOf("Requests are often softened with podrías."),
     )
-    private val asked = mutableListOf<String>()
-    private val chosen = mutableStateOf<String?>(null)
-    private var applied = 0
-    private var failWith: CheckFailure? = null
-
-    private val lands = LandsActions(
-        analyze = { text -> asked += text; failWith?.let { failWith = null; throw it }; landing },
-        onCopy = {},
-        onUse = { chosen.value = it },
-        chosen = { chosen.value },
-        onApply = { applied++ },
-        onOpenSettings = null,
-    )
-    private val actions = CardActions(onCopy = { _, _ -> }, review = null, onRetry = {},
-        onOpenSettings = null, onSettle = { _, _ -> }, howItLands = lands)
+    private val actions = CardActions(onCopy = { _, _ -> }, review = null, onRetry = {}, onOpenSettings = null, onSettle = { _, _ -> })
 
     init {
         scope.launch { recomposer.runRecomposeAndApplyChanges() }
@@ -97,58 +82,50 @@ class LandsCardTest {
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
 
-    private fun reviewed(accepted: Boolean): CheckResult.Reviewed {
-        val revision = Revision("Quiero que me envies el contrato mañana.",
-            listOf(Edit(0, EditKind.Fix, 14, 20, "envies", "envíes", null)))
-        return CheckResult.Reviewed(if (accepted) revision.accept(0) else revision, listOf(EditKind.Fix))
+    private fun reviewed(landing: Landing?) = CheckResult.Reviewed(
+        Revision("Quiero que me envies el contrato.", listOf(Edit(0, EditKind.Fix, 14, 20, "envies", "envíes", null))),
+        listOf(EditKind.Fix),
+        meaning = "I want you to send me the contract.",
+        landing = landing,
+    )
+
+    @Test fun theRowSitsUnderMeaningAndOpensTheDetailsInPlace() {
+        root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(landing)), actions) } }
+        settle()
+        val row = activity.getString(R.string.lab_tone_check_row_subtitle, activity.getString(R.string.lab_tone_check_lands_well), "friendly, a bit direct")
+        assertTrue(hasText(activity.getString(R.string.meaning)))
+        assertTrue(hasText(activity.getString(R.string.lab_tone_check_title)))
+        assertTrue(hasText(row))
+        assertFalse(hasText("Requests are often softened with podrías."))
+        val directness = activity.getString(R.string.lab_tone_check_scale_description, activity.getString(R.string.lab_tone_check_directness),
+            4, Landing.SCALE_MAX, activity.getString(R.string.lab_tone_check_indirect), activity.getString(R.string.lab_tone_check_blunt))
+        assertFalse(hasDescription(directness))
+
+        clickText(R.string.lab_tone_check_title)
+        // Still the card's suggestions page: the details open below the row, not as a page.
+        assertTrue(hasText(activity.getString(R.string.lab_tone_check_title)))
+        assertTrue(hasText(landing.text))
+        assertTrue(hasDescription(directness))
+        assertTrue(hasText("Requests are often softened with podrías."))
+        assertTrue(hasDescription(activity.getString(R.string.lab_tone_check_drivers_description, "“Quiero que”")))
+
+        clickText(R.string.lab_tone_check_title)
+        assertFalse(hasText("Requests are often softened with podrías."))
     }
 
-    @Test fun readsTheAcceptedTextAndAVersionCanBeUsedAndApplied() {
-        root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(accepted = true)), actions) } }
+    @Test fun withoutALandingThereIsNoRow() {
+        root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(null)), actions) } }
         settle()
-        clickText(R.string.lab_tone_check_title)
-        assertEquals(listOf("Quiero que me envíes el contrato mañana."), asked)
-        assertTrue(hasText(activity.getString(R.string.lab_tone_check_risk_worth_a_look)))
-        assertTrue(hasText("Reads as an order."))
-        assertTrue(hasText(activity.getString(R.string.lab_tone_check_quote, "Quiero que")))
-        assertTrue(hasDescription(activity.getString(R.string.lab_tone_check_scale_description,
-            activity.getString(R.string.lab_tone_check_directness), 5, 5,
-            activity.getString(R.string.lab_tone_check_indirect), activity.getString(R.string.lab_tone_check_blunt))))
-
-        clickText(R.string.lab_tone_check_use)
-        assertEquals(version.text, chosen.value)
-        assertTrue(hasText(activity.getString(R.string.lab_tone_check_chosen)))
-        clickText(R.string.apply)
-        assertEquals(1, applied)
-        clickText(R.string.undo)
-        assertNull(chosen.value)
+        assertTrue(hasText(activity.getString(R.string.meaning)))
+        assertFalse(hasText(activity.getString(R.string.lab_tone_check_title)))
     }
 
-    @Test fun systemBackReturnsToTheSuggestionsAndKeepsTheReading() {
-        var hostBack = 0
-        activity.onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() { hostBack++ }
-        })
-        root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(accepted = false)), actions) } }
-        settle()
-        clickText(R.string.lab_tone_check_title)
-        chosen.value = version.text
-        activity.onBackPressedDispatcher.onBackPressed()
-        settle()
-        assertEquals(0, hostBack)
-        assertTrue("The entry says a version is in use", hasText(activity.getString(R.string.lab_tone_check_entry_subtitle_chosen)))
-        clickText(R.string.lab_tone_check_title)
-        assertEquals("Reopening shows the same reading", 1, asked.size)
-    }
-
-    @Test fun aFailedReadingCanBeRetried() {
-        failWith = CheckFailure(CheckFailure.Reason.Offline)
-        root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(accepted = false)), actions) } }
-        settle()
-        clickText(R.string.lab_tone_check_title)
-        clickText(R.string.retry)
-        assertTrue(hasText("Reads as an order."))
-        assertEquals(2, asked.size)
+    @Test fun theDriversAreHighlightedWhereverTheyOccur() {
+        val text = "Quiero que vengas. Quiero que sepas."
+        assertEquals(listOf(0 until 10, 19 until 29, 30 until 35), driverRanges(text, listOf("Quiero que", "sepas", "")))
+        val marked = marked(text, listOf("sepas"), Color.Yellow)
+        assertEquals(text, marked.text)
+        assertEquals(30, marked.spanStyles.single().start)
     }
 
     private fun clickText(id: Int) {

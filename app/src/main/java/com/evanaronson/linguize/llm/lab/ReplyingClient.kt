@@ -15,9 +15,11 @@ class ReplyingClient(
     private val reply: ReplyPrompt,
     private val base: Prompt,
     private val message: String,
+    /** Whose contract reads the answer; [base] unless Lab fields are composed onto its schema. */
+    private val reader: Prompt = base,
 ) : ProviderClient {
     override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-        reply.check(delegate, base, key, model, request, message)
+        reply.check(delegate, base, key, model, request, message, reader)
 
     override suspend fun generate(key: String, model: String, request: GenerationRequest): String =
         delegate.generate(key, model, request)

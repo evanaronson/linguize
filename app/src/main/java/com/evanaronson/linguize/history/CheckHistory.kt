@@ -304,25 +304,28 @@ class CheckHistory(
         permission = null
     }
 
-    /** Saves the complete session only when [finalText] successfully replaced different source text. */
-    fun close(finalText: String?) {
+    /**
+     * Saves the complete session only when [finalText] successfully replaced different source text.
+     * Returns the id of the session being saved, or null when nothing is (Lab, Time spent).
+     */
+    fun close(finalText: String?): String? {
         decided = false
         val recording = permittedRecording()
         val permission = permission
         this.recording = null
         this.permission = null
-        recording ?: return
+        recording ?: return null
         val id = recording.session.id
         // Lab Chat: a message sent as typed is still a record of what was written.
         val unchanged = finalText == recording.session.text && recording.session.origin?.keepsUnchanged != true
         if (finalText == null || unchanged || permission == null) {
             releaseSession(id)
-            return
+            return null
         }
         val closed = quietly("close a session") { recording.close(clock(), finalText) }
         if (closed == null) {
             releaseSession(id)
-            return
+            return null
         }
         val previous = lastWrite
         lastWrite = scope.launch {
@@ -334,6 +337,7 @@ class CheckHistory(
             // Also releases a write cancelled before its coroutine starts.
             job.invokeOnCompletion { releaseSession(id) }
         }
+        return id
     }
 
     /**

@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.chat.SendState
+import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import kotlinx.coroutines.launch
@@ -67,18 +68,24 @@ fun ChatScreen(onOpenSettings: () -> Unit) {
     }
     LaunchedEffect(chat, check) { snapshotFlow { check.state }.collect(chat::onCardState) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle, chat) {
+    DisposableEffect(lifecycle, chat, check) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> chat.refreshSettings()
                 Lifecycle.Event.ON_STOP -> chat.leave()
                 else -> Unit
             }
+            // Lab, Time spent: nothing counts while the chat isn't on screen.
+            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_STOP) {
+                (event == Lifecycle.Event.ON_START).let { chat.visible(it); check.timing.visible(it) }
+            }
         }
         lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
             chat.leave()
+            chat.visible(false)
+            check.timing.visible(false)
         }
     }
 
@@ -123,7 +130,9 @@ private class CardDraftCheck(private val check: CheckViewModel) : DraftCheck {
 
     override fun stop() = check.discard()
 
-    override fun finish(sent: String): String? = check.dismissSent(sent)
+    override fun finish(sent: String, timing: DraftTiming?): String? = check.dismissSent(sent, timing)
+
+    override fun reviewMs(): Long = check.timing.reviewMs()
 }
 
 @Composable

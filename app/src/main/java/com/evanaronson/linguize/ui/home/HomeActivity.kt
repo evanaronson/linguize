@@ -175,6 +175,7 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(current.cell)?.let {
                                     com.evanaronson.linguize.ui.conjugations.ConjugationCellScreen(conjugations, current.language, it)
                                 }
+                                Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled)
                             }
                         }
                     }
@@ -252,6 +253,7 @@ private val ProgressView.screen: Screen
         ProgressView.Conjugations -> Screen.Conjugations
         ProgressView.Patterns -> Screen.Patterns
         ProgressView.Phrasebook -> Screen.Phrasebook
+        ProgressView.Time -> Screen.TimeSpent
     }
 
 /** The title in the navigation bar, and in "Back to …"; null for Write, which shows the wordmark. */
@@ -281,4 +283,5 @@ private fun Screen.title(): String? = when (this) {
     is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(cell)
         ?.let { com.evanaronson.linguize.ui.conjugations.conjugationCellTitle(language, it) }
         ?: stringResource(R.string.lab_conjugations_title)
+    Screen.TimeSpent -> stringResource(R.string.lab_time_spent_title)
 }

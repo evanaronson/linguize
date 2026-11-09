@@ -29,6 +29,8 @@ import com.evanaronson.linguize.core.chat.on
 import com.evanaronson.linguize.core.memory.FactCategory
 import com.evanaronson.linguize.core.memory.MemoryMessage
 import com.evanaronson.linguize.core.memory.UserMemory
+import com.evanaronson.linguize.core.time.DraftTimer
+import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
 import com.evanaronson.linguize.llm.CheckFailure
@@ -64,8 +66,12 @@ interface DraftCheck {
     /**
      * [sent] was sent: the check is saved in History (Origin.Chat) with what was sent as its
      * final text and the decisions as made. Returns that session's id, or null when History is off.
+     * [timing] is what Lab, Time spent measured for it.
      */
-    fun finish(sent: String): String?
+    fun finish(sent: String, timing: DraftTiming? = null): String?
+
+    /** Lab, Time spent: the review time of the open card so far. */
+    fun reviewMs(): Long = 0L
 }
 
 /**
@@ -134,6 +140,9 @@ class ChatViewModel(
 
     private var replyJob: Job? = null
     private var started = false
+
+    /** Lab, Time spent: the draft's writing time, measured invisibly. */
+    private val drafting = DraftTimer(clock)
 
     /**
      * The chat is showing: opens [requested] when History asked for a conversation, else the
@@ -211,6 +220,7 @@ class ChatViewModel(
         expanded = null
         draft = TextFieldValue()
         draftCheck?.stop()
+        drafting.reset()
         send = SendState.Composing
         thread = next
         preferences.lastLanguage = next.conversation.language
@@ -311,11 +321,18 @@ class ChatViewModel(
     // Composing and sending.
 
     fun onDraftChange(value: TextFieldValue) {
+        if (value.text != draft.text) drafting.typed(value.text)
         draft = value
     }
 
     /** Send tapped: the draft is checked first. */
-    fun send() = handle(SendEvent.Send(draft.text))
+    fun send() {
+        handle(SendEvent.Send(draft.text))
+        if (send is SendState.Checking) drafting.sendTapped()
+    }
+
+    /** Lab, Time spent: the chat is on screen, or isn't. Nothing is counted while it isn't. */
+    fun visible(visible: Boolean) = drafting.visible(visible)
 
     /** What the check of the draft did; the screen reports the card's state. */
     fun onCardState(state: CardState?) {
@@ -331,7 +348,10 @@ class ChatViewModel(
     fun sendReviewed(revision: Revision) = handle(SendEvent.SendReviewed(revision))
 
     /** Closes the card and goes back to the draft. */
-    fun keepEditing() = handle(SendEvent.Edit)
+    fun keepEditing() {
+        if (send != SendState.Composing) drafting.keptEditing(draftCheck?.reviewMs() ?: 0L)
+        handle(SendEvent.Edit)
+    }
 
     private fun handle(event: SendEvent) {
         val transition = send.on(event)
@@ -349,8 +369,9 @@ class ChatViewModel(
 
     private fun deliver(outgoing: Outgoing) {
         val current = thread ?: return
-        val sessionId = draftCheck?.finish(outgoing.text)
-        val message = outgoing.message(UUID.randomUUID().toString(), current.conversation.id, clock(), sessionId)
+        val id = UUID.randomUUID().toString()
+        val sessionId = draftCheck?.finish(outgoing.text, drafting.sent(id))
+        val message = outgoing.message(id, current.conversation.id, clock(), sessionId)
         draft = TextFieldValue()
         val withMessage = current.copy(
             conversation = current.conversation.copy(updatedAt = message.at),
@@ -512,6 +533,7 @@ class ChatViewModel(
                     deleteSessions = { ids ->
                         ids.forEach { app.history.delete(it) }
                         if (ids.isNotEmpty()) app.forgetExports()
+                        app.timeStore.delete(ids)
                     },
                     people = {
                         withContext(Dispatchers.IO) {

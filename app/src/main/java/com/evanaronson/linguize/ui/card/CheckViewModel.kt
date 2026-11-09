@@ -18,6 +18,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.data.SecondOpinionPlan
 import com.evanaronson.linguize.history.Answer
 import com.evanaronson.linguize.history.CheckHistory
@@ -28,6 +29,8 @@ import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
 import com.evanaronson.linguize.ui.secondopinion.SecondOpinionController
+import com.evanaronson.linguize.ui.time.CardTiming
+import com.evanaronson.linguize.ui.time.ObservedState
 import com.evanaronson.linguize.ui.secondopinion.SecondOpinionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,6 +82,8 @@ class CheckViewModel(
     private val keyRevision: (Provider) -> Long = { 0L },
     /** Lab: whether and with what a second opinion can run; none by default. */
     secondOpinionPlan: (CheckContext) -> SecondOpinionPlan = { SecondOpinionPlan.Off },
+    /** Lab, Time spent: the card's review time; records nothing by default. */
+    val timing: CardTiming = CardTiming(),
 ) : ViewModel() {
     private var text = ""
     private var language: Language? = null
@@ -108,8 +113,8 @@ class CheckViewModel(
      */
     var adjustContext: (CheckContext) -> CheckContext = { it }
 
-    /** Null before the first check and after [dismiss]. */
-    var state by mutableStateOf<CardState?>(null)
+    /** Null before the first check and after [dismiss]. Lab, Time spent: review counts while it's Done. */
+    var state by ObservedState(mutableStateOf<CardState?>(null)) { timing.showing(it is CardState.Done) }
         private set
 
     /**
@@ -371,7 +376,9 @@ class CheckViewModel(
         generation++
         staleCheck?.cancel()
         staleCheck = null
-        history.close(finalText = if (applied) workingText else null)
+        val timed = revision
+        val saved = history.close(finalText = if (applied) workingText else null)
+        timing.closed(saved, origin.token, phraseLanguage ?: language?.code, text, timed)
         job?.cancel()
         state = null
         hasReviewed = false
@@ -382,12 +389,14 @@ class CheckViewModel(
      * Lab Chat: closes the card because [sent] was sent (the accepted changes applied, or the
      * text as typed). Returns the History session it is saved as, or null when it isn't saved.
      */
-    fun dismissSent(sent: String): String? {
+    fun dismissSent(sent: String, draft: DraftTiming? = null): String? {
         val id = history.session?.id
         generation++
         staleCheck?.cancel()
         staleCheck = null
-        history.close(finalText = sent)
+        val timed = revision
+        val saved = history.close(finalText = sent)
+        timing.closed(saved, origin.token, phraseLanguage ?: language?.code, text, timed, draft)
         job?.cancel()
         state = null
         hasReviewed = false
@@ -410,10 +419,13 @@ class CheckViewModel(
         state = null
         hasReviewed = false
         history.discard()
+        timing.reset()
     }
 
     /** Gone without [dismiss]: nothing was handed back. */
-    override fun onCleared() = history.close(finalText = null)
+    override fun onCleared() {
+        history.close(finalText = null)
+    }
 
     private val revision get() = reviewed?.revision ?: state?.retainedRevision
 
@@ -436,6 +448,7 @@ class CheckViewModel(
                     checker = { app.checker },
                     keyRevision = { app.keys.revision(it) },
                     secondOpinionPlan = SecondOpinionController.plan(app),
+                    timing = CardTiming(app.timeStore),
                     history = CheckHistory(
                         store = app.history,
                         environment = app.historyEnvironment,

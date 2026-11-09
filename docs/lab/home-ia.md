@@ -51,7 +51,8 @@ pages they open and while the keyboard is up. The app starts on Chat, or on Writ
   the words you've used and the common ones you haven't, in one list), Your conjugations
   ("12 of 40 forms used"). Opening one opens
   it on that language. **Fixes and phrases**, across languages: Your patterns (top groups
-  and a sparkline once there's enough), Phrasebook (count).
+  and a sparkline once there's enough), Phrasebook (count). **Time**: Time spent (this
+  week's total and a sparkline; see [Time spent](time-spent.md)).
 - **History**: the list, with only a source filter above it (see [One list of messages](history-flat.md)).
 - **Settings** (gear): AI service and Second opinion; Checking (What to suggest); Writing
   preferences and Per-app voice; About you (What Linguize knows); **In other apps**:

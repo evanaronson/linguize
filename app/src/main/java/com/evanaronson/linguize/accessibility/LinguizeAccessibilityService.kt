@@ -214,6 +214,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val backFromApp: () -> Unit = {
             popupPosition = App.of(this).settings.popupPosition
             window.hidden = false
+            check.timing.visible(true)
             if (understanding) {
                 understand.recheckIfStale()
             } else {
@@ -224,6 +225,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         fun openAppAt(settings: Boolean) {
             val returnToken = PopupReturn.await(backFromApp)
             window.hidden = true
+            check.timing.visible(false)
             try {
                 startActivity(PopupAppActivity.intent(this, returnToken, openSettings = settings))
             } catch (_: RuntimeException) {

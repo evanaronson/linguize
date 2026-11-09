@@ -12,6 +12,8 @@
     <string name="lab_chat_composer_label">Your message</string>
     <string name="lab_chat_composer_placeholder">Write a message</string>
     <string name="lab_chat_send">Send</string>
+    <!-- Under the card when nothing is accepted: sends the message exactly as typed. -->
+    <string name="lab_chat_send_as_written">Send as written</string>
     <string name="lab_chat_send_checked">Check and send message</string>
     <string name="lab_chat_keep_editing">Keep editing</string>
     <string name="lab_chat_checking">Checking your message</string>

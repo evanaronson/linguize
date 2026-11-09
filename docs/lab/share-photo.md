@@ -35,7 +35,7 @@ they want: check their own writing, or understand someone else's.
 
 - **Shared text:** in any app, Share → Linguize Lab → Check it or Understand it. The check
   card offers Copy with fixes and Copy with rewordings; shared text can't be put back in
-  the source app, so there's no Apply. Back returns to the chooser.
+  the source app, so there's no Replace. Back returns to the chooser.
 - **Photo from another app:** Share an image → Understand photo.
 - **Photo from Write:** Write → Read and reply → Understand a photo → pick an image.
 - After a result, **Choose another** reads a different photo. If a key is missing or

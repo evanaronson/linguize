@@ -23,9 +23,9 @@ point forces the check, because there is no selection menu to choose it from.
 - **Write and tap Send.** Linguize checks the message first, always. With nothing to
   review it goes straight away, marked "Looks good". Otherwise the same card as in other
   apps opens: highlights, reasons, accept one change or Accept all, Meaning, clarifying.
-  Its Apply button says **Send**, and sends the text with whatever you accepted, exactly as
-  Apply puts text back in another app. Accepting is up to you: with nothing accepted, Send
-  under the card sends what you typed. **Keep editing** goes back to the draft. When the
+  Its last button says **Send** where other apps say **Replace**, and sends the text with
+  whatever you accepted, exactly as Replace puts text back in another app. Accepting is up
+  to you: with nothing accepted, **Send as written** under the card sends what you typed. **Keep editing** goes back to the draft. When the
   check fails (no key, no connection) or can't read the message (unclear, another
   language), the card shows why, with Retry or clarifying; there is no way to send without
   a check.

@@ -27,7 +27,7 @@ which is often why they checked.
    - the same badge in a change's explanation when the writer taps it, with what the
      other model did ("OpenAI keeps it as written", "OpenAI says està").
 
-Accepting, undoing and Apply work as before. The second opinion stays while the writer
+Accepting, undoing and Replace work as before. The second opinion stays while the writer
 accepts changes and disappears when the card shows another answer (a re-check,
 clarification, another language). The button then offers it again.
 

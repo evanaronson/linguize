@@ -71,7 +71,7 @@ private fun looksGoodDetail(kinds: List<EditKind>) = when {
     else -> R.string.sounds_natural
 }
 
-/** "3 changes accepted   Undo  [Apply]": Apply is the card's one filled action. */
+/** "3 changes accepted   Undo  [Replace]" (Send in the chat): the card's one filled action. */
 @Composable
 internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?, applyLabel: Int = R.string.apply) {
     Row(verticalAlignment = Alignment.CenterVertically) {

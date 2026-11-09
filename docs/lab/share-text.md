@@ -17,7 +17,7 @@ else's.
 
 In any app, Share → Linguize X Claude → **Check it** or **Understand it**. The check card
 offers Copy with fixes and Copy with rewordings; shared text can't be put back in the
-source app, so there's no Apply. Back returns to the chooser.
+source app, so there's no Replace. Back returns to the chooser.
 
 ## How it works
 

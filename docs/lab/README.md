@@ -19,7 +19,6 @@ Settings behind the gear.
 | Before sending | [Replying to](reply-context.md): attach the incoming message so the check reads the reply in context | Card; Write editor |
 | Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
-| Before sending | [Say it in Catalan](language-bridge.md): turn the message into another profile language, phrase by phrase | Card row; Write editor |
 | Writing a message | [Write](write.md): one editor with drafts, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Write |
 | Anywhere | [Share text](share-text.md): share text in from another app to check it or understand it | Share sheet |
 | Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Write shortcut opens Write |

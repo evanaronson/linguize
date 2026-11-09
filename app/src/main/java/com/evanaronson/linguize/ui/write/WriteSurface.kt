@@ -46,11 +46,6 @@ import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.copyToClipboard
-import com.evanaronson.linguize.ui.languagebridge.BridgeFooterEntry
-import com.evanaronson.linguize.ui.languagebridge.BridgeHost
-import com.evanaronson.linguize.ui.languagebridge.BridgeTryItButton
-import com.evanaronson.linguize.ui.languagebridge.hostBridgeActions
-import com.evanaronson.linguize.ui.languagebridge.rememberBridgeViewModel
 import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.replycontext.TryItReplyContext
 import com.evanaronson.linguize.ui.tonecheck.TryItLands
@@ -73,7 +68,6 @@ internal fun WriteEditor(
     appLanguage: String? = null,
 ) {
     val context = LocalContext.current
-    val bridge = rememberBridgeViewModel()
     // The picker's choice lasts until the app's language is switched.
     var picked by rememberSaveable(appLanguage) { mutableStateOf<String?>(null) }
     val language = writeCheckLanguage(appLanguage, picked)
@@ -107,7 +101,7 @@ internal fun WriteEditor(
     TryItReplyContext(check, Modifier.padding(bottom = 12.dp))
     LinguizeTextField(
         value = write.text,
-        onValueChange = { bridge.close(); replace(it) },
+        onValueChange = { replace(it) },
         placeholder = stringResource(R.string.lab_write_placeholder),
         accessibleLabel = stringResource(R.string.your_text),
         supporting = if (blank) stringResource(R.string.no_text_to_check) else null,
@@ -126,24 +120,18 @@ internal fun WriteEditor(
             run(it)
         })
         LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
-        BridgeTryItButton(bridge, write.text.trim(), language)
     }
     TryItLands(write.text, onUse = ::replace, onOpenSettings)
 
-    val bridgeActions = hostBridgeActions(bridge, onReplace = ::replace,
-        onCheck = { text, chosen -> replace(text); picked = pickedToken(chosen); run(chosen) }, onOpenSettings)
-    BridgeHost(bridge, bridgeActions, Modifier.fillMaxWidth().padding(top = 12.dp), scrollable = false) {
-        check.state?.let { state ->
-            ResultCard(
-                state = state,
-                actions = CardActions.of(
-                    check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings, replyContext = false,
-                ),
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                scrollable = false,
-                bridgeEntry = { BridgeFooterEntry(bridge, check, language) },
-            )
-        }
+    check.state?.let { state ->
+        ResultCard(
+            state = state,
+            actions = CardActions.of(
+                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings, replyContext = false,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            scrollable = false,
+        )
     }
 
     val hasText = write.text.isNotBlank()
@@ -159,7 +147,6 @@ internal fun WriteEditor(
         }, ButtonKind.Text, enabled = hasText)
         LinguizeButton(stringResource(R.string.lab_write_new_draft), {
             check.dismiss(applied = false)
-            bridge.close()
             blank = false
             write.newDraft()
         }, ButtonKind.Text, enabled = hasText)

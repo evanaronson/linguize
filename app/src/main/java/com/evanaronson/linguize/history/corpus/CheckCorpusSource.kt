@@ -17,14 +17,9 @@ import java.io.IOException
  * Lab: the corpus source "check" (docs/lab/corpus.md). Each visible saved check gives its
  * original text exactly as the writer typed it, never the text that was put back. Read
  * through History's own APIs on demand, so a deleted check is gone from the next read.
- *
- * [notTyped] gives the text hashes ([com.evanaronson.linguize.history.SessionRecording.hash])
- * of texts Linguize wrote and then checked (a text said in another language):
- * those checks are left out.
  */
 class CheckCorpusSource(
     private val history: HistoryStore,
-    private val notTyped: suspend () -> Set<String> = { emptySet() },
     private val maxChecks: Int = MAX_CHECKS,
 ) : CorpusSource {
     override val name: String = NAME
@@ -32,7 +27,7 @@ class CheckCorpusSource(
     /** Throws when History couldn't be read, so the corpus skips it rather than reading it as empty. */
     override suspend fun utterances(): List<Utterance> {
         val details = history.patternEvidence(maxChecks, PAGE) ?: throw IOException("History couldn't be read")
-        return CheckUtterances.from(details, runCatching { notTyped() }.getOrDefault(emptySet()))
+        return CheckUtterances.from(details)
     }
 
     companion object {
@@ -55,10 +50,9 @@ object CheckUtterances {
      * One utterance per saved check in [details], except:
      * - a check that reused another saved check's answer: the same text, counted once;
      * - a check of text that is exactly what an earlier check put back: Linguize's words, not the writer's;
-     * - a check whose text hash is in [notTyped]: text Linguize wrote;
      * - a check from the app's own Try it card (never saved today).
      */
-    fun from(details: List<SessionDetail>, notTyped: Set<String> = emptySet()): List<Utterance> {
+    fun from(details: List<SessionDetail>): List<Utterance> {
         val present = details.map { it.session.id }.toSet()
         val ordered = details.sortedWith(compareBy({ it.session.startedAt }, { it.session.id }))
         val putBack = mutableSetOf<String>()
@@ -70,7 +64,7 @@ object CheckUtterances {
             val chat = session.origin == Origin.Chat
             val recheckOfPutBack = !chat && session.text.trim() in putBack
             if (!chat) session.finalText?.let { putBack += it.trim() }
-            if (reused || recheckOfPutBack || session.textHash in notTyped || session.origin == Origin.Tester) continue
+            if (reused || recheckOfPutBack || session.origin == Origin.Tester) continue
             if (session.text.isBlank()) continue
             out += of(detail)
         }

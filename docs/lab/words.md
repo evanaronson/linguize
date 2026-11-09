@@ -86,7 +86,6 @@ the form's counts.
 | Contexts, CSV | `core/words/WordViews.kt` | core (pure Kotlin) |
 | Decks, parsing, matching rules, suggestions | `core/vocab/` ([Frequency decks](vocab-gaps.md)) | core |
 | The `check` corpus source | `history/corpus/CheckCorpusSource.kt` | history |
-| Texts Linguize wrote (hashes only) | `data/lab/NotTypedTexts.kt` (`lab_words` preferences) | data |
 | Bundled and imported decks, selection | `data/vocabgaps/VocabGapsStore.kt`, `DeckLibrary.kt` (root) | data, root |
 | View model, screens, deck section | `ui/words/` | ui |
 
@@ -110,9 +109,6 @@ was outside a corrected span.
 **What is left out.**
 - A check that reused another saved check's answer: the same text, counted once.
 - A check whose text is exactly what an earlier check put back: Linguize's words.
-- Text Linguize wrote and the writer then checked: a message said in another language. The
-  selection menu records the 16-character hash of such text (never the text) in
-  `lab_words`, and the source skips saved checks with that `textHash`.
 - Gaps the writer left for the check to fill ([Gaps in every check](gaps-in-check.md)):
   bracketed gaps are skipped, an accepted fill is a corrected span, and common English words
   in a corrected span are left out.
@@ -133,7 +129,7 @@ writer's use (or none), then the writer's entries none of whose forms reached th
 ("not in list"). At the form level: every form the writer typed, ranked by the best deck row
 it reached, then the deck rows no form reached. Without a deck: just the writer's entries.
 
-**Storage.** Nothing is copied from the corpus. `lab_words` keeps the not-typed hashes.
+**Storage.** Nothing is copied from the corpus.
 `filesDir/lab_vocab_gaps/` keeps imported decks and the last language and deck. The CSV is
 written to the export cache folder the FileProvider shares and replaced by the next one.
 

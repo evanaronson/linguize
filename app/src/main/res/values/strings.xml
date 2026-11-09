@@ -116,7 +116,7 @@
     <string name="change_line_break">line break</string>
     <string name="change_space">space</string>
     <string name="change_spacing">spacing</string>
-    <string name="change_replace">Replace %1$s with %2$s</string>
+    <string name="change_replace">Accept %1$s to %2$s</string>
     <string name="change_becomes">%1$s becomes %2$s</string>
     <string name="change_replacement">%1$s → %2$s</string>
     <string name="delete_check">Delete check</string>

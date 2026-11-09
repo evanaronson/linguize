@@ -2,6 +2,7 @@ package com.evanaronson.linguize.core.conjugations
 
 import com.evanaronson.linguize.core.Sentences
 import com.evanaronson.linguize.core.corpus.Utterance
+import com.evanaronson.linguize.core.corpus.WriterGaps
 import com.evanaronson.linguize.core.morphology.Analysis
 import com.evanaronson.linguize.core.morphology.Catalan
 import com.evanaronson.linguize.core.morphology.FunctionWords
@@ -145,10 +146,14 @@ object ConjugationMap {
     private val SPANISH_WORD = Regex("[\\p{L}]+")
     private val CATALAN_WORD = Regex("[\\p{L}·]+(?:['’\\-][\\p{L}·]+)*")
 
-    internal fun tokens(text: String, language: String): List<Token> =
-        (if (language == "ca") CATALAN_WORD else SPANISH_WORD).findAll(text).map {
-            Token(it.range.first, it.range.last + 1, it.value.lowercase().replace('’', '\''))
-        }.toList()
+    internal fun tokens(text: String, language: String): List<Token> {
+        // Gaps the writer left in square brackets are not their words.
+        val gaps = WriterGaps.bracketed(text)
+        return (if (language == "ca") CATALAN_WORD else SPANISH_WORD).findAll(text)
+            .filterNot { WriterGaps.inGap(gaps, it.range.first, it.range.last + 1) }
+            .map { Token(it.range.first, it.range.last + 1, it.value.lowercase().replace('’', '\'')) }
+            .toList()
+    }
 
     private val ADVERBS_BETWEEN = setOf("ya", "siempre", "nunca", "también", "todavía", "ja", "sempre", "mai", "també", "encara", "bien", "bé")
 

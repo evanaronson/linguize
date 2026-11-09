@@ -14,6 +14,8 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
+import com.evanaronson.linguize.llm.lab.ComposedPromptClient
+import com.evanaronson.linguize.llm.lab.GapsInCheck
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
 import com.evanaronson.linguize.llm.lab.ReplyingClient
 import kotlinx.coroutines.CancellationException
@@ -35,7 +37,12 @@ class Checker(
     private val clients: Map<Provider, ProviderClient>,
     /** Lab: the reply rules, read on first use; only a check with a message to reply to uses them. */
     private val replyPrompt: () -> ReplyPrompt = { error("No reply prompt") },
+    /** Lab: the gap rules added to every check, read on first use; null sends the shipped prompt alone. */
+    private val gapsInCheck: (() -> GapsInCheck)? = null,
 ) {
+    /** The instructions a check sends: the shipped prompt, plus the gap rules when given. */
+    private val checkPrompt: Prompt by lazy { gapsInCheck?.let { it().prompt(prompt) } ?: prompt }
+
     /** The settings a check started now would run with ([replyingTo]: Lab, the message the text answers). */
     suspend fun context(replyingTo: String? = null): CheckContext = failingAsCheckFailure { readContext(replyingTo) }
 
@@ -58,7 +65,11 @@ class Checker(
             val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native,
                 writingProfiles = used.writingProfiles)
             val provider = clients.getValue(used.provider)
-            val client = if (replyingTo == null) provider else ReplyingClient(provider, replyPrompt(), prompt, replyingTo)
+            val client = when {
+                replyingTo != null -> ReplyingClient(provider, replyPrompt(), checkPrompt, replyingTo)
+                gapsInCheck != null -> ComposedPromptClient(provider, checkPrompt)
+                else -> provider
+            }
             val key = key(used.provider)
             val first = checked(text, language, client.check(key, used.model, request), used)
             val partial = first.result as? CheckResult.Reviewed
@@ -129,7 +140,8 @@ class Checker(
             punctuation = settings.punctuation,
             judgments = settings.judgments,
             native = settings.nativeLanguage,
-            promptHash = replyingTo?.let { replyPrompt().hash(prompt, it) } ?: prompt.hash,
+            promptHash = (replyingTo?.let { replyPrompt().hash(prompt, it) } ?: prompt.hash)
+                .let { hash -> gapsInCheck?.let { it().hash(hash) } ?: hash },
             writingProfiles = settings.writingProfiles.distinctBy { it.language }.sortedBy { it.language }.toList(),
         )
     }

@@ -66,9 +66,6 @@ class TabNavigationTest {
     }
 
     @Test fun writeToolsAndSettingsPagesRestore() {
-        val tool = Navigation(Screen.Chat).open(Screen.Write).open(Screen.FillGaps)
-        assertEquals(tool, Navigation.restore(tool.saved))
-        assertEquals(Screen.Write, tool.back().current)
         val setup = Navigation(Screen.Chat).open(Screen.Settings).open(Screen.AccessibilitySetup)
         assertEquals(setup, Navigation.restore(setup.saved))
         val memory = Navigation().open(Screen.Settings).open(Screen.Memory)
@@ -78,8 +75,9 @@ class TabNavigationTest {
     }
 
     @Test fun removedWriteToolsRestoreToWrite() {
-        // Help me reply ("lab_reply") and Understand a photo ("photo") were removed.
-        listOf("lab_reply", "photo").forEach { removed ->
+        // Fill the gaps ("lab_gap_filler") became part of every check; Help me reply
+        // ("lab_reply") and Understand a photo ("photo") were removed.
+        listOf("lab_gap_filler", "lab_reply", "photo").forEach { removed ->
             assertEquals(Screen.Write, Screen.restore(removed))
             val restored = Navigation.restore(listOf("lab_chat", "home", removed))
             assertEquals(Screen.Write, restored.current)

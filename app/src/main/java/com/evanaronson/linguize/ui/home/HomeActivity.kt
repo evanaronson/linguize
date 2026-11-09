@@ -39,8 +39,6 @@ import com.evanaronson.linguize.ui.history.SessionViewModel
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookScreen
 import com.evanaronson.linguize.ui.phrasebook.PhrasebookViewModel
-import com.evanaronson.linguize.ui.gaps.GapFillScreen
-import com.evanaronson.linguize.ui.gaps.GapFillViewModel
 import com.evanaronson.linguize.history.patterns.PatternKind
 import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
 import com.evanaronson.linguize.ui.patterns.PatternsScreen
@@ -62,7 +60,6 @@ class HomeActivity : ComponentActivity() {
     private val session: SessionViewModel by viewModels { SessionViewModel.factory(App.of(this)) }
     private val phrasebook: PhrasebookViewModel by viewModels { PhrasebookViewModel.factory(PhrasebookStore.of(this)) }
     private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
-    private val gaps: GapFillViewModel by viewModels { GapFillViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
     private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
     private val memory: com.evanaronson.linguize.ui.memory.MemoryViewModel by viewModels {
@@ -115,10 +112,6 @@ class HomeActivity : ComponentActivity() {
                                     check,
                                     needsKey = settings.state?.hasKey == false,
                                     onOpenSettings = openSettings,
-                                    onFillGaps = { text ->
-                                        if (text != null) { gaps.close(); gaps.draft = text }
-                                        navigation = navigation.open(Screen.FillGaps)
-                                    },
                                 )
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
                                     practice, patterns, words, conjugations,
@@ -145,7 +138,6 @@ class HomeActivity : ComponentActivity() {
                                 Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
-                                Screen.FillGaps -> GapFillScreen(gaps, onOpenSettings = openSettings)
                                 Screen.Patterns -> PatternsScreen(patterns, settings.state?.historyEnabled, onOpenPattern = {
                                     navigation = navigation.open(Screen.PatternDetail(it.token))
                                 }, onOpenSettings = openSettings)
@@ -201,7 +193,6 @@ class HomeActivity : ComponentActivity() {
     private fun back() {
         if (navigation.current == Screen.Settings) {
             check.recheckIfStale()
-            gaps.retryIfFailed()
         }
         navigation = navigation.back()
     }
@@ -258,7 +249,6 @@ private fun Screen.title(): String? = when (this) {
     is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
     Screen.Phrasebook -> stringResource(R.string.lab_phrasebook_title)
     is Screen.AppVoice -> appVoiceTitle(app)
-    Screen.FillGaps -> stringResource(R.string.lab_gap_filler_title)
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
     Screen.Practice -> stringResource(R.string.lab_practice_title)

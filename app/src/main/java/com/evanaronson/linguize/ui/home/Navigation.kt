@@ -37,8 +37,6 @@ internal sealed interface Screen {
     data object Phrasebook : Screen
     /** Per-app voice (Lab): the list of apps, or one [app]'s rule. */
     data class AppVoice(val app: String? = null) : Screen
-    /** Lab: Fill the gaps. */
-    data object FillGaps : Screen
     /** Lab: recurring fixes from saved checks. */
     data object Patterns : Screen
 
@@ -80,7 +78,6 @@ internal sealed interface Screen {
             is DetailAssumptions -> "assumptions:$id"
             Phrasebook -> "phrasebook"
             is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
-            FillGaps -> "lab_gap_filler"
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
             Practice -> "practice"
@@ -110,9 +107,9 @@ internal sealed interface Screen {
             saved == "phrasebook" -> Phrasebook
             saved == "appvoice" -> AppVoice()
             saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))
-            saved == "lab_gap_filler" -> FillGaps
-            // Help me reply and Understand a photo were removed; their pages sat above Write.
-            saved == "lab_reply" || saved == "photo" -> Write
+            // Removed experiments: Fill the gaps became part of every check; Help me reply and
+            // Understand a photo were removed. Their pages sat above Write.
+            saved == "lab_gap_filler" || saved == "lab_reply" || saved == "photo" -> Write
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             saved == "practice" -> Practice

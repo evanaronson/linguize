@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.core.words
 
+import com.evanaronson.linguize.core.corpus.WriterGaps
 import java.text.Normalizer
 import java.util.Locale
 
@@ -32,6 +33,7 @@ data class WordToken(
  * - Numbers, words with digits, links, email addresses, @mentions, #hashtags, emoji and
  *   laughter (jajaja, hahaha) are left out.
  * - Capitalized words in mid-sentence are flagged as names; the index keeps them apart.
+ * - Gaps the writer left in square brackets (`[pick me up]`) are not their words: skipped.
  */
 object WordTokenizer {
     fun tokenize(text: String): List<WordToken> {
@@ -45,7 +47,8 @@ object WordTokenizer {
             if (!isSkippedChunk(text.substring(i, chunkEnd))) tokenizeChunk(text, i, chunkEnd, shouting, tokens)
             i = chunkEnd
         }
-        return tokens
+        val gaps = WriterGaps.bracketed(text)
+        return if (gaps.isEmpty()) tokens else tokens.filterNot { WriterGaps.inGap(gaps, it.start, it.end) }
     }
 
     private fun tokenizeChunk(text: String, from: Int, to: Int, shouting: Boolean, out: MutableList<WordToken>) {

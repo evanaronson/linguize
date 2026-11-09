@@ -8,7 +8,7 @@ import java.security.MessageDigest
 
 /**
  * Lab, Your words: texts Linguize wrote and the writer then checked, such as a message
- * with its gaps filled or one said in another language. A saved check of one of them holds
+ * said in another language. A saved check of one of them holds
  * Linguize's words, not the writer's, so the "check" corpus source leaves it out.
  *
  * Only short hashes are kept (the same 16-hex-character hash History keeps as `textHash`),

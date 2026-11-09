@@ -101,7 +101,7 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
 ## Limits
 
 - Writing in other apps is an estimate; text pasted or written long before the check counts
-  as if typed then. Text Say it in… produced is still counted as written.
+  as if typed then.
 - The idle caps are guesses; a writer who thinks for two minutes between sentences is under-
   counted. The accessibility popup can't tell when the screen goes off; the cap bounds it.
 - In the accessibility popup, time on Understand copied text while a reviewed card waits

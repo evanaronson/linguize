@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.ui.words
 
 import android.content.ContentResolver
-import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
@@ -28,7 +27,6 @@ import com.evanaronson.linguize.core.words.WordLevel
 import com.evanaronson.linguize.core.words.WordSort
 import com.evanaronson.linguize.core.words.WordViews
 import com.evanaronson.linguize.data.Exports
-import com.evanaronson.linguize.data.lab.NotTypedTexts
 import com.evanaronson.linguize.data.vocabgaps.BundledDecks
 import com.evanaronson.linguize.data.vocabgaps.ImportedDeck
 import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
@@ -355,11 +353,3 @@ private fun java.io.InputStream.readUpTo(limit: Int): ByteArray {
     return out.toByteArray()
 }
 
-/**
- * Lab: tells Words that [text] was written by Linguize (gaps filled, said in another
- * language), so a saved check of it isn't counted as the writer's own words.
- */
-fun markNotTyped(context: Context, text: String) {
-    val app = App.of(context)
-    app.appScope.launch { NotTypedTexts(app).mark(text) }
-}

@@ -5,7 +5,6 @@ import com.evanaronson.linguize.core.corpus.Corpus
 import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.corpus.Span
 import com.evanaronson.linguize.core.words.WordIndexCache
-import com.evanaronson.linguize.data.lab.NotTypedTexts
 import com.evanaronson.linguize.history.Attempt
 import com.evanaronson.linguize.history.Decision
 import com.evanaronson.linguize.history.Origin
@@ -145,20 +144,6 @@ class CheckCorpusSourceTest {
         val first = session("a", "Com estas", finalText = "Com estàs?", startedAt = 1)
         val recheck = session("b", "Com estàs?", finalText = "Com estàs, Marta?", startedAt = 2)
         assertEquals(listOf("check:a"), CheckUtterances.from(listOf(detail(first), detail(recheck))).map { it.id })
-    }
-
-    @Test
-    fun textLinguizeWroteIsLeftOut() {
-        val filled = session("a", "Vull un gelat de maduixa")
-        val typed = session("b", "Bon dia")
-        val utterances = CheckUtterances.from(listOf(detail(filled), detail(typed)), notTyped = setOf(NotTypedTexts.hash(filled.text)))
-        assertEquals(listOf("check:b"), utterances.map { it.id })
-    }
-
-    @Test
-    fun notTypedHashMatchesHistorysTextHash() {
-        val text = "Dóna-m'ho, si us plau 😊"
-        assertEquals(SessionRecording.hash(text), NotTypedTexts.hash(text))
     }
 
     @Test

@@ -80,8 +80,6 @@ fun ResultCard(
     scrollable: Boolean = true,
     /** Starts the separate clipboard job when this host supports it. */
     onUnderstandCopiedText: (() -> Unit)? = null,
-    /** Lab: an extra footer row under Meaning on a reviewed result ("Say it in Catalan"). */
-    bridgeEntry: (@Composable () -> Unit)? = null,
 ) {
     val done = state as? CardState.Done
     val reviewed = done?.result as? CheckResult.Reviewed
@@ -103,7 +101,6 @@ fun ResultCard(
             {
                 if (reviewed != null && !showingUnderstanding) {
                     UnderstandingEntry(onOpen = { showingUnderstanding = true })
-                    bridgeEntry?.invoke()
                     actions.howItLands?.let { com.evanaronson.linguize.ui.tonecheck.LandsEntry(it) { showingLands = true } }
                 }
                 onUnderstandCopiedText?.let { open ->

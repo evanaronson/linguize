@@ -25,10 +25,12 @@ as it is scannable, so days get headers and sources get a filter.
 - Swipe a row toward the start (or use the screen reader's Delete action) to delete it,
   with Undo, for every source. For a chat message this deletes only its History record:
   the conversation and the message in it stay in Chat.
-- When messages come from more than one place, chips above the list filter it:
-  **All** (default), each app that appears, **Chat**. The choice survives rotation and
-  coming back to the tab. A source with nothing left says so ("No messages from
-  WhatsApp yet.", "No chat messages yet.").
+- Above the list, a language dropdown starts on the app's current language, with **All
+  languages** beside it ([Language scope](language-scope.md)). When messages come from more
+  than one place, a source dropdown filters it too: **All sources** (default), each app
+  that appears, **Chat**. They combine. The choices survive rotation and coming back to the
+  tab. A filter with nothing left says so ("No messages from WhatsApp yet.", "No chat
+  messages yet.", "No messages in Catalan yet.").
 
 ## How it works
 

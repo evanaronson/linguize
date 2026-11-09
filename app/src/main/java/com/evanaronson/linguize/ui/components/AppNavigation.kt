@@ -32,6 +32,8 @@ internal fun AppNavigation(
     onBack: (() -> Unit)?,
     backLabel: String,
     onOpenSettings: (() -> Unit)?,
+    /** Shown before Settings: the app's language switch on the four tabs. */
+    extraActions: (@Composable () -> Unit)? = null,
 ) {
     TopAppBar(
         title = {
@@ -55,6 +57,7 @@ internal fun AppNavigation(
             }
         },
         actions = {
+            extraActions?.invoke()
             onOpenSettings?.let { openSettings ->
                 IconButton(onClick = openSettings) {
                     Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))

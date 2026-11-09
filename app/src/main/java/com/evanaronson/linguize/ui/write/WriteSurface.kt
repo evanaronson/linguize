@@ -69,10 +69,14 @@ internal fun WriteEditor(
     write: WriteViewModel,
     check: CheckViewModel,
     onOpenSettings: () -> Unit,
+    /** Lab, Language scope: the app's current language, which checks use unless the picker changes it. */
+    appLanguage: String? = null,
 ) {
     val context = LocalContext.current
     val bridge = rememberBridgeViewModel()
-    val language = Language.forCode(write.language)
+    // The picker's choice lasts until the app's language is switched.
+    var picked by rememberSaveable(appLanguage) { mutableStateOf<String?>(null) }
+    val language = writeCheckLanguage(appLanguage, picked)
     // Set when a check was asked for with nothing in the box; cleared by typing.
     var blank by rememberSaveable { mutableStateOf(false) }
 
@@ -118,7 +122,7 @@ internal fun WriteEditor(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         LanguagePicker(language, onSelect = {
-            write.selectLanguage(it?.code)
+            picked = pickedToken(it)
             run(it)
         })
         LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
@@ -127,7 +131,7 @@ internal fun WriteEditor(
     TryItLands(write.text, onUse = ::replace, onOpenSettings)
 
     val bridgeActions = hostBridgeActions(bridge, onReplace = ::replace,
-        onCheck = { text, picked -> replace(text); write.selectLanguage(picked?.code); run(picked) }, onOpenSettings)
+        onCheck = { text, chosen -> replace(text); picked = pickedToken(chosen); run(chosen) }, onOpenSettings)
     BridgeHost(bridge, bridgeActions, Modifier.fillMaxWidth().padding(top = 12.dp), scrollable = false) {
         check.state?.let { state ->
             ResultCard(

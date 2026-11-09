@@ -84,7 +84,7 @@ data class WordsState(
     val importMessage: ImportMessage? = null,
 ) {
     /** The language shown: the chosen one, else the first with words or a deck. */
-    val shownLanguage: String? get() = language?.takeIf { it in languages } ?: languages.firstOrNull()
+    val shownLanguage: String? get() = language ?: languages.firstOrNull()
 
     /** The shown language's words; empty when nothing is written in it yet. */
     val shown: LanguageWords?

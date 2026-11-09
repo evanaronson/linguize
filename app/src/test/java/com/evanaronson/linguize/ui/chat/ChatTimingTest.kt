@@ -85,7 +85,7 @@ class ChatTimingTest {
 
     private fun openConversation() {
         chat.draftCheck = card
-        chat.start()
+        chat.newConversation()
         val until = System.currentTimeMillis() + 5_000
         while (chat.thread == null && System.currentTimeMillis() < until) {
             shadowOf(Looper.getMainLooper()).idle()

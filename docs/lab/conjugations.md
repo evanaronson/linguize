@@ -20,8 +20,9 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
 ## How to use it
 
 - **Progress**: a "Your conjugations" row under Your writing, with how many forms you
-  have used in the language on the switch. It opens on that language.
-- **Language switch**: Spanish or Catalan. It starts on the language with more text.
+  have used in the app's current language, which the page shows.
+- **Language**: the app's, switched in the top bar ([Language scope](language-scope.md)).
+  For a language other than Spanish and Catalan the page says what it covers.
 - **Tenses and persons**: rows are tenses and moods, columns are persons (yo, tú, él/usted,
   nosotros, vosotros, ellos/ustedes; jo, tu, ell/vostè…). A filled cell shows how many
   times the form was used. An outlined empty cell is a form not used yet. "N of M forms

@@ -65,6 +65,12 @@ internal sealed interface Screen {
     /** Lab: Time spent writing and reviewing. */
     data object TimeSpent : Screen
 
+    /**
+     * Lab: one conversation, above the Chat tab's list of conversations. [id] null is "the
+     * current conversation", what the app opens to; it's resolved when shown.
+     */
+    data class ChatThread(val id: String?) : Screen
+
     /** A bottom-bar destination: opening one replaces the path above the start destination. */
     val isTab: Boolean get() = this in tabs
 
@@ -91,9 +97,12 @@ internal sealed interface Screen {
             is ConjugationCell -> "conjugation:$language:$cell"
             Progress -> "progress"
             TimeSpent -> "lab_time_spent"
+            is ChatThread -> if (id == null) CHAT_THREAD else "$CHAT_THREAD:$id"
         }
 
     companion object {
+        private const val CHAT_THREAD = "lab_chat_thread"
+
         /** The bottom bar, in order. */
         val tabs: List<Screen> get() = listOf(Chat, Write, Progress, History)
 
@@ -129,6 +138,8 @@ internal sealed interface Screen {
                 .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }
             saved == "progress" -> Progress
             saved == "lab_time_spent" -> TimeSpent
+            saved == CHAT_THREAD -> ChatThread(null)
+            saved.startsWith("$CHAT_THREAD:") && saved.length > CHAT_THREAD.length + 1 -> ChatThread(saved.removePrefix("$CHAT_THREAD:"))
             else -> null
         }
     }
@@ -156,10 +167,22 @@ internal data class Navigation private constructor(private val screens: List<Scr
     fun open(screen: Screen): Navigation = when {
         screen.isTab -> if (screen == screens.first()) Navigation(screens.take(1)) else Navigation(listOf(screens.first(), screen))
         screen == current -> this
+        // One conversation at a time: another replaces the open one, so Back still leads to the list.
+        screen is Screen.ChatThread && current is Screen.ChatThread -> replace(screen)
         else -> Navigation(screens + screen)
     }
 
     fun back(): Navigation = if (screens.size > 1) Navigation(screens.dropLast(1)) else this
+
+    /** The current screen, swapped for [screen] (the chat's "current conversation" once it's known). */
+    fun replace(screen: Screen): Navigation =
+        if (screens.size > 1) Navigation(screens.dropLast(1) + screen) else Navigation(listOf(screen))
+
+    /**
+     * Lab, Language scope: the writer switched the app's language. A conversation keeps its
+     * own language, so an open one closes to the list, which now shows the new language's.
+     */
+    fun afterLanguageSwitch(): Navigation = if (current is Screen.ChatThread) back() else this
 
     companion object {
         fun restore(saved: List<String>?): Navigation {

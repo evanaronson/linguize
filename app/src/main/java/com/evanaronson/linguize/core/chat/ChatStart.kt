@@ -43,6 +43,10 @@ object ChatStart {
         return FALLBACK_LANGUAGE.takeIf { it in supported } ?: supported.first()
     }
 
+    /** Lab, Language scope: the conversations the Chat list shows while [language] is current (null: all). */
+    fun inLanguage(conversations: List<ConversationSummary>, language: String?): List<ConversationSummary> =
+        conversations.filter { language == null || it.conversation.language == language }
+
     /** Languages in [targets] (one per past check, null when unknown), most used first. */
     fun mostUsed(targets: List<String?>): List<String> =
         targets.filterNotNull().groupingBy { it }.eachCount().entries

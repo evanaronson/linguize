@@ -11,16 +11,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,38 +26,68 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.chat.ChatStart
 import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import kotlinx.coroutines.launch
 
-/** Lab Chat: a conversation another screen (History) asked the chat to open next. */
-object ChatRequests {
-    var conversation by mutableStateOf<String?>(null)
+/**
+ * Lab Chat, the Chat tab's top level: the conversations in the app's current [language],
+ * newest first, and New conversation. [onOpen] opens one (also a new one, once started).
+ * The app's top bar (title, language switch, Settings) and bottom bar sit around it.
+ */
+@Composable
+fun ChatListScreen(language: String?, onOpen: (String) -> Unit) {
+    val app = LocalContext.current.applicationContext as? App ?: return
+    val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
+    LaunchedEffect(chat, language) { chat.showList() }
+    ConversationList(
+        conversations = ChatStart.inLanguage(chat.conversations, language),
+        language = language,
+        people = chat.knownPeople,
+        onLoadPeople = chat::loadPeople,
+        onNew = { persona, picked -> onOpen(chat.newConversation(persona, picked)) },
+        onOpen = onOpen,
+        onRename = chat::rename,
+        onDelete = chat::delete,
+    )
 }
 
 /**
- * Lab Chat: the screen the app opens to. A conversation with a partner who only talks; Send
- * runs the same check as a message in another app, forced, on the same card. Each sent message is saved
- * in History (Origin.Chat) when History is on. Its own top bar holds the conversations, the
- * language and Settings; the app's bottom bar sits below it.
+ * Lab Chat: one conversation with a partner who only talks. Send runs the same check as a
+ * message in another app, forced, on the same card. Each sent message is saved in History
+ * (Origin.Chat) when History is on. [id] null is "the current conversation" in [language]
+ * (what the app opens to): [onResolved] gets the one found, or null when there is none and
+ * the list should show. Its bar has Back to the list, the title, the app's [languageSwitch]
+ * and Settings.
  */
 @Composable
-fun ChatScreen(onOpenSettings: () -> Unit) {
+fun ChatThreadScreen(
+    id: String?,
+    language: String?,
+    languageSwitch: @Composable () -> Unit,
+    onBack: () -> Unit,
+    onResolved: (String?) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val app = LocalContext.current.applicationContext as? App ?: return
     val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
-    // The chat's own card engine, apart from Try it's; it records as Origin.Chat.
+    // The chat's own card engine, apart from Write's; it records as Origin.Chat.
     val check: CheckViewModel = viewModel(key = CHECK_KEY, factory = CheckViewModel.factory(app))
 
     DisposableEffect(chat, check) {
         chat.draftCheck = CardDraftCheck(check)
         onDispose { chat.draftCheck = null }
     }
-    val requested = ChatRequests.conversation
-    LaunchedEffect(chat, requested) {
-        ChatRequests.conversation = null
-        chat.start(requested)
+    val resolved by rememberUpdatedState(onResolved)
+    val back by rememberUpdatedState(onBack)
+    LaunchedEffect(chat, id) {
+        if (id == null) chat.openCurrent(language) { resolved(it) }
+        else {
+            chat.refreshSettings()
+            chat.open(id, onMissing = { back() })
+        }
         // Back from Settings with the review open: a check that failed for want of a key runs again.
         check.recheckIfStale()
     }
@@ -89,38 +114,19 @@ fun ChatScreen(onOpenSettings: () -> Unit) {
         }
     }
 
-    val drawer = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    BackHandler(enabled = drawer.isOpen) { scope.launch { drawer.close() } }
-    BackHandler(enabled = !drawer.isOpen && chat.send != SendState.Composing) { chat.keepEditing() }
+    BackHandler(enabled = chat.send != SendState.Composing) { chat.keepEditing() }
 
-    ModalNavigationDrawer(
-        drawerState = drawer,
-        drawerContent = {
-            ConversationDrawer(
-                conversations = chat.conversations,
-                currentId = chat.thread?.conversation?.id,
-                people = chat.knownPeople,
-                language = chat.thread?.conversation?.language,
-                onLoadPeople = chat::loadPeople,
-                onNew = { persona, language -> chat.newConversation(persona, language); scope.launch { drawer.close() } },
-                onOpen = { chat.open(it); scope.launch { drawer.close() } },
-                onRename = chat::rename,
-                onDelete = chat::delete,
-            )
-        },
-    ) {
-        Column(Modifier.fillMaxSize()) {
-            ChatTopBar(
-                title = chat.thread?.conversation?.title.orEmpty(),
-                persona = chat.thread?.conversation?.persona,
-                language = chat.thread?.conversation?.language,
-                onOpenConversations = { scope.launch { drawer.open() } },
-                onSelectLanguage = chat::setLanguage,
-                onOpenSettings = onOpenSettings,
-            )
-            Box(Modifier.weight(1f)) { ChatBody(chat, check, onOpenSettings) }
-        }
+    // Until the requested conversation is open, show nothing of another one.
+    val thread = chat.thread?.takeIf { id == null || it.conversation.id == id }
+    Column(Modifier.fillMaxSize()) {
+        ChatTopBar(
+            title = thread?.conversation?.title.orEmpty(),
+            persona = thread?.conversation?.persona,
+            onBack = onBack,
+            languageSwitch = languageSwitch,
+            onOpenSettings = onOpenSettings,
+        )
+        Box(Modifier.weight(1f)) { if (thread != null) ChatBody(chat, check, onOpenSettings) }
     }
 }
 

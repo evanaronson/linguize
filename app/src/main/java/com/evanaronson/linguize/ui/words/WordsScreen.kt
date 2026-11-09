@@ -9,7 +9,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,11 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,6 +69,8 @@ import com.evanaronson.linguize.core.words.WordRow
 import com.evanaronson.linguize.core.words.WordSort
 import com.evanaronson.linguize.data.vocabgaps.BundledDecks
 import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.FilterDropdown
+import androidx.compose.foundation.layout.FlowRow
 import com.evanaronson.linguize.ui.components.CardNote
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
@@ -135,9 +133,6 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
     val growth = remember(shown, coverage, level) { WordList.growth(shown.rows(level), coverage) }
 
     LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-        if (state.languages.size > 1) item(key = "languages") {
-            LanguageSwitch(state.languages, shown.language, words::selectLanguage)
-        }
         item(key = "header") { Header(shown, coverage, state.deckFailed, level) }
         item(key = "decks") { DeckPicker(state.decks, state.deckId, words::selectDeck) }
         if (growth.size > 1 || growth.singleOrNull()?.day?.isBefore(LocalDate.now()) == true) item(key = "growth") {
@@ -217,21 +212,6 @@ internal fun languageLabel(code: String?): String {
         ?: code?.let { Locale.forLanguageTag(it).getDisplayLanguage(locale) }?.takeIf { it.isNotBlank() && it != code }
             ?.replaceFirstChar { it.titlecase(locale) }
         ?: stringResource(R.string.lab_words_other_language)
-}
-
-@Composable
-private fun LanguageSwitch(languages: List<String>, selected: String?, onSelect: (String?) -> Unit) {
-    val label = stringResource(R.string.lab_words_language)
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 8.dp)
-            .semantics { contentDescription = label }.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        languages.forEach { code ->
-            FilterChip(selected = code == selected, onClick = { onSelect(code) }, label = { Text(languageLabel(code)) },
-                modifier = Modifier.heightIn(min = 48.dp))
-        }
-    }
 }
 
 /** Coverage of the deck, then the writer's totals. */
@@ -405,16 +385,6 @@ private fun Controls(
     words: WordsViewModel,
 ) {
     SectionHeader(stringResource(R.string.lab_words_list))
-    // Lexemes and lemmas only mean something once the lemmatizer knows morphology.
-    if (morphology) {
-        val countBy = stringResource(R.string.lab_words_levels)
-        ChipRow(countBy) {
-            WordLevel.entries.forEach { option ->
-                FilterChip(selected = option == level, onClick = { words.countBy(option) }, label = { Text(levelLabel(option)) },
-                    modifier = Modifier.heightIn(min = 48.dp))
-            }
-        }
-    }
     LinguizeTextField(
         value = state.query,
         onValueChange = words::search,
@@ -423,31 +393,34 @@ private fun Controls(
         accessibleLabel = stringResource(R.string.lab_words_search),
         singleLine = true,
     )
-    ChipRow(stringResource(R.string.lab_words_filter)) {
-        WordFilter.entries.filter { hasDeck || it != WordFilter.NotYet }.forEach { option ->
-            FilterChip(
-                selected = option == state.filter,
-                onClick = { words.filter(option) },
-                label = { Text(stringResource(R.string.lab_vocab_gaps_filter_count, filterLabel(option), counts[option] ?: 0)) },
-                modifier = Modifier.heightIn(min = 48.dp),
-            )
-        }
+    // Filters are dropdowns, never buttons: they choose what the list shows.
+    FlowRow(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        FilterDropdown(
+            selected = state.filter,
+            options = WordFilter.entries.filter { hasDeck || it != WordFilter.NotYet },
+            label = { stringResource(R.string.lab_vocab_gaps_filter_count, filterLabel(it), counts[it] ?: 0) },
+            description = stringResource(R.string.lab_words_filter),
+            onSelect = words::filter,
+            labelled = true,
+        )
+        FilterDropdown(
+            selected = sort,
+            options = WordSort.entries.filter { hasDeck || it != WordSort.Rank },
+            label = { sortLabel(it) },
+            description = stringResource(R.string.lab_words_sort),
+            onSelect = words::sortBy,
+            labelled = true,
+        )
+        // Lexemes and lemmas only mean something once the lemmatizer knows morphology.
+        if (morphology) FilterDropdown(
+            selected = level,
+            options = WordLevel.entries,
+            label = { levelLabel(it) },
+            description = stringResource(R.string.lab_words_levels),
+            onSelect = words::countBy,
+            labelled = true,
+        )
     }
-    ChipRow(stringResource(R.string.lab_words_sort)) {
-        WordSort.entries.filter { hasDeck || it != WordSort.Rank }.forEach { option ->
-            FilterChip(selected = option == sort, onClick = { words.sortBy(option) }, label = { Text(sortLabel(option)) },
-                modifier = Modifier.heightIn(min = 48.dp))
-        }
-    }
-}
-
-@Composable
-private fun ChipRow(description: String, content: @Composable () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)
-            .semantics { contentDescription = description }.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) { content() }
 }
 
 @Composable

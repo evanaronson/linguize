@@ -8,8 +8,10 @@ import org.junit.Test
 class ChatStartNavigationTest {
     @Test fun openToChatStartsInTheChatWithNothingBehindIt() {
         val start = startNavigation(openToChat = true, openSettings = false)
-        assertEquals(Screen.Chat, start.current)
-        assertNull(start.parent)
+        // Into the current conversation, above the Chat tab's list, which is the start.
+        assertEquals(Screen.ChatThread(null), start.current)
+        assertEquals(Screen.Chat, start.parent)
+        assertNull(start.back().parent)
     }
 
     @Test fun switchedOffTheAppStartsOnWrite() {
@@ -29,9 +31,12 @@ class ChatStartNavigationTest {
     }
 
     @Test fun settingsIsOneTapFromTheChatAndReturnsToIt() {
-        val settings = startNavigation(openToChat = true, openSettings = false).open(Screen.Settings)
+        val settings = Navigation(Screen.Chat).open(Screen.Settings)
         assertEquals(Screen.Chat, settings.parent)
         assertEquals(startNavigation(openToChat = true, openSettings = true), settings)
+        // From a conversation, Settings returns to it.
+        val fromThread = startNavigation(openToChat = true, openSettings = false).open(Screen.Settings)
+        assertEquals(Screen.ChatThread(null), fromThread.parent)
     }
 
     @Test fun theChatPopsBackToItWhenItIsTheStart() {
@@ -59,6 +64,7 @@ class ChatStartNavigationTest {
         assertEquals(listOf("lab_chat", "home"), fromChat.saved)
         assertEquals(Navigation(), startNavigation(openToChat = false, openSettings = false, tab = Screen.Write))
         // Only tabs can be asked for.
-        assertEquals(Navigation(Screen.Chat), startNavigation(openToChat = true, openSettings = false, tab = Screen.Practice))
+        assertEquals(startNavigation(openToChat = true, openSettings = false),
+            startNavigation(openToChat = true, openSettings = false, tab = Screen.Practice))
     }
 }

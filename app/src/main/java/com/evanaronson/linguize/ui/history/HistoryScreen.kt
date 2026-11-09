@@ -1,22 +1,16 @@
 package com.evanaronson.linguize.ui.history
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -40,6 +34,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.FilterDropdown
+import com.evanaronson.linguize.ui.language.scopeLanguageName
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.RowDivider
@@ -65,6 +61,8 @@ fun HistoryScreen(
     historyOn: Boolean?,
     onOpen: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    /** Lab, Language scope: the app's current language, which the list starts filtered to. */
+    language: String? = null,
 ) {
     val page by history.historyList.collectAsState()
     val list = rememberLazyListState()
@@ -74,7 +72,10 @@ fun HistoryScreen(
     var filterToken by rememberSaveable { mutableStateOf(HistoryFilter.All.token) }
     val filter = HistoryFilter.read(filterToken)
     val choices = remember(page.rows, filter) { filterChoices(page.rows, filter) }
-    val items = remember(page.rows, filter) { historyItems(page.rows.filter(filter::keeps)) }
+    // The current language by default; "All languages" until the app's language changes.
+    var allLanguages by rememberSaveable(language) { mutableStateOf(false) }
+    val shownLanguage = language.takeUnless { allLanguages }
+    val items = remember(page.rows, filter, shownLanguage) { historyItems(historyRows(page.rows, filter, shownLanguage)) }
     val shownCount by rememberUpdatedState(items.size)
     HistoryDeletionFeedback(history, snackbar)
     HistoryExportEffect(settings)
@@ -113,13 +114,18 @@ fun HistoryScreen(
                 if (historyOn == false) item(key = "history-off", contentType = "notice") {
                     SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
                 }
-                // Only worth offering when messages come from more than one place.
-                if (choices.size > 2 || filter != HistoryFilter.All) item(key = "history-filter", contentType = "filter") {
-                    SourceFilter(choices, filter, page.rows) { filterToken = it.token }
+                item(key = "history-filter", contentType = "filter") {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        language?.let { LanguageFilter(it, allLanguages) { all -> allLanguages = all } }
+                        // A source is only worth choosing when messages come from more than one place.
+                        if (choices.size > 2 || filter != HistoryFilter.All) {
+                            SourceFilter(choices, filter, page.rows) { filterToken = it.token }
+                        }
+                    }
                 }
-                if (items.isEmpty() && !hasFooter) item(key = "history-empty-${filter.token}", contentType = "notice") {
+                if (items.isEmpty() && !hasFooter) item(key = "history-empty-${filter.token}-$shownLanguage", contentType = "notice") {
                     SectionCard(Modifier.padding(top = 8.dp)) {
-                        Quiet(emptyFilterText(filter, page.rows), Modifier.padding(vertical = 16.dp))
+                        Quiet(emptyFilterText(filter, page.rows, shownLanguage), Modifier.padding(vertical = 16.dp))
                     }
                 }
                 itemsIndexed(items, key = { _, item -> item.key }, contentType = { _, item ->
@@ -159,39 +165,43 @@ fun HistoryScreen(
     }
 }
 
-/** All · WhatsApp · Messages · Chat. */
+/** "Catalan ▾" or "All languages ▾": the app's current language, or every language. */
+@Composable
+private fun LanguageFilter(language: String, all: Boolean, onSelect: (Boolean) -> Unit) {
+    FilterDropdown(
+        selected = all,
+        options = listOf(false, true),
+        label = { if (it) stringResource(R.string.lab_language_scope_all) else scopeLanguageName(language) },
+        description = stringResource(R.string.lab_language_scope_language),
+        onSelect = onSelect,
+    )
+}
+
+/** "All sources ▾", then each app and Chat. */
 @Composable
 private fun SourceFilter(choices: List<HistoryFilter>, selected: HistoryFilter, rows: List<RecentRow>, onSelect: (HistoryFilter) -> Unit) {
-    val label = stringResource(R.string.lab_history_flat_filter)
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp)
-            .semantics { contentDescription = label }.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        choices.forEach { choice ->
-            FilterChip(
-                selected = choice == selected,
-                onClick = { onSelect(choice) },
-                label = { Text(filterName(choice, rows)) },
-                modifier = Modifier.heightIn(min = 48.dp),
-            )
-        }
-    }
+    FilterDropdown(
+        selected = selected,
+        options = choices,
+        label = { filterName(it, rows) },
+        description = stringResource(R.string.lab_history_flat_filter),
+        onSelect = onSelect,
+    )
 }
 
 @Composable
 private fun filterName(filter: HistoryFilter, rows: List<RecentRow>): String = when (filter) {
-    HistoryFilter.All -> stringResource(R.string.lab_history_flat_all)
+    HistoryFilter.All -> stringResource(R.string.lab_language_scope_source_all)
     HistoryFilter.Chat -> stringResource(R.string.lab_chat_origin_chat)
     is HistoryFilter.App -> appName(rows, filter)
 }
 
 @Composable
-private fun emptyFilterText(filter: HistoryFilter, rows: List<RecentRow>): String = when (filter) {
+private fun emptyFilterText(filter: HistoryFilter, rows: List<RecentRow>, language: String?): String = when (filter) {
     is HistoryFilter.App -> stringResource(R.string.lab_history_flat_no_app_messages, appName(rows, filter))
     HistoryFilter.Chat -> stringResource(R.string.lab_history_flat_no_chat_messages)
-    // All is never empty here: an empty History shows its own page.
-    HistoryFilter.All -> ""
+    // All sources is empty only in a language with nothing yet: an empty History shows its own page.
+    HistoryFilter.All -> language?.let { stringResource(R.string.lab_language_scope_history_empty, scopeLanguageName(it)) }.orEmpty()
 }
 
 @Composable

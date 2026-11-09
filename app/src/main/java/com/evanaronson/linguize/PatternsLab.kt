@@ -66,10 +66,19 @@ class PatternsLab(
 ) {
     private val lock = Mutex()
 
-    /** Reads History and builds the report; null when History couldn't be read. */
-    suspend fun load(): PatternsSnapshot? = withContext(Dispatchers.IO) {
+    /**
+     * Reads History and builds the report; null when History couldn't be read. With a
+     * [language] (Lab, Language scope) the report counts only checks in it. The saved
+     * explanation is still reconciled against every language, so it is deleted only when its
+     * evidence is gone, and it shows only for the language it was made from.
+     */
+    suspend fun load(language: String? = null): PatternsSnapshot? = withContext(Dispatchers.IO) {
         val details = history.patternEvidence() ?: return@withContext null
-        reconcile(PatternAnalyser.analyse(details))
+        val all = reconcile(PatternAnalyser.analyse(details))
+        if (language == null) return@withContext all
+        val report = PatternAnalyser.analyse(details.filter { it.session.targetLanguage == language })
+        val status = all.explanation?.let { saved -> explanationStatus(saved, report)?.takeIf { saved.sources.isNotEmpty() } }
+        PatternsSnapshot(report, all.explanation?.takeIf { status != null }, status)
     }
 
     /** Deletes a saved explanation whose evidence is gone, and says how the rest relates to [report]. */
@@ -112,7 +121,7 @@ class PatternsLab(
      * and returns a fresh snapshot (so a check deleted meanwhile still removes it).
      * Throws [CheckFailure].
      */
-    suspend fun explain(report: PatternReport): PatternsSnapshot = withContext(Dispatchers.IO) {
+    suspend fun explain(report: PatternReport, language: String? = null): PatternsSnapshot = withContext(Dispatchers.IO) {
         val briefs = briefs(report)
         if (briefs.isEmpty()) throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
         val provider = settings.provider
@@ -145,7 +154,7 @@ class PatternsLab(
             checks = report.checksCounted,
         )
         lock.withLock { notes.write(saved) }
-        load() ?: reconcile(report)
+        load(language) ?: reconcile(report)
     }
 
     /** Deletes the saved explanation; the patterns themselves stay, as they're rebuilt from History. */

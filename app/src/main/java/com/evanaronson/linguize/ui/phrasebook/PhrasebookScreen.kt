@@ -117,7 +117,7 @@ fun PhrasebookScreen(model: PhrasebookViewModel, onOpenCheck: (String) -> Unit) 
             }
             if (adding) {
                 AddPhrase(
-                    initialLanguage = current.sections.firstOrNull()?.language,
+                    initialLanguage = current.language ?: current.sections.firstOrNull()?.language,
                     onSave = { draft ->
                         model.add(draft) { saved ->
                             if (saved) {

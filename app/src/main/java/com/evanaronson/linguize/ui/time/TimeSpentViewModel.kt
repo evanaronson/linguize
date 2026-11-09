@@ -34,15 +34,16 @@ class TimeSpentViewModel(
     private val mutableState = MutableStateFlow(TimeState())
     val state: StateFlow<TimeState> = mutableState.asStateFlow()
 
-    fun refresh() {
-        viewModelScope.launch { mutableState.value = TimeState(load()) }
+    /** Reads again, for [language] only (Lab, Language scope; null is every language). */
+    fun refresh(language: String? = null) {
+        viewModelScope.launch { mutableState.value = TimeState(load(language)) }
     }
 
-    internal suspend fun load(): TimeReport {
+    internal suspend fun load(language: String? = null): TimeReport {
         val now = clock()
         sessions()?.let { store.sweep(it, now) }
         val records = store.all()
-        return withContext(Dispatchers.Default) { TimeReport.of(records, now) }
+        return withContext(Dispatchers.Default) { TimeReport.of(records, now, language = language) }
     }
 
     companion object {

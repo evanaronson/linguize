@@ -11,7 +11,7 @@ class NavigationTest {
         val navigation = Navigation().open(Screen.History).open(Screen.Detail("older"))
         assertEquals(Screen.History, navigation.parent)
         assertEquals(Screen.History, navigation.back().current)
-        assertEquals(Screen.Write, navigation.back().back().current)
+        assertEquals(Screen.Notes, navigation.back().back().current)
         assertEquals(Navigation(), navigation.back().back().back())
     }
 
@@ -21,12 +21,12 @@ class NavigationTest {
         assertEquals(original, Navigation.restore(original.saved))
         val settings = original.back().open(Screen.Settings)
         assertEquals(Screen.History, Navigation.restore(settings.saved).back().current)
-        assertEquals(Screen.Write, Navigation().open(Screen.Settings).back().current)
+        assertEquals(Screen.Notes, Navigation().open(Screen.Settings).back().current)
     }
 
     @Test
     fun legacyStateAndInvalidStateHaveASafeRoot() {
-        assertEquals(Screen.Write, Navigation.restore(listOf("detail:legacy")).parent)
+        assertEquals(Screen.Notes, Navigation.restore(listOf("detail:legacy")).parent)
         assertEquals(Navigation(), Navigation.restore(listOf("unknown", "detail:")))
         assertEquals(Navigation(), Navigation.restore(null))
     }
@@ -47,9 +47,12 @@ class NavigationTest {
     }
 
     @Test
-    fun writeKeepsItsOldSavedNameSoOldStateRestores() {
-        assertEquals("home", Screen.Write.saved)
-        assertEquals(Screen.Write, Screen.restore("home"))
+    fun notesSavesItsNewNameAndOldNamesStillRestore() {
+        assertEquals("notes", Screen.Notes.saved)
+        assertEquals(Screen.Notes, Screen.restore("notes"))
+        // Saved while it was Write (and before that Home).
+        assertEquals(Screen.Notes, Screen.restore("home"))
+        assertEquals(Navigation().open(Screen.Progress), Navigation.restore(listOf("home", "progress")))
         assertNull(Navigation().parent)
     }
 }

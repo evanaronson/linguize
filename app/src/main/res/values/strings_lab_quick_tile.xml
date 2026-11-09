@@ -9,8 +9,8 @@
     <string name="lab_quick_tile_shortcut_check_long">Check copied text</string>
     <string name="lab_quick_tile_shortcut_understand">Understand</string>
     <string name="lab_quick_tile_shortcut_understand_long">Understand copied text</string>
-    <string name="lab_quick_tile_shortcut_try_it">Write</string>
-    <string name="lab_quick_tile_shortcut_try_it_long">Write a message</string>
+    <string name="lab_quick_tile_shortcut_try_it">Notes</string>
+    <string name="lab_quick_tile_shortcut_try_it_long">Write a note</string>
 
     <!-- The tile's card: whose words were copied decides the job. -->
     <string name="lab_quick_tile_choose_caption">Check your own writing, or understand a message you got.</string>

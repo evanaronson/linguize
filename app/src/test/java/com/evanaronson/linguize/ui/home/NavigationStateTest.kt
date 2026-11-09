@@ -126,7 +126,7 @@ class NavigationStateTest {
                 settle()
                 currentValue.value = 33
                 val saved = registry.performSave()
-                assertEquals(setOf("home", "history", "detail:active"), screenKeys(saved))
+                assertEquals(setOf("notes", "history", "detail:active"), screenKeys(saved))
 
                 val savedNavigation = navigation.saved
                 composition.dispose()
@@ -139,12 +139,12 @@ class NavigationStateTest {
                 navigation = navigation.back()
                 settle()
                 assertEquals(22, currentValue.value)
-                assertEquals(setOf("home", "history"), screenKeys(restored.performSave()))
+                assertEquals(setOf("notes", "history"), screenKeys(restored.performSave()))
 
                 navigation = navigation.back()
                 settle()
                 assertEquals(11, currentValue.value)
-                assertEquals(setOf("home"), screenKeys(restored.performSave()))
+                assertEquals(setOf("notes"), screenKeys(restored.performSave()))
             } finally {
                 composition.dispose()
                 recomposer.cancel()

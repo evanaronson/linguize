@@ -1,6 +1,5 @@
 package com.evanaronson.linguize.ui.chat
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -14,6 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -33,18 +33,21 @@ import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CheckViewModel
 
 /**
- * Lab Chat, the Chat tab's top level: the conversations in the app's current [language],
- * newest first, and New conversation. [onOpen] opens one (also a new one, once started).
- * The app's top bar (title, language switch, Settings) and bottom bar sit around it.
+ * Lab Chat, the Chat tab's top level: the conversations in the app's current [language]
+ * (every language under Linguize, null), newest first, and New conversation. [onOpen] opens
+ * one (also a new one, once started). The app's top bar (the wordmark, the language selector,
+ * Settings) and bottom bar sit around it.
  */
 @Composable
 fun ChatListScreen(language: String?, onOpen: (String) -> Unit) {
     val app = LocalContext.current.applicationContext as? App ?: return
     val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
+    val options by com.evanaronson.linguize.ui.language.AppLanguage.of(app).options.collectAsState()
     LaunchedEffect(chat, language) { chat.showList() }
     ConversationList(
         conversations = ChatStart.inLanguage(chat.conversations, language),
         language = language,
+        languageOptions = options,
         people = chat.knownPeople,
         onLoadPeople = chat::loadPeople,
         onNew = { persona, picked -> onOpen(chat.newConversation(persona, picked)) },
@@ -59,21 +62,20 @@ fun ChatListScreen(language: String?, onOpen: (String) -> Unit) {
  * message in another app, forced, on the same card. Each sent message is saved in History
  * (Origin.Chat) when History is on. [id] null is "the current conversation" in [language]
  * (what the app opens to): [onResolved] gets the one found, or null when there is none and
- * the list should show. Its bar has Back to the list, the title, the app's [languageSwitch]
- * and Settings.
+ * the list should show. Its bar is the app's page bar: Back to the list and the title (and who
+ * the partner plays). There is no language selector: a conversation's language is fixed.
  */
 @Composable
 fun ChatThreadScreen(
     id: String?,
     language: String?,
-    languageSwitch: @Composable () -> Unit,
     onBack: () -> Unit,
     onResolved: (String?) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val app = LocalContext.current.applicationContext as? App ?: return
     val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
-    // The chat's own card engine, apart from Write's; it records as Origin.Chat.
+    // The chat's own card engine, apart from Notes'; it records as Origin.Chat.
     val check: CheckViewModel = viewModel(key = CHECK_KEY, factory = CheckViewModel.factory(app))
 
     DisposableEffect(chat, check) {
@@ -114,7 +116,7 @@ fun ChatThreadScreen(
         }
     }
 
-    BackHandler(enabled = chat.send != SendState.Composing) { chat.keepEditing() }
+    com.evanaronson.linguize.ui.components.NavigationBackHandler(enabled = chat.send != SendState.Composing) { chat.keepEditing() }
 
     // Until the requested conversation is open, show nothing of another one.
     val thread = chat.thread?.takeIf { id == null || it.conversation.id == id }
@@ -123,10 +125,13 @@ fun ChatThreadScreen(
             title = thread?.conversation?.title.orEmpty(),
             persona = thread?.conversation?.persona,
             onBack = onBack,
-            languageSwitch = languageSwitch,
-            onOpenSettings = onOpenSettings,
         )
-        Box(Modifier.weight(1f)) { if (thread != null) ChatBody(chat, check, onOpenSettings) }
+        // Lab, Consistency: the card's wrong-language hint can't point at a selector here.
+        androidx.compose.runtime.CompositionLocalProvider(
+            com.evanaronson.linguize.ui.card.LocalLanguageHint provides com.evanaronson.linguize.ui.card.LanguageHint.Fixed,
+        ) {
+            Box(Modifier.weight(1f)) { if (thread != null) ChatBody(chat, check, onOpenSettings) }
+        }
     }
 }
 

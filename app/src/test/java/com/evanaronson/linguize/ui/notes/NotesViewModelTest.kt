@@ -1,4 +1,4 @@
-package com.evanaronson.linguize.ui.write
+package com.evanaronson.linguize.ui.notes
 
 import android.app.Application
 import android.content.ClipboardManager
@@ -69,14 +69,14 @@ class WriteViewModelTest {
     )
 
     /** A fresh view model on the same files, as after the app was closed and opened again. */
-    private fun write(): WriteViewModel {
+    private fun write(): NotesViewModel {
         val owner = ViewModelStore().also { viewModels += it }
         return ViewModelProvider(owner, viewModelFactory {
             initializer {
-                WriteViewModel(store(), sample, saveMillis = 400, clock = { now++ },
+                NotesViewModel(store(), sample, saveMillis = 400, clock = { now++ },
                     io = Dispatchers.Unconfined, newId = { "d${++ids}" })
             }
-        })[WriteViewModel::class.java].also { settle() }
+        })[NotesViewModel::class.java].also { settle() }
     }
 
     private fun settle() = shadowOf(Looper.getMainLooper()).idle()

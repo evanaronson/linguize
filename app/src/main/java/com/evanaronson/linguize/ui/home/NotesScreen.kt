@@ -22,31 +22,31 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
-import com.evanaronson.linguize.ui.write.WriteDraftList
-import com.evanaronson.linguize.ui.write.WriteEditor
-import com.evanaronson.linguize.ui.write.rememberWriteViewModel
+import com.evanaronson.linguize.ui.notes.NoteList
+import com.evanaronson.linguize.ui.notes.NoteEditor
+import com.evanaronson.linguize.ui.notes.rememberNotesViewModel
 
 /**
- * Write, one of the four destinations: an editor with drafts, checked with the same card as
+ * Notes (once Write), one of the four destinations: an editor with its notes, checked with the same card as
  * everywhere else (which also fills [gaps]). Until a key is saved ([needsKey]), a strip at the
  * top leads to it. Progress, History and Settings have places of their own.
  */
 @Composable
-internal fun WriteScreen(
+internal fun NotesScreen(
     check: CheckViewModel,
     needsKey: Boolean,
     onOpenSettings: () -> Unit,
     /** Lab, Language scope: the app's current language, which the editor checks in. */
     language: String? = null,
 ) {
-    val write = rememberWriteViewModel()
+    val write = rememberNotesViewModel()
     ScreenColumn {
         if (needsKey) AddKeyStrip(onOpenSettings)
-        SectionHeader(stringResource(R.string.lab_write_header))
+        SectionHeader(stringResource(R.string.lab_notes_header))
         SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-            WriteEditor(write, check, onOpenSettings, appLanguage = language)
+            NoteEditor(write, check, onOpenSettings, appLanguage = language)
         }
-        WriteDraftList(write, onOpened = { check.dismiss(applied = false) })
+        NoteList(write, onOpened = { check.dismiss(applied = false) })
 
     }
 }

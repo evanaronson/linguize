@@ -1,4 +1,4 @@
-package com.evanaronson.linguize.ui.write
+package com.evanaronson.linguize.ui.notes
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,11 +24,11 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Write's editor: the open draft's text and language, and the other drafts. Text is saved
+ * Notes' editor (once Write): the open note's text and language, and the other notes. Each note is kept as a draft in the store (`data/write`, `lab_write.json`, names kept so nothing moves). Text is saved
  * [saveMillis] after typing stops and at once on [flush] (leaving the tab or the app). A blank
  * draft, or the untouched [sample] a fresh install starts with, is never kept.
  */
-class WriteViewModel(
+class NotesViewModel(
     private val store: WriteDraftStore,
     private val sample: String,
     private val saveMillis: Long = SAVE_MILLIS,
@@ -174,7 +174,7 @@ class WriteViewModel(
 
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                WriteViewModel(
+                NotesViewModel(
                     store = WriteDraftStore(
                         File(app.filesDir, WriteDraftStore.FILE_NAME),
                         legacy = File(app.filesDir, WriteDraftStore.PAD_FILE_NAME),

@@ -12,12 +12,12 @@ import com.evanaronson.linguize.ui.settings.SettingsPage
 
 /**
  * The launcher activity's screens: few enough for a state and a back handler, no navigation
- * library. Four are top-level destinations in the bottom bar ([tabs]): Chat, Write, Progress
+ * library. Four are top-level destinations in the bottom bar ([tabs]): Chat, Notes, Progress
  * and History. Everything else opens above one of them.
  */
 internal sealed interface Screen {
-    /** Write: the editor with drafts, checked with the card. Saved as "home", its old name. */
-    data object Write : Screen
+    /** Notes: the editor with its notes, checked with the card. Saved as "notes"; "home" (its first name, then Write) still restores. */
+    data object Notes : Screen
     data object History : Screen
     data object Settings : Screen
 
@@ -77,7 +77,7 @@ internal sealed interface Screen {
     /** For saved instance state. */
     val saved: String
         get() = when (this) {
-            Write -> "home"
+            Notes -> NOTES
             History -> "history"
             Settings -> "settings"
             AccessibilitySetup -> "accessibility"
@@ -102,13 +102,14 @@ internal sealed interface Screen {
 
     companion object {
         private const val CHAT_THREAD = "lab_chat_thread"
+        private const val NOTES = "notes"
 
         /** The bottom bar, in order. */
-        val tabs: List<Screen> get() = listOf(Chat, Write, Progress, History)
+        val tabs: List<Screen> get() = listOf(Chat, Notes, Progress, History)
 
         fun restore(saved: String?): Screen? = when {
             saved == null -> null
-            saved == "home" -> Write
+            saved == NOTES || saved == "home" -> Notes
             saved == "history" -> History
             saved == "settings" -> Settings
             saved == "accessibility" -> AccessibilitySetup
@@ -120,8 +121,8 @@ internal sealed interface Screen {
             saved == "appvoice" -> AppVoice()
             saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))
             // Removed experiments: Fill the gaps became part of every check; Help me reply and
-            // Understand a photo were removed. Their pages sat above Write.
-            saved == "lab_gap_filler" || saved == "lab_reply" || saved == "photo" -> Write
+            // Understand a photo were removed. Their pages sat above Notes (then Write).
+            saved == "lab_gap_filler" || saved == "lab_reply" || saved == "photo" -> Notes
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
             saved == "practice" -> Practice
@@ -146,15 +147,15 @@ internal sealed interface Screen {
 }
 
 /**
- * The actual path taken. It starts at the start destination (Chat, or Write when "Open to
+ * The actual path taken. It starts at the start destination (Chat, or Notes when "Open to
  * chat" is off); another tab sits right above it, so Back from any tab returns to the start
  * and Back from the start leaves the app. Other screens open above the current one, so the
  * same check can return to History or to Your patterns.
  */
 internal data class Navigation private constructor(private val screens: List<Screen>) {
-    constructor() : this(listOf(Screen.Write))
+    constructor() : this(listOf(Screen.Notes))
 
-    /** A path that starts at [root]: Chat or Write. */
+    /** A path that starts at [root]: Chat or Notes. */
     constructor(root: Screen) : this(listOf(root))
 
     val current: Screen get() = screens.last()

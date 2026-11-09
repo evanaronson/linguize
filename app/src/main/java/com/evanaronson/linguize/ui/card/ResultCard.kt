@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import com.evanaronson.linguize.ui.components.NavigationBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -84,9 +83,7 @@ fun ResultCard(
     val settled = done?.settled.orEmpty()
     // How the text was read is a page of its own, kept until the result changes.
     var showingUnderstanding by rememberSaveable(reviewed, settled) { mutableStateOf(false) }
-    if (LocalOnBackPressedDispatcherOwner.current != null) {
-        BackHandler(enabled = showingUnderstanding) { showingUnderstanding = false }
-    }
+    NavigationBackHandler(enabled = showingUnderstanding) { showingUnderstanding = false }
     ResultSurface(
         modifier,
         scrollable,
@@ -148,8 +145,7 @@ fun ResultCard(
                 is CheckResult.WrongLanguage -> {
                     Outcome(
                         stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
-                        result.found?.let { stringResource(R.string.wrong_language_detected, languageDisplayName(it)) }
-                            ?: stringResource(R.string.choose_auto_language),
+                        wrongLanguageHint(LocalLanguageHint.current, result.found?.let { languageDisplayName(it) }),
                     )
                     RetainedChanges(state.retainedRevision, actions.review, canApply = true)
                 }

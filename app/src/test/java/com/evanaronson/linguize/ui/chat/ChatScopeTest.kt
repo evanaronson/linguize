@@ -133,6 +133,23 @@ class ChatScopeTest {
         assertTrue(switched.last() == "es")
     }
 
+    @Test fun underLinguizeTheAppOpensTheLatestConversationInAnyLanguage() {
+        conversation("es1", "es", now - 1_000)
+        conversation("ca1", "ca", now - 2_000)
+        var resolved: String? = "unset"
+        chat.openCurrent(null) { resolved = it }
+        waitFor { chat.thread != null }
+        assertEquals("es1", resolved)
+    }
+
+    @Test fun underLinguizeANewConversationStartsInTheStartLanguage() {
+        current = null
+        val id = chat.newConversation()
+        waitFor { runBlocking { store.conversation(id) } != null }
+        // The start-language rule (here "es"); nothing was asked in the sheet.
+        assertEquals("es", runBlocking { store.conversation(id) }!!.language)
+    }
+
     @Test fun openingAConversationInAnotherLanguageMakesItTheAppsLanguage() {
         conversation("es1", "es", now - 1_000)
         chat.open("es1")

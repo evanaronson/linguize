@@ -23,7 +23,8 @@ it reads the shared [writer corpus](corpus.md).
 ## How to use it
 
 Progress → **Words** (under Your writing): "312 words you've written in Catalan" for the
-app's current language, which the page shows. Switch it in the top bar
+app's current language, which the page shows. Choose it with the selector in the top bar
+of Progress; under Linguize each language in use has its own Words row
 ([Language scope](language-scope.md)).
 
 - **Header.** For the chosen deck, a coverage sentence ("You've used 62% of the 500 most
@@ -113,7 +114,7 @@ was outside a corrected span.
   bracketed gaps are skipped, an accepted fill is a corrected span, and common English words
   in a corrected span are left out.
 - Shared text can't be put back, so it never reaches visible History; Understand and
-  checks on Write are never saved.
+  checks on Notes are never saved.
 - Names: a capital in mid-sentence, or after an elided article (L'Hospitalet). A capital at
   the start of a sentence counts as a word unless that form only ever appears capitalized.
 

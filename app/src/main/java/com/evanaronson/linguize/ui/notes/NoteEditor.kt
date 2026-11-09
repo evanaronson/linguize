@@ -1,4 +1,4 @@
-package com.evanaronson.linguize.ui.write
+package com.evanaronson.linguize.ui.notes
 
 import android.content.Context
 import android.content.Intent
@@ -12,6 +12,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,9 +35,10 @@ import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.LanguageHint
+import com.evanaronson.linguize.ui.card.LocalLanguageHint
 import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.components.ButtonKind
-import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.ListCard
@@ -49,26 +51,25 @@ import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.openExternal
 
 @Composable
-internal fun rememberWriteViewModel(): WriteViewModel =
-    viewModel(factory = WriteViewModel.factory(App.of(LocalContext.current)))
+internal fun rememberNotesViewModel(): NotesViewModel =
+    viewModel(factory = NotesViewModel.factory(App.of(LocalContext.current)))
 
 /**
- * Write's editor: the open draft, checked with the same card as everywhere else. Apply puts
+ * Notes' editor: the open note, checked with the same card as everywhere else, in the app's
+ * language (Linguize detects). Apply puts
  * the accepted changes in the editor; Copy and Share take the text out, accepted changes
  * included. Drafts save as you type, and when you leave the tab or the app.
  */
 @Composable
-internal fun WriteEditor(
-    write: WriteViewModel,
+internal fun NoteEditor(
+    write: NotesViewModel,
     check: CheckViewModel,
     onOpenSettings: () -> Unit,
-    /** Lab, Language scope: the app's current language, which checks use unless the picker changes it. */
+    /** Lab, Language scope: the app's current language, which checks use; null (Linguize) detects. */
     appLanguage: String? = null,
 ) {
     val context = LocalContext.current
-    // The picker's choice lasts until the app's language is switched.
-    var picked by rememberSaveable(appLanguage) { mutableStateOf<String?>(null) }
-    val language = writeCheckLanguage(appLanguage, picked)
+    val language = noteCheckLanguage(appLanguage)
     // Set when a check was asked for with nothing in the box; cleared by typing.
     var blank by rememberSaveable { mutableStateOf(false) }
 
@@ -99,35 +100,29 @@ internal fun WriteEditor(
     LinguizeTextField(
         value = write.text,
         onValueChange = { replace(it) },
-        placeholder = stringResource(R.string.lab_write_placeholder),
+        placeholder = stringResource(R.string.lab_notes_placeholder),
         accessibleLabel = stringResource(R.string.your_text),
         supporting = if (blank) stringResource(R.string.no_text_to_check) else null,
         isError = blank,
         large = true,
         minLines = 4,
     )
-    // The button checks with the language shown; picking a language also runs the check.
-    FlowRow(
-        Modifier.padding(top = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        LanguagePicker(language, onSelect = {
-            picked = pickedToken(it)
-            run(it)
-        })
+    // Lab, Consistency: no language picker here; the one selector at the top decides.
+    Row(Modifier.padding(top = 12.dp)) {
         LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
     }
 
     check.state?.let { state ->
-        ResultCard(
-            state = state,
-            actions = CardActions.of(
-                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
-            ),
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            scrollable = false,
-        )
+        CompositionLocalProvider(LocalLanguageHint provides LanguageHint.AppSelector) {
+            ResultCard(
+                state = state,
+                actions = CardActions.of(
+                    check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
+                ),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                scrollable = false,
+            )
+        }
     }
 
     val hasText = write.text.isNotBlank()
@@ -135,33 +130,33 @@ internal fun WriteEditor(
         Modifier.padding(top = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        LinguizeButton(stringResource(R.string.lab_write_copy), {
+        LinguizeButton(stringResource(R.string.lab_notes_copy), {
             context.copyToClipboard(takeFromCard(write, check))
         }, ButtonKind.Text, enabled = hasText)
-        LinguizeButton(stringResource(R.string.lab_write_share), {
+        LinguizeButton(stringResource(R.string.lab_notes_share), {
             context.openExternal(shareIntent(context, takeFromCard(write, check)))
         }, ButtonKind.Text, enabled = hasText)
-        LinguizeButton(stringResource(R.string.lab_write_new_draft), {
+        LinguizeButton(stringResource(R.string.lab_notes_new), {
             check.dismiss(applied = false)
             blank = false
             write.newDraft()
         }, ButtonKind.Text, enabled = hasText)
     }
-    Quiet(stringResource(R.string.lab_write_note), Modifier.padding(top = 8.dp))
+    Quiet(stringResource(R.string.lab_notes_footer), Modifier.padding(top = 8.dp))
 }
 
-/** The other drafts, under the editor: tap one to open it; delete with Undo. Nothing when there are none. */
+/** The other notes, under the editor: tap one to open it; delete with Undo. Nothing when there are none. */
 @Composable
-internal fun WriteDraftList(write: WriteViewModel, onOpened: () -> Unit) {
+internal fun NoteList(write: NotesViewModel, onOpened: () -> Unit) {
     val drafts = write.drafts
     val deleted = write.deleted
     if (drafts.isEmpty() && deleted == null) return
     val resources = LocalContext.current.resources
-    SectionHeader(stringResource(R.string.lab_write_drafts))
+    SectionHeader(stringResource(R.string.lab_notes_others))
     if (deleted != null) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(R.string.lab_write_draft_deleted),
+                stringResource(R.string.lab_notes_deleted),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
@@ -177,12 +172,12 @@ internal fun WriteDraftList(write: WriteViewModel, onOpened: () -> Unit) {
                     draft.label(),
                     shortDate(draft.updatedAt, locale = resources.uiLocale),
                     onClick = { write.open(draft.id); onOpened() },
-                    onClickLabel = stringResource(R.string.lab_write_open_draft),
+                    onClickLabel = stringResource(R.string.lab_notes_open),
                     trailing = {
                         IconButton(onClick = { write.delete(draft.id) }) {
                             Icon(
-                                painterResource(R.drawable.lab_write_ic_delete),
-                                stringResource(R.string.lab_write_delete_draft),
+                                painterResource(R.drawable.lab_notes_ic_delete),
+                                stringResource(R.string.lab_notes_delete),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -193,9 +188,9 @@ internal fun WriteDraftList(write: WriteViewModel, onOpened: () -> Unit) {
     )
 }
 
-/** Saves the open draft when the tab goes away or the app goes to the background. */
+/** Saves the open note when the tab goes away or the app goes to the background. */
 @Composable
-private fun SaveWhenLeaving(write: WriteViewModel) {
+private fun SaveWhenLeaving(write: NotesViewModel) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle, write) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) write.flush() }
@@ -212,7 +207,7 @@ private fun SaveWhenLeaving(write: WriteViewModel) {
  * closes the card, as Apply does; returns the draft's text. Copy and Share take this text, so
  * accepting a change and copying straight away copies the change.
  */
-internal fun takeFromCard(write: WriteViewModel, check: CheckViewModel): String {
+internal fun takeFromCard(write: NotesViewModel, check: CheckViewModel): String {
     check.workingText?.let { write.edit(Selection.of(write.text).with(it)) }
     if (check.state != null) check.dismiss()
     return write.text
@@ -221,5 +216,5 @@ internal fun takeFromCard(write: WriteViewModel, check: CheckViewModel): String 
 /** The system share sheet for [text]. */
 internal fun shareIntent(context: Context, text: String): Intent = Intent.createChooser(
     Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text),
-    context.getString(R.string.lab_write_share),
+    context.getString(R.string.lab_notes_share),
 )

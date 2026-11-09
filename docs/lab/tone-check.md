@@ -6,7 +6,7 @@ greeting can read as cold, and a word that is harmless in one variety can be rud
 
 Before sending, the writer asks one question: **is this OK to send?** It has four parts, and
 one check answers all of them, in one request, on one card, everywhere (Chat, the selection
-menu, the accessibility button and Write):
+menu, the accessibility button and Notes):
 
 | Part | Where it shows |
 |---|---|

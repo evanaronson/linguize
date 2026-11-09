@@ -1,4 +1,29 @@
-# Write
+# Notes
+
+**Notes** is the tab where you write a message, check it and take it elsewhere. It was
+called **Write**; it was renamed because the tab is a place (the notes you keep), not an
+instruction, and the other tabs are places too (Chat, Progress, History). What it holds are
+**notes**: the editor's drafts, kept on the phone.
+
+## The rename
+
+| Before | After |
+|---|---|
+| Tab and bottom bar: Write | Notes |
+| Launcher shortcut: Write / "Write a message" | Notes / "Write a note" (same id, so a pinned one keeps working) |
+| New draft, Drafts, Open draft, Delete draft, Draft deleted | New note, Other notes, Open note, Delete note, Note deleted |
+| The editor's language picker (Auto Detect, Catalanize, Castilianize) | Gone: Notes checks in the app's language, set by the one selector at the top (Linguize detects). See [Language scope](language-scope.md) |
+| Settings, Chat: "Off starts on Write" | "Off starts on Notes" |
+| Saved navigation token `home` | `notes`; `home` (and the removed pages that sat above it) still restore as Notes |
+
+The editor's header stays "Write and check": it says what to do in the box, not the tab's
+name, which the bottom bar already shows. Code: `ui/notes` (`NotesViewModel`, `NoteEditor`,
+`NoteList`, `noteCheckLanguage`), `ui/home/NotesScreen.kt`, `Screen.Notes`. The store keeps
+its name and file (`data/write/WriteDraftStore`, `lab_write.json`), so no note moves.
+
+The rest of this page is the decision that made the tab, when it was still Write.
+
+## Background: one surface
 
 Write had two places to type a message and check it: **Try it** at the top of the tab and
 the **Writing pad**, a full-screen editor one row below. This page asks whether both are
@@ -73,15 +98,17 @@ Not chosen:
 
 ## How it works
 
-- `data/write/WriteDraftStore`: drafts and which one is open, in `lab_write.json` in the
+- `data/write/WriteDraftStore` (the notes; names kept from Write): drafts and which one is open, in `lab_write.json` in the
   app's files directory, written through a temporary file and a rename. An unreadable file
   is set aside, not overwritten. Reads `lab_writing_pad.json` once to import its drafts and
   never writes it.
-- `ui/write/WriteViewModel`: the open draft's text and language and the other drafts.
+- `ui/notes/NotesViewModel`: the open note's text and the other notes.
   Saves 400 ms after typing stops, and at once on leaving the tab or the app. A blank
   draft, or the untouched sample, is never kept.
-- `ui/write/WriteSurface`: the editor, Check, the card (`CardActions.of`, as Try it used),
-  Copy, Share, New draft and the Drafts list. Checks use `Origin.Tester` and aren't saved
+- `ui/notes/NoteEditor`: the editor, Check, the card (`CardActions.of`, as Try it used),
+  Copy, Share, New note and the Other notes list. It checks in the app's language
+  (`noteCheckLanguage`); the card's wrong-language hint points at the selector at the top
+  (`LanguageHint.AppSelector`). Checks use `Origin.Tester` and aren't saved
   in History, as Try it's weren't.
 
 ## Limits

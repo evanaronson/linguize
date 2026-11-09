@@ -31,6 +31,7 @@ One word per idea, everywhere.
 | Text going back into the other app | **put back** | applied, sent, went back |
 | The card's last button | **Replace**; **Send** in the chat | Apply, Done, OK |
 | Text kept on the phone | **saved**; the feature and the Home list are **History** | kept, remembered, recorded |
+| What you write in the app's editor | **note**, notes; the tab is **Notes** | draft, Write (as a place) |
 | Removing it | **delete** | clear, remove |
 | The user's credential | **API key** in titles and field labels, then **key** | token, secret |
 | The app doing the work | **Linguize**, or simply describe what happened | AI, LLM |
@@ -39,7 +40,7 @@ One word per idea, everywhere.
 | Languages | **Catalan**, **Spanish** | Castilian, castellano |
 | Where Linguize appears in other apps | **selection menu** | text menu, context menu, PROCESS_TEXT |
 
-**Linguize**, **Catalanize** and **Castilianize** are selection-menu names. The language picker uses **Auto Detect** for automatic detection and keeps **Catalanize** and **Castilianize** for those named choices. The popup app button uses the Linguize wordmark image.
+**Linguize**, **Catalanize** and **Castilianize** are the product's names: the selection-menu entries ("… X Claude") and the app's language selector, which says them plainly: **Linguize** (Auto, all languages, the default), **Catalanize** (Catalan), **Castilianize** (Spanish), in that order, each with what it means under it in the menu ("All languages", "Catalan", "Spanish"). The popup card's language picker, which only shows over other apps, uses **Auto Detect** for automatic detection and keeps **Catalanize** and **Castilianize** for those named choices. In sentences, name the language, not the brand: "No messages in Catalan yet", "In Catalan. Change it at the top." Inside the app, point at the selector by its brand name ("Choose Linguize at the top to detect the language"), never at a picker that isn't there. The popup app button uses the Linguize wordmark image.
 
 Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Name the model or service only when it helps someone configure the app or understand where their text goes. Preserve necessary proper names such as OpenAI and Google AI Studio.
 
@@ -81,6 +82,8 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 | 1 way to sound more natural | 1 rewording | Same name as in Settings and History. |
 | Add an API key | No API key / Add one in settings | A title is a state, and History shows it too. |
 | Rate limited / Try again in a moment | Service usage limit reached / Wait a minute, then retry | Jargon, and too close to "Too many checks". |
+| Write (the tab), New draft, Drafts | Notes, New note, Other notes | A tab is a place; what it keeps are notes. |
+| Language: Catalan (a switch), Auto Detect by Check, Language ▾ in the new-conversation sheet, All languages ▾ in History | One selector: Linguize, Catalanize, Castilianize | One language choice, in the product's own names. |
 | Checks you make will show up here. | Changes you apply in other apps will appear here. | Analysis and Copy alone are not saved; Try it remains excluded. |
 | 3 fixes, 1 rewording, 2 taken | 3 fixes, 1 rewording, 2 accepted | One verb for accepting. |
 | Sent | Put back in the app | "Sent" reads as "message sent". |
@@ -97,4 +100,6 @@ A checkmark with text identifies a completed review: "Sounds natural" or "All ch
 
 An incomplete check groups its explanation and Check again action above the available suggestions. This describes unusable parts of the model's reply, not failure to apply the writer's accepted changes. Keep the notice neutral and usable suggestions available.
 
-**Filters are not buttons.** A control that chooses what a page shows (a language, a source, a deck, Used or Not yet, a sort) is a quiet dropdown: the choice and "▾", opening a menu with the current one ticked (`ui/components/FilterDropdown`). In a row of several it names what it chooses ("Sort: Newest"). Buttons, filled, tonal, outlined or text, are only for actions, so a filter never looks like something that will happen. The app's language switch is the same dropdown with a flag; screen readers hear the language's name ("Language: Catalan"), never a country.
+**Filters are not buttons.** A control that chooses what a page shows (a language, a source, a deck, Used or Not yet, a sort) is a quiet dropdown: the choice and "▾", opening a menu with the current one ticked (`ui/components/FilterDropdown`). In a row of several it names what it chooses ("Sort: Newest"). Buttons, filled, tonal, outlined or text, are only for actions, so a filter never looks like something that will happen. The app's language selector is the same dropdown with an icon (Linguize's "A" tile or a flag), in the top bar of the four tabs only; screen readers hear the brand name and the language ("Language: Catalanize, Catalan"), never a country. There is one: no page, sheet or in-app card gets a language dropdown of its own.
+
+**Titles.** A tab's top bar shows the wordmark, never the tab's name: the bottom bar says it. A page opened from a tab shows its own title once, in the bar. Don't repeat it as a heading in the page.

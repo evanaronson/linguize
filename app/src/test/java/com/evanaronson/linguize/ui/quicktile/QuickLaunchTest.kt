@@ -57,8 +57,12 @@ class QuickLaunchTest {
         assertEquals(ClipboardJob.Understand, ClipboardJob.of(shortcuts[1].intent))
         val tryIt = shortcuts[2].intent!!
         assertEquals(HomeActivity::class.java.name, tryIt.component?.className)
-        // The Write editor is on Write, whichever tab the app starts on.
-        assertEquals(Screen.Write, HomeActivity.requestedTab(tryIt))
+        // The editor is on Notes, whichever tab the app starts on.
+        assertEquals(Screen.Notes, HomeActivity.requestedTab(tryIt))
+        assertEquals("Notes", shortcuts[2].shortLabel)
+        assertEquals("Write a note", shortcuts[2].longLabel)
+        // A shortcut pinned while the tab was Write (saved as "home") still opens Notes.
+        assertEquals(Screen.Notes, HomeActivity.requestedTab(HomeActivity.homeIntent(context).putExtra("openTab", "home")))
         assertNull(HomeActivity.requestedTab(HomeActivity.homeIntent(context)))
         assertNull(HomeActivity.requestedTab(HomeActivity.homeIntent(context).putExtra("openTab", "practice")))
         // Launchers refuse shortcut intents without an action.

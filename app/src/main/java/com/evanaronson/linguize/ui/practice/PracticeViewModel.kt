@@ -42,6 +42,10 @@ data class PracticeState(
     /** Items due now, for "Practice, 4 due" on Progress. */
     val due: Int get() = scoped?.let { Deck.due(it, progress, now, today).size } ?: 0
 
+    /** Lab, Consistency: items in [language] due now, whatever the scope (Progress under Linguize). */
+    fun dueIn(language: String): Int =
+        items?.filter { it.language == language }?.let { Deck.due(it, progress, now, today).size } ?: 0
+
     /** When the next review falls due, for the end of a run. */
     val nextDue: Long? get() = scoped?.let { Deck.nextDue(it, progress) }
 

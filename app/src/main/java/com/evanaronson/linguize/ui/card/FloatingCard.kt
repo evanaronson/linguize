@@ -68,6 +68,8 @@ fun FloatingPopup(
     content: @Composable (Modifier) -> Unit,
 ) {
     val appName = stringResource(R.string.app_name)
+    // Over another app too, Back closes the keyboard (the card's text fields) before the card.
+    com.evanaronson.linguize.ui.components.KeyboardBackHandler()
     Box(Modifier.fillMaxSize().semantics { paneTitle = appName }) {
         Box(
             Modifier

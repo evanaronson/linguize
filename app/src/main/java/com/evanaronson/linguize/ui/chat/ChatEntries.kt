@@ -15,7 +15,7 @@ import com.evanaronson.linguize.ui.components.ListCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.SwitchRow
 
-/** Settings: whether the app starts on Chat or on Write. Either way the other is in the bottom bar. */
+/** Settings: whether the app starts on Chat or on Notes. Either way the other is in the bottom bar. */
 @Composable
 fun ChatSettingsSection() {
     val context = LocalContext.current

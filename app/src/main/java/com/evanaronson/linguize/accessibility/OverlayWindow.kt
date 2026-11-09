@@ -114,7 +114,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
 
     fun show(content: @Composable () -> Unit) {
         unlockedScreen.start()
-        val root = BackKeyLayout(context, onBackPressedDispatcher::onBackPressed, ::focused).apply {
+        val root = BackKeyLayout(context, ::onBackKey, ::focused).apply {
             setViewTreeLifecycleOwner(this@OverlayWindow)
             setViewTreeSavedStateRegistryOwner(this@OverlayWindow)
             setViewTreeViewModelStoreOwner(this@OverlayWindow)
@@ -127,9 +127,27 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         windowManager.addView(root, params)
         this.root = root
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val callback = OnBackInvokedCallback { onBackPressedDispatcher.onBackPressed() }
+            val callback = OnBackInvokedCallback { onBackKey() }
             root.findOnBackInvokedDispatcher()?.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
             backCallback = callback
+        }
+    }
+
+    /**
+     * Lab, Consistency: Back while the keyboard is up (a card field, such as Not what you
+     * mean) only closes the keyboard; the next Back goes back in the card or closes it.
+     */
+    private fun onBackKey() {
+        val view = root
+        val imeVisible = view?.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.ime()) == true
+        if (view != null && com.evanaronson.linguize.ui.components.backAction(imeVisible, handles = true) ==
+            com.evanaronson.linguize.ui.components.BackAction.CloseKeyboard
+        ) {
+            context.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                ?.hideSoftInputFromWindow(view.windowToken, 0)
+            view.findFocus()?.clearFocus()
+        } else {
+            onBackPressedDispatcher.onBackPressed()
         }
     }
 

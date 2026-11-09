@@ -19,7 +19,7 @@ everywhere, so copy, pull down the shade, tap **Linguize Lab**.
 - **Launcher shortcuts.** Long-press the Linguize Lab icon:
   - **Check copied text** checks it straight away.
   - **Understand copied text** translates and explains it straight away.
-  - **Try it** opens Write, where the Try it box is, above the page the app starts on.
+  - **Write** opens the Write tab and its editor, above the page the app starts on.
   Shortcuts can be dragged to the home screen. They appear after the app has been
   opened once.
 - **Accepted changes go on the clipboard.** There's no field to put changes back
@@ -64,7 +64,7 @@ everywhere, so copy, pull down the shade, tap **Linguize Lab**.
 
 ## Limits
 
-- Checks from the tile or shortcuts are not saved in History (they use the Try it
+- Checks from the tile or shortcuts are not saved in History (they use the in-app
   origin). History holds checks whose changes were put back in another app, and
   nothing is put back from here. Adding an origin would change what History stores.
 - The tile can't tell whose words were copied, so it asks rather than guesses. The

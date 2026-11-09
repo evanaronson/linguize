@@ -18,7 +18,7 @@ the check gave, in their own language.
 
 - **Save from a check.** Tap a fix or a rewording on the card to open its explanation.
   The star beside Accept saves the phrase. Tap it again to remove it. This works on every
-  card: Try it on Write, the selection-menu popup and the accessibility button.
+  card: the editor on Write, the selection-menu popup and the accessibility button.
 - **Save from History.** Open a saved check, expand a suggestion, and tap its star.
 - **Add one by hand.** On the Phrasebook screen, tap **Add phrase**. Type the phrase and,
   if you like, what you used to write instead and a note in your own language. Pick the

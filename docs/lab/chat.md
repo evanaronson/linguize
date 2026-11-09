@@ -52,7 +52,7 @@ point forces the check, because there is no selection menu to choose it from.
   memory knows, offered as suggestions, or anyone you describe: "my kid's teacher"), and
   the language. Left empty, the usual friendly partner starts. With someone, the partner
   plays them, in their register, and still never corrects you; the title shows who.
-- **The rest of the app.** The bottom bar under the chat has Write (Try it and the other
+- **The rest of the app.** The bottom bar under the chat has Write (the editor and the other
   tools), Progress and History; Back from any of them returns to the chat. The gear opens
   Settings. **Open to chat** (Settings, Chat, on by default) can switch to starting on
   Write. See [Home and navigation](home-ia.md).

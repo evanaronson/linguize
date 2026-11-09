@@ -113,7 +113,7 @@ was outside a corrected span.
   16-character hash of such text (never the text) in `lab_words`, and the source skips
   saved checks with that `textHash`.
 - Shared text can't be put back, so it never reaches visible History; Understand and
-  Try it are never saved.
+  checks on Write are never saved.
 - Names: a capital in mid-sentence, or after an elided article (L'Hospitalet). A capital at
   the start of a sentence counts as a word unless that form only ever appears capitalized.
 

@@ -53,9 +53,7 @@
     <string name="ai_could_not_understand">Linguize couldn\'t tell what this means</string>
     <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
     <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
-    <string name="check_your_text">Check your text</string>
     <string name="your_text">Your text</string>
-    <string name="try_it_placeholder">Type or paste text to check</string>
     <string name="no_text_to_check">No text to check.</string>
     <string name="recent">History</string>
     <string name="recent_empty">Changes you apply in other apps will appear here.</string>
@@ -179,7 +177,6 @@
     <string name="looks_good_both">Nothing to fix, sounds natural</string>
 
     <!-- Home -->
-    <string name="try_it_note">Not saved. In other apps, select text and choose Linguize in the menu.</string>
     <string name="add_key_title">Add an API key to start</string>
     <string name="add_key_description">Linguize checks with Gemini or OpenAI, using your own key.</string>
     <string name="add_key">Add key</string>

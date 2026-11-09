@@ -44,13 +44,6 @@
             android:exported="false"
             android:theme="@style/Theme.Linguize.Overlay" />
 
-        <!-- Lab: Writing pad, opened from Home. -->
-        <activity
-            android:name=".menu.WritingPadActivity"
-            android:exported="false"
-            android:label="@string/lab_writing_pad_title"
-            android:windowSoftInputMode="adjustResize" />
-
         <activity
             android:name=".ui.popup.PopupAppActivity"
             android:excludeFromRecents="true"

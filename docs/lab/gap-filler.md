@@ -35,7 +35,7 @@ help only where they asked for it. The writer still writes the message; Linguize
     still puts back the filled text.
   - **Copy**, or the back arrow to return to the check.
   - The language picker above the card fills again in another language.
-- **Try it on Write:** the same footer row appears on its card, and opens Fill the gaps with
+- **The editor on Write:** the same footer row appears on its card, and opens Fill the gaps with
   that text.
 
 ### Why offer, not auto-run

@@ -16,7 +16,7 @@ import com.evanaronson.linguize.ui.settings.SettingsPage
  * and History. Everything else opens above one of them.
  */
 internal sealed interface Screen {
-    /** Write: check something now (Try it) and the other writing and reading tools. Saved as "home", its old name. */
+    /** Write: the editor with drafts, checked with the card, and the other writing and reading tools. Saved as "home", its old name. */
     data object Write : Screen
     data object History : Screen
     data object Settings : Screen

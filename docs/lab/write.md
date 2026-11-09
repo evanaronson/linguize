@@ -53,7 +53,7 @@ when you switch apps is the worst outcome. Try it had no drafts at all.
 Merge into a single editor at the top of Write, checked with the one card everyone uses.
 
 - **One check.** Check opens the same card as everywhere (accept a change, Accept all,
-  Meaning, clarifying, How it lands, Second opinion, filled [gaps]).
+  Meaning, clarifying, How it lands (in the same check), Second opinion, filled [gaps]).
   **Apply** puts the accepted changes in the editor. **Copy** and **Share** take the text
   out, with any accepted changes put in first.
 - **Nothing lost.** The editor is a draft, saved on the phone as you type and when you

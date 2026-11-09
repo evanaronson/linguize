@@ -34,7 +34,7 @@ what a person comes to do. It doesn't add features.
 | Job | How often | What serves it |
 |---|---|---|
 | Talk and practise | Daily, the main reason to open the app | Chat (conversations, Practise with…) |
-| Write or check one specific thing | Several times a week | Write (one editor with drafts; every check fills [gaps](gaps-in-check.md)); card rows: How it lands, Replying to, Second opinion |
+| Write or check one specific thing | Several times a week | Write (one editor with drafts; every check fills [gaps](gaps-in-check.md) and says how it lands); card rows: How it lands, Second opinion |
 | Understand something someone sent | Weekly | Understand copied text; share sheet |
 | See how I'm doing | Weekly | Practice, Your patterns, Words, Your conjugations, Phrasebook |
 | Look back at what I wrote | Weekly | History (one row per message, any source) |
@@ -101,7 +101,7 @@ keyboard is up. The app starts on Chat, or on Write when **Open to chat** is off
 | Try it launcher shortcut (now "Write") | Opened the start page (the chat, by default) | Opens Write above the start | It promised the editor |
 | Practice's last button | Back to Home | Back to Progress | Where Back goes |
 | What Linguize knows, Per-app voice, Second opinion | Settings | Settings | Set up, edited rarely |
-| Card rows (Meaning, How it lands, Second opinion, Replying to, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
+| Card rows (Meaning, How it lands, Second opinion, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
 | Selection menu, accessibility button, Quick tile, Check and Understand shortcuts, share text, popup's app button | System | System | Unchanged; the app button and "Open settings" still open the app and Settings |
 
 ## Navigation model

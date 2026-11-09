@@ -58,7 +58,11 @@ data class ChatThread(val conversation: Conversation, val messages: List<ChatMes
 
 /** The check before sending, run by the screen's card (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
 interface DraftCheck {
-    fun start(draft: String, language: Language)
+    /**
+     * Checks [draft]. Lab: [replyingTo] is the partner's last message, sent with the check as
+     * context only (see [ChatReplyContext]).
+     */
+    fun start(draft: String, language: Language, replyingTo: String? = null)
 
     /** Drops the check without saving anything (Keep editing). */
     fun stop()
@@ -362,7 +366,8 @@ class ChatViewModel(
         when (val effect = transition.effect) {
             is Effect.StartCheck -> {
                 val language = Language.forCode(thread?.conversation?.language) ?: Language.Spanish
-                draftCheck?.start(effect.draft, language) ?: handle(SendEvent.CheckFailed)
+                val replyingTo = ChatReplyContext.of(thread?.messages.orEmpty())
+                draftCheck?.start(effect.draft, language, replyingTo) ?: handle(SendEvent.CheckFailed)
             }
             Effect.CancelCheck -> draftCheck?.stop()
             is Effect.Deliver -> deliver(effect.outgoing)

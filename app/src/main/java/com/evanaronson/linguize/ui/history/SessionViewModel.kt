@@ -15,6 +15,7 @@ import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.Replayed
+import com.evanaronson.linguize.ui.tonecheck.withLanding
 import com.evanaronson.linguize.history.SessionDetail
 import com.evanaronson.linguize.history.SessionDetailResult
 import com.evanaronson.linguize.history.SessionRecord
@@ -109,7 +110,8 @@ class SessionViewModel internal constructor(
                     // Replay supplies optional read-only context. Never attach a different revision
                     // when saved rows survive a missing raw answer.
                     val sameAttempt = rows.isEmpty() || detail.decidedAttempt() == rows.first().attempt
-                    val replayed = if (sameAttempt) replay(detail, prompt()::parseVerdict) else null
+                    // Lab, How it lands: the same raw answer's optional reading, read-only.
+                    val replayed = if (sameAttempt) replay(detail, prompt()::parseVerdict)?.withLanding(detail) else null
                     val chat = if (detail.session.origin == Origin.Chat) runCatching { chatOf(id) }.getOrNull() else null
                     shown(detail, rows, replayed, chat)
                 }

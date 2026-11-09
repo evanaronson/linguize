@@ -47,8 +47,6 @@ import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.openExternal
-import com.evanaronson.linguize.ui.replycontext.TryItReplyContext
-import com.evanaronson.linguize.ui.tonecheck.TryItLands
 
 @Composable
 internal fun rememberWriteViewModel(): WriteViewModel =
@@ -98,7 +96,6 @@ internal fun WriteEditor(
         }
     }
 
-    TryItReplyContext(check, Modifier.padding(bottom = 12.dp))
     LinguizeTextField(
         value = write.text,
         onValueChange = { replace(it) },
@@ -121,13 +118,12 @@ internal fun WriteEditor(
         })
         LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
     }
-    TryItLands(write.text, onUse = ::replace, onOpenSettings)
 
     check.state?.let { state ->
         ResultCard(
             state = state,
             actions = CardActions.of(
-                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings, replyContext = false,
+                check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
             ),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             scrollable = false,

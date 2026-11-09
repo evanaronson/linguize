@@ -1,33 +1,19 @@
 # Replying to
 
-Most of what people check is a reply. "Sí, a las 5 me va bien" can be perfect Spanish
-and still be wrong: they asked about Tuesday, they wrote to you with *usted*, or "la"
-should be "lo" because the thing they mentioned is masculine. A check that sees only the
-reply can't tell. Replying to lets the writer attach the message they are answering, so the
-check reads the reply in context.
+Most of what people write is a reply. "Sí, a las 5 me va bien" can be perfect Spanish and
+still be wrong: they asked about Tuesday, they wrote to you with *usted*, or "la" should be
+"lo" because the thing they mentioned is masculine. A check that sees only the reply can't
+tell.
+
+In the [chat](chat.md) the app already has the message being answered. So every chat check
+reads the draft as a reply to the partner's most recent message. There is nothing to
+attach, tap or remove.
 
 ## The moment
 
-The writer has just read a message in WhatsApp or Telegram, typed an answer, and wants a
-gut check before sending. People usually copy the incoming message anyway (to translate
-it, or to quote it), so the copied text is already the context.
-
-## How to use it
-
-- **On the card** (selection menu or accessibility button): under the result, *Replying to
-  a message?* offers **Use copied text**, which attaches what is on the clipboard in one tap,
-  and **Type it**, which opens a field to paste or type the message. The card checks again
-  in context. Accepted changes that still apply stay accepted.
-- **In the editor** on Write: the same entry sits above the text box, so a message can be
-  attached before the first check, or while a card is open (which checks again).
-- Once attached, the message shows compactly above the result (two lines; tap to show all)
-  with **Remove**. Removing it checks again without context.
-
-The attached message stays with the card (or the Write editor) until removed or the card closes.
-It is not saved anywhere: not in History, not in Lab storage.
-
-If the clipboard is empty or can't be read (the accessibility overlay doesn't always have
-focus), the field opens with a note so the writer can paste or type instead.
+The writer has read the partner's message, typed an answer and tapped Send. The check that
+runs before it goes is the same [one check](tone-check.md) as everywhere, with the
+conversation's last message as context.
 
 ## What the check does with it
 
@@ -43,39 +29,50 @@ the message as evidence:
 - **References.** Pronouns, gender and number, people, days, times and things the message
   names. A clear contradiction is a fix; an ambiguous reference the message settles is
   read that way without asking.
+- **Saying so.** When the message is what makes a change needed, the change's reason says so
+  in a few words ("They used usted", "Matches their question"), so the card explains a change
+  that the draft alone wouldn't justify.
 - **Meaning.** Still a faithful translation of the reply alone. The message only decides
   the reading of pronouns, ellipsis and tense.
 
+## Where it applies
+
+- **Chat only, automatically.** `ui/chat/ChatReplyContext.of` takes the partner's last
+  message in the conversation (trimmed; a very long one keeps its end), and `ChatViewModel`
+  passes it to the card's check (`DraftCheck.start` → `CheckViewModel.check(…, replyingTo)`).
+  The first message in a conversation that has no partner message yet goes without context.
+- **Not elsewhere.** The selection menu, the accessibility popup and Write check the text
+  alone: they don't know what it answers, and guessing from the clipboard was a manual step
+  that is gone. The card has no "Replying to" header or entry, and Write has none.
+
+## Privacy and History
+
+The partner's message is context only. It is never shown on the card, never enters the
+corpus, and History stores only the writer's text and the answer. The context's
+`promptHash` is `<shipped hash>-r<hash of the rules and message>` (then the gap and tone
+suffixes), so History never reuses an answer across different contexts or with none, and it
+stores only that hash, never the message. No History schema change.
+
 ## How it works
 
-- `llm/lab/ReplyPrompt` composes the request only when a message is attached: the shipped
-  `check_prompt.md`, then `assets/lab_reply_context_prompt.md`; and one
-  `Replying to: {"message": …}` JSON line in front of the shipped user message, which
-  follows byte for byte. JSON keeps a line break or tag in the message from forging a
-  setting or the text, and the writer's text stays last as the shipped prompt requires.
-- The answer uses the shipped schema and is read by the shipped parser
-  (`Prompt.read`, fresh-contract checks included), so the card, History and replay treat it
-  as any other check. `llm/lab/ReplyingClient` wraps the provider for that one check, so the
-  repair retry keeps the context too.
-- `Checker.check(…, replyingTo)` and `Checker.context(replyingTo)` take the message. With
-  `null` (the default, and every existing caller) the checker calls `client.check` with the
-  shipped request exactly as before. With a message, the context's `promptHash` becomes
-  `<shipped hash>-r<hash of the rules and message>`. History never reuses an answer across
-  different contexts or with none, and it stores only that hash, never the message. No
-  History schema change.
-- `CheckViewModel.replyingTo` / `replyTo()` hold the message for a card and check again
-  when it changes. `ui/replycontext` has the views and the entry's state (`ReplyDraft`).
-  `CardActions.replyContext` brings it to `ResultCard`. A past check in History has none.
+- `llm/lab/ReplyPrompt` composes the request: the composed check instructions (shipped, gap
+  rules, tone rules; see `llm/lab/CheckComposition`), then `assets/lab_reply_context_prompt.md`;
+  and one `Replying to: {"message": …}` JSON line in front of the shipped user message, which
+  follows byte for byte. JSON keeps a line break or tag in the message from forging a setting
+  or the text, and the writer's text stays last as the shipped prompt requires.
+- The answer uses the composed schema and is read by the shipped parser, so the card, History
+  and replay treat it as any other check. `llm/lab/ReplyingClient` wraps the provider for that
+  one check, so the repair retry keeps the context too.
+- `Checker.check(…, replyingTo)` and `Checker.context(replyingTo)` take the message; with
+  `null` (every host but the chat) nothing changes. `CheckViewModel` keeps it privately for the
+  card's re-checks (retry, clarifications) and drops it with the next fresh check.
 
 ## Limits
 
-- One message, up to 3,000 characters. Not a thread. Paste the last message or two.
-- The clipboard is read only when **Use copied text** is tapped. In the accessibility
-  overlay Android may refuse, and the writer pastes instead.
+- One message, up to 3,000 characters. Not the thread.
+- The partner is the app's own chat partner; real conversations in other apps get no context.
 - The rules are a Lab prompt with no eval cases yet. Judgments about answers and register
   are suggestions to weigh, like any rewording.
-- A check with a message costs a slightly longer prompt; the latency budget is unchanged
-  otherwise.
 
 ## Tests
 
@@ -83,6 +80,7 @@ the message as evidence:
   request is unchanged, forged lines, schema and hash.
 - `ReplyCheckerTest`: the default path calls the shipped check; with a message the
   composed request is sent, parsed with the shipped schema, kept on repair retries.
-- `ui/replycontext/ReplyContextViewModelTest`: attaching before and during a check,
-  removing, the stale-settings check, and that History keeps the answer but not the message.
-- `ui/replycontext/ReplyDraftTest`: the entry's clipboard, typing and card states.
+- `ui/card/ReplyContextCheckTest`: a check with and without a message, re-checks keep it,
+  History keeps the writer's text but not the message, and the manual UI is gone.
+- `ui/chat/ChatReplyContextTest`: the partner's last message is chosen, Send passes it, and
+  no other host passes one.

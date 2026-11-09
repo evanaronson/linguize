@@ -74,9 +74,12 @@ class App : Application() {
     }
 
     /** Created off the main thread by the view models. */
-    val checker by lazy { Checker(settings, keys, prompt, clients, replyPrompt = { replyPrompt }, gapsInCheck = { gapsInCheck }) }
+    val checker by lazy {
+        Checker(settings, keys, prompt, clients, replyPrompt = { replyPrompt }, gapsInCheck = { gapsInCheck },
+            toneInCheck = { com.evanaronson.linguize.llm.lab.ToneInCheck.load { name -> assets.open(name).bufferedReader().use { it.readText() } } })
+    }
 
-    /** Lab: the reply rules added to a check only when a message to reply to is attached. */
+    /** Lab: the reply rules added to a chat check, with the partner's last message as context. */
     val replyPrompt by lazy { ReplyPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } } }
 
     /** Lab: the gap-filling rules added to every check. */
@@ -147,13 +150,6 @@ class App : Application() {
 
     /** Lab, Time spent: measured writing and review time, in its own `lab_time_spent` database. */
     val timeStore by lazy { com.evanaronson.linguize.data.time.TimeStore(this, appScope) }
-
-    /** Lab, "How it lands": its own prompt asset, the same clients and key. */
-    val landing by lazy {
-        LandingChecker(settings, keys, clients) {
-            com.evanaronson.linguize.llm.lab.LandingPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
-        }
-    }
 
     override fun onCreate() {
         super.onCreate()

@@ -40,7 +40,10 @@ class ReplyPrompt(val addendum: String) {
         maxTokens = Prompt.MAX_OUTPUT_TOKENS,
     )
 
-    /** Asks [client] and reads the answer as [base] reads any fresh check answer. Throws CheckFailure. */
+    /**
+     * Asks [client] and reads the answer as [reader] (by default [base]) reads any fresh check
+     * answer. Throws CheckFailure.
+     */
     suspend fun check(
         client: ProviderClient,
         base: Prompt,
@@ -48,7 +51,8 @@ class ReplyPrompt(val addendum: String) {
         model: String,
         request: CheckRequest,
         message: String,
-    ): ModelAnswer = base.read(client.generate(key, model, generation(base, request, message)))
+        reader: Prompt = base,
+    ): ModelAnswer = reader.read(client.generate(key, model, generation(base, request, message)))
 
     /**
      * Stands in for [Prompt.hash] in a check with context. It differs from the shipped hash and

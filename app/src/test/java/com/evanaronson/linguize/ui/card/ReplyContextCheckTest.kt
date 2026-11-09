@@ -1,4 +1,4 @@
-package com.evanaronson.linguize.ui.replycontext
+package com.evanaronson.linguize.ui.card
 
 import android.app.Application
 import android.os.Looper
@@ -31,8 +31,6 @@ import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
-import com.evanaronson.linguize.ui.card.CardState
-import com.evanaronson.linguize.ui.card.CheckViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,10 +50,13 @@ import org.robolectric.annotation.Config
 import java.io.OutputStream
 import java.util.Collections
 
-/** Lab: the card's view model with a message to reply to: what it sends, when it checks again, and what it records. */
+/**
+ * Lab: the card's view model with a message the text replies to (the chat's partner message):
+ * what it sends, when it checks again, and what History records. No UI shows the message.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
-class ReplyContextViewModelTest {
+class ReplyContextCheckTest {
     private val preferences = FakePreferences()
     private val client = Client()
     private val prompt = Prompt(system = "instructions", schemaJson = """{"required":["status"]}""")
@@ -73,7 +74,6 @@ class ReplyContextViewModelTest {
         viewModels,
         viewModelFactory { initializer { CheckViewModel(checker = { checker }, history = history) } },
     )[CheckViewModel::class.java]
-    private val actions = ReplyContextActions.of(check)
 
     @After
     fun stop() {
@@ -82,67 +82,48 @@ class ReplyContextViewModelTest {
     }
 
     @Test
-    fun withNothingAttachedTheShippedCheckRuns() {
+    fun withoutAMessageTheShippedCheckRuns() {
         check.check(QUESTION, null, Origin.Tester)
         done()
         assertEquals(1, client.checks.size)
         assertTrue(client.generations.isEmpty())
-        assertNull(actions.message)
     }
 
     @Test
-    fun attachingBeforeACheckIsUsedByIt() {
-        assertTrue(actions.attach("  ¿Vienes?  "))
-        assertEquals("¿Vienes?", check.replyingTo)
-        assertNull(check.state)
-        settle()
-        assertTrue(client.generations.isEmpty())
-
-        check.check(QUESTION, null, Origin.Tester)
+    fun aMessageGoesWithTheCheckAsContext() {
+        check.check(QUESTION, null, Origin.Chat, replyingTo = "  ¿Vienes?  ")
         done()
         assertTrue(client.checks.isEmpty())
         assertTrue(client.generations.single().user.startsWith("Replying to: {\"message\":\"¿Vienes?\"}\n"))
     }
 
     @Test
-    fun attachingOnAnOpenCardChecksAgainKeepingAcceptedChanges() {
-        check.check(QUESTION, null, Origin.Menu)
+    fun checkingAgainKeepsTheContextAndANewCheckReplacesIt() {
+        check.check(QUESTION, null, Origin.Chat, replyingTo = "Com estàs?")
         done()
         check.acceptAll(EditKind.Fix)
         val accepted = (done().result as CheckResult.Reviewed).revision.acceptedCount
-
-        assertTrue(actions.attach("Com estàs?"))
-        waitFor("the check in context") { client.generations.size == 1 && check.state is CardState.Done }
+        check.recheck()
+        waitFor("the check again") { client.generations.size == 2 && check.state is CardState.Done }
+        assertTrue(client.generations.last().user.startsWith("Replying to:"))
         assertEquals(accepted, (done().result as CheckResult.Reviewed).revision.acceptedCount)
 
-        // The same message again changes nothing.
-        assertTrue(actions.attach("Com estàs?"))
-        settle()
-        assertEquals(1, client.generations.size)
-    }
-
-    @Test
-    fun removingGoesBackToTheShippedCheck() {
-        actions.attach("Hola")
-        check.check(QUESTION, null, Origin.Tester)
-        done()
-        actions.remove()
-        assertNull(check.replyingTo)
+        check.check(QUESTION, null, Origin.Menu)
         waitFor("the shipped check") { client.checks.size == 1 && check.state is CardState.Done }
-        assertEquals(1, client.generations.size)
+        assertEquals(2, client.generations.size)
     }
 
     @Test
-    fun aBlankOrTooLongMessageIsNotAttached() {
-        assertFalse(actions.attach("   "))
-        assertFalse(actions.attach("a".repeat(ReplyPrompt.MAX_CHARS + 1)))
-        assertNull(check.replyingTo)
+    fun aBlankMessageIsNoContext() {
+        check.check(QUESTION, null, Origin.Chat, replyingTo = "   ")
+        done()
+        assertEquals(1, client.checks.size)
+        assertTrue(client.generations.isEmpty())
     }
 
     @Test
     fun backFromSettingsDoesNotCheckAgainJustBecauseOfTheMessage() {
-        actions.attach("Hola")
-        check.check(QUESTION, null, Origin.Tester)
+        check.check(QUESTION, null, Origin.Chat, replyingTo = "Hola")
         done()
         check.recheckIfStale()
         settle()
@@ -150,16 +131,34 @@ class ReplyContextViewModelTest {
     }
 
     @Test
-    fun historyKeepsTheAnswerButNotTheMessage() {
-        actions.attach("Un missatge privat")
-        check.check(QUESTION, null, Origin.Menu)
+    fun historyKeepsTheWritersTextButNeverTheMessage() {
+        check.check(QUESTION, null, Origin.Chat, replyingTo = "Un missatge privat")
         done()
         check.acceptAll(EditKind.Fix)
-        check.dismiss(applied = true)
+        check.dismissSent("Com estàs?")
         history.awaitWrites(5_000)
         val session = store.closed.single()
+        assertEquals(QUESTION, session.text)
         assertTrue(session.promptHash.startsWith(prompt.hash + "-r"))
         assertFalse("Un missatge privat" in session.toString())
+    }
+
+    @Test
+    fun workingTextIsTheAcceptedChangesOnly() {
+        check.check(QUESTION, null, Origin.Menu)
+        done()
+        assertNull(check.workingText)
+        check.acceptAll(EditKind.Fix)
+        assertEquals("Com estàs?", check.workingText)
+        check.undo()
+        assertNull(check.workingText)
+    }
+
+    @Test
+    fun theManualReplyingToUiIsGone() {
+        val names = com.evanaronson.linguize.R.string::class.java.fields.map { it.name }
+        assertTrue(names.none { it.startsWith("lab_reply_context") })
+        assertTrue(CheckViewModel::class.java.methods.none { it.name == "replyTo" || it.name == "getReplyingTo" || it.name == "useVersion" })
     }
 
     private fun waitFor(what: String, condition: () -> Boolean) {

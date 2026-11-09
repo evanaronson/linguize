@@ -132,7 +132,8 @@ fun ChatThreadScreen(
 
 /** The check before sending, on the same card as everywhere else; nothing of it is saved unless a message goes. */
 private class CardDraftCheck(private val check: CheckViewModel) : DraftCheck {
-    override fun start(draft: String, language: Language) = check.check(draft, language, Origin.Chat)
+    override fun start(draft: String, language: Language, replyingTo: String?) =
+        check.check(draft, language, Origin.Chat, replyingTo = replyingTo)
 
     override fun stop() = check.discard()
 

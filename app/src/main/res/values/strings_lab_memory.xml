@@ -23,6 +23,9 @@
     <string name="lab_memory_field_category">About</string>
     <string name="lab_memory_added">Note added</string>
     <string name="lab_memory_deleted">Note deleted</string>
+    <string name="lab_memory_load_failed">Couldn\'t load your notes. Try again.</string>
+    <string name="lab_memory_save_failed">Couldn\'t save your changes. Try again.</string>
+    <string name="lab_memory_restore_failed">Couldn\'t restore your notes. Try again.</string>
 
     <!-- Category headings, also the choices when adding or editing a note. -->
     <string name="lab_memory_category_about">You</string>

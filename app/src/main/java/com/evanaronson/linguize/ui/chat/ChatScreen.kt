@@ -31,6 +31,9 @@ import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.Progress
+import androidx.compose.ui.res.stringResource
+import com.evanaronson.linguize.R
 
 /**
  * Lab Chat, the Chat tab's top level: the conversations in the app's current [language]
@@ -44,19 +47,24 @@ fun ChatListScreen(language: String?, onOpenSettings: () -> Unit = {}, onOpen: (
     val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
     val options by com.evanaronson.linguize.ui.language.AppLanguage.of(app).options.collectAsState()
     LaunchedEffect(chat, language) { chat.showList() }
-    ConversationList(
-        conversations = ChatStart.inLanguage(chat.conversations, language),
-        language = language,
-        languageOptions = options,
-        people = chat.knownPeople,
-        onLoadPeople = chat::loadPeople,
-        onNew = { persona, picked -> onOpen(chat.newConversation(persona, picked)) },
-        onOpen = onOpen,
-        onRename = chat::rename,
-        onDelete = chat::delete,
-        needsKey = chat.needsKey,
-        onOpenSettings = onOpenSettings,
-    )
+    Column(Modifier.fillMaxSize()) {
+        ConversationSaveFailure(chat)
+        Box(Modifier.weight(1f)) {
+            ConversationList(
+                conversations = ChatStart.inLanguage(chat.conversations, language),
+                language = language,
+                languageOptions = options,
+                people = chat.knownPeople,
+                onLoadPeople = chat::loadPeople,
+                onNew = { persona, picked -> onOpen(chat.newConversation(persona, picked)) },
+                onOpen = onOpen,
+                onRename = chat::rename,
+                onDelete = chat::delete,
+                needsKey = chat.needsKey,
+                onOpenSettings = onOpenSettings,
+            )
+        }
+    }
 }
 
 /**
@@ -128,6 +136,10 @@ fun ChatThreadScreen(
             persona = thread?.conversation?.persona,
             onBack = onBack,
         )
+        ConversationSaveFailure(chat, id ?: thread?.conversation?.id)
+        if (chat.creatingConversationId == id && id != null) {
+            Progress(stringResource(R.string.lab_chat_saving_conversation))
+        }
         // Lab, Consistency: the card's wrong-language hint can't point at a selector here.
         androidx.compose.runtime.CompositionLocalProvider(
             com.evanaronson.linguize.ui.card.LocalLanguageHint provides com.evanaronson.linguize.ui.card.LanguageHint.Fixed,
@@ -139,6 +151,8 @@ fun ChatThreadScreen(
 
 /** The check before sending, on the same card as everywhere else; nothing of it is saved unless a message goes. */
 private class CardDraftCheck(private val check: CheckViewModel) : DraftCheck {
+    override val sessionId: String? get() = check.pendingSessionId
+
     override fun start(draft: String, language: Language, replyingTo: String?) =
         check.check(draft, language, Origin.Chat, replyingTo = replyingTo)
 
@@ -171,6 +185,9 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
             ) {
                 when {
                     chat.replying -> item(key = "typing") { TypingBubble() }
+                    chat.replySaveFailed -> item(key = "save-failed") {
+                        ChatSaveFailure(com.evanaronson.linguize.R.string.lab_chat_reply_save_failed, chat::retryReply)
+                    }
                     thread?.awaitingReply == true -> item(key = "failed") {
                         ReplyMissing(chat.replyFailure, onRetry = chat::retryReply, onOpenSettings = onOpenSettings)
                     }
@@ -187,9 +204,13 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
                     )
                 }
             }
-            when (chat.send) {
-                SendState.Composing -> Composer(chat)
-                is SendState.Checking, is SendState.Reviewing -> ReviewPanel(chat, check, reviewMax, onOpenSettings)
+            val creating = chat.creatingConversationId == thread?.conversation?.id ||
+                (chat.conversationSaveFailure as? ConversationWriteFailure.Create)?.id == thread?.conversation?.id
+            if (!creating) {
+                when (chat.send) {
+                    SendState.Composing -> Composer(chat)
+                    is SendState.Checking, is SendState.Reviewing -> ReviewPanel(chat, check, reviewMax, onOpenSettings)
+                }
             }
         }
     }

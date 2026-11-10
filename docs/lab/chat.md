@@ -109,7 +109,11 @@ point forces the check, because there is no selection menu to choose it from.
   `onToggle` (corrected) or `onFlip` (reply); clean messages have no tap. The open bubble
   gets the proof border a flipped reply has, and the corrections open with the expand
   pattern's motion.
-- **Saving** (History): on send, the card closes through `CheckHistory` with the sent text
+- **Saving**: the writer message must be saved in Chat before the draft is cleared,
+  the check is finished, or the partner is asked to reply. A failed save keeps the
+  checked message available for retry. Partner messages also wait for their save
+  acknowledgement before appearing. After Chat saves, the card closes through
+  `CheckHistory` with the sent text
   as final text (`CheckViewModel.dismissSent`): accepted changes are Accepted, the rest
   Ignored, a clean message has no suggestions. `Origin.Chat` is recorded and, as the only
   exception to the "final text differs" rule, kept when sent unchanged
@@ -117,11 +121,14 @@ point forces the check, because there is no selection menu to choose it from.
   migrations were added to History. A message whose check failed, was unclear or in
   another language is never sent, so it is never saved. With History off, nothing is
   saved; the chat still works from its own store.
-- **Links.** The chat's database (`lab_chat`, version 3) notes each message's History
+- **Links.** The chat's database (`lab_chat`, version 4) notes each message's History
   session (`messages.session_id`) and each reply's translation (`messages.translation`).
   `ChatStore.threads` maps sessions to conversations; History uses it for a chat row's
-  label and the saved check's Open conversation, and deleting a conversation uses
-  `sessionIds` to delete its sessions. History doesn't group rows by conversation.
+  label and the saved check's Open conversation. Deleting a conversation stores its
+  raw session links in `pending_deletions` in the same transaction that deletes the
+  chat rows. `ChatDeletions` retries Memory, History, time and export cleanup on
+  startup and when Chat is used, retiring the work only after acknowledgement.
+  History doesn't group rows by conversation, and its schema is unchanged.
 - **Corpus.** There is no separate chat source any more: the History-based `check` source
   covers chat messages (raw text, accepted fixes as `corrected`, rewordings not), with
   `Utterance.origin = "chat"`. The "re-check of put-back text" rule doesn't apply to chat.

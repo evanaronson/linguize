@@ -104,8 +104,10 @@ class PracticeViewModelTest {
 
         model.submit("estàs")
         assertEquals(AnswerResult.Correct, model.state.value.run!!.answered!!.result)
+        waitFor { !model.state.value.saving }
         model.next()
         model.submit("despues")
+        waitFor { !model.state.value.saving }
         model.next()
         // The missed item comes back at the end of the run.
         assertEquals("fix-one", model.state.value.run!!.current?.id)

@@ -13,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Lab: "What Linguize knows" (docs/lab/memory.md). Facts live in [store]; learning asks the
@@ -34,49 +33,56 @@ class LabUserMemory(
     /** One exchange learned at a time, so two never propose against the same facts. */
     private val learning = Mutex()
 
-    /** Sources forgotten while their exchange was being learned: what came back is dropped. */
-    private val forgotten = ConcurrentHashMap.newKeySet<String>()
-
     override suspend fun forPrompt(): String = withContext(Dispatchers.IO) {
-        runCatching { store.load().promptBlock() }.getOrDefault("")
+        try {
+            store.load().promptBlock()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            ""
+        }
     }
 
-    override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) {
-        if (source.isBlank() || messages.none { it.fromWriter && it.text.isNotBlank() }) return
-        learning.withLock {
-            forgotten -= source
+    override suspend fun learnFrom(source: String, messages: List<MemoryMessage>): Boolean {
+        if (source.isBlank() || messages.none { it.fromWriter && it.text.isNotBlank() }) return false
+        val generation = store.learningGeneration
+        return learning.withLock {
             withContext(Dispatchers.IO) {
                 try {
-                    learn(source, messages)
+                    learn(source, messages, generation)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
                     // Learning is best effort: a failed exchange teaches nothing.
+                    false
                 }
             }
         }
     }
 
-    private suspend fun learn(source: String, messages: List<MemoryMessage>) {
-        val before = store.load()
-        if (!before.enabled) return
+    private suspend fun learn(source: String, messages: List<MemoryMessage>, generation: Long): Boolean {
+        val before = store.learningSnapshot(source, generation) ?: return false
         val provider = settings.provider
-        val key = keys.get(provider)?.takeUnless { it.isBlank() || it.any { c -> c !in '!'..'~' } } ?: return
+        val key = keys.get(provider)?.takeUnless { it.isBlank() || it.any { c -> c !in '!'..'~' } } ?: return false
         val model = settings.model(provider) ?: provider.recommendedModel
         val facts = before.facts
+        if (!store.isCurrentLearning(source, generation)) return false
         val raw = clients.getValue(provider).generate(key, model, contract.request(facts, messages, settings.nativeLanguage))
         val changes = contract.read(raw, facts)
-        if (changes.isEmpty) return
+        var committed = false
         store.update { state, now, newId ->
-            // Switched off, or the exchange deleted, while the model was answering: learn nothing.
-            if (!state.enabled || source in forgotten) state else state.applying(changes, source, now, newId)
+            if (!state.enabled || !store.isCurrentLearning(source, generation)) state else {
+                committed = true
+                state.applying(changes, source, now, newId)
+            }
         }
+        return committed
     }
 
     override suspend fun forget(source: String) {
-        forgotten += source
+        store.invalidateSource(source)
         withContext(Dispatchers.IO) {
-            runCatching { store.update { state, _, _ -> state.forgetting(source) } }
+            store.forgetSource(source)
         }
     }
 }

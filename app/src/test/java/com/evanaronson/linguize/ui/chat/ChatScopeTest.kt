@@ -41,7 +41,7 @@ class ChatScopeTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val memory = object : UserMemory {
         override suspend fun forPrompt() = ""
-        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = Unit
+        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = true
         override suspend fun forget(source: String) = Unit
     }
     private val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, emptyMap(), { memory }) {
@@ -56,7 +56,7 @@ class ChatScopeTest {
         preferences = ChatPreferences(context),
         memory = { memory },
         startLanguage = { "es" },
-        deleteSessions = {},
+        drainDeletions = {},
         people = { emptyList() },
         translate = { error("not used") },
         warmTargets = {},

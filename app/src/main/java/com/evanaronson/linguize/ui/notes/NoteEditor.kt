@@ -61,6 +61,23 @@ import com.evanaronson.linguize.ui.openExternal
 internal fun rememberNotesViewModel(): NotesViewModel =
     viewModel(factory = NotesViewModel.factory(App.of(LocalContext.current)))
 
+/** A failed local operation stays visible until it succeeds; Retry keeps its note or Undo. */
+@Composable
+internal fun NotesStorageError(write: NotesViewModel) {
+    val failure = write.storageFailure ?: return
+    val message = when (failure) {
+        NotesStorageFailure.Read -> R.string.lab_notes_read_failed
+        NotesStorageFailure.Open -> R.string.lab_notes_open_failed
+        NotesStorageFailure.Save -> R.string.lab_notes_save_failed
+        NotesStorageFailure.Delete -> R.string.lab_notes_delete_failed
+        NotesStorageFailure.Restore -> R.string.lab_notes_restore_failed
+    }
+    SectionCard {
+        Text(stringResource(message), color = MaterialTheme.colorScheme.error)
+        LinguizeButton(stringResource(R.string.retry), write::retryStorage, ButtonKind.Text)
+    }
+}
+
 /**
  * A note's page: "Write and check", then the open note and its actions (Check, Copy, Share)
  * in one card. A new, blank note gets the cursor. Checks are in the app's language (Linguize

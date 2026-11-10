@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.time.LocalDate
 
 /** A file picked for import, waiting for a name and a language. */
@@ -55,6 +56,15 @@ sealed interface ImportMessage {
     data class Failed(val reason: DeckParse.Reason) : ImportMessage
     data object Unreadable : ImportMessage
     data object TooLarge : ImportMessage
+    data object SaveFailed : ImportMessage
+}
+
+/** A storage operation the screen can retry without discarding the last usable result. */
+sealed interface WordsStorageFailure {
+    data object ReadDecks : WordsStorageFailure
+    data object ReadSelection : WordsStorageFailure
+    data object SaveSelection : WordsStorageFailure
+    data class DeleteDeck(val id: String) : WordsStorageFailure
 }
 
 data class WordsState(
@@ -79,7 +89,9 @@ data class WordsState(
     val deckFailed: Boolean = false,
     val imported: List<ImportedDeck> = emptyList(),
     val pendingImport: PendingImport? = null,
+    val importing: Boolean = false,
     val importMessage: ImportMessage? = null,
+    val storageFailure: WordsStorageFailure? = null,
 ) {
     /** The language shown: the chosen one, else the first with words or a deck. */
     val shownLanguage: String? get() = language ?: languages.firstOrNull()
@@ -146,8 +158,15 @@ class WordsViewModel internal constructor(
     private suspend fun rebuild() {
         val index = withContext(Dispatchers.Default) { cache.index(corpus.utterances()) }
         if (!restored && decks != null) {
-            restored = true
-            val saved = runCatching { decks?.selection() }.getOrNull()
+            val saved = try {
+                decks.selection().also {
+                    restored = true
+                    clearStorageFailure(WordsStorageFailure.ReadSelection)
+                }
+            } catch (_: IOException) {
+                _state.update { it.copy(storageFailure = WordsStorageFailure.ReadSelection) }
+                null
+            }
             if (saved != null) {
                 _state.update {
                     it.copy(
@@ -158,7 +177,12 @@ class WordsViewModel internal constructor(
                 }
             }
         }
-        val deckLanguages = decks?.let { runCatching { it.languages() }.getOrNull() }.orEmpty()
+        val deckLanguages = try {
+            decks?.languages().orEmpty()
+        } catch (_: IOException) {
+            _state.update { it.copy(storageFailure = WordsStorageFailure.ReadDecks) }
+            _state.value.languages
+        }
         val written = index.languages.mapNotNull { it.language }
         val languages = (written + deckLanguages).distinct()
         _state.update { it.copy(loading = false, index = index, languages = languages) }
@@ -170,15 +194,30 @@ class WordsViewModel internal constructor(
         val state = _state.value
         val words = state.shown ?: return
         val language = words.language
-        val choices = if (decks != null && language != null) runCatching { decks?.decks(language) }.getOrNull().orEmpty() else emptyList()
+        val choices: List<DeckChoice>
+        val imported: List<ImportedDeck>
+        try {
+            choices = if (language != null) decks?.decks(language).orEmpty() else emptyList()
+            imported = decks?.imported().orEmpty()
+        } catch (_: IOException) {
+            _state.update { it.copy(storageFailure = WordsStorageFailure.ReadDecks) }
+            return
+        }
         val choice = choices.firstOrNull { it.id == state.deckId } ?: choices.firstOrNull()
         val level = state.shownLevel
         val key = listOf(state.index?.fingerprint, choice?.id, level == WordLevel.Lemmas, language).joinToString("|")
         if (key == coverageKey && state.coverage?.deck?.id == choice?.id) {
-            _state.update { it.copy(decks = choices, deckId = choice?.id) }
+            _state.update { it.copy(decks = choices, deckId = choice?.id, imported = imported) }
+            clearStorageFailure(WordsStorageFailure.ReadDecks)
+            saveSelection()
             return
         }
-        val deck: VocabDeck? = choice?.let { runCatching { decks?.deck(it.id) }.getOrNull() }
+        val deck: VocabDeck? = try {
+            choice?.let { decks?.deck(it.id) }
+        } catch (_: IOException) {
+            _state.update { it.copy(storageFailure = WordsStorageFailure.ReadDecks) }
+            return
+        }
         val coverage = deck?.let {
             withContext(Dispatchers.Default) {
                 val variant = if (level == WordLevel.Lemmas || !it.hasLexemes) it.byLemma() else it
@@ -186,12 +225,40 @@ class WordsViewModel internal constructor(
             }
         }
         coverageKey = key
-        val imported = decks?.let { runCatching { it.imported() }.getOrNull() }.orEmpty()
         _state.update {
             it.copy(decks = choices, deckId = choice?.id, coverage = coverage, deckFailed = choice != null && deck == null, imported = imported)
         }
-        if (language != null && decks != null) {
-            decks.select(VocabSelection(language, choice?.id, if (level == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme))
+        clearStorageFailure(WordsStorageFailure.ReadDecks)
+        saveSelection()
+    }
+
+    private suspend fun saveSelection() {
+        val lab = decks ?: return
+        // An unreadable saved selection is not a fresh install: do not replace it with defaults.
+        if (!restored) return
+        val state = _state.value
+        val language = state.shownLanguage ?: return
+        try {
+            lab.select(VocabSelection(language, state.deckId, if (state.shownLevel == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme))
+            clearStorageFailure(WordsStorageFailure.SaveSelection)
+        } catch (_: IOException) {
+            _state.update { it.copy(storageFailure = WordsStorageFailure.SaveSelection) }
+        }
+    }
+
+    private fun clearStorageFailure(failure: WordsStorageFailure) = _state.update {
+        if (it.storageFailure == failure) it.copy(storageFailure = null) else it
+    }
+
+    fun retryStorage() {
+        when (val failure = _state.value.storageFailure) {
+            is WordsStorageFailure.DeleteDeck -> deleteDeck(failure.id)
+            WordsStorageFailure.SaveSelection -> viewModelScope.launch { saveSelection() }
+            WordsStorageFailure.ReadDecks, WordsStorageFailure.ReadSelection -> {
+                coverageKey = null
+                refresh()
+            }
+            null -> Unit
         }
     }
 
@@ -262,27 +329,37 @@ class WordsViewModel internal constructor(
         }
     }
 
-    fun cancelImport() = _state.update { it.copy(pendingImport = null) }
+    fun cancelImport() = _state.update { if (it.importing) it else it.copy(pendingImport = null) }
 
     fun confirmImport(name: String, language: String) {
         val pending = _state.value.pendingImport ?: return
         val lab = decks ?: return
-        _state.update { it.copy(pendingImport = null) }
+        if (_state.value.importing) return
+        _state.update { it.copy(importing = true, importMessage = null) }
         viewModelScope.launch {
-            when (val outcome = lab.import(pending.text, name.ifBlank { pending.suggestedName }, language)) {
-                is ImportOutcome.Imported -> {
-                    _state.update {
-                        it.copy(
-                            importMessage = ImportMessage.Imported(outcome.deck.size),
-                            language = language,
-                            languages = (it.languages + language).distinct(),
-                            deckId = outcome.deck.id,
-                        )
+            try {
+                when (val outcome = lab.import(pending.text, name.ifBlank { pending.suggestedName }, language)) {
+                    is ImportOutcome.Imported -> {
+                        _state.update {
+                            it.copy(
+                                pendingImport = null,
+                                importMessage = ImportMessage.Imported(outcome.deck.size),
+                                language = language,
+                                languages = (it.languages + language).distinct(),
+                                deckId = outcome.deck.id,
+                            )
+                        }
+                        coverageKey = null
+                        measure()
                     }
-                    coverageKey = null
-                    measure()
+                    is ImportOutcome.Failed -> _state.update {
+                        it.copy(pendingImport = null, importMessage = ImportMessage.Failed(outcome.reason))
+                    }
                 }
-                is ImportOutcome.Failed -> _state.update { it.copy(importMessage = ImportMessage.Failed(outcome.reason)) }
+            } catch (_: IOException) {
+                _state.update { it.copy(importMessage = ImportMessage.SaveFailed) }
+            } finally {
+                _state.update { it.copy(importing = false) }
             }
         }
     }
@@ -290,7 +367,17 @@ class WordsViewModel internal constructor(
     fun deleteDeck(id: String) {
         val lab = decks ?: return
         viewModelScope.launch {
-            lab.delete(id)
+            try {
+                lab.delete(id)
+            } catch (_: IOException) {
+                // The index may have committed before physical file cleanup failed.
+                // Refresh its membership and retain the cleanup ID for an explicit retry.
+                coverageKey = null
+                measure()
+                _state.update { it.copy(storageFailure = WordsStorageFailure.DeleteDeck(id)) }
+                return@launch
+            }
+            clearStorageFailure(WordsStorageFailure.DeleteDeck(id))
             _state.update { it.copy(importMessage = null, deckId = it.deckId.takeIf { current -> current != id }) }
             coverageKey = null
             measure()

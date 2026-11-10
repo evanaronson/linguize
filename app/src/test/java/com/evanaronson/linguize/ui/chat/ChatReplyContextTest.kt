@@ -43,7 +43,7 @@ class ChatReplyContextTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val memory = object : UserMemory {
         override suspend fun forPrompt() = ""
-        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = Unit
+        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = true
         override suspend fun forget(source: String) = Unit
     }
     private val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, emptyMap(), { memory }) {
@@ -56,7 +56,7 @@ class ChatReplyContextTest {
         memory = { memory },
         preferences = ChatPreferences(context),
         startLanguage = { "es" },
-        deleteSessions = {},
+        drainDeletions = {},
         people = { emptyList() },
         translate = { error("not used") },
         warmTargets = {},
@@ -66,6 +66,7 @@ class ChatReplyContextTest {
 
     /** The card, faked: what each check was started with. */
     private val card = object : DraftCheck {
+        override val sessionId: String? = null
         val started = mutableListOf<Pair<String, String?>>()
         override fun start(draft: String, language: Language, replyingTo: String?) { started += draft to replyingTo }
         override fun stop() = Unit

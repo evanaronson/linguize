@@ -2,6 +2,7 @@ package com.evanaronson.linguize.data.phrasebook
 
 import android.content.Context
 import android.util.Log
+import com.evanaronson.linguize.data.writeAtomically
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,6 +12,8 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.util.Locale
 import java.util.UUID
 
@@ -100,7 +103,7 @@ class PhrasebookStore(
     /** Every saved phrase, newest first; null until loaded. */
     val phrases: StateFlow<List<Phrase>?> = state.asStateFlow()
 
-    /** Reads the file once; later calls return what's in memory. */
+    /** Reads the file once; later calls return committed state. Read failures are retryable. */
     fun load(): List<Phrase> = synchronized(lock) {
         state.value ?: read().also { state.value = it }
     }
@@ -148,45 +151,39 @@ class PhrasebookStore(
     }
 
     /** Puts a deleted phrase back where its date places it. Does nothing if it's already there. */
-    fun restore(phrase: Phrase) = synchronized(lock) {
+    fun restore(phrase: Phrase): Unit = synchronized(lock) {
         val current = load()
         if (current.any { it.id == phrase.id || it.key == phrase.key }) return
         write((current + phrase).sortedByDescending { it.createdAt })
     }
 
     private fun read(): List<Phrase> {
-        if (!file.exists()) return emptyList()
+        val text = try {
+            String(Files.readAllBytes(file.toPath()), Charsets.UTF_8)
+        } catch (_: NoSuchFileException) {
+            return emptyList()
+        }
         return try {
-            json.decodeFromString<PhrasebookFile>(file.readText()).phrases.sortedByDescending { it.createdAt }
+            json.decodeFromString<PhrasebookFile>(text).phrases.sortedByDescending { it.createdAt }
         } catch (e: SerializationException) {
             setAside(e)
         } catch (e: IllegalArgumentException) {
             setAside(e)
-        } catch (e: IOException) {
-            Log.w(TAG, "Couldn't read the phrasebook", e)
-            emptyList()
         }
     }
 
     private fun setAside(e: Exception): List<Phrase> {
+        val backup = File(file.parentFile, file.name + ".unreadable")
+        if (backup.exists() || !file.renameTo(backup)) {
+            throw IOException("Couldn't preserve the unreadable phrasebook", e)
+        }
         Log.w(TAG, "Phrasebook file unreadable; set aside", e)
-        file.renameTo(File(file.parentFile, file.name + ".unreadable"))
         return emptyList()
     }
 
     private fun write(phrases: List<Phrase>) {
+        writeAtomically(file, json.encodeToString(PhrasebookFile.serializer(), PhrasebookFile(phrases = phrases)))
         state.value = phrases
-        try {
-            file.parentFile?.mkdirs()
-            val temp = File(file.parentFile, file.name + ".tmp")
-            temp.writeText(json.encodeToString(PhrasebookFile.serializer(), PhrasebookFile(phrases = phrases)))
-            if (!temp.renameTo(file)) {
-                file.delete()
-                temp.renameTo(file)
-            }
-        } catch (e: IOException) {
-            Log.w(TAG, "Couldn't save the phrasebook", e)
-        }
     }
 
     companion object {

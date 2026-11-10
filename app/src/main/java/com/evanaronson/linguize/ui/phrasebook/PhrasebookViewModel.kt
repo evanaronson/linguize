@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.text.Normalizer
 
 /** Phrases of one language, newest first; [language] is null for phrases saved without one. */
@@ -89,6 +90,8 @@ fun phrasebookText(sections: List<PhraseSection>, labels: PhraseTextLabels): Str
 private fun String.searchable(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").replace(Regex("\\s+"), " ").trim()
 
+enum class PhrasebookFailure { Load, Save, Delete, Restore }
+
 /**
  * The Phrasebook screen's state: search, add, and delete with Undo. A deleted phrase is
  * deleted at once and kept here until Undo or the next deletion, so Undo survives a
@@ -103,6 +106,11 @@ class PhrasebookViewModel internal constructor(
     /** Lab, Language scope: the language shown; null is every language. */
     private val language = MutableStateFlow<String?>(null)
     private val deleted = MutableStateFlow<Phrase?>(null)
+    private val failed = MutableStateFlow<PhrasebookFailure?>(null)
+    val failure: StateFlow<PhrasebookFailure?> = failed.asStateFlow()
+    private var failedDelete: String? = null
+    /** Requested Undo operations must survive later additions/deletions and their snackbars. */
+    private val pendingRestores = LinkedHashMap<String, Phrase>()
 
     /** The phrase that was just deleted, while its Undo can still bring it back. */
     val lastDeleted: StateFlow<Phrase?> = deleted.asStateFlow()
@@ -121,36 +129,91 @@ class PhrasebookViewModel internal constructor(
     }
 
     init {
-        viewModelScope.launch(io) { store.load() }
+        load()
+    }
+
+    private fun load() {
+        viewModelScope.launch {
+            try {
+                withContext(io) { store.load() }
+                recovered()
+            } catch (_: IOException) {
+                reportFailure(PhrasebookFailure.Load)
+            }
+        }
+    }
+
+    /** Save is retried with the editor's current contents, so an older draft cannot replace new input. */
+    fun retry() {
+        when (failed.value) {
+            PhrasebookFailure.Load -> load()
+            PhrasebookFailure.Delete -> failedDelete?.let(::delete)
+            PhrasebookFailure.Restore -> pendingRestores.values.toList().forEach(::restore)
+            else -> Unit
+        }
     }
 
     fun search(text: String) {
         query.value = text
     }
 
-    /** Saves a typed-in phrase; false when there's nothing to save. */
+    /** Saves a typed-in phrase; false leaves the editor open after invalid input or a failed write. */
     fun add(draft: PhraseDraft, onSaved: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            val saved = withContext(io) { store.save(draft) }
-            onSaved(saved != null)
+            try {
+                val saved = withContext(io) { store.save(draft) }
+                recovered()
+                onSaved(saved != null)
+            } catch (_: IOException) {
+                reportFailure(PhrasebookFailure.Save)
+                onSaved(false)
+            }
         }
     }
 
     fun delete(id: String) {
         viewModelScope.launch {
-            withContext(io) { store.delete(id) }?.let { deleted.value = it }
+            try {
+                withContext(io) { store.delete(id) }?.let { deleted.value = it }
+                recovered()
+                failedDelete = null
+            } catch (_: IOException) {
+                failedDelete = id
+                reportFailure(PhrasebookFailure.Delete)
+            }
         }
     }
 
     fun undoDelete() {
         val phrase = deleted.value ?: return
-        deleted.value = null
-        viewModelScope.launch(io) { store.restore(phrase) }
+        restore(phrase)
+    }
+
+    private fun restore(phrase: Phrase) {
+        viewModelScope.launch {
+            try {
+                withContext(io) { store.restore(phrase) }
+                if (deleted.value == phrase) deleted.value = null
+                pendingRestores.remove(phrase.id)
+                recovered()
+            } catch (_: IOException) {
+                pendingRestores[phrase.id] = phrase
+                reportFailure(PhrasebookFailure.Restore)
+            }
+        }
+    }
+
+    private fun recovered() {
+        failed.value = if (pendingRestores.isEmpty()) null else PhrasebookFailure.Restore
+    }
+
+    private fun reportFailure(problem: PhrasebookFailure) {
+        failed.value = if (pendingRestores.isEmpty()) problem else PhrasebookFailure.Restore
     }
 
     /** The Undo moment for [phrase] has passed. */
     fun deleteConfirmed(phrase: Phrase) {
-        if (deleted.value == phrase) deleted.value = null
+        if (deleted.value == phrase && phrase.id !in pendingRestores) deleted.value = null
     }
 
     /** The phrases to export: every saved phrase, by language, regardless of the search. */

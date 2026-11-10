@@ -6,10 +6,14 @@ import com.evanaronson.linguize.core.vocab.DeckParse
 import com.evanaronson.linguize.core.vocab.DeckParser
 import com.evanaronson.linguize.core.vocab.VocabDeck
 import com.evanaronson.linguize.core.vocab.VocabLevel
+import com.evanaronson.linguize.data.writeAtomically
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.util.UUID
 
 /** A deck the writer imported: its name, language and size. Its words are in its own file. */
@@ -24,6 +28,7 @@ data class VocabSelection(val language: String? = null, val deckId: String? = nu
  * Imported decks and Words' last selection, in the existing `lab_vocab_gaps` folder under
  * the app's files. Call off the main thread. Coverage is derived in memory; reports left
  * by the former Vocabulary gaps screen are only removed when their deck is deleted.
+ * Missing files have empty defaults; unreadable files and failed writes throw [IOException].
  */
 class VocabGapsStore(private val dir: File) {
     private val decksDir get() = File(dir, "decks")
@@ -31,56 +36,64 @@ class VocabGapsStore(private val dir: File) {
     private val index get() = File(decksDir, "index.json")
     private val selectionFile get() = File(dir, "selection.json")
 
-    @Synchronized
-    fun imported(): List<ImportedDeck> = read(index) { json.decodeFromString(ListSerializer(ImportedDeck.serializer()), it) }.orEmpty()
+    fun imported(): List<ImportedDeck> = synchronized(lock) {
+        read(index) { json.decodeFromString(ListSerializer(ImportedDeck.serializer()), it) }.orEmpty()
+    }
 
-    @Synchronized
-    fun importedDeck(id: String): VocabDeck? {
-        val info = imported().firstOrNull { it.id == id } ?: return null
-        val text = runCatching { File(decksDir, "${info.id}.csv").readText() }.getOrNull() ?: return null
-        val parsed = DeckParser.parse(text, info.language) as? DeckParse.Parsed ?: return null
-        return VocabDeck(info.id, info.name, info.language, parsed.entries, bundled = false)
+    fun importedDeck(id: String): VocabDeck? = synchronized(lock) {
+        val info = imported().firstOrNull { it.id == id } ?: return@synchronized null
+        val text = File(decksDir, "${info.id}.csv").readText()
+        val parsed = DeckParser.parse(text, info.language) as? DeckParse.Parsed
+            ?: throw IOException("Couldn't read imported deck ${info.id}")
+        VocabDeck(info.id, info.name, info.language, parsed.entries, bundled = false)
     }
 
     /** Saves [entries] as a new deck. Its words are written as plain CSV, readable by the same parser. */
-    @Synchronized
-    fun import(name: String, language: String, entries: List<DeckEntry>, now: Long = System.currentTimeMillis()): ImportedDeck {
+    fun import(name: String, language: String, entries: List<DeckEntry>, now: Long = System.currentTimeMillis()): ImportedDeck = synchronized(lock) {
+        val before = imported()
         val deck = ImportedDeck("$IMPORTED_PREFIX${UUID.randomUUID()}", name.trim(), language, entries.size, now)
-        decksDir.mkdirs()
-        writeAtomically(File(decksDir, "${deck.id}.csv"), csv(entries))
-        writeAtomically(index, json.encodeToString(ListSerializer(ImportedDeck.serializer()), imported() + deck))
-        return deck
+        val words = File(decksDir, "${deck.id}.csv")
+        writeAtomically(words, csv(entries))
+        try {
+            writeAtomically(index, json.encodeToString(ListSerializer(ImportedDeck.serializer()), before + deck))
+        } catch (failure: IOException) {
+            // The index is the commit point. Do not leave a failed import looking like a saved deck.
+            try { Files.deleteIfExists(words.toPath()) } catch (cleanup: IOException) { failure.addSuppressed(cleanup) }
+            throw failure
+        }
+        deck
     }
 
     /** Deletes an imported deck, its words and any cached reports left by older builds. */
-    @Synchronized
-    fun delete(id: String) {
+    fun delete(id: String) = synchronized(lock) {
         val remaining = imported().filterNot { it.id == id }
         writeAtomically(index, json.encodeToString(ListSerializer(ImportedDeck.serializer()), remaining))
-        File(decksDir, "$id.csv").delete()
-        VocabLevel.entries.forEach { File(reportsDir, fileName(id, it)).delete() }
+        deleteFile(File(decksDir, "$id.csv"))
+        VocabLevel.entries.forEach { deleteFile(File(reportsDir, fileName(id, it))) }
     }
 
-    @Synchronized
-    fun selection(): VocabSelection = read(selectionFile) { json.decodeFromString(VocabSelection.serializer(), it) } ?: VocabSelection()
+    fun selection(): VocabSelection = synchronized(lock) {
+        read(selectionFile) { json.decodeFromString(VocabSelection.serializer(), it) } ?: VocabSelection()
+    }
 
-    @Synchronized
-    fun saveSelection(selection: VocabSelection) {
-        dir.mkdirs()
+    fun saveSelection(selection: VocabSelection) = synchronized(lock) {
+        // Automatic selection writes must not replace an existing file that could not be read.
+        if (selection() == selection) return@synchronized
         writeAtomically(selectionFile, json.encodeToString(VocabSelection.serializer(), selection))
     }
 
-    private fun <T> read(file: File, decode: (String) -> T): T? =
-        if (!file.exists()) null else runCatching { decode(file.readText()) }.getOrNull()
-
-    private fun writeAtomically(file: File, text: String) {
-        file.parentFile?.mkdirs()
-        val temp = File(file.parentFile, file.name + ".tmp")
-        temp.writeText(text)
-        if (!temp.renameTo(file)) {
-            file.delete()
-            temp.renameTo(file)
+    private fun <T> read(file: File, decode: (String) -> T): T? {
+        return try {
+            decode(Files.readAllBytes(file.toPath()).toString(Charsets.UTF_8))
+        } catch (_: NoSuchFileException) {
+            null
+        } catch (failure: IllegalArgumentException) {
+            throw IOException("Couldn't read ${file.name}", failure)
         }
+    }
+
+    private fun deleteFile(file: File) {
+        Files.deleteIfExists(file.toPath())
     }
 
     private fun fileName(deckId: String, level: VocabLevel) =
@@ -90,6 +103,8 @@ class VocabGapsStore(private val dir: File) {
         const val DIR = "lab_vocab_gaps"
         const val IMPORTED_PREFIX = "user-"
         private val json = Json { ignoreUnknownKeys = true }
+        // Each Words view model owns a store, but they share the same index and temporary files.
+        private val lock = Any()
 
         fun csv(entries: List<DeckEntry>): String = buildString {
             append("rank,lemma,pos,gloss_en,forms\n")

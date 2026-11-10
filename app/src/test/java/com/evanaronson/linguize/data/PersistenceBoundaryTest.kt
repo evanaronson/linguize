@@ -11,14 +11,12 @@ import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
 import com.evanaronson.linguize.data.vocabgaps.VocabSelection
 import com.evanaronson.linguize.data.write.WriteDraft
 import com.evanaronson.linguize.data.write.WriteDraftStore
-import com.evanaronson.linguize.testing.KnownBonanzaDefect
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -77,7 +75,6 @@ class PersistenceBoundaryTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun failedPhraseSaveMustNotPublishAnUndurablePhrase() {
         val file = File(folder.root, PhrasebookStore.FILE_NAME)
         val store = PhrasebookStore(file)
@@ -92,7 +89,6 @@ class PersistenceBoundaryTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun failedPracticeUpdateMustNotAcknowledgeAnUnsavedGrade() = runBlocking {
         val file = File(folder.root, PracticeStore.FILE)
         val store = PracticeStore(file)
@@ -111,7 +107,6 @@ class PersistenceBoundaryTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun failedSelectionRenameMustBeReported() {
         val dir = folder.newFolder("vocab")
         // A nonempty destination directory makes both rename and fallback deletion fail.

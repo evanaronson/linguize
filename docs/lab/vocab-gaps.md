@@ -114,6 +114,14 @@ kept in memory under the word index fingerprint, the deck and the level; nothing
 imported deck, and `selection.json` (last language, deck and level). Reports saved by
 earlier builds in `reports/` are no longer read.
 
+File replacements report failure. An unreadable index or selection cannot be
+overwritten as if it were a fresh install. Import publishes the CSV before committing
+its index entry; a failed index write removes the unpublished CSV when possible.
+Failed imports keep their dialog for retry. Deletion commits index membership first,
+then removes the CSV and old report files; failed physical cleanup can be retried
+while the screen remains alive. This is not a transaction across those files or a
+durable orphan-cleanup queue.
+
 ## Code
 
 - `core/vocab/`: `VocabDeck` (rows, lexeme or lemma level, grouping forms), `DeckParser`,

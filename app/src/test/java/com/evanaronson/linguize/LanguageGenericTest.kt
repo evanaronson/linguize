@@ -141,7 +141,7 @@ class LanguageGenericTest {
         }
         val memory = object : UserMemory {
             override suspend fun forPrompt() = ""
-            override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = Unit
+            override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = true
             override suspend fun forget(source: String) = Unit
         }
         val chatPrompt = ChatPrompt.load { File("src/main/assets/$it").readText() }

@@ -68,7 +68,7 @@ class LabUserMemoryTest {
         assertTrue(block.contains("- Lives in Gràcia, Barcelona"))
     }
 
-    @Test fun updatesMergeSourcesAcrossChats() = runBlocking {
+    @Test fun replacementFactsCiteTheirNewChatAndForgetOnlyItsClaim() = runBlocking {
         val client = MemoryClient { learned }
         val store = MemoryStore(File(folder.root, MemoryStore.FILE_NAME))
         val memory = memory(client, store)
@@ -77,7 +77,7 @@ class LabUserMemoryTest {
         memory.learnFrom("chat:2", exchange)
         val fact = store.load().facts.first()
         assertEquals("Lives in Sants, Barcelona", fact.text)
-        assertEquals(listOf("chat:1", "chat:2"), fact.sources)
+        assertEquals(listOf("chat:2"), fact.sources)
 
         memory.forget("chat:1")
         assertEquals(listOf("Lives in Sants, Barcelona"), store.load().facts.map { it.text })

@@ -10,6 +10,8 @@ import com.evanaronson.linguize.core.time.TimeLog
 import com.evanaronson.linguize.core.time.TimeRecord
 import com.evanaronson.linguize.core.time.TimeSweep
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,8 +23,16 @@ import kotlinx.coroutines.withContext
  * conversation deletes its rows ([delete]), and [sweep] drops rows whose session History no
  * longer has. A failure is logged and reads as nothing, so timing never breaks the app.
  */
-class TimeStore(context: Context, private val scope: CoroutineScope, name: String? = DATABASE) : TimeLog {
+class TimeStore(
+    context: Context,
+    private val scope: CoroutineScope,
+    name: String? = DATABASE,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : TimeLog {
     private val helper = Helper(context.applicationContext, name)
+    private val mutations = Any()
+    /** Queued writes die with the process; deleted IDs block those still waiting in this one. */
+    private val deleted = mutableSetOf<String>()
 
     /** Saves [record] off the main thread; a later record for the same session replaces it. */
     override fun record(record: TimeRecord) {
@@ -30,8 +40,10 @@ class TimeStore(context: Context, private val scope: CoroutineScope, name: Strin
     }
 
     suspend fun save(record: TimeRecord): Boolean = io("save a time record", false) { db ->
-        db.insertWithOnConflict(TABLE, null, record.values(), SQLiteDatabase.CONFLICT_REPLACE)
-        true
+        synchronized(mutations) {
+            if (record.sessionId in deleted) return@synchronized false
+            db.insertWithOnConflict(TABLE, null, record.values(), SQLiteDatabase.CONFLICT_REPLACE) != -1L
+        }
     }
 
     /** Every record, oldest first. */
@@ -42,7 +54,18 @@ class TimeStore(context: Context, private val scope: CoroutineScope, name: Strin
     }
 
     /** Deletes the records of these History sessions. */
-    suspend fun delete(sessionIds: Collection<String>): Int = io("delete time records", 0) { db ->
+    suspend fun delete(sessionIds: Collection<String>): Int {
+        synchronized(mutations) { deleted += sessionIds }
+        return io("delete time records", 0) { db -> deleteRows(db, sessionIds) }
+    }
+
+    /** True even when already absent; false is a retryable failure, never a zero-row success. */
+    suspend fun deleteAcknowledged(sessionIds: Collection<String>): Boolean {
+        synchronized(mutations) { deleted += sessionIds }
+        return io("delete time records", false) { db -> deleteRows(db, sessionIds); true }
+    }
+
+    private fun deleteRows(db: SQLiteDatabase, sessionIds: Collection<String>): Int = synchronized(mutations) {
         sessionIds.chunked(MAX_ARGS).sumOf { chunk ->
             db.delete(TABLE, "session_id IN (${chunk.joinToString(",") { "?" }})", chunk.toTypedArray())
         }
@@ -62,9 +85,11 @@ class TimeStore(context: Context, private val scope: CoroutineScope, name: Strin
     /** Closes the database; for tests. */
     fun close() = helper.close()
 
-    private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(dispatcher) {
         try {
             block(helper.writableDatabase)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't $what", e)
             fallback

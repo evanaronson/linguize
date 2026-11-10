@@ -1,9 +1,13 @@
 package com.evanaronson.linguize.data.write
 
+import com.evanaronson.linguize.data.writeAtomically
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 
 /**
  * One Write draft. [language] is a language code, or null for auto-detect. [title] is only
@@ -101,47 +105,54 @@ class WriteDraftStore(
     private fun contents(): Contents = cache ?: read().also { cache = it }
 
     private fun read(): Contents {
-        if (!file.exists()) return imported()
+        val text = readText(file) ?: return imported()
         return try {
-            json.decodeFromString(Contents.serializer(), file.readText())
-        } catch (_: Exception) {
-            // Keep the unreadable file for inspection rather than overwriting it on the next save.
-            file.renameTo(File(file.parentFile, file.name + ".unreadable"))
-            Contents()
+            json.decodeFromString(Contents.serializer(), text)
+        } catch (_: SerializationException) {
+            setAside()
+        } catch (_: IllegalArgumentException) {
+            setAside()
         }
+    }
+
+    private fun setAside(): Contents {
+        // A previous corrupt file is evidence too. Never overwrite it or publish an empty
+        // store until this file has actually been preserved.
+        var backup = File(file.parentFile, file.name + ".unreadable")
+        var suffix = 1
+        while (backup.exists()) backup = File(file.parentFile, file.name + ".unreadable.${suffix++}")
+        if (!file.renameTo(backup)) throw IOException("Couldn't preserve unreadable notes")
+        return Contents()
+    }
+
+    private fun readText(source: File): String? = try {
+        String(Files.readAllBytes(source.toPath()), Charsets.UTF_8)
+    } catch (_: NoSuchFileException) {
+        null
     }
 
     /** The Writing pad's non-blank drafts, the newest open. Saved at once so this runs only once. */
     private fun imported(): Contents {
-        val source = legacy?.takeIf { it.exists() } ?: return Contents()
+        val text = legacy?.let(::readText) ?: return Contents()
         val pad = try {
-            json.decodeFromString(PadContents.serializer(), source.readText())
-        } catch (_: Exception) {
+            json.decodeFromString(PadContents.serializer(), text)
+        } catch (_: SerializationException) {
+            return Contents()
+        } catch (_: IllegalArgumentException) {
             return Contents()
         }
         val drafts = pad.drafts.filter { it.text.isNotBlank() }
             .map { WriteDraft(it.id, it.text, it.language, it.title.trim(), it.updatedAt) }
         if (drafts.isEmpty()) return Contents()
         val contents = Contents(currentId = drafts.maxBy { it.updatedAt }.id, drafts = drafts)
-        try {
-            write(contents)
-        } catch (_: IOException) {
-            // Imported again next time; the pad's file is untouched either way.
-        }
+        // On failure the legacy file remains the source, and a retry imports it again.
+        write(contents)
         return contents
     }
 
     private fun write(contents: Contents) {
-        val temp = File(file.parentFile, file.name + ".tmp")
-        try {
-            file.parentFile?.mkdirs()
-            temp.writeText(json.encodeToString(Contents.serializer(), contents))
-            if (!temp.renameTo(file)) throw IOException("Couldn't replace ${file.name}")
-            cache = contents
-        } catch (e: IOException) {
-            temp.delete()
-            throw e
-        }
+        writeAtomically(file, json.encodeToString(Contents.serializer(), contents))
+        cache = contents
     }
 
     companion object {

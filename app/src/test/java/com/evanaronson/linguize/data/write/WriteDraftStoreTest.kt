@@ -2,11 +2,13 @@ package com.evanaronson.linguize.data.write
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.io.IOException
 
 class WriteDraftStoreTest {
     @get:Rule val folder = TemporaryFolder()
@@ -107,6 +109,49 @@ class WriteDraftStoreTest {
         pad.writeText("garbage")
         assertTrue(store().load().drafts.isEmpty())
         assertEquals("garbage", pad.readText())
+    }
+
+    @Test fun anIoReadFailureIsNotAnEmptyStoreAndCanBeRetried() {
+        assertTrue(file.mkdir())
+        File(file, "keep").writeText("existing content")
+        val store = store()
+
+        assertThrows(IOException::class.java) { store.load() }
+        assertEquals("existing content", File(file, "keep").readText())
+        assertTrue(!File(folder.root, WriteDraftStore.FILE_NAME + ".unreadable").exists())
+
+        assertTrue(file.deleteRecursively())
+        val draft = WriteDraft("a", "Hola", updatedAt = 1)
+        store().saveCurrent(draft)
+        assertEquals(draft, store.load().current)
+    }
+
+    @Test fun aFailedWritingPadImportCanRetryWithoutChangingItsSource() {
+        val original = """{"drafts":[{"id":"old","text":"Hola veí","updatedAt":10}]}"""
+        pad.writeText(original)
+        val temp = File(folder.root, WriteDraftStore.FILE_NAME + ".tmp")
+        assertTrue(temp.mkdir())
+        File(temp, "keep").writeText("blocks the write")
+        val store = store()
+
+        assertThrows(IOException::class.java) { store.load() }
+        assertEquals(original, pad.readText())
+        assertTrue(!file.exists())
+
+        assertTrue(temp.deleteRecursively())
+        assertEquals("Hola veí", store.load().current?.text)
+        assertEquals(store.load(), store().load())
+        assertEquals(original, pad.readText())
+    }
+
+    @Test fun quarantiningAnotherMalformedFilePreservesTheEarlierBackup() {
+        file.writeText("first malformed file")
+        assertTrue(store().load().drafts.isEmpty())
+        file.writeText("second malformed file")
+        assertTrue(store().load().drafts.isEmpty())
+
+        assertEquals("first malformed file", File(folder.root, WriteDraftStore.FILE_NAME + ".unreadable").readText())
+        assertEquals("second malformed file", File(folder.root, WriteDraftStore.FILE_NAME + ".unreadable.1").readText())
     }
 
     @Test fun theLabelIsTheTitleOrTheFirstLineShortened() {

@@ -120,6 +120,7 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             if (state.index == null) PageLoading(stringResource(R.string.lab_vocab_gaps_loading))
             else EmptyCard(stringResource(R.string.lab_words_empty_title), stringResource(R.string.lab_words_empty))
+            state.storageFailure?.let { StorageFailureNotice(it, words::retryStorage) }
             if (historyOn == false) CardNote(stringResource(R.string.history_off))
         }
         return
@@ -137,6 +138,9 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
 
     LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
         item(key = "header") { Header(shown, coverage, state.deckFailed, level) }
+        state.storageFailure?.let { failure ->
+            item(key = "storage_failure") { StorageFailureNotice(failure, words::retryStorage) }
+        }
         item(key = "decks") { DeckPicker(state.decks, state.deckId, words::selectDeck) }
         if (growth.size > 1 || growth.singleOrNull()?.day?.isBefore(LocalDate.now()) == true) item(key = "growth") {
             Growth(growth, coverage)
@@ -188,6 +192,8 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
             languages = (listOfNotNull(shown.language) + mine + BundledDecks.languages + state.languages).distinct(),
             onImport = words::confirmImport,
             onCancel = words::cancelImport,
+            saving = state.importing,
+            saveFailed = state.importMessage == ImportMessage.SaveFailed,
         )
     }
     deleting?.let { id -> DeleteDeckDialog(onDelete = { deleting = null; words.deleteDeck(id) }, onCancel = { deleting = null }) }

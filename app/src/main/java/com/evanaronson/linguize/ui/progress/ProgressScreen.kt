@@ -307,6 +307,12 @@ private fun rememberPhrases(): List<Phrase>? {
     val context = LocalContext.current
     val store = remember(context) { PhrasebookStore.of(context) }
     val phrases by store.phrases.collectAsState()
-    LaunchedEffect(store) { withContext(Dispatchers.IO) { store.load() } }
+    LaunchedEffect(store) {
+        try {
+            withContext(Dispatchers.IO) { store.load() }
+        } catch (_: java.io.IOException) {
+            // Keep the count unknown; the Phrasebook page presents the load error and retry.
+        }
+    }
     return phrases
 }

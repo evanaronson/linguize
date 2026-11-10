@@ -22,6 +22,13 @@ name, which the bottom bar already shows. Code: `ui/notes` (`NotesViewModel`, `N
 `Screen.Notes`, `Screen.Note`. The store keeps its name and file
 (`data/write/WriteDraftStore`, `lab_write.json`), so no note moves.
 
+Storage failures keep the current text or failed Undo available for Retry, on both
+the list and editor. A deletion changes the list and offers Undo only after its
+write succeeds; saves captured before that deletion cannot recreate the note.
+Opening another note preserves the outgoing input if saving or opening fails.
+Transient read failures remain failures, and legacy-pad import is acknowledged
+only after the imported notes are saved.
+
 ## A list of notes, each on its own page
 
 The tab used to be one editor with the open note inline at the top, **New note** in its

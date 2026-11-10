@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.data.memory
 
 import com.evanaronson.linguize.core.memory.FactCategory
+import com.evanaronson.linguize.core.memory.MemoryChanges
+import com.evanaronson.linguize.core.memory.NewFact
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -67,6 +69,7 @@ class MemoryStoreTest {
     @Test fun anUnreadableFileIsSetAsideNotDeleted() {
         val file = File(folder.root, MemoryStore.FILE_NAME).apply { writeText("{not json") }
         assertTrue(store(file).load().facts.isEmpty())
+        assertFalse(store(file).load().enabled)
         assertTrue(File(folder.root, MemoryStore.FILE_NAME + ".unreadable").exists())
     }
 
@@ -77,5 +80,38 @@ class MemoryStoreTest {
         assertNotNull(fact)
         fact!!
         assertFalse(store.edit(fact.id, " ", FactCategory.About))
+    }
+
+    @Test fun restoringAWriterEditedFactDropsForgottenSourceLabelsButKeepsTheNote() {
+        val store = store()
+        val learned = store.update { state, now, newId ->
+            state.applying(MemoryChanges(add = listOf(NewFact("Lives in Paris", FactCategory.About))), "chat:1", now, newId)
+        }.facts.single()
+        store.edit(learned.id, "Lives in Barcelona", FactCategory.About)
+        val deleted = store.delete(learned.id)!!
+        store.forgetSource("chat:1")
+
+        store.restore(deleted)
+
+        val restored = store().load().facts.single()
+        assertTrue(restored.byWriter)
+        assertEquals("Lives in Barcelona", restored.text)
+        assertTrue(restored.sources.isEmpty())
+    }
+
+    @Test fun ordinaryUndoStillWorksWhenUnrelatedLearningPrunedTheSourceDate() {
+        val store = store()
+        val learned = store.update { state, now, newId ->
+            state.applying(MemoryChanges(add = listOf(NewFact("Lives in Paris", FactCategory.About))), "chat:1", now, newId)
+        }.facts.single()
+        val deleted = store.delete(learned.id)!!
+        store.update { state, now, newId ->
+            state.applying(MemoryChanges(add = listOf(NewFact("Has a dog", FactCategory.About))), "chat:2", now, newId)
+        }
+        assertFalse("chat:1" in store.load().sources)
+
+        store.restore(deleted)
+
+        assertEquals(deleted, store().load().facts.single { it.id == deleted.id })
     }
 }

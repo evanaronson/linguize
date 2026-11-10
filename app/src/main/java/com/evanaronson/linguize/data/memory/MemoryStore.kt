@@ -3,6 +3,7 @@ package com.evanaronson.linguize.data.memory
 import com.evanaronson.linguize.core.memory.Fact
 import com.evanaronson.linguize.core.memory.FactCategory
 import com.evanaronson.linguize.core.memory.MemoryState
+import com.evanaronson.linguize.data.writeAtomically
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +11,8 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.util.UUID
 
 /**
@@ -18,8 +21,8 @@ import java.util.UUID
  *
  * Reads and writes block, so call them off the main thread. [state] is null until the first
  * [load]. Every change is computed from the current state under one lock and written whole
- * (write, then rename), so a change is all or nothing. A file this build can't read is set
- * aside as `.unreadable`, never deleted.
+ * (write, then rename), so a change is all or nothing. IO failures throw without publishing
+ * a change. Invalid JSON is preserved as `.unreadable` and recovered with learning disabled.
  */
 class MemoryStore(
     private val file: File,
@@ -28,6 +31,28 @@ class MemoryStore(
 ) {
     private val lock = Any()
     private val current = MutableStateFlow<MemoryState?>(null)
+    private var generation = 0L
+    private val forgottenSources = mutableSetOf<String>()
+
+    /** Capture before queueing learning; writer deletion and consent changes invalidate it. */
+    internal val learningGeneration: Long get() = synchronized(lock) { generation }
+
+    /** Read the current facts only if this request still belongs to the current consent state. */
+    internal fun learningSnapshot(source: String, expectedGeneration: Long): MemoryState? = synchronized(lock) {
+        if (!isCurrentLearning(source, expectedGeneration)) null else load().takeIf { it.enabled }
+    }
+
+    internal fun isCurrentLearning(source: String, expectedGeneration: Long): Boolean = synchronized(lock) {
+        expectedGeneration == generation && source !in forgottenSources
+    }
+
+    /** Invalidates queued work immediately, before the caller dispatches the durable cleanup. */
+    internal fun invalidateSource(source: String) = synchronized(lock) { forgottenSources += source }
+
+    fun forgetSource(source: String): MemoryState = synchronized(lock) {
+        forgottenSources += source
+        update { state, _, _ -> state.forgetting(source) }
+    }
 
     /** Everything remembered; null until loaded. */
     val state: StateFlow<MemoryState?> = current.asStateFlow()
@@ -61,6 +86,7 @@ class MemoryStore(
 
     /** Deletes fact [id]; returns it, for Undo, or null when there was none. */
     fun delete(id: String): Fact? = synchronized(lock) {
+        generation++
         val state = load()
         val fact = state.facts.firstOrNull { it.id == id } ?: return null
         write(state.copy(facts = state.facts - fact))
@@ -68,48 +94,64 @@ class MemoryStore(
     }
 
     /** Puts a deleted fact back in its place by date. Does nothing if it's already there. */
-    fun restore(fact: Fact) = synchronized(lock) {
+    fun restore(fact: Fact): Unit = synchronized(lock) {
         val state = load()
         if (state.facts.any { it.id == fact.id }) return
-        write(state.copy(facts = (state.facts + fact).sortedBy { it.createdAt }))
+        val sources = fact.sources.filterNot { it in forgottenSources }
+        if (!fact.byWriter && fact.sources.isNotEmpty() && sources.isEmpty()) return
+        val restored = fact.copy(sources = sources)
+        write(state.copy(facts = (state.facts + restored).sortedBy { it.createdAt }))
     }
 
     /** Forgets every fact and source. Whether learning is on stays as it was. */
-    fun clear() = update { state, _, _ -> MemoryState(enabled = state.enabled) }
+    fun clear(): MemoryState = synchronized(lock) {
+        // Even an empty clear invalidates an answer that could add the first fact later.
+        generation++
+        update { state, _, _ -> MemoryState(enabled = state.enabled) }
+    }
 
-    fun setEnabled(enabled: Boolean) = update { state, _, _ -> state.copy(enabled = enabled) }
+    fun setEnabled(enabled: Boolean): MemoryState = synchronized(lock) {
+        // Enabling again must not make requests queued while disabled eligible to run.
+        generation++
+        update { state, _, _ -> state.copy(enabled = enabled) }
+    }
 
     private fun read(): MemoryState {
-        if (!file.exists()) return MemoryState()
+        val contents = try {
+            Files.readAllBytes(file.toPath()).toString(Charsets.UTF_8)
+        } catch (_: NoSuchFileException) {
+            val parent = file.parentFile
+            val quarantined = if (parent?.exists() == true) {
+                val files = parent.listFiles() ?: throw IOException("Couldn't read memory directory")
+                files.any { it.name == file.name + ".unreadable" || it.name.startsWith(file.name + ".unreadable.") }
+            } else false
+            val empty = MemoryState(enabled = !quarantined)
+            // A failed recovery write must not turn an old opt-out into a fresh enabled install.
+            if (quarantined) writeAtomically(file, json.encodeToString(MemoryState.serializer(), empty))
+            return empty
+        }
         return try {
-            json.decodeFromString<MemoryState>(file.readText())
+            json.decodeFromString<MemoryState>(contents)
         } catch (e: SerializationException) {
             setAside()
         } catch (e: IllegalArgumentException) {
             setAside()
-        } catch (e: IOException) {
-            MemoryState()
         }
     }
 
     private fun setAside(): MemoryState {
-        file.renameTo(File(file.parentFile, file.name + ".unreadable"))
-        return MemoryState()
+        var backup = File(file.parentFile, file.name + ".unreadable")
+        var suffix = 1
+        while (backup.exists()) backup = File(file.parentFile, file.name + ".unreadable.${suffix++}")
+        if (!file.renameTo(backup)) throw IOException("Couldn't preserve unreadable memory")
+        val empty = MemoryState(enabled = false)
+        writeAtomically(file, json.encodeToString(MemoryState.serializer(), empty))
+        return empty
     }
 
     private fun write(state: MemoryState) {
+        writeAtomically(file, json.encodeToString(MemoryState.serializer(), state))
         current.value = state
-        try {
-            file.parentFile?.mkdirs()
-            val temp = File(file.parentFile, file.name + ".tmp")
-            temp.writeText(json.encodeToString(MemoryState.serializer(), state))
-            if (!temp.renameTo(file)) {
-                file.delete()
-                temp.renameTo(file)
-            }
-        } catch (_: IOException) {
-            // Kept in memory for this process; the next change tries the file again.
-        }
     }
 
     companion object {

@@ -87,6 +87,12 @@ text. Items themselves are rebuilt from History whenever History changes
 exist is dropped, so deleting a check, or Delete all, removes its items and their
 state. A failed History read changes nothing. Removing Lab removes the file.
 
+A grade is acknowledged only after its file replacement succeeds. Answer feedback
+is immediate; Next waits for the save. On failure, the answer and its original time
+are retained for Retry, without counting the answer again. A failed state read does
+not become empty progress or trigger pruning. The existing 500-check window remains
+the retention policy.
+
 ## Limits
 
 - Acceptance is not proof of a mistake: a fix the writer applied may have been

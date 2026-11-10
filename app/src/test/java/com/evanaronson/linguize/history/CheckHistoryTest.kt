@@ -204,10 +204,12 @@ class CheckHistoryTest {
     fun turningHistoryOffAndOnWhileTheCardIsIdleNeverResumesItsRecording() = runBlocking<Unit> {
         history.open(rain, opening)
         history.flush()
+        assertEquals(history.session!!.id, history.pendingSessionId)
         environment.enabled = false
         environment.recordingEpoch++
         environment.enabled = true
 
+        assertNull(history.pendingSessionId)
         history.succeeded(emptyList(), "{}", result)
         closeAfterApplyingFix()
         history.flush()

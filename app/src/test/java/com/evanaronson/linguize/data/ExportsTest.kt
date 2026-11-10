@@ -57,6 +57,36 @@ class ExportsTest {
     }
 
     @Test
+    fun acknowledgedClearReportsFailureAndCanRetryWithoutChangingItsScope() = runBlocking {
+        val file = write(LocalDate.of(2026, 10, 9))
+        val unrelated = File(cache.root, "other-cache").apply { writeText("keep") }
+        val blocked = File(folder, "blocked").apply { mkdir() }
+        File(blocked, "child").writeText("prevents deleting the directory")
+
+        assertFalse(exports.clearAcknowledged())
+        assertFalse(file.exists())
+        assertFalse(exports.isCurrent(file))
+        assertTrue(blocked.exists())
+        assertEquals("keep", unrelated.readText())
+
+        assertTrue(blocked.deleteRecursively())
+        assertTrue(exports.clearAcknowledged())
+        assertTrue(folder.listFiles()!!.isEmpty())
+    }
+
+    @Test
+    fun acknowledgedClearDistinguishesMissingFolderFromUnreadableDirectory() = runBlocking {
+        assertTrue(exports.clearAcknowledged())
+        folder.writeText("unexpected file obstructing the export directory")
+
+        assertFalse(exports.clearAcknowledged())
+        assertEquals("unexpected file obstructing the export directory", folder.readText())
+
+        assertTrue(folder.delete())
+        assertTrue(exports.clearAcknowledged())
+    }
+
+    @Test
     fun pruneKeepsAnExportForAFewMinutesOnly() = runBlocking {
         val file = write(LocalDate.of(2026, 10, 9))
         file.setLastModified(now - Exports.KEEP_MILLIS + 1_000)

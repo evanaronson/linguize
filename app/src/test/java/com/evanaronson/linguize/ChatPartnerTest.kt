@@ -27,7 +27,7 @@ class ChatPartnerTest {
     private val chatPrompt = ChatPrompt.load { File("src/main/assets/$it").readText() }
     private val memory = object : UserMemory {
         override suspend fun forPrompt() = "Has a dog called Pipa."
-        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = Unit
+        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = true
         override suspend fun forget(source: String) = Unit
     }
 

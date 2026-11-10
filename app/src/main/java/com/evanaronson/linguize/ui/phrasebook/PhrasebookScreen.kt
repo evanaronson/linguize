@@ -88,6 +88,7 @@ import kotlinx.coroutines.withContext
 fun PhrasebookScreen(model: PhrasebookViewModel, onOpenCheck: (String) -> Unit) {
     val state by model.state.collectAsState()
     val deleted by model.lastDeleted.collectAsState()
+    val failure by model.failure.collectAsState()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var adding by rememberSaveable { mutableStateOf(false) }
@@ -104,6 +105,19 @@ fun PhrasebookScreen(model: PhrasebookViewModel, onOpenCheck: (String) -> Unit) 
 
     Box(Modifier.fillMaxSize()) {
         ScreenColumn {
+            failure?.let { problem ->
+                SectionCard {
+                    Quiet(stringResource(when (problem) {
+                        PhrasebookFailure.Load -> R.string.lab_phrasebook_load_failed
+                        PhrasebookFailure.Save -> R.string.lab_phrasebook_save_failed
+                        PhrasebookFailure.Delete -> R.string.lab_phrasebook_delete_failed
+                        PhrasebookFailure.Restore -> R.string.lab_phrasebook_restore_failed
+                    }), Modifier.padding(vertical = 12.dp))
+                    if (problem != PhrasebookFailure.Save) {
+                        LinguizeButton(stringResource(R.string.retry), model::retry, ButtonKind.Text)
+                    }
+                }
+            }
             val current = state ?: return@ScreenColumn
             if (current.total > 0) {
                 Spacer(Modifier.height(8.dp))

@@ -12,4 +12,9 @@
     <string name="lab_notes_open">Open note</string>
     <string name="lab_notes_delete">Delete note</string>
     <string name="lab_notes_deleted">Note deleted</string>
+    <string name="lab_notes_read_failed">Couldn\'t read your notes. Try again.</string>
+    <string name="lab_notes_open_failed">Couldn\'t open this note. Try again.</string>
+    <string name="lab_notes_save_failed">Couldn\'t save this note. Your text is still here.</string>
+    <string name="lab_notes_delete_failed">Couldn\'t delete this note. Try again.</string>
+    <string name="lab_notes_restore_failed">Couldn\'t restore this note. Try again.</string>
 </resources>

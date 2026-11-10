@@ -7,6 +7,9 @@ import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
+import java.nio.file.DirectoryIteratorException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.time.LocalDate
 
 /**
@@ -48,6 +51,39 @@ class Exports(cacheDir: File, private val clock: () -> Long = System::currentTim
 
     /** Removes every export, finished or not. */
     suspend fun clear() = writes.withLock { clearFiles() }
+
+    /** Same retirement policy, but reports failure so durable deletion work can retry it. */
+    suspend fun clearAcknowledged(): Boolean = writes.withLock {
+        current = null
+        val files = try {
+            Files.newDirectoryStream(folder.toPath())
+        } catch (_: NoSuchFileException) {
+            return@withLock true
+        } catch (_: IOException) {
+            return@withLock false
+        } catch (_: SecurityException) {
+            return@withLock false
+        }
+        try {
+            files.use {
+                var complete = true
+                for (file in it) {
+                    try {
+                        Files.deleteIfExists(file)
+                    } catch (_: IOException) {
+                        complete = false
+                    }
+                }
+                complete
+            }
+        } catch (_: IOException) {
+            false
+        } catch (_: DirectoryIteratorException) {
+            false
+        } catch (_: SecurityException) {
+            false
+        }
+    }
 
     /** Retires just this result; an old screen must not delete another host's newer export. */
     suspend fun discard(file: File) {

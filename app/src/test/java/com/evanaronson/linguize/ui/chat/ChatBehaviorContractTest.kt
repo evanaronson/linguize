@@ -35,6 +35,7 @@ import com.evanaronson.linguize.testing.KnownBonanzaDefect
 import com.evanaronson.linguize.testing.MainDispatcherRule
 import com.evanaronson.linguize.ui.card.CardState
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -53,6 +54,7 @@ import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.coroutines.CoroutineContext
 
 /** The real chat coordinator and SQLite store, with scheduled IO and a gated provider. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -67,10 +69,11 @@ class ChatBehaviorContractTest {
     private val requests = mutableListOf<GenerationRequest>()
     private val memory = object : UserMemory {
         override suspend fun forPrompt() = ""
-        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = Unit
+        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = true
         override suspend fun forget(source: String) = Unit
     }
     private val card = object : DraftCheck {
+        override var sessionId: String? = null
         val started = mutableListOf<Triple<String, Language, String?>>()
         val finished = mutableListOf<String>()
         var stops = 0
@@ -80,7 +83,7 @@ class ChatBehaviorContractTest {
         override fun stop() { stops++ }
         override fun finish(sent: String, timing: DraftTiming?): String? {
             finished += sent
-            return null // The real DraftCheck contract when History is off.
+            return sessionId
         }
     }
 
@@ -93,6 +96,7 @@ class ChatBehaviorContractTest {
 
     private fun model(
         store: ChatStore = this.store,
+        memory: UserMemory = this.memory,
         startLanguage: suspend () -> String = { "es" },
         answer: suspend () -> String = { """{"reply":"¡Hola!","title":"Greeting","translation":"Hi!"}""" },
     ): ChatViewModel {
@@ -110,7 +114,7 @@ class ChatBehaviorContractTest {
         ) { ChatPrompt("chat", "{}") }
         return ChatViewModel(
             store = store, partner = partner, preferences = ChatPreferences(context), memory = { memory },
-            startLanguage = startLanguage, deleteSessions = {}, people = { emptyList() },
+            startLanguage = startLanguage, drainDeletions = {}, people = { emptyList() },
             translate = { error("Bundled translations must not need another request") }, warmTargets = {},
             appScope = scope, clock = { 10L }, currentLanguage = { null },
         ).also {
@@ -236,7 +240,6 @@ class ChatBehaviorContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun aFailedWriterSaveKeepsTheDraftAndDoesNotRequestAReply() = runTest(main.dispatcher) {
         val name = "chat-save-failure"
         context.deleteDatabase(name)
@@ -248,11 +251,10 @@ class ChatBehaviorContractTest {
             chat.open("thread")
             runCurrent()
             assertEquals(1, chat.thread!!.messages.size)
-            // A real SQLite write fault, below the store's Boolean acknowledgement boundary.
-            SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
-                it.execSQL("DROP TABLE messages")
-            }
+            // A real transaction failure that can be repaired without discarding the database.
+            failInserts(name, fromWriter = true)
             assertFalse(failingStore.add(ChatMessage("probe", "thread", true, "Probe", "Probe", at = 3)))
+            card.sessionId = "saved-check"
             chat.onDraftChange(TextFieldValue("Do not lose this draft"))
             chat.send()
             chat.onCardState(clean("Do not lose this draft"))
@@ -261,11 +263,277 @@ class ChatBehaviorContractTest {
             assertEquals("A rejected write must leave the writer's text recoverable", "Do not lose this draft", chat.draft.text)
             assertTrue("The check must not finish as sent before the chat write succeeds", card.finished.isEmpty())
             assertTrue("The partner must not answer an unsaved message", requests.isEmpty())
+            assertTrue(chat.sendSaveFailed)
+            assertEquals(SendState.Reviewing("Do not lose this draft"), chat.send)
+            assertEquals(1, readFresh(name).size)
+
+            chat.retrySend()
+            runCurrent()
+            assertTrue(card.finished.isEmpty())
+            assertTrue(requests.isEmpty())
+            sql(name, "DROP TRIGGER fail_message")
+            chat.retrySend()
+            runCurrent()
+            assertFalse(chat.sendSaveFailed)
+            assertFalse(chat.savingMessage)
+            assertEquals("", chat.draft.text)
+            assertEquals(1, card.started.size)
+            assertEquals(listOf("Do not lose this draft"), card.finished)
+            assertEquals(1, requests.size)
+            val durable = readFresh(name)
+            assertEquals("saved-check", durable.single { it.fromWriter }.sessionId)
+            assertEquals("Do not lose this draft", durable.single { it.fromWriter }.text)
+            assertEquals(chat.thread!!.messages, durable)
         } finally {
             owners.clear()
             runCurrent()
             failingStore.close()
             context.deleteDatabase(name)
+        }
+    }
+
+    @Test fun aFailedReplySaveKeepsTheWriterWaitingAndRetriesTheSameGeneratedAnswer() = runTest(main.dispatcher) {
+        withNamedStore("reply-save-failure") { named ->
+            assertTrue(named.create(Conversation("thread", "", "es", 1, 2)))
+            assertTrue(named.add(ChatMessage("writer", "thread", true, "Hola", "Hola", at = 3)))
+            failInserts("reply-save-failure", fromWriter = false)
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+            chat.retryReply()
+            runCurrent()
+
+            assertTrue(chat.replySaveFailed)
+            assertTrue(chat.thread!!.awaitingReply)
+            assertEquals(listOf("writer"), chat.thread!!.messages.map { it.id })
+            assertEquals(chat.thread!!.messages, readFresh("reply-save-failure"))
+            assertEquals(1, requests.size)
+
+            sql("reply-save-failure", "DROP TRIGGER fail_message")
+            chat.retryReply()
+            runCurrent()
+            assertFalse(chat.replySaveFailed)
+            assertFalse(chat.thread!!.awaitingReply)
+            assertEquals(1, requests.size) // Retry the saved answer, not another provider request.
+            assertEquals("Hi!", chat.thread!!.messages.last().translation)
+            assertEquals(chat.thread!!.messages, readFresh("reply-save-failure"))
+        }
+    }
+
+    @Test fun aFailedOpenerSaveStaysInvisibleAndCanBeRetriedWithoutAnotherProviderCall() = runTest(main.dispatcher) {
+        withNamedStore("opener-save-failure") { named ->
+            assertTrue(named.create(Conversation("thread", "", "es", 1, 2)))
+            failInserts("opener-save-failure", fromWriter = false)
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+
+            assertTrue(chat.replySaveFailed)
+            assertTrue(chat.thread!!.messages.isEmpty())
+            assertTrue(readFresh("opener-save-failure").isEmpty())
+            assertEquals(1, requests.size)
+
+            sql("opener-save-failure", "DROP TRIGGER fail_message")
+            chat.retryReply()
+            runCurrent()
+            assertFalse(chat.replySaveFailed)
+            assertEquals(1, requests.size)
+            assertEquals("¡Hola!", chat.thread!!.messages.single().text)
+            assertEquals(chat.thread!!.messages, readFresh("opener-save-failure"))
+        }
+    }
+
+    @Test fun openingAnotherThreadWaitsForTheWriterCommitAndFinishesItsOriginalCheck() = runTest(main.dispatcher) {
+        val io = HeldDispatcher(main.dispatcher)
+        val named = ChatStore(context, name = null, dispatcher = io)
+        try {
+            assertTrue(named.create(Conversation("thread", "", "es", 1, 2)))
+            assertTrue(named.add(ChatMessage.partner("opener", "thread", "Hola", 2)))
+            assertTrue(named.create(Conversation("other", "", "ca", 1, 2)))
+            assertTrue(named.add(ChatMessage.partner("other-opener", "other", "Bon dia", 2)))
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+            card.sessionId = "original-check"
+            chat.onDraftChange(TextFieldValue("A committed message"))
+            chat.send()
+            io.hold = true
+            chat.onCardState(clean("A committed message"))
+            runCurrent()
+            assertTrue(chat.savingMessage)
+            assertTrue(io.hasPendingWork)
+            assertTrue(card.finished.isEmpty())
+            assertEquals("A committed message", chat.draft.text)
+
+            chat.open("other")
+            runCurrent()
+            assertEquals("thread", chat.thread!!.conversation.id)
+            io.release()
+            runCurrent()
+            assertEquals("other", chat.thread!!.conversation.id)
+            assertEquals(listOf("A committed message"), card.finished)
+            assertEquals("original-check", named.messages("thread").single { it.fromWriter }.sessionId)
+            assertTrue(named.messages("other").none { it.fromWriter })
+        } finally {
+            io.release()
+            owners.clear()
+            main.dispatcher.scheduler.runCurrent()
+            named.close()
+        }
+    }
+
+    @Test fun skippedLearningDoesNotAdvanceTheConversationWatermarkAndCanRetry() = runTest(main.dispatcher) {
+        seed(writerLast = true)
+        var learned = false
+        var calls = 0
+        val learner = object : UserMemory {
+            override suspend fun forPrompt() = ""
+            override suspend fun learnFrom(source: String, messages: List<MemoryMessage>): Boolean {
+                calls++
+                return learned
+            }
+            override suspend fun forget(source: String) = Unit
+        }
+        val chat = model(memory = learner)
+        chat.open("thread")
+        runCurrent()
+        chat.leave()
+        runCurrent()
+        assertEquals(1, calls)
+        assertEquals(0, store.conversation("thread")!!.learnedCount)
+
+        learned = true
+        chat.leave()
+        runCurrent()
+        assertEquals(2, calls)
+        assertEquals(2, store.conversation("thread")!!.learnedCount)
+        chat.leave()
+        runCurrent()
+        assertEquals(2, calls)
+    }
+
+    @Test fun failedCreationRetainsItsIdentityAndPersonaAndBlocksSendingUntilRetrySucceeds() = runTest(main.dispatcher) {
+        withNamedStore("create-failure") { named ->
+            named.conversations() // Initialize the real schema before installing the fault.
+            sql("create-failure", "CREATE TRIGGER fail_metadata BEFORE INSERT ON conversations BEGIN SELECT RAISE(ABORT, 'write failed'); END")
+            val chat = model(store = named)
+            val id = chat.newConversation("My landlord", "es")
+            runCurrent()
+            val failed = chat.conversationSaveFailure as ConversationWriteFailure.Create
+            assertEquals(id, failed.id)
+            assertEquals("My landlord", failed.conversation.persona)
+            assertNull(named.conversation(id))
+            assertTrue(requests.isEmpty())
+            chat.onDraftChange(TextFieldValue("Keep this draft"))
+            chat.send()
+            assertTrue(card.started.isEmpty())
+
+            sql("create-failure", "DROP TRIGGER fail_metadata")
+            chat.retryConversationWrite()
+            runCurrent()
+            assertNull(chat.conversationSaveFailure)
+            assertEquals(id, chat.thread!!.conversation.id)
+            assertEquals("My landlord", named.conversation(id)!!.persona)
+            assertEquals("Keep this draft", chat.draft.text)
+            assertEquals(1, requests.size)
+        }
+    }
+
+    @Test fun failedRenameKeepsTheDurableTitleAndRetriesTheRequestedName() = runTest(main.dispatcher) {
+        withNamedStore("rename-failure") { named ->
+            assertTrue(named.create(Conversation("thread", "Old title", "es", 1, 2)))
+            assertTrue(named.add(ChatMessage.partner("opener", "thread", "Hola", 2)))
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+            sql("rename-failure", "CREATE TRIGGER fail_metadata BEFORE UPDATE OF title ON conversations BEGIN SELECT RAISE(ABORT, 'write failed'); END")
+            chat.rename("thread", "My new title")
+            runCurrent()
+            assertEquals("Old title", chat.thread!!.conversation.title)
+            assertEquals("Old title", named.conversation("thread")!!.title)
+            assertEquals(ConversationWriteFailure.Rename("thread", "My new title"), chat.conversationSaveFailure)
+
+            sql("rename-failure", "DROP TRIGGER fail_metadata")
+            chat.retryConversationWrite()
+            runCurrent()
+            assertNull(chat.conversationSaveFailure)
+            assertEquals("My new title", chat.thread!!.conversation.title)
+            assertEquals("My new title", named.conversation("thread")!!.title)
+        }
+    }
+
+    @Test fun failedDeletionKeepsTheOpenReviewAndOnlyStopsItAfterAcknowledgedRetry() = runTest(main.dispatcher) {
+        withNamedStore("delete-failure") { named ->
+            assertTrue(named.create(Conversation("thread", "", "es", 1, 2)))
+            assertTrue(named.add(ChatMessage.partner("opener", "thread", "Hola", 2)))
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+            chat.onDraftChange(TextFieldValue("Unsent draft"))
+            chat.send()
+            chat.onCardState(CardState.Failed(CheckFailure.Reason.Offline, null))
+            val stops = card.stops
+            sql("delete-failure", "CREATE TRIGGER fail_metadata BEFORE DELETE ON conversations BEGIN SELECT RAISE(ABORT, 'write failed'); END")
+            chat.delete("thread")
+            runCurrent()
+            assertEquals(ConversationWriteFailure.Delete("thread"), chat.conversationSaveFailure)
+            assertEquals("thread", chat.thread!!.conversation.id)
+            assertEquals("Unsent draft", chat.draft.text)
+            assertEquals(SendState.Reviewing("Unsent draft"), chat.send)
+            assertEquals(stops, card.stops)
+            assertEquals(1, readFresh("delete-failure").size)
+
+            sql("delete-failure", "DROP TRIGGER fail_metadata")
+            chat.retryConversationWrite()
+            runCurrent()
+            assertNull(chat.conversationSaveFailure)
+            assertNull(chat.thread)
+            assertNull(named.conversation("thread"))
+            assertEquals(stops + 1, card.stops)
+        }
+    }
+
+    private suspend fun withNamedStore(name: String, block: suspend (ChatStore) -> Unit) {
+        context.deleteDatabase(name)
+        val named = ChatStore(context, name, main.dispatcher)
+        try {
+            block(named)
+        } finally {
+            owners.clear()
+            main.dispatcher.scheduler.runCurrent()
+            named.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    private fun sql(name: String, command: String) {
+        SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+            it.execSQL(command)
+        }
+    }
+
+    private fun failInserts(name: String, fromWriter: Boolean) = sql(name,
+        "CREATE TRIGGER fail_message BEFORE INSERT ON messages WHEN NEW.from_writer = ${if (fromWriter) 1 else 0} " +
+            "BEGIN SELECT RAISE(ABORT, 'forced write failure'); END")
+
+    private suspend fun readFresh(name: String): List<ChatMessage> {
+        val reopened = ChatStore(context, name, main.dispatcher)
+        return try { reopened.messages("thread") } finally { reopened.close() }
+    }
+
+    private class HeldDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+        var hold = false
+        private val pending = ArrayDeque<Pair<CoroutineContext, Runnable>>()
+        val hasPendingWork get() = pending.isNotEmpty()
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            if (hold) pending.addLast(context to block) else delegate.dispatch(context, block)
+        }
+        fun release() {
+            hold = false
+            while (pending.isNotEmpty()) {
+                val (context, block) = pending.removeFirst()
+                delegate.dispatch(context, block)
+            }
         }
     }
 

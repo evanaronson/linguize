@@ -22,7 +22,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
 
@@ -35,6 +38,9 @@ data class PracticeState(
     val run: PracticeRun? = null,
     /** Lab, Language scope: the app's current language; only its items are due. Null is every language. */
     val language: String? = null,
+    val loadFailed: Boolean = false,
+    val saving: Boolean = false,
+    val saveFailed: Boolean = false,
 ) {
     /** The items in [language]; an item whose language isn't known is only in an unscoped deck. */
     val scoped: List<PracticeItem>? get() = items?.filter { LanguageScope.keeps(it.language, language) }
@@ -71,6 +77,9 @@ class PracticeViewModel internal constructor(
     private val source = PracticeSource(history)
     private val mutable = MutableStateFlow(PracticeState())
     val state: StateFlow<PracticeState> = mutable.asStateFlow()
+    private val operations = Mutex()
+    private data class PendingGrade(val id: String, val grade: Grade, val now: Long, val today: Long)
+    private var pendingGrade: PendingGrade? = null
 
     init {
         tick()
@@ -80,12 +89,24 @@ class PracticeViewModel internal constructor(
     }
 
     private suspend fun reload() {
-        val saved = store.read()
-        val items = source.load(saved.states.keys)
-        val progress = if (items == null) saved else store.update { Deck.prune(it, items.mapTo(HashSet()) { item -> item.id }) }
-        mutable.update { it.copy(items = items ?: it.items, progress = progress) }
-        tick()
+        try {
+            operations.withLock {
+                val saved = store.read()
+                val items = source.load(saved.states.keys)
+                if (items == null) {
+                    mutable.update { it.copy(loadFailed = true) }
+                } else {
+                    val progress = store.update { Deck.prune(it, items.mapTo(HashSet()) { item -> item.id }) }
+                    mutable.update { it.copy(items = items, progress = progress, loadFailed = false) }
+                }
+                tick()
+            }
+        } catch (_: IOException) {
+            mutable.update { it.copy(loadFailed = true) }
+        }
     }
+
+    fun retryLoad() { viewModelScope.launch { reload() } }
 
     /** Brings due counts up to date with the clock; Home calls it when shown. */
     fun tick() {
@@ -96,6 +117,7 @@ class PracticeViewModel internal constructor(
 
     /** Opens a run of the items due now. Does nothing when none are. */
     fun start() {
+        if (pendingGrade != null) return
         tick()
         mutable.update { state ->
             val items = state.scoped ?: return@update state
@@ -122,19 +144,37 @@ class PracticeViewModel internal constructor(
     }
 
     private fun answer(answer: Answered) {
-        var recorded: Pair<String, Grade>? = null
-        mutable.update { state ->
-            val run = state.run ?: return@update state
-            val id = run.current?.id ?: return@update state
-            val (next, grade) = run.answer(answer)
-            recorded = grade?.let { id to it }
-            val progress = grade?.let { Deck.record(state.progress, id, it, state.now, state.today) } ?: state.progress
-            state.copy(run = next, progress = progress)
+        if (pendingGrade != null) return
+        val before = state.value
+        val run = before.run ?: return
+        val id = run.current?.id ?: return
+        val (next, grade) = run.answer(answer)
+        // Feedback stays immediate; the schedule and Next wait for durable acknowledgement.
+        mutable.value = before.copy(run = next)
+        pendingGrade = grade?.let { PendingGrade(id, it, before.now, before.today) } ?: return
+        retrySave()
+    }
+
+    /** Retries exactly the first grade, without counting the answer twice or losing its timestamp. */
+    fun retrySave() {
+        val pending = pendingGrade ?: return
+        if (state.value.saving) return
+        mutable.update { it.copy(saving = true, saveFailed = false) }
+        viewModelScope.launch {
+            try {
+                val progress = operations.withLock {
+                    // A refresh may have pruned this item while the failed write waited for Retry.
+                    val stillInDeck = state.value.items?.any { it.id == pending.id } == true
+                    store.update {
+                        if (stillInDeck) Deck.record(it, pending.id, pending.grade, pending.now, pending.today) else it
+                    }
+                }
+                pendingGrade = null
+                mutable.update { it.copy(progress = progress, saving = false, saveFailed = false) }
+            } catch (_: IOException) {
+                mutable.update { it.copy(saving = false, saveFailed = true) }
+            }
         }
-        val (id, grade) = recorded ?: return
-        val now = state.value.now
-        val today = state.value.today
-        viewModelScope.launch { store.update { Deck.record(it, id, grade, now, today) } }
     }
 
     /** Lab, Language scope: practice only [language]'s items. An open run keeps going. */
@@ -143,11 +183,13 @@ class PracticeViewModel internal constructor(
     }
 
     fun next() {
+        if (pendingGrade != null) return
         mutable.update { state -> state.copy(run = state.run?.next()) }
     }
 
-    /** Closes the run, finished or not; answers so far stay recorded. */
+    /** Closes the run; an uncommitted answer keeps its run available when the writer returns. */
     fun close() {
+        if (pendingGrade != null) return
         mutable.update { it.copy(run = null) }
         tick()
     }

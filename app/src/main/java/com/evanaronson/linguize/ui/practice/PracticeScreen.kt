@@ -75,9 +75,18 @@ fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
         onDone()
     }
     ScreenColumn {
+        if (state.saving) Quiet(stringResource(R.string.lab_practice_saving))
+        if (state.saveFailed || state.loadFailed) {
+            SectionCard {
+                Quiet(stringResource(if (state.saveFailed) R.string.lab_practice_save_failed else R.string.lab_practice_load_failed),
+                    Modifier.padding(vertical = 12.dp))
+                LinguizeButton(stringResource(R.string.retry),
+                    if (state.saveFailed) model::retrySave else model::retryLoad, ButtonKind.Text)
+            }
+        }
         val run = state.run
         when {
-            state.items == null -> PageLoading(stringResource(R.string.lab_practice_loading))
+            state.items == null -> if (!state.loadFailed) PageLoading(stringResource(R.string.lab_practice_loading))
             run == null -> {
                 if (state.scoped.isNullOrEmpty()) {
                     EmptyCard(stringResource(R.string.lab_practice_empty), stringResource(R.string.lab_practice_empty_hint))
@@ -98,7 +107,7 @@ fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
                 SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
                     // Fixed when the item appears: answering changes the review count it depends on.
                     val correctFirst = rememberSaveable(run.index) { state.correctFirst(item) }
-                    ItemView(run, item, correctFirst, model)
+                    ItemView(run, item, correctFirst, model, canContinue = !state.saving && !state.saveFailed)
                 }
             }
         }
@@ -118,7 +127,7 @@ private fun PracticeHow() {
 }
 
 @Composable
-private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean, model: PracticeViewModel) {
+private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean, model: PracticeViewModel, canContinue: Boolean) {
     val answered = run.answered
     // Keyed by position: a repeated item starts with an empty field.
     var typed by rememberSaveable(run.index) { mutableStateOf("") }
@@ -171,6 +180,7 @@ private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean
             LinguizeButton(
                 stringResource(if (last) R.string.lab_practice_finish else R.string.lab_practice_next),
                 model::next, ButtonKind.Filled,
+                enabled = canContinue,
             )
         }
     }

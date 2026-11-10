@@ -75,6 +75,8 @@ import com.evanaronson.linguize.ui.theme.Linguize
 @Composable
 fun MemoryScreen(model: MemoryViewModel) {
     val state by model.state.collectAsState()
+    val failure by model.failure.collectAsState()
+    val undoFailed by model.undoFailed.collectAsState()
     val deleted by model.lastDeleted.collectAsState()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
@@ -93,6 +95,18 @@ fun MemoryScreen(model: MemoryViewModel) {
 
     Box(Modifier.fillMaxSize()) {
         ScreenColumn {
+            failure?.let { failed ->
+                SectionCard {
+                    CardNote(stringResource(if (failed == MemoryFailure.Load) R.string.lab_memory_load_failed else R.string.lab_memory_save_failed))
+                    if (failed != MemoryFailure.Editor) LinguizeButton(stringResource(R.string.retry), model::retry, ButtonKind.Text)
+                }
+            }
+            if (undoFailed) {
+                SectionCard {
+                    CardNote(stringResource(R.string.lab_memory_restore_failed))
+                    LinguizeButton(stringResource(R.string.retry), model::retryUndo, ButtonKind.Text)
+                }
+            }
             val current = state ?: return@ScreenColumn
             Spacer(Modifier.height(8.dp))
             ListCard({
@@ -185,9 +199,10 @@ fun MemoryScreen(model: MemoryViewModel) {
             confirmButton = {
                 LinguizeButton(stringResource(R.string.lab_memory_forget_all_confirm), onClick = {
                     confirmingForget = false
-                    expanded = null
-                    editing = null
-                    model.forgetEverything()
+                    model.forgetEverything {
+                        expanded = null
+                        editing = null
+                    }
                 }, kind = ButtonKind.Destructive)
             },
             dismissButton = { TextButton(onClick = { confirmingForget = false }) { Text(stringResource(R.string.cancel)) } },

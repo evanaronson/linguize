@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.ui.phrasebook
 
 import com.evanaronson.linguize.core.language.LanguageCodes
+import android.widget.Toast
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
@@ -9,9 +10,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -32,6 +35,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.io.IOException
 
 /**
  * What a check card or saved check knows about where its changes come from: the language
@@ -102,17 +106,39 @@ fun SavePhraseButton(draft: PhraseDraft, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val store = remember(context) { PhrasebookStore.of(context) }
     val phrases by store.phrases.collectAsState()
-    LaunchedEffect(store) { withContext(Dispatchers.IO) { store.load() } }
+    var loadFailed by remember(store) { mutableStateOf(false) }
+    var saving by remember(store) { mutableStateOf(false) }
+    LaunchedEffect(store) {
+        try {
+            withContext(Dispatchers.IO) { store.load() }
+        } catch (_: IOException) {
+            loadFailed = true
+        }
+    }
     val saved = phrases?.firstOrNull { it.matches(draft) }
     val scope = rememberCoroutineScope()
     val label = stringResource(R.string.lab_phrasebook_save_phrase, draft.phrase)
-    val state = stringResource(if (saved != null) R.string.lab_phrasebook_saved else R.string.lab_phrasebook_not_saved)
+    val state = stringResource(when {
+        phrases == null && loadFailed -> R.string.lab_phrasebook_load_failed
+        saved != null -> R.string.lab_phrasebook_saved
+        else -> R.string.lab_phrasebook_not_saved
+    })
     IconToggleButton(
         checked = saved != null,
-        enabled = phrases != null,
+        enabled = !saving && (phrases != null || loadFailed),
         onCheckedChange = { save ->
-            scope.launch(Dispatchers.IO) {
-                if (save) store.save(draft) else saved?.let { store.delete(it.id) }
+            scope.launch {
+                saving = true
+                try {
+                    withContext(Dispatchers.IO) {
+                        if (save) store.save(draft) else saved?.let { store.delete(it.id) }
+                    }
+                    loadFailed = false
+                } catch (_: IOException) {
+                    Toast.makeText(context, R.string.lab_phrasebook_change_failed, Toast.LENGTH_SHORT).show()
+                } finally {
+                    saving = false
+                }
             }
         },
         modifier = modifier.semantics {

@@ -82,7 +82,9 @@ data class MemoryState(
             val merged = fact.copy(
                 text = text,
                 category = update.category ?: fact.category,
-                sources = (fact.sources + source).distinct(),
+                // Earlier sources support the old claim, not a replacement made by this exchange.
+                sources = if (fact.text.sameFact(text) && (update.category == null || update.category == fact.category))
+                    (fact.sources + source).distinct() else listOf(source),
                 updatedAt = now,
             )
             if (merged != fact) {

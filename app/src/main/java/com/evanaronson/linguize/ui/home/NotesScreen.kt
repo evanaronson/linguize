@@ -37,6 +37,7 @@ import com.evanaronson.linguize.ui.notes.NotePart
 import com.evanaronson.linguize.ui.notes.NotesEmpty
 import com.evanaronson.linguize.ui.notes.NotesFooter
 import com.evanaronson.linguize.ui.notes.NotesListPart
+import com.evanaronson.linguize.ui.notes.NotesStorageError
 import com.evanaronson.linguize.ui.notes.noteParts
 import com.evanaronson.linguize.ui.notes.notesListParts
 import com.evanaronson.linguize.ui.notes.rememberNotesViewModel
@@ -52,6 +53,7 @@ internal fun NotesScreen(onOpen: (String) -> Unit) {
     val parts = notesListParts(listed = write.listed, hasNotes = write.notes.isNotEmpty(), justDeleted = write.deleted != null)
     Box(Modifier.fillMaxSize()) {
         ScreenColumn(Modifier.fillMaxSize()) {
+            NotesStorageError(write)
             for (part in parts) when (part) {
                 NotesListPart.Undo -> NoteDeletedRow(write)
                 NotesListPart.Notes -> NoteList(write, onOpen)
@@ -94,6 +96,7 @@ internal fun NotePage(
         if (write.open(noteId) { resolved(it) }) check.dismiss(applied = false)
     }
     ScreenColumn {
+        NotesStorageError(write)
         // Order and grouping: docs/lab/ia-notes.md.
         for (part in noteParts(needsKey = needsKey, checking = check.state != null)) when (part) {
             NotePart.AddKey -> AddKeyStrip(onOpenSettings)

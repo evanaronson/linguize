@@ -125,6 +125,9 @@ class CheckHistory(
     /** The open session as it stands, or null. */
     internal val session: SessionRecord? get() = recording?.session
 
+    /** The still-permitted session a host may link before committing its own content. */
+    internal val pendingSessionId: String? get() = permittedRecording()?.session?.id
+
     /**
      * Starts a fresh check of [text]: starts [ask] (the model request) at once, then opens
      * a session for it and, while the request runs, looks for a kept verdict. A kept

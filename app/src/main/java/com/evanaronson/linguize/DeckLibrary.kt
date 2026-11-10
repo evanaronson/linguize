@@ -78,11 +78,15 @@ class DeckLibrary(
     }
 
     suspend fun delete(id: String) = withContext(Dispatchers.IO) {
-        synchronized(decks) { decks.remove(id) }
-        store.delete(id)
+        try {
+            store.delete(id)
+        } finally {
+            // A cleanup failure may follow the committed index update. Re-read durable state.
+            synchronized(decks) { decks.remove(id) }
+        }
     }
 
     suspend fun selection(): VocabSelection = withContext(Dispatchers.IO) { store.selection() }
 
-    suspend fun select(selection: VocabSelection) = withContext(Dispatchers.IO) { runCatching { store.saveSelection(selection) } }
+    suspend fun select(selection: VocabSelection) = withContext(Dispatchers.IO) { store.saveSelection(selection) }
 }

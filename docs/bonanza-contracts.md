@@ -2,7 +2,8 @@
 
 These tests establish a baseline before cleaning up `feature/bonanza`, starting at
 `d5d92cc13f083411ff60735c59a743ac20780704`. They preserve successful behavior and
-make confirmed failures reproducible. They do not fix those failures.
+make confirmed failures reproducible. Step 3 repairs persistence acknowledgements
+and memory command invalidation; its repaired contracts now run in the normal suite.
 
 The Notes fixtures follow the later Notes navigation change (`16c25a7`, merged in
 `ef5150e`): loading the list does not open an editor; a note is opened explicitly.
@@ -24,7 +25,7 @@ Desired behavior that the baseline violates is marked with JUnit's
 ./gradlew testDebugUnitTest -PbonanzaKnownDefects
 ```
 
-**The second command is expected to exit nonzero at this baseline.** Its failures
+**The second command is expected to exit nonzero while the listed defects remain.** Its failures
 are assertions of the desired behavior, not assertions that bugs should persist.
 It excludes normal tests; normal runs exclude this category. No test uses `@Ignore`
 to hide a known defect. When fixing a defect, remove its category and keep the test
@@ -66,26 +67,40 @@ assets. Expected values are not computed by the composition functions under test
 Review prompt-policy changes before updating these fixtures. These checks do not
 measure a live model's judgment or replace the model evaluation suite.
 
-## Known defects made executable
+## Persistence repairs (step 3)
 
-At this baseline, the opt-in suite contains these 20 failing methods. A setup
+Eight original failure contracts are now normal regressions: rejected Chat writer
+saves; Memory clear, queued source deletion and replacement provenance; failed
+Memory deletion; and failed Phrasebook, Practice and vocabulary-selection writes.
+Additional tests exercise retry, reopening, failed reads, Undo, disabled learning,
+and interrupted conversation cleanup.
+
+The file stores use a small shared replacement primitive and publish committed
+state after success. Their screens retain input or the failed command for retry.
+Chat waits for the message write before finishing the check or requesting a reply;
+its deletion cleanup is persisted with the local deletion. Memory checks a command
+generation before requesting learning and again when applying it, so old work
+cannot reverse Clear, deletion or an off/on cycle. Learning acknowledges only a
+successfully processed exchange. Reworded facts cite the source of the replacement
+text; identical confirmations can retain multiple supporting sources.
+
+These are deliberate corrections to failure behavior. Successful request contents,
+saved text and accepted changes, file formats, independent retention rules, and the
+500-check Practice window remain unchanged. Chat adds a forward SQLite migration
+for pending cleanup; it does not migrate or combine the other feature stores.
+
+## Known defects still executable
+
+After step 3, the opt-in suite contains these 12 failing methods. A setup
 exception, timeout, or unrelated assertion failure is not a successful reproduction;
 check the failure against the intended invariant below.
 
 | Class | Method | Desired invariant |
 |---|---|---|
-| `ChatBehaviorContractTest` | `aFailedWriterSaveKeepsTheDraftAndDoesNotRequestAReply` | A rejected SQLite write leaves recoverable input and cannot be treated as a sent message. |
-| | `openingAnAutomaticallyCreatedConversationWaitsForItsPendingCreation` | Navigation cannot report the conversation being created as missing. |
+| `ChatBehaviorContractTest` | `openingAnAutomaticallyCreatedConversationWaitsForItsPendingCreation` | Navigation cannot report the conversation being created as missing. |
 | | `aManualTitleSetDuringAReplySurvivesInStorage` | A late automatic title cannot overwrite a manual title on disk. |
 | | `cancellingAnOlderReplyDoesNotClearTheNewReplyStatus` | An older request cannot clear the active request's loading status. |
 | | `delayedCreationDoesNotReplaceANewerSelectionAndItsDraft` | Late creation cannot replace the user's newer selection and draft. |
-| `LabUserMemoryConcurrencyTest` | `clearingMemoryInvalidatesAnAlreadyRunningLearningRequest` | Clear invalidates learning requested before Clear. |
-| | `forgettingAQueuedSourcePreventsItsMessagesFromReachingTheProvider` | A deleted source cannot leave the learning queue for the provider. |
-| | `forgettingTheSourceOfReplacementTextDoesNotAttributeItToTheOldSource` | Deleting the only evidence for replacement text cannot leave it attributed to an older source. |
-| `MemoryStoreFailureContractTest` | `failedDeletionDoesNotAcknowledgeOrPublishAnUnsavedChange` | Failed deletion cannot appear committed or offer successful Undo. |
-| `PersistenceBoundaryTest` | `failedPhraseSaveMustNotPublishAnUndurablePhrase` | Observable phrases agree with the durable store after a failed save. |
-| | `failedPracticeUpdateMustNotAcknowledgeAnUnsavedGrade` | A returned schedule is durable, or the write reports failure. |
-| | `failedSelectionRenameMustBeReported` | Failed file replacement must not return success. |
 | `NotesAsyncContractTest` | `typingWhileAnotherNoteOpensIsNotSilentlyDiscarded` | Input from the available editor is not lost during a pending note switch. |
 | `PatternsAsyncContractTest` | `aSpanishExplanationCompletingAfterALanguageChangeCannotReplaceTheCatalanReport` | The selected language and displayed report remain coherent. |
 | `WriterEvidenceContractTest` | `aBracketedGapIsNotVocabularyKnowledgeForChatTargets` | A writer's bracketed gap is not evidence that they know the word. |
@@ -105,11 +120,11 @@ Persistence tests use actual temporary files or SQLite. Nonempty directories at
 temporary/destination paths force write/rename failure without relying on OS
 permissions. New instances read the durable state where restart consistency matters.
 
-The only production changes are optional dispatcher parameters on `ChatStore`,
-`ChatPartner`, and `PatternsLab`, all defaulting to the previous `Dispatchers.IO`.
-No production policy, persistence format, prompt, schema, or UI behavior changes.
-`kotlinx-coroutines-test` is a test-only dependency at the existing coroutines
-version, with dependency verification metadata recorded.
+Step 1 added optional dispatcher parameters on `ChatStore`, `ChatPartner`, and
+`PatternsLab`, all defaulting to `Dispatchers.IO`. Step 3 adds the persistence and
+failure handling described above, with scheduler seams where needed to test actual
+store/coordinator behavior. `kotlinx-coroutines-test` remains a test-only dependency
+at the existing coroutines version, with dependency verification metadata recorded.
 
 This is a focused baseline, not complete lifecycle coverage. In particular:
 
@@ -119,9 +134,18 @@ This is a focused baseline, not complete lifecycle coverage. In particular:
 - Notes and Patterns cover selected interleavings. Words' overlapping queries,
   route restoration, Android process death, and Practice restoration need further tests
   when those areas are changed.
-- Corpus deletion fixtures check derived recomputation, not the entire cross-store
-  deletion workflow. The tests do not prove a deletion transaction across stores.
+- Corpus deletion fixtures check derived recomputation. Separate conversation
+  cleanup tests cover durable pending work and acknowledged retries; cleanup still
+  is not one transaction across all feature stores.
 - File failure fixtures cover specific write/rename failures, not every disk-full,
   corruption, crash, or device-storage scenario.
+- Corrected memory provenance applies to new learning updates. Older files do not
+  retain previous claim text, so incorrectly merged historical support cannot be
+  reconstructed automatically.
+- Conversation cleanup serializes retirement with History exports. Words CSV
+  generation still has its separate captured-query/write lifecycle; stale export
+  invalidation belongs with the next operation-identity step. Chat list/detail reads
+  also retain their existing null/empty fallback on read failure; mutation
+  acknowledgements do not resolve that loading-state ambiguity.
 - Provider fakes stop at request preparation and parsing. HTTP behavior, live model
   quality, and handset behavior remain outside these tests.

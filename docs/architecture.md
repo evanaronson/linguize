@@ -87,6 +87,15 @@ stores. These stores have different retention rules: a deliberately saved phrase
 for example, survives deletion of its source check. See the feature documents in
 [docs/lab](lab/) for their file formats and policies.
 
+Authoritative file stores acknowledge a change only after replacing the file.
+[data/AtomicTextFile](../app/src/main/java/com/evanaronson/linguize/data/AtomicTextFile.kt)
+writes and syncs a temporary file, then renames it over the destination without
+deleting the old destination as a fallback. Stores publish their cached state after
+that succeeds. Read and write failures remain failures: a missing file can mean an
+empty collection, but an I/O failure cannot. Screens retain pending input or an
+uncommitted operation so it can be retried. This is a file replacement boundary,
+not a transaction across features or a guarantee against every power-loss scenario.
+
 In particular,
 [data/Exports](../app/src/main/java/com/evanaronson/linguize/data/Exports.kt)
 manages files through an output-stream callback, so it need not know the history
@@ -96,9 +105,11 @@ in these layers have different responsibilities.
 `App` owns lazily created shared services and a process-wide `appScope`. The scope
 runs recording/cleanup work, memory learning, cached chat-target builds, and the
 pattern explanation watcher. Screen operations generally run in `viewModelScope`.
-A process scope outlives a screen, not the process: Chat deletion currently removes
-its local rows and then launches History/time/memory cleanup separately. There is
-no cross-store transaction or durable cleanup queue at that boundary.
+A process scope outlives a screen, not the process: Chat deletion removes
+its local rows and records pending cleanup in the same SQLite transaction. Cleanup
+of History, time and learned memory is idempotent; the pending record survives a
+restart and is retired only after those stores acknowledge completion. The stores
+remain separate, so their cleanup can finish at different times.
 
 Keep Android resources in their native form. `strings.xml`, `strings_lifecycle.xml`,
 and `strings_platform.xml` form one catalog; file boundaries do not affect resource

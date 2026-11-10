@@ -284,6 +284,27 @@ internal fun ReplyMissing(failure: CheckFailure?, onRetry: () -> Unit, onOpenSet
     }
 }
 
+/** A local write failed; Retry reuses the checked message or generated answer. */
+@Composable
+internal fun ChatSaveFailure(message: Int, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite }) {
+        Text(stringResource(message), style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(8.dp))
+        LinguizeButton(stringResource(R.string.retry), onRetry, ButtonKind.Filled)
+    }
+}
+
+@Composable
+internal fun ConversationSaveFailure(chat: ChatViewModel, conversationId: String? = null) {
+    val failed = chat.conversationSaveFailure?.takeIf { conversationId == null || it.id == conversationId } ?: return
+    val message = when (failed) {
+        is ConversationWriteFailure.Create -> R.string.lab_chat_create_failed
+        is ConversationWriteFailure.Rename -> R.string.lab_chat_rename_failed
+        is ConversationWriteFailure.Delete -> R.string.lab_chat_delete_failed
+    }
+    ChatSaveFailure(message, chat::retryConversationWrite)
+}
+
 /** Where the writer types. Send checks the message first. */
 @Composable
 internal fun Composer(chat: ChatViewModel) {
@@ -373,7 +394,15 @@ internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: 
         onRemoveClarification = check::removeMeaning,
     )
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+        if (chat.savingMessage) {
+            Progress(stringResource(R.string.lab_chat_saving_message))
+            return@Column
+        }
         BackToDraft(chat::editDraft)
+        if (chat.sendSaveFailed) {
+            ChatSaveFailure(R.string.lab_chat_message_save_failed, chat::retrySend)
+            return@Column
+        }
         if (state != null) {
             ResultCard(state, actions, Modifier.fillMaxWidth().heightIn(max = maxHeight), scrollable = true)
         } else {

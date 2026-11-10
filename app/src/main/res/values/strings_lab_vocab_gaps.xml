@@ -64,6 +64,11 @@
     <string name="lab_vocab_gaps_import_no_words">Linguize couldn\'t find a word column in this file</string>
     <string name="lab_vocab_gaps_import_unreadable">Linguize couldn\'t read this file</string>
     <string name="lab_vocab_gaps_import_too_large">This file is too large to import</string>
+    <string name="lab_vocab_gaps_save_failed">This phone couldn\'t save your deck. Try again.</string>
+    <string name="lab_vocab_gaps_read_failed">This phone couldn\'t read your saved decks. Try again.</string>
+    <string name="lab_vocab_gaps_selection_read_failed">This phone couldn\'t read your saved selection. Try again.</string>
+    <string name="lab_vocab_gaps_selection_save_failed">This phone couldn\'t save your selection. Try again.</string>
+    <string name="lab_vocab_gaps_delete_failed">This phone couldn\'t finish deleting this deck. Try again.</string>
     <string name="lab_vocab_gaps_delete_deck">Delete</string>
     <string name="lab_vocab_gaps_delete_deck_description">Delete deck %1$s</string>
     <string name="lab_vocab_gaps_delete_question">Delete this deck?</string>

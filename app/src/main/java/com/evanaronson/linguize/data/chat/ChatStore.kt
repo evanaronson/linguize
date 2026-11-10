@@ -14,11 +14,19 @@ import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.SentCheck
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+
+/** Work left after removing a conversation. IDs only; no message text is copied into the queue. */
+data class PendingChatDeletion(val conversationId: String, val sessionIds: List<String>)
+
+/** Malformed work stays in the database without preventing independent valid cleanup. */
+data class PendingChatDeletions(val entries: List<PendingChatDeletion>, val hasUnreadableEntries: Boolean)
 
 /**
  * Lab Chat's conversations and messages, in their own SQLite database (`lab_chat`), apart from
@@ -117,16 +125,56 @@ class ChatStore(
         out
     }
 
-    /** Deletes [id] and its messages; returns the deleted record, or null if none was removed. */
+    /**
+     * Deletes [id] and its messages and durably queues their History/memory cleanup in the same
+     * transaction. Returns the deleted record, or null if none was removed (including failure).
+     */
     suspend fun delete(id: String): Pair<Conversation, List<ChatMessage>>? = io("delete a conversation", null) { db ->
         db.transaction {
             val conversation = db.rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id))
                 .use { if (it.moveToFirst()) it.conversation() else null } ?: return@transaction null
+            // Read links directly: an unreadable message must not lose its History cleanup ID.
+            val sessions = db.rawQuery(
+                "SELECT DISTINCT session_id FROM messages WHERE conversation = ? AND session_id IS NOT NULL ORDER BY session_id",
+                arrayOf(id),
+            ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
             val messages = db.messages(id)
             db.delete(MESSAGES, "conversation = ?", arrayOf(id))
             db.delete(CONVERSATIONS, "id = ?", arrayOf(id))
+            db.insertOrThrow(DELETIONS, null, ContentValues().apply {
+                put("conversation", id)
+                put("session_ids", json.encodeToString(sessionList, sessions))
+            })
             conversation to messages
         }
+    }
+
+    /** Database failures throw; malformed entries stay pending and are explicitly reported. */
+    suspend fun pendingDeletions(): PendingChatDeletions = withContext(dispatcher) {
+        helper.readableDatabase.rawQuery("SELECT conversation, session_ids FROM $DELETIONS ORDER BY rowid", null).use { cursor ->
+            var unreadable = false
+            val entries = buildList {
+                while (cursor.moveToNext()) {
+                    val encoded = cursor.getString(1)
+                    val sessions = try {
+                        json.decodeFromString(sessionList, encoded)
+                    } catch (e: IllegalArgumentException) {
+                        Log.w(TAG, "Unreadable conversation cleanup remains pending", e)
+                        unreadable = true
+                        null
+                    }
+                    if (sessions != null) add(PendingChatDeletion(cursor.getString(0), sessions))
+                }
+            }
+            PendingChatDeletions(entries, unreadable)
+        }
+    }
+
+    /** Retires only the exact work that was acknowledged, never a replacement for the same ID. */
+    suspend fun completeDeletion(deletion: PendingChatDeletion): Boolean = withContext(dispatcher) {
+        helper.writableDatabase.delete(DELETIONS, "conversation = ? AND session_ids = ?", arrayOf(
+            deletion.conversationId, json.encodeToString(sessionList, deletion.sessionIds),
+        )) == 1
     }
 
     private suspend fun update(id: String, what: String, values: ContentValues.() -> Unit): Boolean = io(what, false) { db ->
@@ -136,6 +184,8 @@ class ChatStore(
     private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(dispatcher) {
         try {
             block(helper.writableDatabase)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't $what", e)
             fallback
@@ -240,11 +290,18 @@ class ChatStore(
             db.execSQL("CREATE INDEX messages_by_conversation ON messages(conversation, at)")
             upgradeTo2(db)
             upgradeTo3(db)
+            upgradeTo4(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) upgradeTo2(db)
             if (oldVersion < 3) upgradeTo3(db)
+            if (oldVersion < 4) upgradeTo4(db)
+        }
+
+        /** Version 4: cleanup that must outlive the conversation and the current process. */
+        private fun upgradeTo4(db: SQLiteDatabase) {
+            db.execSQL("CREATE TABLE $DELETIONS (conversation TEXT PRIMARY KEY NOT NULL, session_ids TEXT NOT NULL)")
         }
 
         /** Version 3: a partner message's translation, written with it. Older replies have none. */
@@ -263,15 +320,17 @@ class ChatStore(
     companion object {
         /** The database file's name. */
         const val DATABASE = "lab_chat"
-        private const val VERSION = 3
+        private const val VERSION = 4
 
         /** SQLite's default limit on bound arguments is 999. */
         private const val SQL_ARGS = 500
         private const val CONVERSATIONS = "conversations"
         private const val MESSAGES = "messages"
+        private const val DELETIONS = "pending_deletions"
         private const val TAG = "LabChat"
         private val json = Json { ignoreUnknownKeys = true }
         private val changeList = ListSerializer(StoredChange.serializer())
+        private val sessionList = ListSerializer(String.serializer())
     }
 }
 

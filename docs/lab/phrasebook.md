@@ -54,7 +54,10 @@ case and spacing) keeps one entry. If the first copy had no note, the second fil
   it over the old one. A file this build can't read is renamed to `.unreadable` and never
   deleted. Unknown fields are ignored, so a later format can add fields. One store is
   shared by the app (`PhrasebookStore.of`) and exposes its phrases as a `StateFlow`. Every
-  star and the Progress count stay in step without refreshing.
+  star and the Progress count stay in step without refreshing. The flow changes only
+  after file replacement succeeds. Failed saves keep the editor open, failed deletes
+  offer no successful Undo, and failed restoration retains the phrase for retry.
+  A transient read failure is reported rather than cached as an empty collection.
 - **Save control.** `ui/phrasebook/PhraseSave.kt`. `phraseCandidate` turns a change into
   a `PhraseDraft`. It offers nothing for deletions, spacing, punctuation-only changes or
   text over 300 characters. `SavePhraseButton` is the star: a toggle with its state read

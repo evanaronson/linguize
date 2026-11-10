@@ -2,7 +2,6 @@ package com.evanaronson.linguize.ui.chat
 
 import android.app.Application
 import android.content.Context
-import android.os.Looper
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.ChatPartner
@@ -18,33 +17,36 @@ import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.chat.ChatPrompt
+import com.evanaronson.linguize.testing.MainDispatcherRule
 import com.evanaronson.linguize.ui.card.CardState
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.File
 
 /** Lab, Time spent: the chat measures writing up to Send and hands it to the card that saves the message. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatTimingTest {
+    @get:Rule val main = MainDispatcherRule()
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val store = ChatStore(context, name = null)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val store = ChatStore(context, name = null, dispatcher = main.dispatcher)
+    private val scope = CoroutineScope(SupervisorJob() + main.dispatcher)
     private val memory = object : UserMemory {
         override suspend fun forPrompt() = ""
-        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = Unit
+        override suspend fun learnFrom(source: String, messages: List<MemoryMessage>) = true
         override suspend fun forget(source: String) = Unit
     }
-    private val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, emptyMap(), { memory }) {
+    private val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, emptyMap(), { memory }, dispatcher = main.dispatcher) {
         ChatPrompt.load { File("src/main/assets/$it").readText() }
     }
     private var now = 1_000_000L
@@ -54,7 +56,7 @@ class ChatTimingTest {
         preferences = ChatPreferences(context),
         memory = { memory },
         startLanguage = { "es" },
-        deleteSessions = {},
+        drainDeletions = {},
         people = { emptyList() },
         translate = { error("not used") },
         warmTargets = {},
@@ -64,6 +66,7 @@ class ChatTimingTest {
 
     /** The card, faked: what it was given when the message went. */
     private val card = object : DraftCheck {
+        override val sessionId = "session"
         var reviewSoFar = 0L
         var finished: Pair<String, DraftTiming?>? = null
         var stops = 0
@@ -78,6 +81,7 @@ class ChatTimingTest {
 
     @After fun close() {
         scope.cancel()
+        main.dispatcher.scheduler.runCurrent()
         store.close()
     }
 
@@ -86,11 +90,7 @@ class ChatTimingTest {
     private fun openConversation() {
         chat.draftCheck = card
         chat.newConversation()
-        val until = System.currentTimeMillis() + 5_000
-        while (chat.thread == null && System.currentTimeMillis() < until) {
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(5)
-        }
+        main.dispatcher.scheduler.runCurrent()
     }
 
     @Test fun sendingRecordsWritingAndTheReviewOfEveryOpeningOfTheCard() {
@@ -113,6 +113,7 @@ class ChatTimingTest {
         card.reviewSoFar = 3_000
         assertEquals(SendState.Reviewing("Hola, ¿qué tal?"), chat.send)
         chat.sendReviewed(Revision("Hola, ¿qué tal?", emptyList()))
+        main.dispatcher.scheduler.runCurrent()
 
         val (sent, timing) = card.finished!!
         assertEquals("Hola, ¿qué tal?", sent)
@@ -154,6 +155,7 @@ class ChatTimingTest {
         chat.send()
         chat.onCardState(CardState.Failed(CheckFailure.Reason.Offline, null))
         chat.sendReviewed(Revision("Hola", emptyList()))
+        main.dispatcher.scheduler.runCurrent()
         assertEquals(3_000L, card.finished!!.second!!.writingMs)
     }
 }

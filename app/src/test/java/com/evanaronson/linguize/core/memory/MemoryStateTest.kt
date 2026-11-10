@@ -34,16 +34,25 @@ class MemoryStateTest {
         assertEquals(30L, after.sources["chat:3"])
     }
 
-    @Test fun updatesByIdAndMergesSources() {
+    @Test fun replacementTextIsSupportedOnlyByItsNewSource() {
         val after = state.applying(
             MemoryChanges(update = listOf(FactUpdate("a", "Lives in Sants, Barcelona"))), "chat:3", 30, newId,
         )
         val updated = after.facts.first { it.id == "a" }
         assertEquals("Lives in Sants, Barcelona", updated.text)
-        assertEquals(listOf("chat:1", "chat:3"), updated.sources)
+        assertEquals(listOf("chat:3"), updated.sources)
         assertEquals(FactCategory.About, updated.category)
         assertEquals(1L, updated.createdAt)
         assertEquals(30L, updated.updatedAt)
+    }
+
+    @Test fun corroboratingTheSameClaimKeepsItsIndependentSources() {
+        val original = state.facts.first { it.id == "a" }
+        val after = state.applying(
+            MemoryChanges(update = listOf(FactUpdate("a", original.text))), "chat:3", 30, newId,
+        )
+        assertEquals(listOf("chat:1", "chat:3"), after.facts.first { it.id == "a" }.sources)
+        assertEquals(listOf("chat:1"), after.forgetting("chat:3").facts.first { it.id == "a" }.sources)
     }
 
     @Test fun removesById() {

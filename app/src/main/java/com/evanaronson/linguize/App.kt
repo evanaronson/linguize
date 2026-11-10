@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -151,6 +152,17 @@ class App : Application() {
     /** Lab, Time spent: measured writing and review time, in its own `lab_time_spent` database. */
     val timeStore by lazy { com.evanaronson.linguize.data.time.TimeStore(this, appScope) }
 
+    /** Durable cleanup of removed chats, retried on startup and when Chat is used. */
+    val chatDeletions by lazy {
+        ChatDeletions(
+            chatStore,
+            forgetMemory = { userMemory.forget(it) },
+            deleteHistory = { history.delete(it) },
+            deleteTiming = { timeStore.deleteAcknowledged(it) },
+            forgetExports = { withContext(Dispatchers.IO) { exports.clearAcknowledged() } },
+        )
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Lab, lang-selector: every language label in the app comes from the language catalog.
@@ -169,6 +181,7 @@ class App : Application() {
         }
         // Lab: a saved patterns explanation is deleted as soon as a check it used is.
         appScope.launch { patterns.watch() }
+        appScope.launch { chatDeletions.drain() }
     }
 
     companion object {

@@ -150,6 +150,20 @@ private fun importMessage(message: ImportMessage): String = when (message) {
     )
     ImportMessage.Unreadable -> stringResource(R.string.lab_vocab_gaps_import_unreadable)
     ImportMessage.TooLarge -> stringResource(R.string.lab_vocab_gaps_import_too_large)
+    ImportMessage.SaveFailed -> stringResource(R.string.lab_vocab_gaps_save_failed)
+}
+
+@Composable
+internal fun StorageFailureNotice(failure: WordsStorageFailure, onRetry: () -> Unit) {
+    SectionCard(contentPadding = cardPadding) {
+        Quiet(stringResource(when (failure) {
+            WordsStorageFailure.ReadDecks -> R.string.lab_vocab_gaps_read_failed
+            WordsStorageFailure.ReadSelection -> R.string.lab_vocab_gaps_selection_read_failed
+            WordsStorageFailure.SaveSelection -> R.string.lab_vocab_gaps_selection_save_failed
+            is WordsStorageFailure.DeleteDeck -> R.string.lab_vocab_gaps_delete_failed
+        }))
+        LinguizeButton(stringResource(R.string.retry), onRetry, ButtonKind.Text)
+    }
 }
 
 /** Names a picked file and chooses the language of its words. */
@@ -159,6 +173,8 @@ internal fun ImportDialog(
     languages: List<String>,
     onImport: (name: String, language: String) -> Unit,
     onCancel: () -> Unit,
+    saving: Boolean = false,
+    saveFailed: Boolean = false,
 ) {
     var name by rememberSaveable(pending) { mutableStateOf(pending.suggestedName) }
     var language by rememberSaveable(pending) { mutableStateOf(languages.firstOrNull() ?: "es") }
@@ -175,12 +191,17 @@ internal fun ImportDialog(
                         ChoiceRow(languageLabel(code), null, selected = code == language, onClick = { language = code })
                     }
                 }
+                if (saveFailed) {
+                    Spacer(Modifier.height(12.dp))
+                    Quiet(stringResource(R.string.lab_vocab_gaps_save_failed))
+                }
             }
         },
         confirmButton = {
-            LinguizeButton(stringResource(R.string.lab_vocab_gaps_import_confirm), { onImport(name, language) }, ButtonKind.Filled)
+            LinguizeButton(stringResource(R.string.lab_vocab_gaps_import_confirm), { onImport(name, language) }, ButtonKind.Filled,
+                enabled = !saving)
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.lab_vocab_gaps_cancel)) } },
+        dismissButton = { TextButton(onClick = onCancel, enabled = !saving) { Text(stringResource(R.string.lab_vocab_gaps_cancel)) } },
     )
 }
 

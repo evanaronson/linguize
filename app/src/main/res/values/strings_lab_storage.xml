@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lab_phrasebook_load_failed">Couldn\'t load your phrases. Try again.</string>
+    <string name="lab_phrasebook_save_failed">Couldn\'t save this phrase. Your changes are still here.</string>
+    <string name="lab_phrasebook_delete_failed">Couldn\'t delete this phrase. Try again.</string>
+    <string name="lab_phrasebook_restore_failed">Couldn\'t restore this phrase. Try again.</string>
+    <string name="lab_phrasebook_change_failed">Couldn\'t update Phrasebook. Try again.</string>
+    <string name="lab_practice_load_failed">Couldn\'t load your practice progress. Try again.</string>
+    <string name="lab_practice_save_failed">Couldn\'t save this answer. Try again before continuing.</string>
+    <string name="lab_practice_saving">Saving your answer</string>
+</resources>

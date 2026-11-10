@@ -12,11 +12,11 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.memory.MemoryPrompt
-import com.evanaronson.linguize.testing.KnownBonanzaDefect
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -30,9 +30,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.io.IOException
 
 /** Real learning coordinator, prompt parser and disk store; only the provider is controlled. */
 class LabUserMemoryConcurrencyTest {
@@ -152,7 +152,6 @@ class LabUserMemoryConcurrencyTest {
         assertFalse("chat:cancelled" in store.load().sources)
     }
 
-    @Category(KnownBonanzaDefect::class)
     @Test fun clearingMemoryInvalidatesAnAlreadyRunningLearningRequest() = scenario {
         val store = MemoryStore(file)
         store.add("Prefers casual Spanish", FactCategory.Preferences)
@@ -170,7 +169,6 @@ class LabUserMemoryConcurrencyTest {
         assertTrue(store.load().enabled)
     }
 
-    @Category(KnownBonanzaDefect::class)
     @Test fun forgettingAQueuedSourcePreventsItsMessagesFromReachingTheProvider() = scenario {
         val store = MemoryStore(file)
         val gate = ReplyGate()
@@ -193,7 +191,6 @@ class LabUserMemoryConcurrencyTest {
         assertEquals("Lives in Paris", store.load().facts.single().text)
     }
 
-    @Category(KnownBonanzaDefect::class)
     @Test fun forgettingTheSourceOfReplacementTextDoesNotAttributeItToTheOldSource() = scenario {
         val store = MemoryStore(file)
         var calls = 0
@@ -208,5 +205,117 @@ class LabUserMemoryConcurrencyTest {
         assertFalse("The removed source was the only evidence for London",
             MemoryStore(file).load().facts.any { it.text == "Lives in London" })
         assertFalse("chat:london" in store.load().sources)
+    }
+
+    @Test fun clearingEmptyMemoryAlsoInvalidatesQueuedLearning() = scenario {
+        val store = MemoryStore(file)
+        val gate = ReplyGate()
+        val client = Client(gate::respond)
+        val memory = memory(client, store)
+        val first = async { memory.learnFrom("chat:first", exchange("I live in Paris")) }
+        gate.started.await()
+        val queued = async(start = CoroutineStart.UNDISPATCHED) {
+            memory.learnFrom("chat:queued", exchange("I live in London"))
+        }
+
+        store.clear()
+        gate.answer.complete(paris)
+
+        assertFalse(first.await())
+        assertFalse(queued.await())
+        assertEquals(1, client.requests.size)
+        assertTrue(MemoryStore(file).load().facts.isEmpty())
+    }
+
+    @Test fun disablingThenEnablingDoesNotReviveRunningOrQueuedRequests() = scenario {
+        val store = MemoryStore(file)
+        val gate = ReplyGate()
+        var calls = 0
+        val client = Client { request -> if (calls++ == 0) gate.respond(request) else paris }
+        val memory = memory(client, store)
+        val first = async { memory.learnFrom("chat:first", exchange("I live in Paris")) }
+        gate.started.await()
+        val queued = async(start = CoroutineStart.UNDISPATCHED) {
+            memory.learnFrom("chat:queued", exchange("I moved to London"))
+        }
+        store.setEnabled(false)
+        val whileDisabled = async(start = CoroutineStart.UNDISPATCHED) {
+            memory.learnFrom("chat:disabled", exchange("I live in Rome"))
+        }
+        store.setEnabled(true)
+        gate.answer.complete(paris)
+
+        assertFalse(first.await())
+        assertFalse(queued.await())
+        assertFalse(whileDisabled.await())
+        assertEquals(1, client.requests.size)
+        assertTrue(store.load().facts.isEmpty())
+        assertTrue(MemoryStore(file).load().enabled)
+        assertTrue(memory.learnFrom("chat:fresh", exchange("I live in Paris")))
+        assertEquals(listOf("chat:fresh"), MemoryStore(file).load().facts.single().sources)
+    }
+
+    @Test fun deletingOneFactInvalidatesAProposalThatWouldAddItBack() = scenario {
+        val store = MemoryStore(file)
+        val fact = store.add("Lives in Paris", FactCategory.About)!!
+        val gate = ReplyGate()
+        val memory = memory(Client(gate::respond), store)
+        val learning = async { memory.learnFrom("chat:old", exchange("I live in Paris")) }
+        gate.started.await()
+
+        store.delete(fact.id)
+        gate.answer.complete(paris)
+
+        assertFalse(learning.await())
+        assertTrue(MemoryStore(file).load().facts.isEmpty())
+    }
+
+    @Test fun aFailedForgetStillBlocksQueuedSourceMessagesAndCanBeRetried() = scenario {
+        val store = MemoryStore(file)
+        store.update { state, now, newId ->
+            state.applying(MemoryChanges(add = listOf(NewFact("Lives in London", FactCategory.About))), "chat:deleted", now, newId)
+        }
+        val gate = ReplyGate()
+        val client = Client(gate::respond)
+        val memory = memory(client, store)
+        val first = async { memory.learnFrom("chat:busy", exchange("No new facts")) }
+        gate.started.await()
+        val queued = async(start = CoroutineStart.UNDISPATCHED) {
+            memory.learnFrom("chat:deleted", exchange("I live in London"))
+        }
+        val blocked = blockWrites()
+
+        val failure = runCatching { memory.forget("chat:deleted") }.exceptionOrNull()
+        assertTrue(failure is IOException)
+        gate.answer.complete("""{"add":[],"update":[],"remove":[]}""")
+        assertTrue(first.await())
+        assertFalse(queued.await())
+        assertEquals(1, client.requests.size)
+        assertEquals("Lives in London", MemoryStore(file).load().facts.single().text)
+
+        assertTrue(blocked.deleteRecursively())
+        memory.forget("chat:deleted")
+        assertTrue(MemoryStore(file).load().facts.isEmpty())
+        assertFalse(memory.learnFrom("chat:deleted", exchange("I live in London")))
+        assertEquals(1, client.requests.size)
+    }
+
+    @Test fun learningAcknowledgesOnlyADurableAnswerAndRetriesAfterWriteFailure() = scenario {
+        val store = MemoryStore(file)
+        val memory = memory(Client { paris }, store)
+        val blocked = blockWrites()
+
+        assertFalse(memory.learnFrom("chat:1", exchange("I live in Paris")))
+        assertTrue(store.load().facts.isEmpty())
+        assertTrue(MemoryStore(file).load().facts.isEmpty())
+
+        assertTrue(blocked.deleteRecursively())
+        assertTrue(memory.learnFrom("chat:1", exchange("I live in Paris")))
+        assertEquals(listOf("chat:1"), MemoryStore(file).load().facts.single().sources)
+    }
+
+    private fun blockWrites(): File = File(folder.root, MemoryStore.FILE_NAME + ".tmp").also {
+        assertTrue(it.mkdir())
+        File(it, "blocker").writeText("keep")
     }
 }

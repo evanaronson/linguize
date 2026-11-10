@@ -38,11 +38,12 @@ import com.evanaronson.linguize.llm.chat.ChatPrompt
 import com.evanaronson.linguize.llm.chat.PartnerReply
 import com.evanaronson.linguize.llm.chat.Turn
 import com.evanaronson.linguize.ui.card.CardState
-import com.evanaronson.linguize.ui.forgetExports
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,8 +57,21 @@ data class ChatThread(val conversation: Conversation, val messages: List<ChatMes
     val awaitingReply get() = messages.lastOrNull()?.fromWriter == true
 }
 
+/** The exact metadata write that can be retried without losing the writer's input. */
+sealed interface ConversationWriteFailure {
+    val id: String
+    data class Create(val conversation: Conversation) : ConversationWriteFailure {
+        override val id get() = conversation.id
+    }
+    data class Rename(override val id: String, val title: String) : ConversationWriteFailure
+    data class Delete(override val id: String) : ConversationWriteFailure
+}
+
 /** The check before sending, run by the screen's card (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
 interface DraftCheck {
+    /** The permitted History link, without closing the check; null when recording is off. */
+    val sessionId: String?
+
     /**
      * Checks [draft]. Lab: [replyingTo] is the partner's last message, sent with the check as
      * context only (see [ChatReplyContext]).
@@ -92,8 +106,8 @@ class ChatViewModel(
     private val memory: () -> UserMemory,
     /** The language a new conversation starts in. */
     private val startLanguage: suspend () -> String,
-    /** Deletes saved checks from History. */
-    private val deleteSessions: suspend (List<String>) -> Unit,
+    /** Retries the durable cleanup queue after a conversation has been deleted. */
+    private val drainDeletions: suspend () -> Unit,
     /** People memory knows the writer writes to, for "Practise with…". */
     private val people: suspend () -> List<String>,
     /** Translates a partner message into the writer's own language (the Understand path). */
@@ -115,6 +129,18 @@ class ChatViewModel(
     var draft by mutableStateOf(TextFieldValue())
         private set
     var send by mutableStateOf<SendState>(SendState.Composing)
+        private set
+
+    /** The checked message is being committed; its draft and check remain intact until then. */
+    var savingMessage by mutableStateOf(false)
+        private set
+    var sendSaveFailed by mutableStateOf(false)
+        private set
+    var replySaveFailed by mutableStateOf(false)
+        private set
+    var conversationSaveFailure by mutableStateOf<ConversationWriteFailure?>(null)
+        private set
+    var creatingConversationId by mutableStateOf<String?>(null)
         private set
 
     /** The partner is writing (the opener or a reply). */
@@ -151,7 +177,12 @@ class ChatViewModel(
     var draftCheck: DraftCheck? = null
 
     private var replyJob: Job? = null
+    private var sendJob: Job? = null
+    private var unsavedOutgoing: Outgoing? = null
+    private var unsavedPartner: PartnerMessage? = null
     private var learnedQuiet = false
+
+    private data class PartnerMessage(val message: ChatMessage, val title: String? = null)
 
     /** Lab, Time spent: the draft's writing time, measured invisibly. */
     private val drafting = DraftTimer(clock)
@@ -194,6 +225,8 @@ class ChatViewModel(
 
     /** Back from Settings or the background: the key may have changed. */
     fun refreshSettings() {
+        // A later Chat visit retries interrupted or failed cleanup, without a polling loop.
+        appScope.launch { drainDeletions() }
         viewModelScope.launch {
             val (key, hintSeen) = withContext(Dispatchers.IO) { partner.hasKey() to preferences.translateHintSeen }
             needsKey = !key
@@ -217,18 +250,47 @@ class ChatViewModel(
         val title = who?.let { deriveTitle(it) }.orEmpty()
         // Picked in the sheet, else the app's language: known now, so the thread shows at once.
         val known = (language ?: currentLanguage())?.takeIf { Language.forCode(it) != null }
-        if (known != null) show(ChatThread(Conversation(id, title, known, now, now, persona = who), emptyList()))
+        creatingConversationId = id
+        conversationSaveFailure = null
+        if (known != null && !savingMessage) show(ChatThread(Conversation(id, title, known, now, now, persona = who), emptyList()))
+        val pendingSend = sendJob
         viewModelScope.launch {
+            pendingSend?.join()
             val conversation = Conversation(id, title, known ?: startLanguage(), now, now, persona = who)
-            if (!store.create(conversation)) return@launch
-            // An unanswered opener holds nothing the writer typed: one is enough.
-            store.conversations().filter { it.writerMessages == 0 && it.conversation.id != conversation.id }
-                .forEach { store.delete(it.conversation.id) }
-            if (thread?.conversation?.id != id) show(ChatThread(conversation, emptyList()))
-            writeOpener(conversation)
-            reloadList()
+            createConversation(conversation)
         }
         return id
+    }
+
+    private suspend fun createConversation(conversation: Conversation) {
+        creatingConversationId = conversation.id
+        val created = withContext(NonCancellable) {
+            store.create(conversation).also { saved ->
+                creatingConversationId = null
+                conversationSaveFailure = if (saved) null else ConversationWriteFailure.Create(conversation)
+            }
+        }
+        if (!created) return
+        // An unanswered opener holds nothing the writer typed: one is enough.
+        store.conversations().filter { it.writerMessages == 0 && it.conversation.id != conversation.id }
+            .forEach { store.delete(it.conversation.id) }
+        appScope.launch { drainDeletions() }
+        if (thread?.conversation?.id != conversation.id) show(ChatThread(conversation, emptyList()))
+        writeOpener(conversation)
+        reloadList()
+    }
+
+    fun retryConversationWrite() {
+        val failed = conversationSaveFailure ?: return
+        conversationSaveFailure = null
+        when (failed) {
+            is ConversationWriteFailure.Create -> if (creatingConversationId == null) {
+                creatingConversationId = failed.id
+                viewModelScope.launch { createConversation(failed.conversation) }
+            }
+            is ConversationWriteFailure.Rename -> rename(failed.id, failed.title)
+            is ConversationWriteFailure.Delete -> delete(failed.id)
+        }
     }
 
     /** Opens conversation [id]; [onMissing] when it no longer exists (deleted meanwhile). */
@@ -238,7 +300,9 @@ class ChatViewModel(
             return
         }
         leave()
+        val pendingSend = sendJob
         viewModelScope.launch {
+            pendingSend?.join()
             val conversation = store.conversation(id) ?: return@launch onMissing()
             show(ChatThread(conversation, store.messages(id)))
             if (thread?.messages?.isEmpty() == true) writeOpener(conversation)
@@ -249,6 +313,10 @@ class ChatViewModel(
         replyJob?.cancel()
         replying = false
         replyFailure = null
+        replySaveFailed = false
+        unsavedPartner = null
+        sendSaveFailed = false
+        unsavedOutgoing = null
         expanded = null
         focusDraft = false
         draft = TextFieldValue()
@@ -270,7 +338,11 @@ class ChatViewModel(
     fun rename(id: String, title: String) {
         val trimmed = title.trim().take(MAX_TITLE)
         viewModelScope.launch {
-            store.rename(id, trimmed, custom = trimmed.isNotEmpty())
+            if (!store.rename(id, trimmed, custom = trimmed.isNotEmpty())) {
+                conversationSaveFailure = ConversationWriteFailure.Rename(id, trimmed)
+                return@launch
+            }
+            conversationSaveFailure = null
             thread?.takeIf { it.conversation.id == id }?.let {
                 thread = it.copy(conversation = it.conversation.copy(title = trimmed, titleIsCustom = trimmed.isNotEmpty()))
             }
@@ -285,17 +357,30 @@ class ChatViewModel(
      */
     fun delete(id: String) {
         val wasOpen = thread?.conversation?.id == id
-        if (wasOpen) {
-            replyJob?.cancel()
-            draftCheck?.stop()
-            send = SendState.Composing
-        }
-        viewModelScope.launch {
-            val sessions = store.sessionIds(id)
-            store.delete(id) ?: return@launch
-            appScope.launch {
-                runCatching { deleteSessions(sessions) }.onFailure { Log.w(TAG, "Couldn't delete a conversation's checks", it) }
-                runCatching { memory().forget(source(id)) }
+        val pendingSend = sendJob
+        appScope.launch(Dispatchers.Main.immediate) {
+            pendingSend?.join()
+            if (store.delete(id) == null) {
+                conversationSaveFailure = ConversationWriteFailure.Delete(id)
+                return@launch
+            }
+            conversationSaveFailure = null
+            if (wasOpen && thread?.conversation?.id == id) {
+                replyJob?.cancel()
+                draftCheck?.stop()
+                send = SendState.Composing
+            }
+            appScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                // Invalidate queued/in-flight learning before the UI acknowledges removal.
+                // A failed disk cleanup remains in the durable queue for the next drain.
+                try {
+                    memory().forget(source(id))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Memory couldn't forget a deleted conversation", e)
+                }
+                drainDeletions()
             }
             // Conversations are deleted from the list, so nothing opens in its place.
             if (wasOpen && thread?.conversation?.id == id) thread = null
@@ -334,12 +419,16 @@ class ChatViewModel(
     // Composing and sending.
 
     fun onDraftChange(value: TextFieldValue) {
+        if (savingMessage) return
         if (value.text != draft.text) drafting.typed(value.text)
         draft = value
     }
 
     /** Send tapped: the draft is checked first. */
     fun send() {
+        val currentId = thread?.conversation?.id ?: return
+        if (creatingConversationId == currentId ||
+            (conversationSaveFailure as? ConversationWriteFailure.Create)?.id == currentId) return
         handle(SendEvent.Send(draft.text))
         if (send is SendState.Checking) drafting.sendTapped()
     }
@@ -365,7 +454,9 @@ class ChatViewModel(
      * as it was, with the keyboard.
      */
     fun editDraft() {
-        if (send == SendState.Composing) return
+        if (savingMessage || send == SendState.Composing) return
+        sendSaveFailed = false
+        unsavedOutgoing = null
         drafting.keptEditing(draftCheck?.reviewMs() ?: 0L)
         handle(SendEvent.Edit)
         focusDraft = true
@@ -377,6 +468,7 @@ class ChatViewModel(
     }
 
     private fun handle(event: SendEvent) {
+        if (savingMessage) return
         val transition = send.on(event)
         send = transition.state
         when (val effect = transition.effect) {
@@ -393,31 +485,69 @@ class ChatViewModel(
 
     private fun deliver(outgoing: Outgoing) {
         val current = thread ?: return
+        val check = draftCheck
         val id = UUID.randomUUID().toString()
-        val sessionId = draftCheck?.finish(outgoing.text, drafting.sent(id))
-        val message = outgoing.message(id, current.conversation.id, clock(), sessionId)
-        draft = TextFieldValue()
-        val withMessage = current.copy(
-            conversation = current.conversation.copy(updatedAt = message.at),
-            messages = current.messages + message,
-        )
-        thread = withMessage
-        viewModelScope.launch {
-            store.add(message)
-            reloadList()
+        val message = outgoing.message(id, current.conversation.id, clock(), check?.sessionId)
+        savingMessage = true
+        sendSaveFailed = false
+        unsavedOutgoing = outgoing
+        send = SendState.Reviewing(outgoing.raw)
+        sendJob = viewModelScope.launch {
+            // Once the user's message is committed, cancellation must not skip its acknowledgement.
+            // Opening another thread waits for this short write, so the captured check stays current.
+            withContext(NonCancellable) {
+                try {
+                    if (!store.add(message)) {
+                        sendSaveFailed = true
+                        return@withContext
+                    }
+                    check?.finish(outgoing.text, drafting.sent(id))
+                    draft = TextFieldValue()
+                    send = SendState.Composing
+                    unsavedOutgoing = null
+                    val now = thread?.takeIf { it.conversation.id == current.conversation.id } ?: return@withContext
+                    val withMessage = now.copy(
+                        conversation = now.conversation.copy(updatedAt = maxOf(now.conversation.updatedAt, message.at)),
+                        messages = now.messages + message,
+                    )
+                    thread = withMessage
+                    requestReply(withMessage)
+                    reloadList()
+                } finally {
+                    savingMessage = false
+                }
+            }
         }
-        requestReply(withMessage)
+    }
+
+    /** Retries the same checked message without discarding accepted changes or rerunning the model. */
+    fun retrySend() {
+        if (!savingMessage) unsavedOutgoing?.let(::deliver)
     }
 
     fun retryReply() {
         val current = thread ?: return
-        if (current.awaitingReply && !replying) requestReply(current)
+        if (replying) return
+        val unsaved = unsavedPartner?.takeIf { it.message.conversationId == current.conversation.id }
+        if (unsaved != null) {
+            replying = true
+            replySaveFailed = false
+            replyJob = viewModelScope.launch {
+                try {
+                    savePartner(unsaved)
+                } finally {
+                    if (thread?.conversation?.id == current.conversation.id) replying = false
+                }
+            }
+        } else if (current.awaitingReply) requestReply(current)
     }
 
     private fun requestReply(current: ChatThread) {
         replyJob?.cancel()
         replying = true
         replyFailure = null
+        replySaveFailed = false
+        unsavedPartner = null
         val conversation = current.conversation
         val language = Language.forCode(conversation.language) ?: Language.Spanish
         val history = current.messages.map { Turn(it.fromWriter, it.text) }
@@ -426,22 +556,11 @@ class ChatViewModel(
             try {
                 val answer = partner.reply(language, history, needTitle, conversation.persona)
                 val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
-                store.add(reply)
                 val title = if (needTitle) {
                     (answer.title ?: deriveTitle(current.messages.firstOrNull { it.fromWriter }?.text.orEmpty()))
-                        .take(MAX_TITLE).also { if (it.isNotEmpty()) store.rename(conversation.id, it, custom = false) }
+                        .take(MAX_TITLE).takeIf { it.isNotEmpty() }
                 } else null
-                val now = thread
-                if (now != null && now.conversation.id == conversation.id) {
-                    thread = now.copy(
-                        conversation = now.conversation.copy(
-                            updatedAt = reply.at,
-                            title = title?.takeIf { it.isNotEmpty() && !now.conversation.titleIsCustom } ?: now.conversation.title,
-                        ),
-                        messages = now.messages + reply,
-                    )
-                }
-                reloadList()
+                savePartner(PartnerMessage(reply, title))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CheckFailure) {
@@ -470,8 +589,33 @@ class ChatViewModel(
         // Another conversation, an opener already there, or a language changed while this one was written.
         if (now.conversation.id != conversation.id || now.messages.isNotEmpty() || now.conversation.language != conversation.language) return
         val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
-        store.add(opener)
-        thread = now.copy(messages = listOf(opener))
+        savePartner(PartnerMessage(opener))
+    }
+
+    /** A generated answer is visible only after its message was saved; retry reuses that answer. */
+    private suspend fun savePartner(pending: PartnerMessage) = withContext(NonCancellable) {
+        val message = pending.message
+        if (!store.add(message)) {
+            if (thread?.conversation?.id == message.conversationId) {
+                unsavedPartner = pending
+                replySaveFailed = true
+            }
+            return@withContext
+        }
+        val title = pending.title?.takeIf { store.rename(message.conversationId, it, custom = false) }
+        val now = thread
+        if (now != null && now.conversation.id == message.conversationId) {
+            unsavedPartner = null
+            replySaveFailed = false
+            thread = now.copy(
+                conversation = now.conversation.copy(
+                    updatedAt = maxOf(now.conversation.updatedAt, message.at),
+                    title = title?.takeIf { !now.conversation.titleIsCustom } ?: now.conversation.title,
+                ),
+                messages = now.messages + message,
+            )
+        }
+        reloadList()
     }
 
     // Memory and the list.
@@ -501,8 +645,9 @@ class ChatViewModel(
         val stored = store.conversation(conversation.id) ?: return
         if (!ChatStart.shouldLearn(stored, messages.size, messages.count { it.fromWriter }, clock(), left)) return
         try {
-            memory().learnFrom(source(conversation.id), messages.map { MemoryMessage(it.fromWriter, it.text) })
-            store.setLearned(conversation.id, messages.size)
+            if (memory().learnFrom(source(conversation.id), messages.map { MemoryMessage(it.fromWriter, it.text) })) {
+                store.setLearned(conversation.id, messages.size)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -556,11 +701,7 @@ class ChatViewModel(
                             )
                         }
                     },
-                    deleteSessions = { ids ->
-                        ids.forEach { app.history.delete(it) }
-                        if (ids.isNotEmpty()) app.forgetExports()
-                        app.timeStore.delete(ids)
-                    },
+                    drainDeletions = { app.chatDeletions.drain() },
                     people = {
                         withContext(Dispatchers.IO) {
                             val state = app.memoryStore.load()

@@ -342,6 +342,9 @@ class CheckViewModel(
         if (waitMs > 0) history.awaitWrites(waitMs)
     }
 
+    /** A permitted History link for a host that must save its message before closing the check. */
+    val pendingSessionId: String? get() = history.pendingSessionId
+
     /**
      * Lab Chat: closes the card because [sent] was sent (the accepted changes applied, or the
      * text as typed). Returns the History session it is saved as, or null when it isn't saved.

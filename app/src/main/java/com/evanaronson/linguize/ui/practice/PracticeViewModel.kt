@@ -91,8 +91,8 @@ class PracticeViewModel internal constructor(
     private var checkpoint = PracticeCheckpoint.read(savedState[CHECKPOINT])
     private var entry = checkpoint?.entry
     private var requestedEntry: Pair<String, String?>? = null
-    private var pendingGrade: PracticeGrade? = null
-    private var restoredPending = false
+    private data class PendingGrade(val grade: PracticeGrade, val restored: Boolean = false)
+    private var pendingGrade: PendingGrade? = null
 
     init {
         tick()
@@ -105,8 +105,7 @@ class PracticeViewModel internal constructor(
         try {
             operations.withLock {
                 val saved = store.read()
-                val result = source.read(saved.states.keys)
-                val loaded = result as? PracticeEvidenceResult.Ready
+                val loaded = source.read(saved.states.keys) as? PracticeEvidenceResult.Ready
                 if (loaded == null) {
                     mutable.update { it.copy(loadFailed = true) }
                 } else {
@@ -122,8 +121,7 @@ class PracticeViewModel internal constructor(
                     mutable.update { it.copy(items = items, progress = progress, loadFailed = false, window = loaded.window) }
                     checkpoint?.let { saved ->
                         val restored = saved.run?.restore(items, progress, saved.pending)
-                        pendingGrade = restored?.pending
-                        restoredPending = pendingGrade != null
+                        pendingGrade = restored?.pending?.let { PendingGrade(it, restored = true) }
                         mutable.update { it.copy(run = restored?.run, saveFailed = pendingGrade != null) }
                         checkpoint = null
                         rememberRun()
@@ -208,16 +206,16 @@ class PracticeViewModel internal constructor(
         val (next, grade) = run.answer(answer)
         // Feedback stays immediate; the schedule and Next wait for durable acknowledgement.
         mutable.value = before.copy(run = next)
-        pendingGrade = grade?.let { PracticeGrade(id, it.name, before.now, before.today, before.progress.states[id]) }
-        restoredPending = false
+        pendingGrade = grade?.let {
+            PendingGrade(PracticeGrade(id, it.name, before.now, before.today, before.progress.states[id]))
+        }
         rememberRun()
         if (pendingGrade != null) retrySave()
     }
 
     /** Retries exactly the first grade, without counting the answer twice or losing its timestamp. */
     fun retrySave() {
-        val pending = pendingGrade ?: return
-        val conditional = restoredPending
+        val (pending, conditional) = pendingGrade ?: return
         if (state.value.saving) return
         mutable.update { it.copy(saving = true, saveFailed = false) }
         viewModelScope.launch {
@@ -238,7 +236,6 @@ class PracticeViewModel internal constructor(
                     }
                 }
                 pendingGrade = null
-                restoredPending = false
                 mutable.update { state ->
                     var run = if (recorded) state.run?.let { it.copy(baseline = it.baseline + (pending.id to prior)) } else state.run
                     if (conditional && run != null) {
@@ -281,7 +278,7 @@ class PracticeViewModel internal constructor(
 
     private fun rememberRun() {
         savedState[CHECKPOINT] = PracticeCheckpoint(
-            entry = entry, run = state.value.run?.let(SavedPracticeRun::of), pending = pendingGrade,
+            entry = entry, run = state.value.run?.let(SavedPracticeRun::of), pending = pendingGrade?.grade,
         ).encode()
     }
 

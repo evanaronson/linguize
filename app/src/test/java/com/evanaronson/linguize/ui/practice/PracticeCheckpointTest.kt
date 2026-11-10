@@ -37,6 +37,20 @@ class PracticeCheckpointTest {
     private fun read(run: PracticeRun, pending: PracticeGrade? = null): PracticeCheckpoint =
         PracticeCheckpoint.read(PracticeCheckpoint(entry = "stable-page", run = SavedPracticeRun.of(run), pending = pending).encode())!!
 
+    @Test fun existingCheckpointWireKeepsEveryGradeTokenAndPendingCommand() {
+        val original = run(a, b, c, before = mapOf(a.id to ReviewState(due = 123, reviewedAt = 100)))
+            .answer(Answered(AnswerResult.Correct)).first.next()
+            .answer(Answered(AnswerResult.Almost(Hint.Punctuation))).first.next()
+            .answer(Answered(AnswerResult.Wrong)).first
+        val checkpoint = PracticeCheckpoint(
+            entry = "stable-page", run = SavedPracticeRun.of(original),
+            pending = PracticeGrade(c.id, Grade.Again.name, now, today, null),
+        )
+        val wire = """{"entry":"stable-page","run":{"id":"stable-run","language":"ca","queue":["a","b","c"],"index":2,"answered":{"result":"wrong"},"grades":{"a":"Good","b":"Hard","c":"Again"},"repeated":[],"baseline":{"a":{"due":123,"reviewedAt":100},"b":null,"c":null},"correctFirst":true},"pending":{"id":"c","grade":"Again","now":1000000000000,"today":11574,"before":null}}"""
+        assertEquals(wire, checkpoint.encode())
+        assertEquals(checkpoint, PracticeCheckpoint.read(wire))
+    }
+
     @Test fun checkpointRoundTripStoresIdentityAndDecisionsWithoutCopyingSourceText() {
         val feedback = Answered(AnswerResult.Almost(Hint.MissingAccent("vénen")))
         val answered = run(a).answer(feedback).first

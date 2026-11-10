@@ -91,7 +91,8 @@ fun PracticeScreen(model: PracticeViewModel, language: String?, onDone: () -> Un
                 if (state.scoped.isNullOrEmpty()) {
                     EmptyCard(stringResource(R.string.lab_practice_empty), stringResource(R.string.lab_practice_empty_hint))
                 } else {
-                    EmptyCard(stringResource(R.string.lab_practice_nothing_due), nextLine(state) ?: stringResource(R.string.lab_practice_nothing_due_hint))
+                    EmptyCard(stringResource(R.string.lab_practice_nothing_due),
+                        nextPracticeLine(state.nextDue, state.today) ?: stringResource(R.string.lab_practice_nothing_due_hint))
                 }
                 PracticeHow()
             }
@@ -190,8 +191,6 @@ private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean
     }
 }
 
-private val Answered.missed: Boolean get() = revealed || result == AnswerResult.Wrong || result == AnswerResult.Unchanged
-
 @Composable
 private fun Label(text: String) {
     Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -289,15 +288,12 @@ private fun Done(run: PracticeRun, state: PracticeState, onDone: () -> Unit) {
         if (run.size > 0) {
             Quiet(pluralStringResource(R.plurals.lab_practice_score, run.size, run.right, run.size), Modifier.padding(top = 4.dp))
         }
-        nextLine(state)?.let { Quiet(it) }
+        nextPracticeLine(state.nextDue, state.today)?.let { Quiet(it) }
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.End) {
             LinguizeButton(stringResource(R.string.lab_home_ia_practice_done), onDone, ButtonKind.Filled)
         }
     }
 }
-
-@Composable
-private fun nextLine(state: PracticeState): String? = nextPracticeLine(state.nextDue, state.today)
 
 /** "Next practice tomorrow" for a review due at [next]; null when nothing has been practised yet. */
 @Composable

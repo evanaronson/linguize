@@ -33,8 +33,7 @@ object PracticeItems {
             .groupBy(::repeatKey)
             .values
             .map { same ->
-                val order = compareBy<PracticeItem>({ it.checkedAt }, { it.id })
-                same.filter { it.id in preferred }.minWithOrNull(order) ?: same.minWith(order)
+                same.minWith(compareBy({ it.id !in preferred }, { it.checkedAt }, { it.id }))
             }
             .sortedWith(compareByDescending<PracticeItem> { it.checkedAt }.thenBy { it.id })
 

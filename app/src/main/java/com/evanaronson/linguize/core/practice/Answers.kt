@@ -113,21 +113,19 @@ object Answers {
         val index = differing.singleOrNull() ?: return Hint.Accents
         val word = want[index]
         val have = got[index]
-        val wantAccents = accentedLetters(word)
-        val haveAccents = accentedLetters(have)
+        val wantAccents = hasAccents(word)
+        val haveAccents = hasAccents(have)
         return when {
-            haveAccents.isEmpty() && wantAccents.isNotEmpty() -> Hint.MissingAccent(word)
-            wantAccents.isEmpty() && haveAccents.isNotEmpty() -> Hint.ExtraAccent(word)
+            !haveAccents && wantAccents -> Hint.MissingAccent(word)
+            !wantAccents && haveAccents -> Hint.ExtraAccent(word)
             else -> Hint.WrongAccent(word)
         }
     }
 
-    /** Positions (in the accent-free word) of letters that carry a mark, with the marked letter. */
-    private fun accentedLetters(word: String): List<Pair<Int, Char>> {
+    /** Whether a composed letter carries an accent or other combining mark. */
+    private fun hasAccents(word: String): Boolean {
         val composed = Normalizer.normalize(word.lowercase(), Normalizer.Form.NFC)
-        return composed.mapIndexedNotNull { index, char ->
-            if (stripAccents(char.toString()) != char.toString()) index to char else null
-        }
+        return composed.any { stripAccents(it.toString()) != it.toString() }
     }
 
     /** Levenshtein distance, for the one-letter slip. */

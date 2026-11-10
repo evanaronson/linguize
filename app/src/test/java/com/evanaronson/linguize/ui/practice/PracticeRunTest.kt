@@ -53,6 +53,12 @@ class PracticeRunTest {
         val (revealed, grade) = run.answer(Answered(AnswerResult.Wrong, revealed = true))
         assertEquals(Grade.Again, grade)
         assertEquals(2, revealed.next().steps)
+
+        for (result in listOf(AnswerResult.Correct, AnswerResult.Almost(Hint.Punctuation))) {
+            val (overridden, overriddenGrade) = run.answer(Answered(result, revealed = true))
+            assertEquals(Grade.Again, overriddenGrade)
+            assertEquals(2, overridden.next().steps)
+        }
     }
 
     @Test

@@ -42,8 +42,8 @@ internal data class PracticeCheckpoint(
                 json.decodeFromString<PracticeCheckpoint>(it).takeIf { saved ->
                     saved.version == 1 && saved.run?.valid() != false &&
                         (saved.pending == null || saved.run?.let { run ->
-                            saved.pending.grade in Grade.entries.map(Grade::name) && run.answered != null &&
-                                run.queue.getOrNull(run.index) == saved.pending.id && run.grades[saved.pending.id] == saved.pending.grade
+                            run.answered != null && run.queue.getOrNull(run.index) == saved.pending.id &&
+                                run.grades[saved.pending.id] == saved.pending.grade
                         } == true)
                 }
             } catch (_: IllegalArgumentException) {
@@ -154,25 +154,18 @@ internal data class SavedPracticeAnswer(
 
     companion object {
         fun of(answer: Answered, item: PracticeItem): SavedPracticeAnswer {
-            val hint = (answer.result as? AnswerResult.Almost)?.hint
-            val word = when (hint) {
-                is Hint.MissingAccent -> hint.word
-                is Hint.ExtraAccent -> hint.word
-                is Hint.WrongAccent -> hint.word
-                else -> null
-            }
-            val result = when (val value = answer.result) {
-                AnswerResult.Correct -> "correct"
-                AnswerResult.Wrong -> "wrong"
-                AnswerResult.Unchanged -> "unchanged"
-                is AnswerResult.Almost -> when (value.hint) {
-                    is Hint.MissingAccent -> "missing_accent"
-                    is Hint.ExtraAccent -> "extra_accent"
-                    is Hint.WrongAccent -> "wrong_accent"
-                    Hint.Accents -> "accents"
-                    Hint.Punctuation -> "punctuation"
-                    Hint.Capitals -> "capitals"
-                    Hint.Spelling -> "spelling"
+            val (result, word) = when (val value = answer.result) {
+                AnswerResult.Correct -> "correct" to null
+                AnswerResult.Wrong -> "wrong" to null
+                AnswerResult.Unchanged -> "unchanged" to null
+                is AnswerResult.Almost -> when (val hint = value.hint) {
+                    is Hint.MissingAccent -> "missing_accent" to hint.word
+                    is Hint.ExtraAccent -> "extra_accent" to hint.word
+                    is Hint.WrongAccent -> "wrong_accent" to hint.word
+                    Hint.Accents -> "accents" to null
+                    Hint.Punctuation -> "punctuation" to null
+                    Hint.Capitals -> "capitals" to null
+                    Hint.Spelling -> "spelling" to null
                 }
             }
             return SavedPracticeAnswer(result, word?.let { Answers.words(item.right).indexOf(it) }, answer.revealed, answer.pickedCorrect)

@@ -184,6 +184,8 @@ class PracticeItemsTest {
         )
         assertEquals(listOf("c", "o"), PracticeItems.from(details).map { it.id })
         assertEquals(listOf("c", "m"), PracticeItems.from(details, preferred = setOf("m")).map { it.id })
+        assertEquals(listOf("c", "m"), PracticeItems.from(details, preferred = setOf("m", "n")).map { it.id })
+        assertEquals(listOf("c", "o"), PracticeItems.from(details, preferred = setOf("missing")).map { it.id })
     }
 
     @Test

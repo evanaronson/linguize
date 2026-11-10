@@ -35,8 +35,8 @@ for that mistake. A run is 5 to 10 items and takes about a minute.
 
 ## Where items come from
 
-`history/practice/PracticeItems.kt` reads History through `HistoryStore.page` and
-`detail` (the same visible, applied checks History lists, up to the newest 500):
+`history/practice/PracticeItems.kt` rebuilds drills from shared `HistoryEvidenceReader`
+snapshots of the newest 500 visible checks, using their applied fixes:
 
 - Only suggestions with decision `accepted` and kind `fix`. Undone, ignored,
   copied, retired and superseded suggestions are skipped: the writer did not

@@ -53,13 +53,11 @@ object Deck {
     /** Records the first answer to [itemId] in a run. */
     fun record(progress: PracticeProgress, itemId: String, grade: Grade, now: Long, today: Long): PracticeProgress {
         val before = progress.states[itemId]
-        val started = if (before == null) {
-            if (progress.newDay == today) progress.newToday + 1 else 1
-        } else if (progress.newDay == today) progress.newToday else 0
+        val started = if (progress.newDay == today) progress.newToday else 0
         return progress.copy(
             states = progress.states + (itemId to Schedule.review(before, grade, now)),
             newDay = today,
-            newToday = started,
+            newToday = started + if (before == null) 1 else 0,
         )
     }
 

@@ -53,6 +53,18 @@ android {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.testLogging.exceptionFormat = TestExceptionFormat.FULL
+            // Desired contracts for confirmed Bonanza defects are deliberately red until fixed.
+            // Keep them executable without teaching the regression suite to expect broken behavior.
+            val knownDefects = providers.gradleProperty("bonanzaKnownDefects").isPresent
+            it.useJUnit {
+                val category = "com.evanaronson.linguize.testing.KnownBonanzaDefect"
+                if (knownDefects) includeCategories(category) else excludeCategories(category)
+            }
+            if (knownDefects) {
+                it.reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/${it.name}-known-defects"))
+                it.reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/${it.name}-known-defects"))
+                it.binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/${it.name}-known-defects/binary"))
+            }
         }
     }
 }
@@ -77,4 +89,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

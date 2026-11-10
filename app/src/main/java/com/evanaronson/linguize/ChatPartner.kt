@@ -13,6 +13,7 @@ import com.evanaronson.linguize.llm.chat.ChatSetting
 import com.evanaronson.linguize.llm.chat.PartnerReply
 import com.evanaronson.linguize.llm.chat.Turn
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -28,6 +29,7 @@ class ChatPartner(
     private val memory: () -> UserMemory,
     /** The practice targets block for a language ([ChatTargets]); "" for none. */
     private val targets: suspend (Language) -> String = { "" },
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     /** Read on first use, off the main thread. */
     prompt: () -> ChatPrompt,
 ) {
@@ -45,7 +47,7 @@ class ChatPartner(
         ask(language, persona) { setting -> prompt.replyRequest(setting, history, needTitle) }
 
     private suspend fun ask(language: Language, persona: String?, request: (ChatSetting) -> GenerationRequest): PartnerReply =
-        withContext(Dispatchers.IO) {
+        withContext(dispatcher) {
             try {
                 val provider = settings.provider
                 val model = settings.model(provider) ?: provider.recommendedModel

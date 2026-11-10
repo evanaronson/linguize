@@ -17,6 +17,7 @@ import com.evanaronson.linguize.llm.lab.ExampleBrief
 import com.evanaronson.linguize.llm.lab.PatternBrief
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.sync.Mutex
@@ -63,6 +64,7 @@ class PatternsLab(
     private val clients: Map<Provider, ProviderClient>,
     private val prompt: () -> PatternsPrompt,
     private val now: () -> Long = System::currentTimeMillis,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val lock = Mutex()
 
@@ -72,7 +74,7 @@ class PatternsLab(
      * explanation is still reconciled against every language, so it is deleted only when its
      * evidence is gone, and it shows only for the language it was made from.
      */
-    suspend fun load(language: String? = null): PatternsSnapshot? = withContext(Dispatchers.IO) {
+    suspend fun load(language: String? = null): PatternsSnapshot? = withContext(io) {
         val details = history.patternEvidence() ?: return@withContext null
         val all = reconcile(PatternAnalyser.analyse(details))
         if (language == null) return@withContext all
@@ -83,7 +85,7 @@ class PatternsLab(
 
     /** Deletes a saved explanation whose evidence is gone, and says how the rest relates to [report]. */
     suspend fun reconcile(report: PatternReport): PatternsSnapshot = lock.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(io) {
             val saved = notes.read() ?: return@withContext PatternsSnapshot(report)
             val status = explanationStatus(saved, report)
             if (status == null) {
@@ -103,25 +105,25 @@ class PatternsLab(
      */
     suspend fun watch() {
         history.revisions().collectLatest {
-            val saved = runCatching { withContext(Dispatchers.IO) { notes.read() } }.getOrNull()
+            val saved = runCatching { withContext(io) { notes.read() } }.getOrNull()
             if (saved != null) load()
         }
     }
 
     /** Whether there is a key for the chosen service, so Explain can be offered. */
-    suspend fun canExplain(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun canExplain(): Boolean = withContext(io) {
         runCatching { !keys.get(settings.provider).isNullOrBlank() }.getOrDefault(false)
     }
 
     /** The service an explanation would be sent to. */
-    suspend fun provider(): Provider = withContext(Dispatchers.IO) { settings.provider }
+    suspend fun provider(): Provider = withContext(io) { settings.provider }
 
     /**
      * Asks the chosen model to explain [report]'s patterns, saves the answer with its sources,
      * and returns a fresh snapshot (so a check deleted meanwhile still removes it).
      * Throws [CheckFailure].
      */
-    suspend fun explain(report: PatternReport, language: String? = null): PatternsSnapshot = withContext(Dispatchers.IO) {
+    suspend fun explain(report: PatternReport, language: String? = null): PatternsSnapshot = withContext(io) {
         val briefs = briefs(report)
         if (briefs.isEmpty()) throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
         val provider = settings.provider
@@ -158,7 +160,7 @@ class PatternsLab(
     }
 
     /** Deletes the saved explanation; the patterns themselves stay, as they're rebuilt from History. */
-    suspend fun deleteExplanation() = lock.withLock { withContext(Dispatchers.IO) { notes.delete() } }
+    suspend fun deleteExplanation() = lock.withLock { withContext(io) { notes.delete() } }
 
     companion object {
         /** What the model is told about each group: groups and a few distinct examples, never whole messages. */

@@ -13,6 +13,7 @@ import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.SentCheck
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -21,10 +22,14 @@ import kotlinx.serialization.json.Json
 
 /**
  * Lab Chat's conversations and messages, in their own SQLite database (`lab_chat`), apart from
- * History and settings. Every call runs on [Dispatchers.IO]; a failure is logged and reads as
+ * History and settings. Every call runs on [Dispatchers.IO] by default; a failure is logged and reads as
  * nothing (or false), so the chat never crashes the app.
  */
-class ChatStore(context: Context, name: String? = DATABASE) {
+class ChatStore(
+    context: Context,
+    name: String? = DATABASE,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
     private val helper = Helper(context.applicationContext, name)
 
     /** Every conversation, most recently active first. */
@@ -157,7 +162,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         db.update(CONVERSATIONS, ContentValues().apply(values), "id = ?", arrayOf(id)) > 0
     }
 
-    private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(dispatcher) {
         try {
             block(helper.writableDatabase)
         } catch (e: Exception) {

@@ -117,7 +117,7 @@ class ChatReplyContextTest {
         val sources = File("src/main/java/com/evanaronson/linguize").walkTopDown().filter { it.extension == "kt" }
         val passing = sources.filter { "replyingTo" in it.readText() }.map { it.relativeTo(File("src/main/java/com/evanaronson/linguize")).path }
             .toSet()
-        assertEquals(setOf("Checker.kt", "ui/card/CheckViewModel.kt", "ui/chat/ChatScreen.kt", "ui/chat/ChatViewModel.kt"), passing)
+        assertEquals(setOf("Checker.kt", "llm/lab/CheckComposition.kt", "ui/card/CheckViewModel.kt", "ui/chat/ChatScreen.kt", "ui/chat/ChatViewModel.kt"), passing)
     }
 
     private fun partner(id: String, text: String, at: Long) = ChatMessage.partner(id, "c", text, at)

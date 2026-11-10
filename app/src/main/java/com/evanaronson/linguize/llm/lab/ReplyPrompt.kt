@@ -2,10 +2,7 @@ package com.evanaronson.linguize.llm.lab
 
 import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
-import com.evanaronson.linguize.llm.ProviderClient
-import com.evanaronson.linguize.llm.read
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.security.MessageDigest
@@ -39,20 +36,6 @@ class ReplyPrompt(val addendum: String) {
         name = NAME,
         maxTokens = Prompt.MAX_OUTPUT_TOKENS,
     )
-
-    /**
-     * Asks [client] and reads the answer as [reader] (by default [base]) reads any fresh check
-     * answer. Throws CheckFailure.
-     */
-    suspend fun check(
-        client: ProviderClient,
-        base: Prompt,
-        key: String,
-        model: String,
-        request: CheckRequest,
-        message: String,
-        reader: Prompt = base,
-    ): ModelAnswer = reader.read(client.generate(key, model, generation(base, request, message)))
 
     /**
      * Stands in for [Prompt.hash] in a check with context. It differs from the shipped hash and

@@ -1,12 +1,6 @@
 package com.evanaronson.linguize.llm.lab
 
-import com.evanaronson.linguize.llm.CheckRequest
-import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
-import com.evanaronson.linguize.llm.ProviderClient
-import com.evanaronson.linguize.llm.generation
-import com.evanaronson.linguize.llm.read
 import java.security.MessageDigest
 
 /**
@@ -39,23 +33,4 @@ class GapsInCheck(val addendum: String) {
         /** Reads [ASSET] with [read] (the app's assets). */
         fun load(read: (String) -> String) = GapsInCheck(read(ASSET))
     }
-}
-
-/**
- * Lab: [delegate] with its checks sent as [prompt] (the composed instructions and schema) over
- * the delegate's own transport, and read with [reader]'s contract (the shipped one, so Lab-only
- * answer fields are never required); everything else is the delegate's.
- */
-class ComposedPromptClient(
-    private val delegate: ProviderClient,
-    private val prompt: Prompt,
-    private val reader: Prompt = prompt,
-) : ProviderClient {
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-        reader.read(delegate.generate(key, model, prompt.generation(request)))
-
-    override suspend fun generate(key: String, model: String, request: GenerationRequest): String =
-        delegate.generate(key, model, request)
-
-    override suspend fun models(key: String): List<String> = delegate.models(key)
 }

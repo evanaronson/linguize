@@ -1,8 +1,15 @@
 """Corpus structure and mutation replay tests; never call a provider."""
 import collections
+import contextlib
+import copy
 import importlib.util
+import io
+import json
+import os
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("fuzz_runner", Path(__file__).with_name("fuzz.py"))
 fuzz = importlib.util.module_from_spec(spec)
@@ -71,7 +78,7 @@ class FuzzCorpusTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             corpus = Path(folder) / "corpus.jsonl"
             replies = Path(folder) / "replies.jsonl"
-            argv = ["--live", "--workers", "1", "--interval", "0", "--output", str(corpus),
+            argv = ["--live", "--mode", "base", "--workers", "1", "--interval", "0", "--output", str(corpus),
                     "--replies", str(replies)]
             with patch.object(fuzz, "load_runner", return_value=runner), \
                     patch.dict(runner.PROVIDERS, {"gemini": (answer, "fixture-model", "FUZZ_FIXTURE_KEY")}), \
@@ -106,7 +113,7 @@ class FuzzCorpusTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as folder:
             replies = Path(folder) / "replies.jsonl"
-            argv = ["--live", "--model", "primary-fixture", "--fallback", "openai:secondary-fixture",
+            argv = ["--live", "--mode", "base", "--model", "primary-fixture", "--fallback", "openai:secondary-fixture",
                     "--tries", "3", "--workers", "1", "--interval", "0",
                     "--output", str(Path(folder) / "corpus.jsonl"), "--replies", str(replies)]
             providers = {"gemini": (unavailable, "primary-fixture", "FUZZ_A_KEY"),
@@ -117,8 +124,16 @@ class FuzzCorpusTest(unittest.TestCase):
                     contextlib.redirect_stdout(output):
                 self.assertEqual(0, fuzz.main(argv))
                 self.assertEqual(400, len(calls))
+                # Existing archives predate mode metadata. Explicit base resumes
+                # them without inventing app identity or rewriting good answers.
+                legacy = [json.loads(line) for line in replies.read_text().split("\n") if line]
+                for row in legacy:
+                    self.assertEqual("base", row.pop("mode"))
+                replies.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in legacy))
+                historical_bytes = replies.read_bytes()
                 self.assertEqual(0, fuzz.main(argv + ["--retry-errors"]))
                 self.assertEqual(400, len(calls))
+                self.assertEqual(historical_bytes, replies.read_bytes())
                 with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                     fuzz.main(argv + ["--model", "a-different-experiment"])
                 self.assertEqual(400, len(calls))
@@ -147,7 +162,7 @@ class FuzzCorpusTest(unittest.TestCase):
                 patch.object(fuzz, "load_runner", return_value=runner), \
                 patch.dict(runner.PROVIDERS, {"gemini": (answer, "primary-fixture", "FUZZ_FIXTURE_KEY")}), \
                 patch.dict(os.environ, {"FUZZ_FIXTURE_KEY": "fixture"}), contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(0, fuzz.main(["--live", "--tries", "1", "--interval", "0",
+            self.assertEqual(0, fuzz.main(["--live", "--mode", "base", "--tries", "1", "--interval", "0",
                                          "--fallback", "gemini:secondary-fixture",
                                          "--output", str(Path(folder) / "corpus.jsonl"),
                                          "--replies", str(Path(folder) / "replies.jsonl")]))
@@ -166,7 +181,7 @@ class FuzzCorpusTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             replies = Path(folder) / "replies.jsonl"
             engine = Path(folder) / "engine.jsonl"
-            argv = ["--live", "--workers", "1", "--interval", "0", "--output", str(Path(folder) / "corpus.jsonl"),
+            argv = ["--live", "--mode", "base", "--workers", "1", "--interval", "0", "--output", str(Path(folder) / "corpus.jsonl"),
                     "--replies", str(replies)]
 
             def first(*args):
@@ -219,6 +234,117 @@ class FuzzCorpusTest(unittest.TestCase):
             self.assertEqual("TimeoutError", saved[1]["repair"]["error"])
             self.assertEqual("InterruptedBeforeResult", saved[2]["repair"]["error"])
             self.assertTrue(all("repair" not in row for row in saved[3:]))
+
+
+class FuzzPreparedRequestTest(unittest.TestCase):
+    def setUp(self):
+        self.runner = fuzz.load_runner()
+        self.cases = list(fuzz.requests(fuzz.generate()))
+        self.prepared = []
+        for index, case in enumerate(self.cases):
+            requests = {}
+            for phase in ("initial", "repair"):
+                requests[phase] = {
+                    "generation": {"system": "Kotlin-composed gaps and tone fixture\n", "user": phase + "\n" + case["text"],
+                                   "schema": {"type": "object", "properties": {"landing": {"type": "string"}}},
+                                   "name": "check", "max_tokens": 8192},
+                    "compatibility_hash": "legacy-cache-hash-g-t", "contract_sha256": fuzz.digest("contract"),
+                    "request_sha256": fuzz.digest(case["request_id"] + ":" + phase),
+                    "parser": {"policy": "base-fresh-v1", "prompt_hash": "base-parser-hash"},
+                }
+            self.prepared.append({"version": 1, "mode": "app", "case_index": index, "case": case,
+                                  "dataset_sha256": "bridge-validates-input-bytes", **requests})
+        self.by_id = {row["case"]["request_id"]: row for row in self.prepared}
+
+    def arguments(self, folder):
+        return ["--live", "--workers", "1", "--interval", "0", "--tries", "1",
+                "--output", str(Path(folder) / "corpus.jsonl"), "--replies", str(Path(folder) / "replies.jsonl")]
+
+    def test_default_app_sends_exported_initial_and_repair_once_and_preserves_provenance(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as folder:
+            replies = Path(folder) / "replies.jsonl"
+            engine = Path(folder) / "engine.jsonl"
+
+            def answer(provider, model, key, generation):
+                calls.append((provider, model, copy.deepcopy(generation)))
+                if generation["user"].startswith("repair\n"):
+                    saved = [json.loads(line) for line in replies.read_text().split("\n") if line]
+                    self.assertEqual("InterruptedBeforeResult", saved[0]["repair"]["error"])
+                return {"status": "ok", "meaning": generation["user"].split("\n")[0]}, 0.01
+
+            with patch.object(fuzz, "load_runner", return_value=self.runner), \
+                    patch.object(fuzz, "prepare_requests", return_value=self.prepared) as prepare, \
+                    patch.object(self.runner, "check_prepared", side_effect=answer), \
+                    patch.object(self.runner, "user_message", side_effect=AssertionError("app must not format in Python")), \
+                    patch.dict(os.environ, {"GEMINI_API_KEY": "fixture"}), contextlib.redirect_stdout(io.StringIO()):
+                argv = self.arguments(folder)
+                self.assertEqual(0, fuzz.main(argv))
+                prepare.assert_called_once_with(self.cases)
+                self.assertEqual([row["initial"]["generation"] for row in self.prepared], [call[2] for call in calls])
+                first = [json.loads(line) for line in replies.read_text().split("\n") if line]
+                for row in first:
+                    self.assertEqual(fuzz.preparation_identity(self.by_id[row["case"]["request_id"]]),
+                                     {field: row[field] for field in (*fuzz.PREPARATION_FIELDS, "prompt_sha256")})
+                engine.write_text("".join(json.dumps({"request_id": row["case"]["request_id"], "result": "reviewed",
+                                                      "replay_input": row, "withheld": ["fix"] if i == 0 else []}) + "\n"
+                                          for i, row in enumerate(first)))
+                self.assertEqual(0, fuzz.main(argv + ["--repair-from", str(engine)]))
+                self.assertEqual(201, len(calls))
+                self.assertEqual(self.by_id[first[0]["case"]["request_id"]]["repair"]["generation"], calls[-1][2])
+                self.assertEqual(0, fuzz.main(argv + ["--repair-from", str(engine), "--retry-errors"]))
+                self.assertEqual(201, len(calls))
+                saved = [json.loads(line) for line in replies.read_text().split("\n") if line]
+                self.assertEqual([row["verdict"] for row in first], [row["verdict"] for row in saved])
+                self.assertEqual("repair", saved[0]["repair"]["verdict"]["meaning"])
+
+    def test_changed_app_identity_fails_before_calls_or_repair_reservation(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.object(fuzz, "load_runner", return_value=self.runner), \
+                patch.object(fuzz, "prepare_requests", return_value=self.prepared), \
+                patch.object(self.runner, "check_prepared", side_effect=lambda *args: (calls.append(args) or {"status": "ok"}, 0.01)), \
+                patch.dict(os.environ, {"GEMINI_API_KEY": "fixture"}), contextlib.redirect_stdout(io.StringIO()):
+            argv = self.arguments(folder)
+            replies = Path(folder) / "replies.jsonl"
+            engine = Path(folder) / "engine.jsonl"
+            self.assertEqual(0, fuzz.main(argv))
+            rows = [json.loads(line) for line in replies.read_text().split("\n") if line]
+            engine.write_text("".join(json.dumps({"request_id": row["case"]["request_id"], "result": "reviewed",
+                                                  "replay_input": row, "withheld": ["fix"]}) + "\n" for row in rows))
+            changes = {"mode": "base", "preparation_version": 2, "contract_sha256": "other-contract",
+                       "request_sha256": "other-initial", "repair_contract_sha256": "other-repair-contract",
+                       "repair_request_sha256": "other-repair", "parser": {"policy": "legacy", "prompt_hash": "base-parser-hash"},
+                       "prompt_sha256": "old-prompt", "corpus_sha256": "old-corpus",
+                       "case": {**rows[0]["case"], "text": "different"}}
+            for field, value in changes.items():
+                for repair in (False, True):
+                    with self.subTest(field=field, repair=repair):
+                        changed = copy.deepcopy(rows)
+                        changed[0][field] = value
+                        replies.write_text("".join(json.dumps(row) + "\n" for row in changed))
+                        before = replies.read_bytes()
+                        extra = ["--repair-from", str(engine)] if repair else []
+                        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                            fuzz.main(argv + extra)
+                        self.assertEqual(200, len(calls))
+                        self.assertEqual(before, replies.read_bytes())
+            rows[0]["preparation_version"] = True
+            replies.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                fuzz.main(argv)
+            self.assertEqual(200, len(calls))
+            # A historical row with no preparation metadata is never inferred to
+            # have used the app, even when every old hash happens to match.
+            for row in rows:
+                for field in fuzz.PREPARATION_FIELDS:
+                    row.pop(field)
+            replies.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            before = replies.read_bytes()
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                fuzz.main(argv)
+            self.assertEqual(200, len(calls))
+            self.assertEqual(before, replies.read_bytes())
 
 
 if __name__ == "__main__":

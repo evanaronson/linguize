@@ -4,6 +4,8 @@ import com.evanaronson.linguize.core.*
 import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.llm.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -18,7 +20,10 @@ class WritingChecksTest {
         val prefs = object : CheckPreferences by base {
             override val writingProfiles get() = profiles
         }
-        val client = FakeClient { ModelAnswer(Verdict(Verdict.Status.Ok, language = "Catalan"), "{}") }
+        val client = FakeClient {
+            val verdict = Verdict(Verdict.Status.Ok, language = "Catalan")
+            ModelAnswer(verdict, Json.encodeToString(verdict))
+        }
         val checker = Checker(prefs, { "key" }, Prompt("", "{}"), Provider.entries.associateWith { client })
         val used = checker.context()
         val original = profiles.toList()
@@ -38,7 +43,7 @@ class WritingChecksTest {
         val client = FakeClient {
             val verdict = Verdict(Verdict.Status.Ok, language = "Catalan", hasErrors = true,
                 corrected = "Com estàs?", fixes = listOf(VerdictChange("estas", "estàs", "Accent", 1, 2)))
-            ModelAnswer(verdict, "{}")
+            ModelAnswer(verdict, Json.encodeToString(verdict))
         }
         val checker = fakeChecker(base, client)
         val settled = listOf(Settled("Who sees", "I do"))

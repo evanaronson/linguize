@@ -89,9 +89,11 @@ class GapsInCheckCheckerTest {
     fun withoutTheRulesTheShippedCheckRunsAsBefore() = runBlocking<Unit> {
         val plain = Checker(preferences, { "key" }, prompt, Provider.entries.associateWith { client })
         plain.check(TEXT, null)
-        // The fake shipped answer withholds its changes, so a repair retry follows: both go the shipped way.
-        assertTrue(client.checks.isNotEmpty())
-        assertTrue(client.generations.isEmpty())
+        assertTrue(client.checks.isEmpty())
+        val sent = client.generations.single()
+        assertEquals(prompt.system, sent.system)
+        assertEquals(prompt.schema, sent.schema)
+        assertTrue(sent.user.endsWith("Text: <text>$TEXT</text>"))
         assertEquals(prompt.hash, plain.context().promptHash)
     }
 

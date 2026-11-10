@@ -683,7 +683,7 @@ class CheckViewModelTest {
         assertEquals(listOf(other), request.settled)
         assertEquals(listOf(other), done().settled)
         assertEquals(1, result.revision.acceptedCount)
-        val message = Prompt("instructions", "{}").userMessage(request)
+        val message = request.generation.user
         assertFalse(message.contains("\"about\":\"${first.about}\""))
         assertFalse(message.contains(first.answer))
         assertTrue(message.contains("Settled: {\"about\":\"${other.about}\",\"answer\":\"${other.answer}\"}"))

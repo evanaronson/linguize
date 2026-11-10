@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application)
@@ -90,4 +91,28 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// Offline eval tooling reuses the app's compiled preparation code. It does not run the test
+// suite or add a second production module. The Python bridge strips provider credentials.
+tasks.register<JavaExec>("prepareCheckEval") {
+    group = "verification"
+    description = "Export exact app/base check requests for an evaluation JSONL dataset"
+    val unitTests = tasks.named<Test>("testDebugUnitTest").get()
+    classpath = unitTests.classpath
+    dependsOn("compileDebugUnitTestKotlin")
+    mainClass.set("com.evanaronson.linguize.eval.CheckPreparationExport")
+    val cases = providers.gradleProperty("checkEvalCases").getOrElse(
+        rootProject.layout.projectDirectory.file("eval/cases.jsonl").asFile.absolutePath,
+    )
+    val output = providers.gradleProperty("checkEvalOutput").getOrElse(
+        layout.buildDirectory.file("eval/prepared-checks.jsonl").get().asFile.absolutePath,
+    )
+    val mode = providers.gradleProperty("checkEvalMode").getOrElse("app")
+    val assets = layout.projectDirectory.dir("src/main/assets").asFile
+    inputs.file(cases)
+    inputs.dir(assets)
+    inputs.property("mode", mode)
+    outputs.file(output)
+    args(assets.absolutePath, cases, output, mode)
 }

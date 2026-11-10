@@ -15,10 +15,8 @@ import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.lab.CheckComposition
-import com.evanaronson.linguize.llm.lab.ComposedPromptClient
 import com.evanaronson.linguize.llm.lab.GapsInCheck
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
-import com.evanaronson.linguize.llm.lab.ReplyingClient
 import com.evanaronson.linguize.llm.lab.ToneInCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +24,13 @@ import kotlinx.coroutines.withContext
 
 /** A finished check: what the card shows, the model's answer exactly as it came ([raw]), and the settings it ran with. */
 data class Checked(val result: CheckResult, val raw: String, val context: CheckContext)
+
+/** Prefer a repair only when it resolves known incompleteness; never splice or rank by edit count. */
+internal fun selectRepairedCheck(first: Checked, second: Checked): Checked {
+    val partial = first.result as? CheckResult.Reviewed ?: return first
+    val revised = second.result as? CheckResult.Reviewed ?: return first
+    return if (revised.withheld.size < partial.withheld.size && partial.withheld.containsAll(revised.withheld)) second else first
+}
 
 /**
  * Runs checks with the provider, model and options chosen in settings.
@@ -46,9 +51,6 @@ class Checker(
 ) {
     private val gaps: GapsInCheck? by lazy { gapsInCheck?.invoke() }
     private val tone: ToneInCheck? by lazy { toneInCheck?.invoke() }
-
-    /** The instructions and schema a check sends: the shipped prompt, plus the Lab rules when given ([CheckComposition]). */
-    private val checkPrompt: Prompt by lazy { CheckComposition.prompt(prompt, gaps, tone) }
 
     /** The settings a check started now would run with ([replyingTo]: Lab, the message the text answers). */
     suspend fun context(replyingTo: String? = null): CheckContext = failingAsCheckFailure { readContext(replyingTo) }
@@ -72,28 +74,21 @@ class Checker(
             val request = CheckRequest(text, language, used.punctuation, used.judgments, settled, used.native,
                 writingProfiles = used.writingProfiles)
             val provider = clients.getValue(used.provider)
-            // The answer is read with the shipped contract: Lab fields such as `landing` are never required.
-            val client = when {
-                replyingTo != null -> ReplyingClient(provider, replyPrompt(), checkPrompt, replyingTo, reader = prompt)
-                checkPrompt !== prompt -> ComposedPromptClient(provider, checkPrompt, reader = prompt)
-                else -> provider
-            }
+            val reply = replyingTo?.let { replyPrompt() }
+            val prepared = CheckComposition.prepare(prompt, gaps, tone, request, reply, replyingTo)
             val key = key(used.provider)
-            val first = checked(text, language, client.check(key, used.model, request), used)
+            val first = checked(text, language, prepared.read(provider.generate(key, used.model, prepared.generation)), used)
             val partial = first.result as? CheckResult.Reviewed
             if (partial == null || partial.withheld.isEmpty()) return@failingAsCheckFailure first
             val second = try {
-                checked(text, language, client.check(key, used.model, request.copy(repair = true)), used)
+                val repair = CheckComposition.prepare(prompt, gaps, tone, request.copy(repair = true), reply, replyingTo)
+                checked(text, language, repair.read(provider.generate(key, used.model, repair.generation)), used)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 return@failingAsCheckFailure first
             }
-            val revised = second.result as? CheckResult.Reviewed ?: return@failingAsCheckFailure first
-            // Never splice answers or rank their linguistic quality by edit count.
-            // Replace usable evidence only when the retry resolves known incompleteness.
-            if (revised.withheld.size < partial.withheld.size && partial.withheld.containsAll(revised.withheld)
-            ) second else first
+            selectRepairedCheck(first, second)
         }
     }
 

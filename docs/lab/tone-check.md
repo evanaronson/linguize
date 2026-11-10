@@ -64,8 +64,9 @@ writing is wrong, and without a second wait.
   (`lands_well`, `could_land_differently`, `could_land_badly`), `summary` (a few words in the
   writer's own language), `warmth`, `directness`, `formality` (1 to 5), `drivers` (up to four
   exact quotes) and `notes` (up to three).
-- **Reading it.** The answer is read with the shipped contract (`ComposedPromptClient` and
-  `ReplyingClient` take the shipped prompt as their `reader`), so `landing` is never required.
+- **Reading it.** `CheckComposition.prepare` binds the composed request to the base
+  fresh-answer reader in `PreparedCheck`. `Checker` sends the request through `generate`
+  and reads the raw answer with that base contract, so `landing` is never required.
   `ToneInCheck.landing` then reads it from the same raw answer, leniently: it is judged on the
   text after the answer's fixes (`corrected`, or the text when nothing needed fixing); a quote
   not in that text or an overlong note is dropped; scales are kept within 1 to 5; anything
@@ -93,8 +94,9 @@ promises, apologies or new content, and never make tone a fix.
 - Outside the chat it sees only the message, not the conversation or who it is for.
 - It reads the text after all the fixes. If the writer declines a fix, the reading may not
   match what they send exactly.
-- The rules are a Lab prompt with no eval cases yet, and they add to every check's prompt and
-  answer (a few hundred output tokens).
+- Offline contracts cover the composed request; dedicated live cases for tone quality
+  are still absent. The rules add to every check's prompt and answer (a few hundred
+  output tokens).
 
 ## Tests
 
@@ -102,6 +104,9 @@ promises, apologies or new content, and never make tone a fix.
   reading with and without `landing`, judged on the corrected text, untrusted details dropped.
 - `llm/lab/CheckCompositionTest`: the order of gaps, tone and reply; the user message; the
   hash in order; prompt growth.
+- `llm/lab/PreparedCheckContractTest` and `ComposedCheckContractTest`: fixed request
+  bytes and historical hashes, the base fresh reader despite the extended schema, and
+  repair preserving the original request settings.
 - `ToneInCheckCheckerTest`: the one composed request; answers with, without and with a bad
   `landing`; tone rewordings through the edit engine; reuse; a chat check with all three.
 - `ui/tonecheck/LandingDetailsTest`: the rendered card's line in Meaning, its details opening

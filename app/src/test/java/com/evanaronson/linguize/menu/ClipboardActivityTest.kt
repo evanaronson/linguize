@@ -46,7 +46,7 @@ import org.robolectric.util.ReflectionHelpers
 @LooperMode(LooperMode.Mode.PAUSED)
 class ClipboardActivityTest {
     private lateinit var app: App
-    private val checks = FakeClient { ModelAnswer(QUESTION_VERDICT, "{}") }
+    private val checks = FakeClient { ModelAnswer(QUESTION_VERDICT, com.evanaronson.linguize.QUESTION_JSON) }
     private var key: String? = "test-key"
     private val clipboard get() = app.getSystemService(ClipboardManager::class.java)
 

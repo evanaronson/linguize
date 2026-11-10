@@ -31,10 +31,14 @@ class ReplyCheckerTest {
     )
 
     @Test
-    fun withoutAMessageTheShippedCheckRunsAndNothingIsGenerated() = runBlocking<Unit> {
+    fun withoutAMessageTheShippedRequestIsGeneratedUnchanged() = runBlocking<Unit> {
         val checked = checker.check(QUESTION, null)
-        assertEquals(1, client.checks.size)
-        assertTrue(client.generations.isEmpty())
+        assertTrue(client.checks.isEmpty())
+        val sent = client.generations.single()
+        assertEquals(prompt.system, sent.system)
+        assertEquals(prompt.schema, sent.schema)
+        assertTrue(sent.user.startsWith("Language: auto\n"))
+        assertTrue(sent.user.endsWith("Text: <text>$QUESTION</text>"))
         assertEquals(prompt.hash, checked.context.promptHash)
         assertEquals(prompt.hash, checker.context().promptHash)
         assertEquals(prompt.hash, checker.context(null).promptHash)

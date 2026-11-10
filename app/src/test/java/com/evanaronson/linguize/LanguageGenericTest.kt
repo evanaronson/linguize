@@ -19,6 +19,7 @@ import com.evanaronson.linguize.data.Settings
 import com.evanaronson.linguize.data.language.LanguageChoice
 import com.evanaronson.linguize.llm.FakeHttp
 import com.evanaronson.linguize.llm.GeminiClient
+import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.chat.ChatPrompt
@@ -101,11 +102,12 @@ class LanguageGenericTest {
         assertEquals("fr", request.language?.code)
         assertTrue(formal in request.writingProfiles)
         assertEquals(listOf("ca", "es", "fr"), request.writingProfiles.map { it.language })
-        val message = prompt.userMessage(request)
+        val message = request.generation.user
         assertTrue(message.startsWith("Language: French\n"))
         assertTrue(message.contains("\"language\":\"fr\""))
         // Without profiles, a language with no standard variety of its own is sent by name alone.
-        assertTrue(prompt.userMessage(request.copy(writingProfiles = emptyList())).startsWith("Language: French\n"))
+        assertTrue(prompt.userMessage(CheckRequest("Je suis content.", french, settings.punctuation, settings.judgments))
+            .startsWith("Language: French\n"))
     }
 
     @Test fun theSelectorListsTheWritersLanguagesIncludingFrench() = runBlocking {

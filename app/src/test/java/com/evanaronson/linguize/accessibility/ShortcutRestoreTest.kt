@@ -57,7 +57,9 @@ class ShortcutRestoreTest {
     private lateinit var app: App
     private lateinit var field: AccessibilityNodeInfo
     private lateinit var focus: FocusShadow
-    private val checks = FakeClient { ModelAnswer(Verdict(Verdict.Status.Ok, language = "English"), "{}") }
+    private val checks = FakeClient {
+        ModelAnswer(Verdict(Verdict.Status.Ok, language = "English"), """{"status":"ok","language":"English"}""")
+    }
     private val readings = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
 
     @Before fun setUp() {

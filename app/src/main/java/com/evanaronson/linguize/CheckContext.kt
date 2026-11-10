@@ -4,7 +4,6 @@ import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.history.SessionSettings
-import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 
 /**
@@ -19,7 +18,7 @@ data class CheckContext(
     val judgments: Judgments,
     /** The writer's own language, which the meaning and reasons are written in. */
     val native: String,
-    /** [Prompt.hash] of the instructions and schema sent. */
+    /** History-compatible identity of the base prompt, rule additions and optional reply context. */
     val promptHash: String,
     /** Complete request-time profiles; later edits to settings never change this snapshot. */
     val writingProfiles: List<WritingProfile> = emptyList(),

@@ -10,7 +10,7 @@ owners without adding a module or framework for each responsibility.
 | Location | Owns |
 |---|---|
 | [app/src/main/java/com/evanaronson/linguize/](../app/src/main/java/com/evanaronson/linguize/) | Production Kotlin, described below |
-| [app/src/main/assets/](../app/src/main/assets/) | Shipped model prompts, answer schemas, and linguistic data; the eval reads the base check contract |
+| [app/src/main/assets/](../app/src/main/assets/) | Shipped model prompts, answer schemas, and linguistic data; Kotlin prepares app and eval requests from the same assets |
 | [app/src/main/res/](../app/src/main/res/) | Android strings, themes, icons, and platform configuration |
 | [app/src/test/](../app/src/test/) | JVM and Robolectric regressions, generally mirroring production packages |
 | [eval/](../eval/README.md) | Curated linguistic cases and checks against live models |
@@ -36,7 +36,7 @@ composition root.
 |---|---|---|
 | `codec` | Stable enum tokens and serialization | None |
 | `core` | Check/edit rules, corpus and language analysis, chat send state, memory facts, and practice scheduling | `codec` |
-| `llm` | Prompt formatting/parsing, provider APIs, transport, and check failures | `core`, `codec` |
+| `llm` | Prepared check requests, prompt formatting/parsing, provider APIs, transport, and check failures | `core`, `codec` |
 | `history` | Recorded evidence, recording rules, storage, answer reuse, and replay | `core`, `codec` |
 | `data` | Preferences, credentials, feature stores, imported decks, selection-menu configuration, and exports | `llm`, `core`, `codec`, resources |
 | root | `App` composes services; `Checker`, `ChatPartner`, `ChatTargets`, `PatternsLab`, `Teacher`, and `LabUserMemory` coordinate feature operations | All of the above, resources |
@@ -150,18 +150,39 @@ IDs or translation fallback. Follow [localization](localization.md) and
 ## Model requests
 
 `App` supplies the base check prompt plus gap and tone rules to `Checker`.
-`CheckComposition` builds the effective prompt/schema; chat checks also add reply
-rules and the partner's last message. `ComposedPromptClient` and `ReplyingClient`
-adapt these requests to the shared providers' `generate` API. They remain active
-production paths. Answers are read with the base check contract, with optional
-tone data interpreted separately. `CheckContext` captures settings and prompt
-identity for recording and reuse.
+`CheckComposition.prepare` produces a `PreparedCheck`: the complete logical
+`GenerationRequest`, the existing compatibility hash, and the base fresh-answer
+reader. Instructions remain ordered base, gaps, tone, then reply; chat adds the
+partner's last message as one JSON line before the ordinary user message.
+`Checker` sends every check through the provider's `generate` API and passes its
+raw answer to `PreparedCheck.read`. Optional tone data is interpreted separately,
+so a missing or malformed `landing` does not invalidate a usable check.
+
+`CheckContext` captures settings and the compatibility hash for recording and
+reuse. That hash retains its historical construction: base hash, optional reply
+suffix, then gap and tone suffixes. It is not a new digest of the composed request.
+Fresh answers keep the base contract's required fields and score validation;
+`Checker.reuse` retains the lenient parser for saved older answers. A usable but
+incomplete answer may receive one repair request with the same captured options.
+`selectRepairedCheck`, also used by the explicit historical replay harness,
+chooses the whole repaired answer only when its withheld judgments are a strict
+subset of the first answer's. It never splices answers or ranks them by edit count.
+Model testing still uses the provider's plain base-check helper.
 
 Chat replies, memory extraction, lessons, and pattern explanations use their own
-contracts through the same provider clients. The command-line model eval still
-reads the base check assets; it does not reproduce the app's full composition.
-The [Bonanza contract tests](bonanza-contracts.md) cover the effective app request,
-repair, and parsing without making live provider calls.
+contracts through the same provider clients. The command-line model eval obtains
+initial and repair requests from the actual Kotlin preparation code. Its default
+`app` mode includes gaps and tone, plus reply context when supplied; explicit
+`base` mode keeps archived base-only evidence identifiable. Case inputs supply
+the settings: omitted `writing_profiles` means an empty list, not a fresh
+installation's profiles. Dataset, effective contract and request digests are
+separate metadata and do not replace History's compatibility hash.
+
+This shares logical `GenerationRequest` fields and their identities. Python still
+owns its HTTP adapters, retry state and response handling; it does not run the
+app's parser or edit engine. The [eval guide](../eval/README.md) describes exporting
+and pinning requests. The [Bonanza contract tests](bonanza-contracts.md) cover
+request bytes, provider envelopes, repair and parsing without live provider calls.
 
 ## Evidence and derived learning
 

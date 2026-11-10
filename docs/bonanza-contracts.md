@@ -5,8 +5,8 @@ These tests establish a baseline before cleaning up `feature/bonanza`, starting 
 make confirmed failures reproducible. Step 3 repairs persistence acknowledgements
 and memory command invalidation; step 4 gives asynchronous work explicit ownership;
 step 5 reconstructs scoped routes and Practice runs; step 6 shares bounded History
-evidence and makes read failure explicit. Their repaired contracts now run in the
-normal suite.
+evidence and makes read failure explicit; step 7 shares actual check preparation
+with evaluation. Their repaired contracts now run in the normal suite.
 
 The Notes fixtures follow the later Notes navigation change (`16c25a7`, merged in
 `ef5150e`): loading the list does not open an editor; a note is opened explicitly.
@@ -236,9 +236,79 @@ remain covered. All other baseline methods remain in the suite. Release lint and
 assembly pass with the existing 66 lint warnings and one hint. The architecture
 guard passes for 265 production Kotlin files, alongside all 125 Python tests.
 
+## Check preparation and eval parity (step 7)
+
+`CheckComposition.prepare` now produces a `PreparedCheck`: the exact generation
+request, the existing History compatibility hash, and the base fresh-answer reader.
+Checker sends its generation through the provider's existing raw transport and
+reads the returned bytes through that prepared reader. This replaces
+`ComposedPromptClient`, `ReplyingClient` and the network operation in `ReplyPrompt`;
+the providers' base diagnostic checks and HTTP implementations remain unchanged.
+
+The preservation boundary is exact. Instructions still compose base → gaps →
+tone → reply, while the historical hash still composes base → reply → gaps → tone.
+The base hash retains raw schema-asset bytes and addendum hashes retain their
+existing whitespace rules. The outbound schema requests nullable `landing`, but
+fresh parsing still uses the base schema, so missing or malformed optional tone
+data remains harmless. Legacy History parsing remains lenient. A repair captures
+the same key, model, options, profiles and reply, changes only `Repair: true`, and
+replaces the first answer only when it resolves a strict subset of the withheld
+reasons. Supplied contexts and the base-only model probe remain unchanged.
+
+The eval runner obtains initial and repair requests from the compiled Kotlin
+implementation through the offline `prepareCheckEval` task. It no longer rebuilds
+the production prompt or user message in Python. Its versioned artifacts bind
+exact dataset bytes and case order to the prepared generation, parser policy,
+compatibility hash, contract fingerprint and per-request fingerprint. Durable
+result files retain that contract alongside actual provider/model and answer or
+error. A pinned artifact deliberately selects its recorded contract; re-exporting
+selects current assets and preparation code.
+
+New live fuzz work defaults to app preparation. Explicit base mode preserves the
+old base-only protocol and archived evidence; resume, semantic repair and review
+matching cannot silently relabel it as an app capture. Fresh replay uses the
+production Checker and raw parser. Explicit legacy replay uses History's lenient
+reader and the same extracted repair-selection rule, retaining original archived
+answers. Its report identifies that route rather than claiming fresh validation.
+
+Twenty-four independent request fixtures were derived from the captured step 6
+baseline, including all eight gap/tone/reply combinations and their repair forms,
+Unicode/control characters, profiles and generic languages. They pin user bytes,
+system/schema hashes, compatible identities, parser policy and token limits.
+Intercepted real provider clients also check full HTTP-body hashes and option
+fallback. The original `ComposedCheckContractTest` golden constants are unchanged.
+Exporter tests compare actual Checker requests with exported initial/repair data,
+including canonical settings capture and UTF-16 input bounds. Test fakes now
+return raw answers faithfully; inconsistent synthetic fixtures were corrected
+without weakening production parsing or the behavioral assertions.
+
+The actual exporter also exposed six curated eval profiles using an empty string
+for no regional variety, which the app's `WritingProfile` cannot represent. Those
+values now use `null`; their case text, expected judgments and all other fields
+are unchanged. The curated dataset is prepared in a normal regression test so
+future eval fixtures cannot drift outside the app's input types unnoticed.
+
+This establishes prepared-request parity. Python's HTTP adapters, diagnostic
+retry/timeouts and answer scoring remain separate, and its summary does not run
+Android's verdict parser or edit engine. No live provider quality or handset
+performance claim follows from these offline checks. Omitted eval profiles remain
+empty; device/default profile choices must be supplied explicitly.
+
+The normal suite passes 2,007 tests with zero failures or skips, including 19 new
+regressions and the optional corpus/fuzz fixtures. No baseline test is removed;
+one transport-oriented method is renamed to assert the actual generated request.
+All 200 archived replay reports match step 6 exactly apart from the new explicit
+`legacy_reuse` path label. Release lint and assembly pass, with the existing
+66 warnings and one hint. All 103 eval-tooling tests and 41 script tests pass.
+The 80 curated cases export through Kotlin and validate through Python; pinned
+artifact output is byte-identical to the Kotlin JSONL. Actual Python → Gradle →
+Kotlin → Python checks also pass in app and base modes for Unicode/control text,
+exact reply context, canonical profiles, repair flags and CRLF dataset bytes.
+The five isolated linguistic defects remain the same expected assertion failures.
+
 ## Known defects still executable
 
-After step 6, the opt-in suite contains these five failing methods. A setup
+After step 7, the opt-in suite contains these five failing methods. A setup
 exception, timeout, or unrelated assertion failure is not a successful reproduction;
 check the failure against the intended invariant below.
 

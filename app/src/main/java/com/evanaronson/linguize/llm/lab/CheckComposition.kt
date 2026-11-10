@@ -1,6 +1,9 @@
 package com.evanaronson.linguize.llm.lab
 
+import com.evanaronson.linguize.llm.CheckRequest
+import com.evanaronson.linguize.llm.PreparedCheck
 import com.evanaronson.linguize.llm.Prompt
+import com.evanaronson.linguize.llm.generation
 
 /**
  * Lab: one check, one request. The Lab rules are composed onto the shipped prompt in one fixed
@@ -10,6 +13,32 @@ import com.evanaronson.linguize.llm.Prompt
  * are never changed.
  */
 object CheckComposition {
+    /** Request, compatible History identity and reader prepared from the same rule sets. */
+    fun prepare(
+        base: Prompt,
+        gaps: GapsInCheck?,
+        tone: ToneInCheck?,
+        request: CheckRequest,
+        reply: ReplyPrompt? = null,
+        replyingTo: String? = null,
+    ): PreparedCheck {
+        val composed = prompt(base, gaps, tone)
+        val replyHash: String?
+        val generation = if (replyingTo != null) {
+            val replyRules = requireNotNull(reply) { "A reply check needs reply rules" }
+            replyHash = replyRules.hash(base, replyingTo)
+            replyRules.generation(composed, request, replyingTo)
+        } else {
+            replyHash = null
+            composed.generation(request)
+        }
+        return PreparedCheck(
+            generation = generation,
+            compatibilityHash = hash(base, gaps, tone, replyHash),
+            baseReader = base,
+        )
+    }
+
     /** The instructions and schema a check sends; [base] itself when there are no Lab rules. */
     fun prompt(base: Prompt, gaps: GapsInCheck?, tone: ToneInCheck?): Prompt {
         var composed = base

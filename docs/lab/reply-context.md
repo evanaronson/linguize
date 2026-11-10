@@ -60,9 +60,11 @@ stores only that hash, never the message. No History schema change.
   and one `Replying to: {"message": …}` JSON line in front of the shipped user message, which
   follows byte for byte. JSON keeps a line break or tag in the message from forging a setting
   or the text, and the writer's text stays last as the shipped prompt requires.
-- The answer uses the composed schema and is read by the shipped parser, so the card, History
-  and replay treat it as any other check. `llm/lab/ReplyingClient` wraps the provider for that
-  one check, so the repair retry keeps the context too.
+- `CheckComposition.prepare` returns the complete request, its compatibility hash and the
+  base fresh-answer reader in `PreparedCheck`. `Checker` sends it through the provider's
+  `generate` API; the repair request retains the same message and captured settings.
+  Fresh answers use the base parser, while History reuse keeps the existing lenient
+  parser for older answers.
 - `Checker.check(…, replyingTo)` and `Checker.context(replyingTo)` take the message; with
   `null` (every host but the chat) nothing changes. `CheckViewModel` keeps it privately for the
   card's re-checks (retry, clarifications) and drops it with the next fresh check.
@@ -71,15 +73,18 @@ stores only that hash, never the message. No History schema change.
 
 - One message, up to 3,000 characters. Not the thread.
 - The partner is the app's own chat partner; real conversations in other apps get no context.
-- The rules are a Lab prompt with no eval cases yet. Judgments about answers and register
-  are suggestions to weigh, like any rewording.
+- Offline contracts cover the composed request; dedicated live cases for reply quality
+  are still absent. Judgments about answers and register are suggestions to weigh, like
+  any rewording.
 
 ## Tests
 
 - `llm/lab/ReplyPromptTest`: composition with and without a message, that the shipped
   request is unchanged, forged lines, schema and hash.
-- `ReplyCheckerTest`: the default path calls the shipped check; with a message the
-  composed request is sent, parsed with the shipped schema, kept on repair retries.
+- `ReplyCheckerTest`: the default path sends the unchanged base request; with a message
+  the composed request is sent, parsed with the base contract and kept on repair retries.
+- `llm/lab/PreparedCheckContractTest` and `ComposedCheckContractTest`: fixed request
+  bytes and compatibility hashes, including forged reply lines, repair and parser policy.
 - `ui/card/ReplyContextCheckTest`: a check with and without a message, re-checks keep it,
   History keeps the writer's text but not the message, and the manual UI is gone.
 - `ui/chat/ChatReplyContextTest`: the partner's last message is chosen, Send passes it, and

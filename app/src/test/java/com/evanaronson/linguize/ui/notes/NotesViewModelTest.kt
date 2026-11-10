@@ -12,7 +12,6 @@ import androidx.test.core.app.ApplicationProvider
 import com.evanaronson.linguize.FakeClient
 import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.QUESTION
-import com.evanaronson.linguize.QUESTION_JSON
 import com.evanaronson.linguize.QUESTION_VERDICT
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.VerdictChange
@@ -24,6 +23,8 @@ import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.SqliteHistoryStore
 import com.evanaronson.linguize.llm.ModelAnswer
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.copyToClipboard
@@ -282,7 +283,8 @@ class NotesViewModelTest {
     @Test fun theCardsAcceptedChangesGoIntoTheDraftAndOutThroughCopyAndShare() {
         val context = ApplicationProvider.getApplicationContext<Application>()
         val client = FakeClient {
-            ModelAnswer(QUESTION_VERDICT.copy(fixes = listOf(VerdictChange("estas", "estàs", "Accent", 10, 3))), QUESTION_JSON)
+            val verdict = QUESTION_VERDICT.copy(fixes = listOf(VerdictChange("estas", "estàs", "Accent", 10, 3)))
+            ModelAnswer(verdict, Json.encodeToString(verdict))
         }
         val history = CheckHistory(object : HistoryStore by SqliteHistoryStore(context, "unused") {}, object : HistoryEnvironment {
             override val enabled = false

@@ -85,8 +85,9 @@ class ReplyContextCheckTest {
     fun withoutAMessageTheShippedCheckRuns() {
         check.check(QUESTION, null, Origin.Tester)
         done()
-        assertEquals(1, client.checks.size)
-        assertTrue(client.generations.isEmpty())
+        assertTrue(client.checks.isEmpty())
+        assertEquals(prompt.system, client.generations.single().system)
+        assertFalse(client.generations.single().user.startsWith(ReplyPrompt.LINE_PREFIX))
     }
 
     @Test
@@ -109,16 +110,16 @@ class ReplyContextCheckTest {
         assertEquals(accepted, (done().result as CheckResult.Reviewed).revision.acceptedCount)
 
         check.check(QUESTION, null, Origin.Menu)
-        waitFor("the shipped check") { client.checks.size == 1 && check.state is CardState.Done }
-        assertEquals(2, client.generations.size)
+        waitFor("the shipped check") { client.generations.size == 3 && check.state is CardState.Done }
+        assertFalse(client.generations.last().user.startsWith(ReplyPrompt.LINE_PREFIX))
     }
 
     @Test
     fun aBlankMessageIsNoContext() {
         check.check(QUESTION, null, Origin.Chat, replyingTo = "   ")
         done()
-        assertEquals(1, client.checks.size)
-        assertTrue(client.generations.isEmpty())
+        assertTrue(client.checks.isEmpty())
+        assertFalse(client.generations.single().user.startsWith(ReplyPrompt.LINE_PREFIX))
     }
 
     @Test

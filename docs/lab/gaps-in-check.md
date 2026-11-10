@@ -27,11 +27,13 @@ when grammar needs the word next to it, that word is part of the same change
   and, in the chat, the [reply](reply-context.md) rules (`llm/lab/CheckComposition` fixes the
   order). The shipped prompt and schema are unchanged, and so is the user message: the answer
   is read by the shipped parser and placed by the edit engine.
-- `Checker` sends the composed prompt on every check (`ComposedPromptClient`, or
-  `ReplyingClient` on top of it in the chat). The context's `promptHash` is
+- `CheckComposition.prepare` keeps the composed request, its compatibility hash and
+  the base fresh-answer reader together in `PreparedCheck`. `Checker` sends the request
+  through the provider's `generate` API and reads the raw answer with that base reader.
+  The context's `promptHash` is
   `<shipped hash>-g<hash of the rules>` (after any reply suffix, before the tone suffix), so History never reuses an
-  answer from a check without them. Without the rules (tests, `testModel`) the shipped
-  request goes out exactly as before.
+  answer from a check without them. Preparing without the rules retains the shipped
+  request bytes; `testModel` still uses the provider's plain base-check helper.
 - In a check asked only for rewordings, fixes aren't shown, so the rules ask for fills as
   rewordings there.
 
@@ -62,4 +64,13 @@ A filled gap is not evidence you knew the word.
 - Unbracketed gaps depend on the model noticing them. Brackets are the reliable signal.
 - Unaccepted, unbracketed native words count in Words as the writer's own, and only English
   ones are recognised inside corrected spans.
-- The rules are a Lab prompt with no eval cases yet.
+- The composed request is covered by offline contracts; dedicated live cases for gap
+  quality are still absent.
+
+## Tests
+
+- `GapsInCheckCheckerTest`: composed request bytes, fills through Accept and Undo,
+  rewordings-only checks, reply context and the base request without gap rules.
+- `llm/lab/PreparedCheckContractTest` and `ComposedCheckContractTest`: fixed request
+  and compatibility-hash fixtures, repair preservation and the base fresh parser.
+  The [eval runner](../../eval/README.md) exports the same Kotlin preparation code.

@@ -34,7 +34,8 @@ point forces the check, because there is no selection menu to choose it from.
   check fails (no key, no connection) or can't read the message (unclear, another
   language), the card shows why, with Retry or clarifying; there is no way to send without
   a check.
-- **Sent messages** marked "Corrected, 2 changes" open to show what you wrote, with the
+- **Sent messages** marked "Corrected, 2 changes" (or "Reworded, 2 changes" when every
+  accepted change was a rewording, not a fix) open to show what you wrote, with the
   changed parts underlined and each change in words with its reason.
 - **Translations.** Every reply comes with its translation into your own language, in the
   same answer. Tap a reply to flip it to the translation (tinted, with a short crossfade);
@@ -54,13 +55,14 @@ point forces the check, because there is no selection menu to choose it from.
   History) makes that the current language, unless the app is on Linguize, which already
   covers it.
 - **Conversations.** The Chat tab's top level is the list: each conversation with its
-  title, who the partner plays, the last message and its time, newest first. Tap one to
+  title, who the partner plays, the last message ("You: …" when it was yours) and its time,
+  newest first. Without a key, the list says so first, with Open settings. Tap one to
   open it; its bar has Back to the list. Rename or delete from a row's menu. Delete asks
   first: it deletes the conversation, its saved checks in History and what memory learned
   from it, for good.
 - **New conversation**, the button at the bottom of the list, opens a small sheet:
   optionally, who you are talking to (a person memory knows, offered as suggestions, or
-  anyone you describe: "my kid's teacher"). There is no language choice in the sheet: the
+  anyone you describe: "my kid's teacher"; memory's people are under "People you write to"). There is no language choice in the sheet: the
   conversation starts in the app's language, or, under Linguize, in the chat's start
   language (the one you last used in the chat; failing that, the only language your
   selection menu names; then the language you check most in History; then Spanish). A
@@ -132,6 +134,8 @@ point forces the check, because there is no selection menu to choose it from.
   latest conversation in that language), `open(id)` and `newConversation`, which returns
   the new id so the list can open it. There is no drawer, and no way to change a
   conversation's language (`setLanguage` was removed).
+
+See [Chat tab: information hierarchy](ia-chat.md) for why the tab is laid out as it is.
 
 ## Limits
 

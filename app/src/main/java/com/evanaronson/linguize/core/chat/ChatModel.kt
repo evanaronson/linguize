@@ -132,6 +132,8 @@ data class ConversationSummary(
     /** The latest message's text, or null when there is none. */
     val lastText: String?,
     val writerMessages: Int,
+    /** Whether the latest message is the writer's (shown "You: …"), so the list says whose turn it is. */
+    val lastFromWriter: Boolean = false,
 )
 
 /** A title from the first thing the writer said: its first line, cut at a word near [maxChars]. */

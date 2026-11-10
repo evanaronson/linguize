@@ -39,7 +39,7 @@ import com.evanaronson.linguize.ui.card.CheckViewModel
  * Settings) and bottom bar sit around it.
  */
 @Composable
-fun ChatListScreen(language: String?, onOpen: (String) -> Unit) {
+fun ChatListScreen(language: String?, onOpenSettings: () -> Unit = {}, onOpen: (String) -> Unit) {
     val app = LocalContext.current.applicationContext as? App ?: return
     val chat: ChatViewModel = viewModel(factory = ChatViewModel.factory(app))
     val options by com.evanaronson.linguize.ui.language.AppLanguage.of(app).options.collectAsState()
@@ -54,6 +54,8 @@ fun ChatListScreen(language: String?, onOpen: (String) -> Unit) {
         onOpen = onOpen,
         onRename = chat::rename,
         onDelete = chat::delete,
+        needsKey = chat.needsKey,
+        onOpenSettings = onOpenSettings,
     )
 }
 

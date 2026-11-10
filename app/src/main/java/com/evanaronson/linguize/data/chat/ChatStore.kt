@@ -32,13 +32,15 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         db.rawQuery(
             """SELECT c.*,
                  (SELECT m.text FROM messages m WHERE m.conversation = c.id ORDER BY m.at DESC, m.seq DESC LIMIT 1) AS last_text,
+                 (SELECT m.from_writer FROM messages m WHERE m.conversation = c.id ORDER BY m.at DESC, m.seq DESC LIMIT 1) AS last_from_writer,
                  (SELECT COUNT(*) FROM messages m WHERE m.conversation = c.id AND m.from_writer = 1) AS writer_messages
                FROM conversations c ORDER BY c.updated_at DESC, c.created_at DESC""",
             null,
         ).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) {
-                    add(ConversationSummary(cursor.conversation(), cursor.stringOrNull("last_text"), cursor.int("writer_messages")))
+                    add(ConversationSummary(cursor.conversation(), cursor.stringOrNull("last_text"), cursor.int("writer_messages"),
+                        cursor.int("last_from_writer") == 1))
                 }
             }
         }

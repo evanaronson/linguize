@@ -260,11 +260,11 @@ class WordIndexTest {
         val ca = build(utterance("a", "la casa", day("2026-11-01")), utterance("b", "hola", day("2026-11-02")), lemmatizer = lexicon)
             .language("ca")!!
         val lines = WordViews.csv(ca, zone = utc).trimEnd().split("\r\n")
-        assertEquals("word,lemma,lexeme_pos,deck_rank,count,tried,first,last", lines[0])
-        assertTrue("la,el,art,,1,0,2026-11-01,2026-11-01" in lines)
-        assertTrue("la,ella,pron,,1,0,2026-11-01,2026-11-01" in lines)
-        assertTrue("casa,casa,n,,1,0,2026-11-01,2026-11-01" in lines)
-        assertTrue("hola,hola,,,1,0,2026-11-02,2026-11-02" in lines)
+        assertEquals("word,lemma,lexeme_pos,deck_rank,right,wrong,accuracy,first,last", lines[0])
+        assertTrue("la,el,art,,1,0,100,2026-11-01,2026-11-01" in lines)
+        assertTrue("la,ella,pron,,1,0,100,2026-11-01,2026-11-01" in lines)
+        assertTrue("casa,casa,n,,1,0,100,2026-11-01,2026-11-01" in lines)
+        assertTrue("hola,hola,,,1,0,100,2026-11-02,2026-11-02" in lines)
         assertEquals(5, lines.size)
     }
 
@@ -356,9 +356,9 @@ class WordIndexTest {
         )
         val csv = WordViews.csv(index.language("ca")!!, zone = utc)
         val lines = csv.trimEnd().split("\r\n")
-        assertEquals("word,lemma,lexeme_pos,deck_rank,count,tried,first,last", lines[0])
-        assertEquals("bon,bon,,,2,0,2026-10-01,2026-11-02", lines[1])
-        assertTrue("vespre,vespre,,,0,1,2026-11-02,2026-11-02" in lines)
+        assertEquals("word,lemma,lexeme_pos,deck_rank,right,wrong,accuracy,first,last", lines[0])
+        assertEquals("bon,bon,,,2,0,100,2026-10-01,2026-11-02", lines[1])
+        assertTrue("vespre,vespre,,,0,1,0,2026-11-02,2026-11-02" in lines)
         assertEquals(4, lines.size)
     }
 }

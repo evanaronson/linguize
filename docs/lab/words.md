@@ -4,8 +4,8 @@ Words is one page per language that holds both halves of the writer's vocabulary
 word of a frequency list, and every word the writer has typed. The words they know are a
 subset of all the words, so it's one list. The page shows how much of the common words they
 already use, how that grew, which common words they haven't used yet, and, for any word
-they used, how often they used it right, how often a fix replaced it, and the sentences
-they used it in.
+they used, how often they used it right, how often they used it wrong (a fix replaced it),
+the share right, and the sentences they used it in.
 
 It replaces two earlier pages, Your words and Vocabulary gaps. The deck and import details
 are in [Frequency decks](vocab-gaps.md).
@@ -48,24 +48,43 @@ of Progress; under Linguize each language in use has its own Words row
   With `Lemmatizer.Identity` (every word unknown) only word forms show.
 - **The list.** One list over the deck and the writer's own words. Filters: **All**,
   **Used** (used right at least once), **Not yet** (deck words not yet used right) and
-  **Tried** (replaced by a fix, never yet right), each with its count. Each row shows the
+  **Used wrong** (a fix replaced it at least once), each with its count. Each row shows the
   deck rank, the word with its part of speech (short labels: noun, verb, adj…) and gloss
-  when the deck has one, and "Used 4 times, Last Nov 3", "Tried once" or "Not yet". Words of
-  the writer's that the deck doesn't have appear under All and Used with "not in list".
-  Search (accent-insensitive) and four orders: Rank (the default with a deck; words not in
-  the list come last), Most used, Newest and A–Z (Catalan or Spanish collation).
+  when the deck has one, and its use: "12 right, 3 wrong" over "80% right, last Nov 3", or
+  "Not yet". Words of the writer's that the deck doesn't have appear under All and Used with
+  "not in list". Search (accent-insensitive) and five orders: Rank (the default with a deck;
+  words not in the list come last), Most used, **Most misused**, Newest and A–Z (Catalan or
+  Spanish collation).
 - **Words to try next** tops the Not yet filter: the highest-ranked unused verbs, nouns,
   adjectives, adverbs and other words. **Copy 5 words** puts a varied handful on the
   clipboard ("Words I want to use: …").
-- **A word's page** (any word with a use): deck rank, part of speech and gloss; used right,
-  tried, messages, first and last used; for a form, the lexemes it could be; for a lexeme,
+- **A word's page** (any word with a use): deck rank, part of speech and gloss; Used right,
+  Used wrong, Right (the share right, "80%"), messages, first and last used; for a form, the lexemes it could be; for a lexeme,
   its forms and which are ambiguous; for a lemma, its lexemes and forms; for a deck row,
   the forms that reached it. Then the newest 30 sentences it appears in, the word underlined
   (struck through in the proof colour where a fix replaced it). A sentence from a saved
   check opens that check.
 - **Under the list.** Names left out; **Export CSV** (`word,lemma,lexeme_pos,deck_rank,
-  count,tried,first,last` through the share sheet); **Your decks** (import, delete); **How
+  right,wrong,accuracy,first,last` through the share sheet); **Your decks** (import, delete); **How
   it's counted**; **About these lists** (the CC BY-SA attribution).
+
+**Right, wrong and the share right.** Every use of a word is either right (outside every
+corrected span) or wrong (inside one: a fix the writer accepted replaced it), never both.
+So right and wrong add up to the uses, and either can be the larger: a word used 15 times
+and fixed 3 times is "12 right, 3 wrong", 80% right. The share is
+`WordAccuracy.percent(right, wrong)`: right over all uses, rounded, never 100% while any use
+was wrong and never 0% while any was right; with no uses there is no percent (a deck row
+not reached shows "Not yet"). The page used to say "Used right 12" and "Tried 3", which read
+as 12 right out of 3 attempts; "Tried" was always the wrong uses. In code the wrong count is
+still `WordCounts.tried` (and `WordUse.tried`), with `wrong` and `accuracy` beside it, so the
+APIs other features read are unchanged.
+
+**Most misused** orders by the number of wrong uses, most first, then by the lower share
+right, then by the most recent use. The count comes first on purpose: a word fixed 5 times
+out of 20 is a bigger habit than one fixed once out of once, even at 75% against 0%. Words
+never used wrong follow, most recently used first. **Used wrong** shows the same words: any
+with at least one wrong use (it used to show only words never yet right; its token is still
+`tried`).
 
 **The ambiguity rule.** A form that could be more than one lexeme counts toward every
 candidate lexeme, with its full counts, and is marked ambiguous ("ambiguous: la" on the
@@ -85,6 +104,7 @@ the form's counts.
 | A deck against the index | `core/words/DeckCoverage.kt` | core (pure Kotlin) |
 | The one list: rows, filters, sorts, chart | `core/words/WordList.kt` | core (pure Kotlin) |
 | Contexts, CSV | `core/words/WordViews.kt` | core (pure Kotlin) |
+| The share right | `core/words/WordAccuracy.kt` | core (pure Kotlin) |
 | Decks, parsing, matching rules, suggestions | `core/vocab/` ([Frequency decks](vocab-gaps.md)) | core |
 | The `check` corpus source | `history/corpus/CheckCorpusSource.kt` | history |
 | Bundled and imported decks, selection | `data/vocabgaps/VocabGapsStore.kt`, `DeckLibrary.kt` (root) | data, root |
@@ -103,8 +123,11 @@ kept under the index fingerprint, deck and level. Reports are no longer saved to
 text, exactly as typed, never the text that was put back. `Utterance.corrected` holds the
 spans of fixes the writer accepted, plus fixes a rewording they accepted took over
 (`retired`). Accepted rewordings are not marked: the original was right, only less
-natural. Undone, ignored and copied fixes are not marked either. Words in a corrected span
-count as **tried**, never as used. Coverage counts a deck row as used only when some use
+natural. Undone, ignored and copied fixes are not marked either. Only the words a fix changed are
+marked: a word-level comparison of the fix's source and its replacement leaves out the words
+it kept as written, so "plou" to "plou," (a comma) or "vaig platja" to "vaig a la platja" (a
+missing word) marks nothing, "el home" to "l'home" marks "el", and a change of accent or case
+marks the word. Words in a marked span count as **used wrong**, never as used right. Coverage counts a deck row as used only when some use
 was outside a corrected span.
 
 **What is left out.**
@@ -128,7 +151,8 @@ character spans.
 **The one list** (`WordList.rows`). At the lexeme and lemma levels: every deck row with the
 writer's use (or none), then the writer's entries none of whose forms reached the deck
 ("not in list"). At the form level: every form the writer typed, ranked by the best deck row
-it reached, then the deck rows no form reached. Without a deck: just the writer's entries.
+it reached, then the deck rows no form reached: unused ones, and phrases ("a menudo") found
+only in the texts, which used to drop out of this level. Without a deck: just the writer's entries.
 
 **Storage.** Nothing is copied from the corpus.
 `filesDir/lab_vocab_gaps/` keeps imported decks and the last language and deck. The CSV is

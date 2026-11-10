@@ -110,8 +110,9 @@ class WordListTest {
         assertEquals(1, la.rank)
         assertFalse(la.notInList)
         assertTrue(rows.single { it.key == "w:bonita" }.notInList)
-        // Deck rows no form reached at all appear as not yet; reached ones are the forms themselves.
-        assertEquals(listOf("d:tener/v"), rows.filter { it.deckEntry != null }.map { it.key })
+        // Deck rows no form reached appear on their own: not yet (tener), or a phrase found in the
+        // texts (a menudo, used). Rows a form reached are the forms themselves.
+        assertEquals(listOf("d:tener/v", "d:a menudo/adv"), rows.filter { it.deckEntry != null }.map { it.key })
         assertTrue(rows.none { it.key == "d:casa/n" })
     }
 
@@ -156,9 +157,9 @@ class WordListTest {
     @Test
     fun csvCarriesTheDeckRank() {
         val lines = WordViews.csv(words(), coverage(), utc).trimEnd().split("\r\n")
-        assertEquals("word,lemma,lexeme_pos,deck_rank,count,tried,first,last", lines[0])
-        assertTrue(lines.toString(), "casa,casa,n,4,2,0,2026-10-01,2026-10-20" in lines)
-        assertTrue(lines.toString(), "la,ella,pron,5,1,0,2026-10-01,2026-10-01" in lines)
-        assertTrue(lines.toString(), "bonita,bonita,,,1,0,2026-10-01,2026-10-01" in lines)
+        assertEquals("word,lemma,lexeme_pos,deck_rank,right,wrong,accuracy,first,last", lines[0])
+        assertTrue(lines.toString(), "casa,casa,n,4,2,0,100,2026-10-01,2026-10-20" in lines)
+        assertTrue(lines.toString(), "la,ella,pron,5,1,0,100,2026-10-01,2026-10-01" in lines)
+        assertTrue(lines.toString(), "bonita,bonita,,,1,0,100,2026-10-01,2026-10-01" in lines)
     }
 }

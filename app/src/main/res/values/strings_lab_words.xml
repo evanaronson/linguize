@@ -32,9 +32,10 @@
     <string name="lab_words_sort_newest">Newest</string>
     <string name="lab_words_sort_az">A–Z</string>
     <string name="lab_words_sort_rank">Rank</string>
+    <string name="lab_words_sort_most_misused">Most misused</string>
     <string name="lab_words_sort">Sort</string>
     <string name="lab_words_filter">Show</string>
-    <string name="lab_words_filter_tried">Tried</string>
+    <string name="lab_words_filter_tried">Used wrong</string>
     <string name="lab_words_not_in_list">not in list</string>
     <string name="lab_words_detail_rank">Rank in %1$s</string>
     <string name="lab_words_detail_not_used">You haven\'t used this word yet.</string>
@@ -42,11 +43,10 @@
     <string name="lab_words_by_lexeme">Lexemes</string>
     <string name="lab_words_by_lemma">Lemmas</string>
     <string name="lab_words_no_match">No words match</string>
-    <plurals name="lab_words_row_tried">
-        <item quantity="one">Tried once, not yet right</item>
-        <item quantity="other">Tried %1$d times, not yet right</item>
-    </plurals>
-    <!-- "Used in 3 messages, fixed once" -->
+    <!-- A row's use: "12 right, 3 wrong". Wrong is a use a fix you accepted replaced. -->
+    <string name="lab_words_row_right_wrong">%1$d right, %2$d wrong</string>
+    <!-- "80% right, last Nov 3" -->
+    <string name="lab_words_row_accuracy_last">%1$d%% right, last %2$s</string>
     <string name="lab_words_open_word">Open word</string>
     <plurals name="lab_words_names">
         <item quantity="one">%1$d name left out: %2$s</item>
@@ -60,11 +60,15 @@
     <string name="lab_words_empty">Words from the checks you put back show up here.</string>
     <string name="lab_words_how_header">How it\'s counted</string>
     <string name="lab_words_how">Only words you typed yourself count, from your saved checks. Words Linguize suggested never count.</string>
-    <string name="lab_words_how_tried">A word a fix replaced counts as tried, not as right. Rewordings don\'t count against you.</string>
+    <string name="lab_words_how_tried">A word a fix you accepted replaced counts as used wrong. Words a fix kept, and rewordings, don\'t count against you.</string>
+    <string name="lab_words_how_accuracy">Right and wrong add up to every use. The percent is the share used right.</string>
     <string name="lab_words_how_delete">Delete a check and its words leave this list.</string>
 
     <string name="lab_words_detail_right">Used right</string>
-    <string name="lab_words_detail_tried">Tried</string>
+    <string name="lab_words_detail_tried">Used wrong</string>
+    <!-- The share of uses that were right: "80%" -->
+    <string name="lab_words_detail_accuracy">Right</string>
+    <string name="lab_words_percent">%1$d%%</string>
     <string name="lab_words_detail_first">First used</string>
     <string name="lab_words_detail_last">Last used</string>
     <string name="lab_words_detail_messages">Messages</string>

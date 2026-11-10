@@ -2,9 +2,9 @@
 
 One canonical list of the languages Linguize can name, for the whole app: every ISO 639-1
 language (183) with its English name, its name in itself, the product's brand verb in the
-style of **Catalanize** and **Castilianize**, and a small circular flag. It is data and a
-small API. Nothing on screen uses it yet: the language selector and the Language model will
-build on it.
+style of **Catalanize** and **Castilianize**, and a small circular flag or emblem. It is data
+and a small API, and since lang-selector (docs/lab/lang-selector.md) it is where every
+language label and icon in the app comes from.
 
 ## The moment it serves
 
@@ -24,7 +24,8 @@ square code badge and `Locale`'s display name.
 | `english` | English name from CLDR (`Catalan`, `Bangla`, `Odia`) |
 | `native` | The language's name in itself (`català`, `日本語`), in CLDR's casing: many languages write it in lower case |
 | `brand` | The brand verb (`Catalanize`) |
-| `flag` | A circle-flags key (`es-ct`), or `null`: draw a code badge |
+| `flag` | A circle-flags key (`es-ct`), or `null` when no flag is fair |
+| `emblem` | Only when `flag` is `null`: the key of the emblem Linguize draws instead (`nv`, `inuit`, …), see Emblems |
 | `kind` | Omitted for living languages; `classical` (ae, cu, la, pi, sa) or `constructed` (eo, ia, ie, io, vo) |
 | `macrolanguage` | `true` for ISO 639-3 macrolanguages (ar, zh, no, fa, …) |
 | `macro` | The macrolanguage this one belongs to when that is listed too (nb, nn: `no`; tw: `ak`) |
@@ -51,8 +52,8 @@ five, and CLDR's `fil`, to today's code.
   common one in reference tables of ISO 639-1. Names are facts, not creative work.
 - **Flags: HatScripts circle-flags** (MIT, LICENSE checked, commit 379588b), rasterised to
   96×96 lossless WebP.
-- Both licenses ship in the APK as `assets/lab_languages_NOTICE.txt`. A future Settings ›
-  About "Licenses" row should show it.
+- Both licenses ship in the APK as `assets/lab_languages_NOTICE.txt`, shown in Settings ›
+  About › Open-source notices.
 
 ## Brand names
 
@@ -109,13 +110,40 @@ five, and CLDR's `fil`, to today's code.
    Ndonga → Namibia; Tsonga and Venda → South Africa; Twi → Ghana (as Akan); Wolof → Senegal;
    Walloon → Belgium; Limburgish → the Netherlands; Sanskrit → India; Sichuan Yi and Zhuang →
    China.
-3. Else no flag (`null`), and the UI draws a circular code badge: classical Avestan, Church
-   Slavic and Pali; Fula, spoken across many states; and Cree, Inupiaq, Inuktitut, Navajo and
-   Ojibwa, whose speakers a state flag would misrepresent.
+3. Else no flag (`null`) and an **emblem** (below): classical Avestan, Church Slavic and Pali;
+   Fula, spoken across many states; and Cree, Inupiaq, Inuktitut, Navajo and Ojibwa, whose
+   speakers a state flag would misrepresent.
 4. One override: circle-flags draws Ossetian with South Ossetia's flag, a partially recognised
-   state, so Ossetian has a badge.
+   state, so Ossetian has an emblem.
 
-Variety flags stay data, as `ui/language/LanguageFlags.kt` did: Spanish Peninsular (Spain),
+## Emblems
+
+No language shows a code badge. The ten without a flag get a circular emblem Linguize draws
+as a 24 dp vector drawable (`res/drawable/lab_emblem_<key>.xml`, a full coloured disc in the
+same circle as the flags). The rule: the people's own flag where one flag stands for the
+speakers; else a letter of the language's own script or a symbol of its culture. No
+stereotypes: no bows and arrows, headdresses, feathers, tipis or "tribal" patterns. Letters
+are drawn as paths, not text, so they never depend on a font being on the phone (Avestan,
+Adlam and syllabics are missing from many).
+
+| Code | Emblem | Why |
+|---|---|---|
+| nv | A simplified **Navajo Nation flag**: the tan field, the rainbow, the copper land and the four sacred mountains in their colours (black north, white east, turquoise south, yellow west) | The Navajo Nation's own flag, one nation, one flag |
+| iu, ik (key `inuit`) | After the **Inuit Circumpolar Council flag**: a red-over-white sun on blue | The ICC flag stands for Inuit across Canada, Greenland, Alaska and Chukotka; Inupiat are Inuit. Shared, as Norwegian's three codes share a flag |
+| cr | **ᐃ** (syllabic i), white on blue | Cree is many First Nations with many flags; picking one would misrepresent the rest. Syllabics are Cree's own script (ᐃᓂᓂᒧᐎᓐ, ininîmowin) |
+| oj | **ᐊ** (syllabic a), white on green | Same reason; ᐊ is the first syllabic of ᐊᓂᔑᓈᐯᒧᐎᓐ, Anishinaabemowin |
+| os | **Ӕ**, white on indigo | The letter of Ossetian's Cyrillic alphabet; not South Ossetia's state flag |
+| cu | **Ѧ** (little yus), gold on crimson | A letter of early Cyrillic, the script of Church Slavonic |
+| ae | A **flame**, amber on dark teal | The sacred fire of Zoroastrianism, whose scripture, the Avesta, is the Avestan language. Avestan's own letters weren't drawn: no reference outline was available to copy faithfully |
+| pi | The **Dhamma wheel**, white on saffron | Pali is the language of the Theravada texts; it is written in many scripts, so no single letter fits |
+| ff | **Ɓ** (hooked b), white on ochre | A letter of Fula's Latin alphabet (Pulaar, Fulfulde). Adlam, the script Fula speakers created, would be a fine alternative once a faithful outline is drawn |
+
+The ICC flag is drawn from its description (a red and white sun on blue) and the Navajo flag is
+simplified to four shapes; check both against official artwork before a release. Any code the
+catalog doesn't know gets a speech bubble on a neutral circle (`lab_emblem_unknown`, tinted by
+the theme), never letters.
+
+Variety flags are data (they replaced `ui/language/LanguageFlags.kt`, now removed): Spanish Peninsular (Spain),
 Mexican, Rioplatense or Argentinian (Argentina), Colombian; English British, American,
 Australian, Canadian, Irish, New Zealand; Portuguese European and Brazilian; French, Canadian,
 Belgian, Swiss; German, Austrian, Swiss; Catalan Central, Valencian and Balearic. A variety
@@ -142,20 +170,23 @@ lossless WebP in `res/drawable-nodpi/lab_flag_<key>.webp`: 509 KB in all, about 
 - `ui/language/catalog`:
   - `flagResource(catalog, code, variety)`: a drawable id or null
   - `flagDrawable(key)`: generated, key to drawable
-  - `languageIconContent(...)`: `Flag` or `Badge`
-  - `badgeLabel(code)`
-  - `@Composable LanguageIcon(code, variety, size = 24.dp)`: the circular flag with a hairline
-    outline, or a circle of the same size with the code in capitals, its text sized to the
-    circle rather than the font scale so it always fits. Decorative: say the language's name
-    beside it.
+  - `emblemDrawable(key)`, `emblemKeys`: the emblems (`LanguageEmblems.kt`, hand-written)
+  - `languageIconContent(...)`: `Flag`, `Emblem` or `Unknown`
+  - `@Composable LanguageIcon(code, variety, size = 24.dp)`: the circular flag or emblem with a
+    hairline outline, or the speech bubble for an unknown code. Decorative: say the language's
+    name beside it.
 
-  It is a different function from the selector's `ui.language.LanguageIcon(option)`, which
-  is unchanged.
+  The selector's `ui.language.LanguageIcon(option)` draws it for a language, and Linguize's
+  circular "A" for Auto.
+- `data/language/CatalogLanguageNames`: the catalog as `core/language/LanguageNames`
+  (`Languages.names`), installed in `App.onCreate`: brand names, English names (in an English
+  UI; the platform's localised name otherwise) and native names.
 
 ## Rebuilding
 
-`scripts/build_language_catalog.py` writes the JSON, the WebP flags and the generated
-`LanguageFlagDrawables.kt` from extracted CLDR packages and a circle-flags clone. Brand names,
+`scripts/build_language_catalog.py` writes the JSON (including each flagless language's
+`emblem` key, from its `EMBLEM` table), the WebP flags and the generated
+`LanguageFlagDrawables.kt` (the emblem drawables are hand-made and not generated) from extracted CLDR packages and a circle-flags clone. Brand names,
 fallback autonyms, aliases, flag fallbacks and varieties are tables at its top. It needs
 cairosvg and Pillow in a virtualenv. It is not part of the Gradle build. Its header says how
 to run it with downloaded files kept apart.

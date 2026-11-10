@@ -106,7 +106,16 @@ NOTES = {
     "ja": "Japanize: the established English word.",
     "ie": "Occidentalize: Interlingue's original name was Occidental; Interlinguize is Interlingua's.",
     "nd": "Sindebelize, from Sindebele, Zimbabwe's name for North Ndebele; Ndebelize is South Ndebele's.",
-    "os": "No flag: the set's Ossetian flag is South Ossetia's, a partially recognised state; most speakers live elsewhere.",
+    "ae": "No flag: a classical language. Emblem: a flame, the sacred fire of the Zoroastrian scripture written in Avestan.",
+    "cr": "No flag: Cree is spoken by many First Nations, each with its own flag. Emblem: ᐃ, a syllabic of Cree syllabics (first of ᐃᓂᓂᒧᐎᓐ, ininîmowin).",
+    "cu": "No flag: a classical, liturgical language. Emblem: Ѧ (little yus), a letter of early Cyrillic.",
+    "ff": "No flag: spoken across many states. Emblem: Ɓ, the hooked b of Fula's Latin alphabet.",
+    "ik": "No state flag. Emblem: the Inuit Circumpolar Council's flag, shared by the Inuit languages.",
+    "iu": "No state flag. Emblem: the Inuit Circumpolar Council's flag, shared by the Inuit languages.",
+    "nv": "No state flag. Emblem: a simplified Navajo Nation flag (the four sacred mountains under the rainbow).",
+    "oj": "No flag: Ojibwe is spoken by many First Nations and tribes, each with its own flag. Emblem: ᐊ, first syllabic of ᐊᓂᔑᓈᐯᒧᐎᓐ (Anishinaabemowin).",
+    "os": "No flag: the set's Ossetian flag is South Ossetia's, a partially recognised state; most speakers live elsewhere. Emblem: Ӕ, the letter of Ossetian's Cyrillic alphabet.",
+    "pi": "No flag: a classical, liturgical language. Emblem: the Dhamma wheel of the Theravada texts written in Pali.",
 }
 
 ALIASES = {
@@ -131,13 +140,17 @@ MEMBER_OF = {"nb": "no", "nn": "no", "tw": "ak"}
 
 # Language -> country/region flag when circle-flags has no language flag: the country where the
 # language is official or chiefly written. None: no single fair flag (classical, or spread across
-# many states, or Indigenous languages a state flag would misrepresent): the UI draws a code badge.
+# many states, or Indigenous languages a state flag would misrepresent): the UI draws its EMBLEM.
 FLAG_FALLBACK = {
     "ae": None, "cr": None, "cu": None, "ff": None, "hz": "na", "ii": "cn", "ik": None, "iu": None,
     "kj": "na", "li": "nl", "ng": "na", "nv": None, "oj": None, "pi": None, "sa": "in", "ts": "za",
     "tw": "gh", "ve": "za", "wa": "be", "wo": "sn", "za": "cn",
 }
 FLAG_OVERRIDE = {"os": None}
+
+# Languages without a flag get an emblem Linguize draws (res/drawable/lab_emblem_<key>.xml), never a
+# code badge. docs/lab/language-catalog.md says why each one is what it is.
+EMBLEM = {"ae": "ae", "cr": "cr", "cu": "cu", "ff": "ff", "ik": "inuit", "iu": "inuit", "nv": "nv", "oj": "oj", "os": "os", "pi": "pi"}
 
 VARIETIES = {
     "es": [("Peninsular", ["peninsular", "spain", "españa"], "es"), ("Mexican", ["mexic", "méxic"], "mx"),
@@ -195,6 +208,8 @@ def main():
                 flag = resolve(fb) if fb else None
                 assert fb is None or flag, (c, fb)
         entry = {"code": c, "english": en[c], "native": native, "brand": BRAND[c], "flag": flag}
+        if not flag:
+            entry["emblem"] = EMBLEM[c]
         if flag:
             keys.add(flag)
         kind = "classical" if c in CLASSICAL else "constructed" if c in CONSTRUCTED else "living"
@@ -227,6 +242,7 @@ def main():
             "native": "Unicode CLDR 49 display name of each language in itself; %d without CLDR locale data from common reference usage" % native_src["fallback"],
             "flags": "HatScripts circle-flags (MIT), commit 379588b",
             "brand": "Linguize, docs/lab/language-catalog.md",
+            "emblems": "Linguize, vector drawables (res/drawable/lab_emblem_*.xml); docs/lab/language-catalog.md",
         },
         "languages": langs,
     }

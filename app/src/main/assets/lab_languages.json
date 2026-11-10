@@ -5,7 +5,8 @@
   "english": "Unicode CLDR 49 English display names (cldr-localenames-full 49.0.0), Unicode License v3",
   "native": "Unicode CLDR 49 display name of each language in itself; 43 without CLDR locale data from common reference usage",
   "flags": "HatScripts circle-flags (MIT), commit 379588b",
-  "brand": "Linguize, docs/lab/language-catalog.md"
+  "brand": "Linguize, docs/lab/language-catalog.md",
+  "emblems": "Linguize, vector drawables (res/drawable/lab_emblem_*.xml); docs/lab/language-catalog.md"
  },
  "languages": [
   {
@@ -31,7 +32,9 @@
    "native": "avesta",
    "brand": "Avestanize",
    "flag": null,
-   "kind": "classical"
+   "emblem": "ae",
+   "kind": "classical",
+   "notes": "No flag: a classical language. Emblem: a flame, the sacred fire of the Zoroastrian scripture written in Avestan."
   },
   {
    "code": "af",
@@ -232,7 +235,9 @@
    "native": "ᓀᐦᐃᔭᐍᐏᐣ",
    "brand": "Creeize",
    "flag": null,
-   "macrolanguage": true
+   "emblem": "cr",
+   "macrolanguage": true,
+   "notes": "No flag: Cree is spoken by many First Nations, each with its own flag. Emblem: ᐃ, a syllabic of Cree syllabics (first of ᐃᓂᓂᒧᐎᓐ, ininîmowin)."
   },
   {
    "code": "cs",
@@ -247,12 +252,14 @@
    "native": "ѩзыкъ словѣньскъ",
    "brand": "Slavonicize",
    "flag": null,
+   "emblem": "cu",
    "kind": "classical",
    "aliases": [
     "Old Church Slavonic",
     "Church Slavonic",
     "Old Bulgarian"
-   ]
+   ],
+   "notes": "No flag: a classical, liturgical language. Emblem: Ѧ (little yus), a letter of early Cyrillic."
   },
   {
    "code": "cv",
@@ -482,11 +489,13 @@
    "native": "Pulaar",
    "brand": "Fulize",
    "flag": null,
+   "emblem": "ff",
    "macrolanguage": true,
    "aliases": [
     "Fulah",
     "Fulani"
-   ]
+   ],
+   "notes": "No flag: spoken across many states. Emblem: Ɓ, the hooked b of Fula's Latin alphabet."
   },
   {
    "code": "fi",
@@ -726,7 +735,9 @@
    "native": "Iñupiaq",
    "brand": "Inupiaqize",
    "flag": null,
-   "macrolanguage": true
+   "emblem": "inuit",
+   "macrolanguage": true,
+   "notes": "No state flag. Emblem: the Inuit Circumpolar Council's flag, shared by the Inuit languages."
   },
   {
    "code": "io",
@@ -756,7 +767,9 @@
    "native": "ᐃᓄᒃᑎᑐᑦ",
    "brand": "Inuktitutize",
    "flag": null,
-   "macrolanguage": true
+   "emblem": "inuit",
+   "macrolanguage": true,
+   "notes": "No state flag. Emblem: the Inuit Circumpolar Council's flag, shared by the Inuit languages."
   },
   {
    "code": "ja",
@@ -1129,9 +1142,11 @@
    "native": "Diné bizaad",
    "brand": "Navajize",
    "flag": null,
+   "emblem": "nv",
    "aliases": [
     "Navaho"
-   ]
+   ],
+   "notes": "No state flag. Emblem: a simplified Navajo Nation flag (the four sacred mountains under the rainbow)."
   },
   {
    "code": "ny",
@@ -1160,7 +1175,9 @@
    "native": "ᐊᓂᔑᓈᐯᒧᐎᓐ",
    "brand": "Ojibwize",
    "flag": null,
-   "macrolanguage": true
+   "emblem": "oj",
+   "macrolanguage": true,
+   "notes": "No flag: Ojibwe is spoken by many First Nations and tribes, each with its own flag. Emblem: ᐊ, first syllabic of ᐊᓂᔑᓈᐯᒧᐎᓐ (Anishinaabemowin)."
   },
   {
    "code": "om",
@@ -1187,10 +1204,11 @@
    "native": "ирон",
    "brand": "Ossetize",
    "flag": null,
+   "emblem": "os",
    "aliases": [
     "Ossetian"
    ],
-   "notes": "No flag: the set's Ossetian flag is South Ossetia's, a partially recognised state; most speakers live elsewhere."
+   "notes": "No flag: the set's Ossetian flag is South Ossetia's, a partially recognised state; most speakers live elsewhere. Emblem: Ӕ, the letter of Ossetian's Cyrillic alphabet."
   },
   {
    "code": "pa",
@@ -1208,7 +1226,9 @@
    "native": "पालि",
    "brand": "Palize",
    "flag": null,
-   "kind": "classical"
+   "emblem": "pi",
+   "kind": "classical",
+   "notes": "No flag: a classical, liturgical language. Emblem: the Dhamma wheel of the Theravada texts written in Pali."
   },
   {
    "code": "pl",

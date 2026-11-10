@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Fula, the hooked b (Ɓ) of its Latin alphabet. See docs/lab/language-catalog.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFB8651E" android:pathData="M12,0A12,12 0,1 1,12,24A12,12 0,1 1,12,0Z" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M6.6,9.2C6.6,7.6 7.6,6.8 9.4,6.8H13.2C14.9,6.8 15.7,7.9 15.7,9.2C15.7,10.6 14.7,11.7 13.2,11.7H9.4M9.4,11.7H13.8C15.7,11.7 16.7,12.9 16.7,14.5C16.7,16.2 15.7,17.4 13.8,17.4H9.4V6.8" />
+</vector>

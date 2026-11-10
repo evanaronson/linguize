@@ -90,7 +90,9 @@ class HomeActivity : ComponentActivity() {
                 LaunchedEffect(Unit) { appLanguage.load() }
                 LaunchedEffect(language) { scopeTo(language) }
                 val languageSelector: @Composable () -> Unit = {
-                    com.evanaronson.linguize.ui.language.LanguageSwitch(appLanguage) { code ->
+                    com.evanaronson.linguize.ui.language.LanguageSwitch(appLanguage, onAddLanguages = {
+                        navigation = navigation.open(Screen.Languages)
+                    }) { code ->
                         if (code != appLanguage.current.value) {
                             appLanguage.select(code)
                             navigation = navigation.afterLanguageSwitch()
@@ -150,7 +152,11 @@ class HomeActivity : ComponentActivity() {
                                     AppVoiceSettingsRow(appVoice) { navigation = navigation.open(Screen.AppVoice()) }
                                 }, memoryRow = {
                                     com.evanaronson.linguize.ui.memory.MemorySettingsRow { navigation = navigation.open(Screen.Memory) }
-                                }, onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) })
+                                }, onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) }, languagesRow = {
+                                    com.evanaronson.linguize.ui.language.LanguagesSettingsRow(appLanguage) { navigation = navigation.open(Screen.Languages) }
+                                }, aboutSection = {
+                                    com.evanaronson.linguize.ui.settings.AboutSection { navigation = navigation.open(Screen.Notices) }
+                                })
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
                                 is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenAssumptions = {
@@ -194,6 +200,8 @@ class HomeActivity : ComponentActivity() {
                                     com.evanaronson.linguize.ui.conjugations.ConjugationCellScreen(conjugations, current.language, it)
                                 }
                                 Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, language)
+                                Screen.Languages -> com.evanaronson.linguize.ui.language.LanguagesScreen(appLanguage)
+                                Screen.Notices -> com.evanaronson.linguize.ui.settings.OpenSourceNoticesScreen()
                             }
                         }
                     }
@@ -336,4 +344,6 @@ private fun Screen.title(): String = when (this) {
         ?: stringResource(R.string.lab_conjugations_title)
     Screen.TimeSpent -> stringResource(R.string.lab_time_spent_title)
     is Screen.ChatThread -> stringResource(R.string.lab_chat_title)
+    Screen.Languages -> stringResource(R.string.lab_lang_selector_title)
+    Screen.Notices -> stringResource(R.string.lab_lang_selector_notices)
 }

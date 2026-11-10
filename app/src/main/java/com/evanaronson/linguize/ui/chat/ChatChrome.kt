@@ -61,7 +61,6 @@ import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.components.AppNavigation
 import com.evanaronson.linguize.ui.components.TopBar
-import com.evanaronson.linguize.ui.language.LanguageFlag
 import com.evanaronson.linguize.ui.language.LanguageIcon
 import com.evanaronson.linguize.ui.language.LanguageOption
 import com.evanaronson.linguize.ui.language.scopeLanguageName
@@ -276,7 +275,7 @@ private fun ConversationRow(
                     modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
                 flag?.let {
-                    LanguageFlag(it)
+                    LanguageIcon(it, size = 20.dp)
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)

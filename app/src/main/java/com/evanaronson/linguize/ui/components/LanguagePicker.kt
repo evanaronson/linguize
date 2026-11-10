@@ -36,7 +36,9 @@ import androidx.compose.ui.platform.LocalContext
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.language.LanguageScope
-import com.evanaronson.linguize.core.language.Languages
+import com.evanaronson.linguize.ui.language.LanguageIcon
+import com.evanaronson.linguize.ui.language.LanguageOption
+import com.evanaronson.linguize.ui.language.brandName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.evanaronson.linguize.ui.text.displayName
@@ -65,10 +67,11 @@ fun LanguagePicker(
     val name = label(selected)
     val description = stringResource(R.string.language_accessibility, name,
         selected?.displayName() ?: stringResource(R.string.detect_language))
+    val varieties = rememberVarieties()
     LinguizeButton(
         onClick = {
             if (open) menu.dismiss() else menu.show(owner, anchor) {
-                LanguageMenu(entries, selected) { entry ->
+                LanguageMenu(entries, selected, varieties) { entry ->
                     menu.dismiss()
                     onSelect(entry)
                 }
@@ -82,14 +85,22 @@ fun LanguagePicker(
             }
             .semantics { contentDescription = description },
     ) {
+        PickerIcon(selected, varieties, Modifier.clearAndSetSemantics {})
+        Spacer(Modifier.width(8.dp))
         Text(name)
         Spacer(Modifier.width(8.dp))
         Text(if (open) "▴" else "▾", Modifier.clearAndSetSemantics {})
     }
 }
 
+/** Lab, lang-selector: the selector's circular icon for [language] (Linguize's mark for Auto), with the writer's variety. */
 @Composable
-private fun LanguageMenu(entries: List<Language?>, selected: Language?, onSelect: (Language?) -> Unit) {
+private fun PickerIcon(language: Language?, varieties: Map<String, String?>, modifier: Modifier = Modifier) {
+    LanguageIcon(language?.let { LanguageOption(it.code, varieties[it.code]) }, modifier, size = 20.dp)
+}
+
+@Composable
+private fun LanguageMenu(entries: List<Language?>, selected: Language?, varieties: Map<String, String?>, onSelect: (Language?) -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -104,6 +115,8 @@ private fun LanguageMenu(entries: List<Language?>, selected: Language?, onSelect
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    PickerIcon(entry, varieties, Modifier.clearAndSetSemantics {})
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(label(entry), style = MaterialTheme.typography.bodyLarge)
                         Text(
@@ -125,21 +138,24 @@ private fun LanguageMenu(entries: List<Language?>, selected: Language?, onSelect
 }
 
 /**
- * Auto-detect is an action, distinct from the app's brand. Named languages keep their
- * selection-menu labels, else the language catalog's brand name ([Languages.names]), else
- * the language's own name.
+ * Auto-detect is an action, distinct from the app's brand. Languages have the selector's brand
+ * names (Lab, lang-selector: "Catalanize", "Gallicize", from the language catalog), else the
+ * language's own name.
  */
 @Composable
-private fun label(language: Language?): String {
-    val named = when (language?.code) {
-        null -> R.string.auto_detect
-        Language.Catalan.code -> R.string.menu_catalan
-        Language.Spanish.code -> R.string.menu_castilian
-        else -> null
+private fun label(language: Language?): String =
+    if (language == null) stringResource(R.string.auto_detect) else brandName(language.code)
+
+/** Lab, lang-selector: each writing profile's variety by language, for Castilianize's flag; empty until read. */
+@Composable
+private fun rememberVarieties(): Map<String, String?> {
+    val context = LocalContext.current
+    val varieties by produceState(emptyMap<String, String?>(), context) {
+        withContext(Dispatchers.IO) {
+            runCatching { App.of(context).settings.writingProfiles.associate { it.language to it.variety } }.getOrNull()
+        }?.let { value = it }
     }
-    named?.let { return stringResource(it) }
-    val code = language?.code ?: return ""
-    return Languages.names.brand(code, LocalContext.current.resources.uiLocale) ?: language.displayName()
+    return varieties
 }
 
 /**

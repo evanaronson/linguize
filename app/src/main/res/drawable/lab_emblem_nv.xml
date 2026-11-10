@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Navajo, a simplified Navajo Nation flag. See docs/lab/language-catalog.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFE6D3A3" android:pathData="M12,0A12,12 0,1 1,12,24A12,12 0,1 1,12,0Z" />
+    <path android:strokeColor="#FFC8102E" android:strokeWidth="1.1" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M4.2,15A7.8,7.8 0,0 1,19.8,15" />
+    <path android:strokeColor="#FFF2B705" android:strokeWidth="1.1" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M5.4,15A6.6,6.6 0,0 1,18.6,15" />
+    <path android:strokeColor="#FF1F5BA8" android:strokeWidth="1.1" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M6.6,15A5.4,5.4 0,0 1,17.4,15" />
+    <path android:fillColor="#FFB0612A" android:pathData="M9.4,13.2H14.6L15.4,18H8.6Z" />
+    <path android:fillColor="#FF1A1A1A" android:pathData="M10.9,12.6L12,10.8L13.1,12.6Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M16.3,17.4L17.4,15.6L18.5,17.4Z" />
+    <path android:fillColor="#FF2BB3A3" android:pathData="M10.9,21L12,19.2L13.1,21Z" />
+    <path android:fillColor="#FFE8B21C" android:pathData="M5.5,17.4L6.6,15.6L7.7,17.4Z" />
+</vector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Linguize (Auto) on the language selector, a circle with an "A", the size of a language's icon. Tinted where drawn. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000" android:strokeWidth="1.2"
+        android:pathData="M12,0.6A11.4,11.4 0,1 1,12,23.4A11.4,11.4 0,1 1,12,0.6Z" />
+    <path android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000" android:strokeWidth="1.7"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M7.8,17L12,6.6L16.2,17M9.5,13.2H14.5" />
+</vector>

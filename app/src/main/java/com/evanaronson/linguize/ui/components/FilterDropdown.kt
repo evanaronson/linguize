@@ -56,6 +56,8 @@ fun <T> FilterDropdown(
     labelled: Boolean = false,
     /** What an option means, under its name in the menu and after it for screen readers ("All languages"). */
     detail: (@Composable (T) -> String?)? = null,
+    /** Drawn after the options, for an action such as "Add languages…"; [close] closes the menu. */
+    footer: (@Composable (close: () -> Unit) -> Unit)? = null,
 ) {
     var open by rememberSaveable { mutableStateOf(false) }
     val name = label(selected)
@@ -103,6 +105,7 @@ fun <T> FilterDropdown(
                     } else null,
                 )
             }
+            footer?.invoke { open = false }
         }
     }
 }

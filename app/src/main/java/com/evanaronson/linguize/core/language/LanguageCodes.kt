@@ -69,6 +69,9 @@ interface LanguageNames {
 
     /** The product's name for the language ("Catalanize"), or null when it has none. */
     fun brand(code: String, displayIn: Locale): String? = null
+
+    /** The language's name in itself ("català", "日本語"), or null when it isn't known. */
+    fun native(code: String): String? = null
 }
 
 /** Names from the platform's locale data, and no brand names. */

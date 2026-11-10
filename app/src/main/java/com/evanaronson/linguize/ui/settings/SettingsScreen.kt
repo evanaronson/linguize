@@ -52,6 +52,10 @@ fun SettingsScreen(
     memoryRow: @Composable () -> Unit = {},
     /** How to set up the accessibility button, in "In other apps". */
     onSetUpAccessibility: (() -> Unit)? = null,
+    /** Lab, lang-selector: the writer's languages, first under Writing preferences. */
+    languagesRow: @Composable () -> Unit = {},
+    /** Lab, lang-selector: About, at the end (Open-source notices). */
+    aboutSection: @Composable () -> Unit = {},
 ) {
     // The saved settings load in a moment; showing defaults first would flash the wrong choices.
     val state = settings.state ?: return
@@ -65,6 +69,7 @@ fun SettingsScreen(
         ListCard({ ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) })
 
         SectionHeader(stringResource(R.string.writing_preferences))
+        languagesRow()
         val profile = state.writingProfile
         val language = Language.forCode(state.writingProfile.language) ?: Language.Catalan
         val register = stringResource(profile.register.labelResource)
@@ -96,6 +101,7 @@ fun SettingsScreen(
 
         SectionHeader(stringResource(R.string.history))
         HistorySwitch(state, settings)
+        aboutSection()
     }
 }
 

@@ -1,7 +1,8 @@
 Linguize language catalog: third-party notices
 
 lab_languages.json and the res/drawable-nodpi/lab_flag_*.webp images are built from the
-two works below. See docs/lab/language-catalog.md.
+two works below. See docs/lab/language-catalog.md. The emblems drawn for the ten languages
+without a flag (res/drawable/lab_emblem_*.xml) are Linguize's own drawings.
 
 
 1. circle-flags by HatScripts

@@ -84,6 +84,12 @@ import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.openExternal
 import com.evanaronson.linguize.ui.text.displayName
+import com.evanaronson.linguize.ui.progress.ChartLegend
+import com.evanaronson.linguize.ui.progress.EmptyCard
+import com.evanaronson.linguize.ui.progress.HowItsCounted
+import com.evanaronson.linguize.ui.progress.PageLoading
+import com.evanaronson.linguize.ui.progress.ScopeHeader
+import com.evanaronson.linguize.ui.progress.StatTile
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.LocalDate
 import java.time.ZoneId
@@ -110,13 +116,8 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
     val shown = state.shown
     if (state.index == null || shown == null) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            if (state.index == null) Loading() else {
-                Spacer(Modifier.height(8.dp))
-                SectionCard(contentPadding = cardPadding) {
-                    Text(stringResource(R.string.lab_words_empty_title), style = MaterialTheme.typography.titleSmall)
-                    Quiet(stringResource(R.string.lab_words_empty))
-                }
-            }
+            if (state.index == null) PageLoading(stringResource(R.string.lab_vocab_gaps_loading))
+            else EmptyCard(stringResource(R.string.lab_words_empty_title), stringResource(R.string.lab_words_empty))
             if (historyOn == false) CardNote(stringResource(R.string.history_off))
         }
         return
@@ -191,19 +192,6 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
 
 private const val MAX_NAMES = 8
 
-@Composable
-private fun Loading() {
-    Row(
-        Modifier.fillMaxWidth().padding(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CircularProgressIndicator(Modifier.size(20.dp).clearAndSetSemantics { }, strokeWidth = 2.dp,
-            color = MaterialTheme.colorScheme.onSurface)
-        Quiet(stringResource(R.string.lab_vocab_gaps_loading))
-    }
-}
-
 /** A language's name for the switch: Catalan, Spanish, or another the corpus holds. */
 @Composable
 internal fun languageLabel(code: String?): String {
@@ -217,7 +205,8 @@ internal fun languageLabel(code: String?): String {
 /** Coverage of the deck, then the writer's totals. */
 @Composable
 private fun Header(words: LanguageWords, coverage: DeckCoverage?, deckFailed: Boolean, level: WordLevel) {
-    SectionHeader(languageLabel(words.language))
+    // Lab, Progress IA: the language, then a summary, as on every page Progress opens.
+    words.language?.let { ScopeHeader(it) } ?: SectionHeader(languageLabel(null))
     SectionCard(contentPadding = cardPadding) {
         if (words.words.isEmpty()) {
             Text(stringResource(R.string.lab_vocab_gaps_empty_title, languageLabel(words.language)), style = MaterialTheme.typography.titleSmall)
@@ -287,10 +276,7 @@ private fun Header(words: LanguageWords, coverage: DeckCoverage?, deckFailed: Bo
 @Composable
 private fun Stat(value: Int, label: String, modifier: Modifier) {
     val locale = LocalResources.current.uiLocale
-    Column(modifier.semantics(mergeDescendants = true) { }) {
-        Text(String.format(locale, "%,d", value), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
-        Quiet(label)
-    }
+    StatTile(String.format(locale, "%,d", value), label, modifier)
 }
 
 /**
@@ -324,17 +310,8 @@ private fun Growth(points: List<CoveragePoint>, coverage: DeckCoverage?) {
             Text(dayLabel(today), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(12.dp))
-        Legend(wordsColor, stringResource(R.string.lab_words_growth_words_legend, last.words))
-        if (coverage != null) Legend(topColor, stringResource(R.string.lab_words_growth_top_legend, last.top, coverage.trendTop))
-    }
-}
-
-@Composable
-private fun Legend(color: Color, text: String) {
-    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(10.dp).background(color, CircleShape).clearAndSetSemantics { })
-        Spacer(Modifier.width(8.dp))
-        Quiet(text)
+        ChartLegend(wordsColor, stringResource(R.string.lab_words_growth_words_legend, last.words))
+        if (coverage != null) ChartLegend(topColor, stringResource(R.string.lab_words_growth_top_legend, last.top, coverage.trendTop))
     }
 }
 
@@ -547,22 +524,16 @@ internal fun formsLine(forms: List<String>, ambiguous: Set<String>): String {
 
 @Composable
 private fun HowItWorks(morphology: Boolean) {
-    SectionHeader(stringResource(R.string.lab_words_how_header))
-    SectionCard(contentPadding = cardPadding) {
-        Quiet(stringResource(R.string.lab_words_how))
-        Spacer(Modifier.height(8.dp))
-        Quiet(stringResource(R.string.lab_words_how_tried))
-        Spacer(Modifier.height(8.dp))
-        Quiet(stringResource(R.string.lab_vocab_gaps_how_text))
-        if (morphology) {
-            Spacer(Modifier.height(8.dp))
-            Quiet(stringResource(R.string.lab_words_how_levels))
-        }
-        Spacer(Modifier.height(8.dp))
-        Quiet(stringResource(R.string.lab_words_how_ambiguous))
-        Spacer(Modifier.height(8.dp))
-        Quiet(stringResource(R.string.lab_words_how_delete))
-    }
+    HowItsCounted(
+        listOfNotNull(
+            stringResource(R.string.lab_words_how),
+            stringResource(R.string.lab_words_how_tried),
+            stringResource(R.string.lab_vocab_gaps_how_text),
+            if (morphology) stringResource(R.string.lab_words_how_levels) else null,
+            stringResource(R.string.lab_words_how_ambiguous),
+            stringResource(R.string.lab_words_how_delete),
+        ),
+    )
 }
 
 /** Hands a finished CSV to the share sheet, once. */

@@ -1,18 +1,16 @@
 package com.evanaronson.linguize.ui.time
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +49,12 @@ import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.patterns.Sparkline
+import com.evanaronson.linguize.ui.progress.ChartLegend
+import com.evanaronson.linguize.ui.progress.EmptyCard
+import com.evanaronson.linguize.ui.progress.HowItsCounted
+import com.evanaronson.linguize.ui.progress.PageLoading
+import com.evanaronson.linguize.ui.progress.ProgressCardPadding
+import com.evanaronson.linguize.ui.progress.ScopeHeader
 import com.evanaronson.linguize.ui.theme.Linguize
 import com.evanaronson.linguize.ui.words.languageLabel
 import java.time.ZoneId
@@ -63,30 +67,48 @@ private fun timeSpent(): TimeSpentViewModel? {
     return viewModel(factory = TimeSpentViewModel.factory(app))
 }
 
-/** Progress › Time: this week's total, with a small chart of the last weeks. Called with one line. */
+/**
+ * Lab, Progress IA: Progress's headline, at the top of the tab. This week's time, writing and
+ * reviewing, in the tab's language (every language under Linguize), with the last weeks beside
+ * it. The whole card opens Time spent. Called with one line.
+ */
 @Composable
-fun TimeSpentSection(language: String? = null, onOpen: () -> Unit) {
+fun TimeHeadline(language: String? = null, onOpen: () -> Unit) {
     val model = timeSpent() ?: return
     val state by model.state.collectAsState()
     LaunchedEffect(model, language) { model.refresh(language) }
     val report = state.report
-    SectionHeader(stringResource(R.string.lab_time_spent_section))
-    ListCard({
-        ListRow(
-            stringResource(R.string.lab_time_spent_title),
-            when {
-                report == null -> null
-                report.isEmpty -> stringResource(R.string.lab_time_spent_row_empty)
-                else -> stringResource(R.string.lab_time_spent_row_summary, duration(report.thisWeek.totalMs))
-            },
-            onClick = onOpen,
-            onClickLabel = stringResource(R.string.lab_time_spent_open),
-        ) {
-            report?.takeUnless { it.isEmpty }?.let { r ->
-                Sparkline(r.weeks.map { seconds(it.totals.totalMs) }, Modifier.width(56.dp).height(24.dp).clearAndSetSemantics { })
+    SectionHeader(stringResource(R.string.lab_ia_progress_this_week))
+    val openLabel = stringResource(R.string.lab_time_spent_open)
+    SectionCard(
+        Modifier.clickable(onClickLabel = openLabel, onClick = onOpen).heightIn(min = 88.dp),
+        contentPadding = ProgressCardPadding,
+    ) {
+        when {
+            report == null -> Unit
+            report.isEmpty -> Column(Modifier.semantics(mergeDescendants = true) { }) {
+                Text(stringResource(R.string.lab_time_spent_empty_title), style = MaterialTheme.typography.titleSmall)
+                Quiet(stringResource(R.string.lab_ia_progress_time_empty), Modifier.padding(top = 2.dp))
+            }
+            else -> {
+                val week = report.thisWeek
+                val total = duration(week.totalMs)
+                val caption = pluralStringResource(R.plurals.lab_ia_progress_time_caption, week.messages, week.messages)
+                val description = stringResource(R.string.lab_ia_progress_time_description, total, caption)
+                Row(
+                    Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = description },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(total, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
+                        Quiet(caption)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Sparkline(report.weeks.map { seconds(it.totals.totalMs) }, Modifier.width(96.dp).height(36.dp))
+                }
             }
         }
-    })
+    }
 }
 
 /** The Time page: totals, the writing and reviewing split, averages, languages, weeks, and how it's counted. */
@@ -97,29 +119,31 @@ fun TimeSpentScreen(historyOn: Boolean?, language: String? = null) {
     LaunchedEffect(model, language) { model.refresh(language) }
     val report = state.report
     ScreenColumn {
+        // Lab, Progress IA: like every page Progress opens, it starts with its language and a summary.
+        ScopeHeader(language)
         if (historyOn == false) {
             SectionCard(contentPadding = cardPadding) { Quiet(stringResource(R.string.lab_time_spent_history_off)) }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
         }
         when {
-            report == null -> Unit
-            report.isEmpty -> {
-                SectionCard(contentPadding = cardPadding) {
-                    Text(stringResource(R.string.lab_time_spent_empty_title), style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
-                    Quiet(stringResource(R.string.lab_time_spent_empty))
-                }
-            }
+            report == null -> PageLoading(stringResource(R.string.lab_time_spent_title))
+            report.isEmpty -> EmptyCard(stringResource(R.string.lab_time_spent_empty_title), stringResource(R.string.lab_time_spent_empty))
             else -> Report(report)
         }
-        HowItsCounted()
+        HowItsCounted(
+            listOf(
+                stringResource(R.string.lab_time_spent_how_writing),
+                stringResource(R.string.lab_time_spent_how_review),
+                stringResource(R.string.lab_time_spent_how_estimate),
+                stringResource(R.string.lab_time_spent_how_limits),
+            ),
+        )
     }
 }
 
 @Composable
 private fun Report(report: TimeReport) {
-    SectionHeader(stringResource(R.string.lab_time_spent_this_week))
-    Totals(report.thisWeek)
+    Totals(report.thisWeek, stringResource(R.string.lab_ia_progress_stat_this_week))
     SectionHeader(stringResource(R.string.lab_time_spent_all_time))
     Totals(report.allTime)
 
@@ -156,15 +180,16 @@ private fun Report(report: TimeReport) {
 
 /** One period: the total, then writing (measured and estimated) and reviewing. */
 @Composable
-private fun Totals(totals: TimeTotals) {
+private fun Totals(totals: TimeTotals, period: String? = null) {
     val measured = Linguize.colors.proof
     val estimated = measured.copy(alpha = 0.4f)
     val review = MaterialTheme.colorScheme.onSurface
     SectionCard(contentPadding = cardPadding) {
-        Row(verticalAlignment = Alignment.Bottom) {
+        val messages = pluralStringResource(R.plurals.lab_time_spent_messages, totals.messages, totals.messages)
+        Row(Modifier.semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.Bottom) {
             Text(duration(totals.totalMs), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
             Spacer(Modifier.width(12.dp))
-            Quiet(pluralStringResource(R.plurals.lab_time_spent_messages, totals.messages, totals.messages), Modifier.padding(bottom = 4.dp))
+            Quiet(period?.let { stringResource(R.string.lab_ia_progress_pair, it, messages) } ?: messages, Modifier.padding(bottom = 4.dp))
         }
         if (totals.totalMs > 0) {
             Spacer(Modifier.height(12.dp))
@@ -175,14 +200,14 @@ private fun Totals(totals: TimeTotals) {
             )
         }
         Spacer(Modifier.height(12.dp))
-        Legend(measured, stringResource(R.string.lab_time_spent_writing) + ": " + duration(totals.writingMs))
+        ChartLegend(measured, stringResource(R.string.lab_time_spent_writing) + ": " + duration(totals.writingMs))
         if (totals.estimatedWritingMs > 0) {
             Quiet(
                 stringResource(R.string.lab_time_spent_writing_split, duration(totals.measuredWritingMs), duration(totals.estimatedWritingMs)),
                 Modifier.padding(start = 18.dp),
             )
         }
-        Legend(review, stringResource(R.string.lab_time_spent_reviewing) + ": " + duration(totals.reviewMs))
+        ChartLegend(review, stringResource(R.string.lab_time_spent_reviewing) + ": " + duration(totals.reviewMs))
     }
 }
 
@@ -222,24 +247,8 @@ private fun Weeks(weeks: List<WeekTime>) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(12.dp))
-        Legend(measured, stringResource(R.string.lab_time_spent_measured))
-        Legend(estimated, stringResource(R.string.lab_time_spent_estimated))
-    }
-}
-
-@Composable
-private fun HowItsCounted() {
-    SectionHeader(stringResource(R.string.lab_time_spent_how))
-    SectionCard(contentPadding = cardPadding) {
-        listOf(
-            R.string.lab_time_spent_how_writing,
-            R.string.lab_time_spent_how_review,
-            R.string.lab_time_spent_how_estimate,
-            R.string.lab_time_spent_how_limits,
-        ).forEachIndexed { index, text ->
-            if (index > 0) Spacer(Modifier.height(8.dp))
-            Quiet(stringResource(text))
-        }
+        ChartLegend(measured, stringResource(R.string.lab_time_spent_measured))
+        ChartLegend(estimated, stringResource(R.string.lab_time_spent_estimated))
     }
 }
 
@@ -256,15 +265,6 @@ private fun SplitBar(parts: List<Pair<Long, Color>>, modifier: Modifier) {
             if (width > 0f) drawRect(color, Offset(left, 0f), Size(width, size.height))
             left += width
         }
-    }
-}
-
-@Composable
-private fun Legend(color: Color, text: String) {
-    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(10.dp).background(color, CircleShape).clearAndSetSemantics { })
-        Spacer(Modifier.width(8.dp))
-        Quiet(text)
     }
 }
 

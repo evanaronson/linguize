@@ -15,13 +15,13 @@ moment in the [Lab README](README.md) while keeping *evidence first, learning la
 
 ## How to use it
 
-- **Progress**: a "Your patterns" row under Fixes and phrases, for the app's current
+- **Progress**: a "Your patterns" row under Your writing, for the app's current
   language: only its checks are grouped ([Language scope](language-scope.md)). Once there are at least 3
   counted checks and one group seen in 2 of them, it names the top groups with a sparkline;
   until then, and again if deletions leave too little, it says what the page is for.
 - **Your patterns page**: recurring groups, each with a count ("5 times in 3 checks"), a
   trend phrase and a small chart over time. Below: "Explain my patterns", "Not grouped"
-  and "How this works".
+  and "How it's counted".
 - **A pattern's page**: the count, a description, a larger chart with dates, whether the
   grouping is a fact or Linguize's guess, the most common before/after pairs, and every
   example with its date and saved reason. Each example opens its saved check.

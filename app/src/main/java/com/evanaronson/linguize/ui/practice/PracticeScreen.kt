@@ -51,6 +51,9 @@ import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.TextBlock
+import com.evanaronson.linguize.ui.progress.EmptyCard
+import com.evanaronson.linguize.ui.progress.HowItsCounted
+import com.evanaronson.linguize.ui.progress.PageLoading
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.Instant
 import java.time.ZoneId
@@ -74,13 +77,19 @@ fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
     ScreenColumn {
         val run = state.run
         when {
-            state.items == null -> Message(stringResource(R.string.lab_practice_loading), null)
-            run == null -> if (state.items.isNullOrEmpty()) {
-                Message(stringResource(R.string.lab_practice_empty), stringResource(R.string.lab_practice_empty_hint))
-            } else {
-                Message(stringResource(R.string.lab_practice_nothing_due), nextLine(state) ?: stringResource(R.string.lab_practice_nothing_due_hint))
+            state.items == null -> PageLoading(stringResource(R.string.lab_practice_loading))
+            run == null -> {
+                if (state.scoped.isNullOrEmpty()) {
+                    EmptyCard(stringResource(R.string.lab_practice_empty), stringResource(R.string.lab_practice_empty_hint))
+                } else {
+                    EmptyCard(stringResource(R.string.lab_practice_nothing_due), nextLine(state) ?: stringResource(R.string.lab_practice_nothing_due_hint))
+                }
+                PracticeHow()
             }
-            run.finished -> Done(run, state, leave)
+            run.finished -> {
+                Done(run, state, leave)
+                PracticeHow()
+            }
             else -> {
                 val item = run.current ?: return@ScreenColumn
                 SectionHeader(stringResource(R.string.lab_practice_progress, run.position, run.steps)) {
@@ -96,13 +105,16 @@ fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
     }
 }
 
+/** Lab, Progress IA: where items come from and when they come back, as on every Progress page. */
 @Composable
-private fun Message(title: String, hint: String?) {
-    Spacer(Modifier.height(8.dp))
-    SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        hint?.let { Quiet(it, Modifier.padding(top = 4.dp)) }
-    }
+private fun PracticeHow() {
+    HowItsCounted(
+        listOf(
+            stringResource(R.string.lab_ia_progress_practice_how_items),
+            stringResource(R.string.lab_ia_progress_practice_how_schedule),
+            stringResource(R.string.lab_ia_progress_practice_how_delete),
+        ),
+    )
 }
 
 @Composable
@@ -268,12 +280,15 @@ private fun Done(run: PracticeRun, state: PracticeState, onDone: () -> Unit) {
     }
 }
 
-/** "Next practice tomorrow", or null when nothing has been practised yet. */
 @Composable
-private fun nextLine(state: PracticeState): String? {
-    val next = state.nextDue ?: return null
+private fun nextLine(state: PracticeState): String? = nextPracticeLine(state.nextDue, state.today)
+
+/** "Next practice tomorrow" for a review due at [next]; null when nothing has been practised yet. */
+@Composable
+internal fun nextPracticeLine(next: Long?, today: Long): String? {
+    next ?: return null
     val zone = ZoneId.systemDefault()
-    val days = (Instant.ofEpochMilli(next).atZone(zone).toLocalDate().toEpochDay() - state.today).toInt()
+    val days = (Instant.ofEpochMilli(next).atZone(zone).toLocalDate().toEpochDay() - today).toInt()
     return when {
         days <= 0 -> stringResource(R.string.lab_practice_next_today)
         days == 1 -> stringResource(R.string.lab_practice_next_tomorrow)

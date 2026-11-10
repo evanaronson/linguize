@@ -23,7 +23,7 @@ the check gave, in their own language.
 - **Add one by hand.** On the Phrasebook screen, tap **Add phrase**. Type the phrase and,
   if you like, what you used to write instead and a note in your own language. Pick the
   language, then **Save phrase**.
-- **Find it again.** Progress has a **Phrasebook** row with the count. The screen lists the
+- **Find it again.** Progress has a **Phrasebook** row with the count, last, under Saved by you ([Progress](ia-progress.md)). The screen lists the
   app's current language's phrases, newest first ([Language scope](language-scope.md)); a
   phrase saved without a language isn't listed under a language. Search covers the phrase, what it replaced and its note, and
   ignores case and accents ("esta" finds "està").

@@ -49,6 +49,10 @@ data class PracticeState(
     /** When the next review falls due, for the end of a run. */
     val nextDue: Long? get() = scoped?.let { Deck.nextDue(it, progress) }
 
+    /** Lab, Progress IA: when [language]'s next review falls due, whatever the scope (Progress under Linguize). */
+    fun nextDueIn(language: String): Long? =
+        items?.filter { it.language == language }?.let { Deck.nextDue(it, progress) }
+
     /** Whether the current picking item shows the corrected sentence first. */
     fun correctFirst(item: PracticeItem): Boolean = Deck.correctFirst(item, progress)
 }

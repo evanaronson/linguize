@@ -55,6 +55,11 @@ import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.text.labelResource
 import com.evanaronson.linguize.ui.text.localizedText
 import com.evanaronson.linguize.ui.text.titleResource
+import com.evanaronson.linguize.ui.progress.EmptyCard
+import com.evanaronson.linguize.ui.progress.HowItsCounted
+import com.evanaronson.linguize.ui.progress.PageLoading
+import com.evanaronson.linguize.ui.progress.ScopeHeader
+import com.evanaronson.linguize.ui.progress.StatRow
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
@@ -76,13 +81,12 @@ fun PatternsScreen(
             report == null && state.loading -> Loading()
             report == null -> Failed(patterns::refresh)
             else -> {
-                Intro(report)
+                // Lab, Progress IA: the language, then a summary, as on every page Progress opens.
+                ScopeHeader(state.language)
                 if (report.patterns.isEmpty()) {
-                    SectionCard(contentPadding = padding) {
-                        Text(stringResource(R.string.lab_patterns_empty_title), style = MaterialTheme.typography.titleSmall)
-                        Quiet(stringResource(R.string.lab_patterns_empty))
-                    }
+                    EmptyCard(stringResource(R.string.lab_patterns_empty_title), stringResource(R.string.lab_patterns_empty))
                 } else {
+                    Summary(report)
                     SectionHeader(stringResource(R.string.lab_patterns_recurring))
                     SectionCard {
                         report.patterns.forEachIndexed { index, pattern ->
@@ -106,7 +110,13 @@ fun PatternsScreen(
                     }
                 }
                 if (state.failed) Failed(patterns::refresh)
-                HowItWorks()
+                HowItsCounted(
+                    listOf(
+                        stringResource(R.string.lab_patterns_how_counting),
+                        stringResource(R.string.lab_patterns_how_deleting),
+                        stringResource(R.string.lab_patterns_how_version, PatternAnalyser.VERSION, MAX_CHECKS),
+                    ),
+                )
             }
         }
         if (historyOn == false) CardNote(stringResource(R.string.history_off))
@@ -115,15 +125,18 @@ fun PatternsScreen(
 
 private val padding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
+/** How many groups, from how many checks, since when; and whether Linguize guessed any. */
 @Composable
-private fun Intro(report: PatternReport) {
+private fun Summary(report: PatternReport) {
     val resources = LocalResources.current
-    val since = report.firstAt?.let { shortDate(it, locale = resources.uiLocale) }
-    if (since != null) {
-        CardNote(pluralStringResource(R.plurals.lab_patterns_intro, report.checksCounted, report.checksCounted, since))
+    SectionCard(contentPadding = padding) {
+        StatRow(
+            report.patterns.size.toString() to stringResource(R.string.lab_ia_progress_stat_patterns),
+            report.checksCounted.toString() to stringResource(R.string.lab_ia_progress_stat_checks),
+        )
+        report.firstAt?.let { Quiet(stringResource(R.string.lab_ia_progress_since, shortDate(it, locale = resources.uiLocale)), Modifier.padding(top = 12.dp)) }
     }
     if (report.patterns.any { it.inferred }) CardNote(stringResource(R.string.lab_patterns_inferred_note))
-    Spacer(Modifier.height(4.dp))
 }
 
 @Composable
@@ -244,23 +257,8 @@ private fun Explanation(explanation: SavedExplanation, status: ExplanationStatus
 }
 
 @Composable
-private fun HowItWorks() {
-    SectionHeader(stringResource(R.string.lab_patterns_how))
-    SectionCard(contentPadding = padding) {
-        Quiet(stringResource(R.string.lab_patterns_how_counting))
-        Spacer(Modifier.height(8.dp))
-        Quiet(stringResource(R.string.lab_patterns_how_deleting))
-        Spacer(Modifier.height(8.dp))
-        Quiet(stringResource(R.string.lab_patterns_how_version, PatternAnalyser.VERSION, MAX_CHECKS))
-    }
-}
-
-@Composable
 internal fun Loading() {
-    val label = stringResource(R.string.lab_patterns_loading)
-    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(Modifier.semantics { contentDescription = label }, color = MaterialTheme.colorScheme.onSurface)
-    }
+    PageLoading(stringResource(R.string.lab_patterns_loading))
 }
 
 @Composable

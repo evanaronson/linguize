@@ -36,6 +36,8 @@ data class PatternsState(
     val provider: Provider? = null,
     val explaining: Boolean = false,
     val explainFailure: ExplainFailure? = null,
+    /** Lab, Progress IA: the language the report is for, which the page names; null is every language. */
+    val language: String? = null,
 )
 
 /**
@@ -74,7 +76,7 @@ class PatternsViewModel internal constructor(
     fun setLanguage(language: String?) {
         if (this.language.value == language) return
         // The old language's groups mustn't show under the new one while it's read.
-        _state.update { it.copy(snapshot = null, loading = true) }
+        _state.update { it.copy(snapshot = null, loading = true, language = language) }
         this.language.value = language
     }
 

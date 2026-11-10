@@ -1,7 +1,7 @@
 # Gaps in every check
 
-Write in Spanish or Catalan and leave what you can't say in `[brackets]`, or just in your own
-language. Every check fills those gaps, wherever you check: the selection menu, the
+Write in the language you're learning and leave what you can't say in `[brackets]`, or just in
+your own language. Every check fills those gaps, wherever you check: the selection menu, the
 accessibility button, Chat's Send card and Notes.
 
 > ¿Puedes **[pick me up]** a las 8? Tengo que **drop off** las llaves.

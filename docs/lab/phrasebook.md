@@ -88,5 +88,5 @@ and Undo) and `PhrasebookNavigationTest`.
 - Undo lasts as long as the snackbar and doesn't survive the app's process ending.
 - Phrases don't follow History. Deleting a check leaves its phrases, and **Open check** on
   a deleted check says the check was deleted. Uninstalling Lab deletes the Phrasebook.
-- Only Catalan and Spanish have their own sections. A phrase whose language wasn't known
-  is listed under "Other".
+- Each language has its own section, Catalan and Spanish first, then others by code. A
+  phrase whose language wasn't known is listed under "Other".

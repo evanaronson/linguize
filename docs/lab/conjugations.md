@@ -1,6 +1,6 @@
 # Your conjugations
 
-Your conjugations shows which verb forms the writer actually uses, in Spanish and Catalan:
+Your conjugations shows which verb forms the writer actually uses, currently in Spanish and Catalan:
 a grid of tenses by person, counted only from text they typed themselves. Empty cells are
 forms they haven't used yet. Each cell opens the verbs and the writer's own sentences behind
 it. Forms a fix replaced are listed apart as "tried, then fixed".

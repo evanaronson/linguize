@@ -4,7 +4,7 @@ How Linguize talks. Use it for every string a person can see or hear: screens, t
 
 ## Who reads it
 
-The owner and friends. Not developers. Most are writing in a second language, often in the middle of a conversation in another app. They want help that is fast, easy to trust, and gets out of the way.
+The owner and friends. Not developers. Most are writing in a language that isn't their first, whichever it is, often in the middle of a conversation in another app. They want help that is fast, easy to trust, and gets out of the way.
 
 ## Method
 
@@ -37,10 +37,10 @@ One word per idea, everywhere.
 | The app doing the work | **Linguize**, or simply describe what happened | AI, LLM |
 | The exact model a user picks | **model**, only in Settings next to the model picker | |
 | Named services | **Gemini**, **OpenAI**, when the person needs to know which | |
-| Languages | **Catalan**, **Spanish** | Castilian, castellano |
+| Languages | The language's name: **Catalan**, **Spanish**, **French** | Castilian, castellano, a country |
 | Where Linguize appears in other apps | **selection menu** | text menu, context menu, PROCESS_TEXT |
 
-**Linguize**, **Catalanize** and **Castilianize** are the product's names: the selection-menu entries ("… X Claude") and the app's language selector, which says them plainly: **Linguize** (Auto, all languages, the default), **Catalanize** (Catalan), **Castilianize** (Spanish), in that order, each with what it means under it in the menu ("All languages", "Catalan", "Spanish"). The popup card's language picker, which only shows over other apps, uses **Auto Detect** for automatic detection and keeps **Catalanize** and **Castilianize** for those named choices. In sentences, name the language, not the brand: "No messages in Catalan yet", "In Catalan. Change it at the top." Inside the app, point at the selector by its brand name ("Choose Linguize at the top to detect the language"), never at a picker that isn't there. The popup app button uses the Linguize wordmark image.
+**Linguize** and the language brands are the product's names. Every language gets one in the same pattern, the language plus "-ize" (**Catalanize**, **Castilianize**, **Gallicize**, **Germanize**; the full list is the [language catalog](lab/language-catalog.md)). They appear in the selection-menu entries ("… X Claude", today Linguize, Catalanize and Castilianize) and in the app's language selector, which says them plainly: **Linguize** (Auto, all languages, the default), then the writer's languages in their order, each with what it means under it in the menu ("All languages", "Catalan", "French"). The popup card's language picker, which only shows over other apps, uses **Auto Detect** for automatic detection and keeps the brand names for the named choices. In sentences, name the language, not the brand: "No messages in Catalan yet", "In French. Change it at the top." Don't write copy that assumes a particular language: an example or a sample names one language as an example, and a feature that only covers some languages says so ("Your conjugations isn't available for French yet"). Inside the app, point at the selector by its brand name ("Choose Linguize at the top to detect the language"), never at a picker that isn't there. The popup app button uses the Linguize wordmark image.
 
 Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Name the model or service only when it helps someone configure the app or understand where their text goes. Preserve necessary proper names such as OpenAI and Google AI Studio.
 
@@ -69,7 +69,7 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 **Screen readers.** Labels name the object and the effect: "Open check", "Delete check", "Show how your message was read", never a bare "Open" or "Close". Glyphs that only decorate (✓ ✗ ‹ › ▾) are hidden from screen readers, or replaced by words. Write changes in words ("cami becomes camí"), not arrows.
 
 **Platform limits.**
-- Selection-menu labels: one short line, often cut off at around 18 characters. Keep the three names.
+- Selection-menu labels: one short line, often cut off at around 18 characters. Keep the product names.
 - Toasts: about 3 seconds. About 45 characters for a short toast, about 80 for a long one. Say what happened and the next step.
 - Accessibility-service description (Android's settings page, shown before a frightening system warning): say what it reads, when it reads it, and where the text goes (the service the user set up). Say what it skips as "looks like", because it guesses. Never claim "never".
 
@@ -77,13 +77,13 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 
 | Before | After | Why |
 |---|---|---|
-| Can't tell what this means | Linguize couldn't tell what this means / Check a full sentence in Catalan or Spanish | Own the limitation and give a next step. |
+| Can't tell what this means | Linguize couldn't tell what this means / Check a full sentence | Own the limitation and give a next step. |
 | 2 changes applied | 2 changes accepted | Nothing is put back until Replace. |
 | 1 way to sound more natural | 1 rewording | Same name as in Settings and History. |
 | Add an API key | No API key / Add one in settings | A title is a state, and History shows it too. |
 | Rate limited / Try again in a moment | Service usage limit reached / Wait a minute, then retry | Jargon, and too close to "Too many checks". |
 | Write (the tab), New draft, Drafts | Notes, New note, Other notes | A tab is a place; what it keeps are notes. |
-| Language: Catalan (a switch), Auto Detect by Check, Language ▾ in the new-conversation sheet, All languages ▾ in History | One selector: Linguize, Catalanize, Castilianize | One language choice, in the product's own names. |
+| Language: Catalan (a switch), Auto Detect by Check, Language ▾ in the new-conversation sheet, All languages ▾ in History | One selector: Linguize, then the writer's languages (Catalanize, Castilianize, …) | One language choice, in the product's own names. |
 | Checks you make will show up here. | Changes you apply in other apps will appear here. | Analysis and Copy alone are not saved; Try it remains excluded. |
 | 3 fixes, 1 rewording, 2 taken | 3 fixes, 1 rewording, 2 accepted | One verb for accepting. |
 | Sent | Put back in the app | "Sent" reads as "message sent". |

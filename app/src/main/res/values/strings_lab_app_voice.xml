@@ -33,6 +33,6 @@
     <!-- One app's rule -->
     <string name="lab_app_voice_language">Language</string>
     <string name="lab_app_voice_same_as_settings">Same as settings</string>
-    <string name="lab_app_voice_language_note">Catalanize, Castilianize and the card\'s language picker still win.</string>
+    <string name="lab_app_voice_language_note">A language entry in the selection menu, or the card\'s language picker, still wins.</string>
     <string name="lab_app_voice_reset_rule">Reset rule</string>
 </resources>

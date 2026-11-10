@@ -22,7 +22,7 @@ results and past checks without modifying saved data.
 - Follow the current resource configuration for dates, number formatting, and
   language names. Keep Android's 12/24-hour clock preference.
 - The `native_language` translation is the English name of the translated UI
-  language, as used in the AI prompt. Brand names, sample Catalan text, model IDs,
+  language, as used in the AI prompt. Brand names, Notes' sample sentences, model IDs,
   provider responses, protocol tokens, MIME types, and diagnostic stage codes are
   not translated. User text and AI responses are content, not resource keys.
 - Escape apostrophes in Android XML (`\'`). Quoted resource text preserves spaces

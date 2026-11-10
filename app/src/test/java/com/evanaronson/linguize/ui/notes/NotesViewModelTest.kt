@@ -74,7 +74,7 @@ class WriteViewModelTest {
         val owner = ViewModelStore().also { viewModels += it }
         return ViewModelProvider(owner, viewModelFactory {
             initializer {
-                NotesViewModel(store(), sample, saveMillis = 400, clock = { now++ },
+                NotesViewModel(store(), { sample }, saveMillis = 400, clock = { now++ },
                     io = Dispatchers.Unconfined, newId = { "d${++ids}" })
             }
         })[NotesViewModel::class.java].also { settle() }

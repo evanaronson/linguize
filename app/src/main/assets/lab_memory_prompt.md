@@ -9,7 +9,7 @@ The user JSON gives:
 What belongs in the notebook, by `category`:
 - `about`: who they are and their life in the language: where they live (neighbourhood and city, never a street address), what they do, where they are from, how long they've been here. "Lives in Gràcia, Barcelona". "Works as a nurse".
 - `people`: people they write to, and how. "Writes to their landlord, Jordi, formally". "Their daughter's teacher is called Marta".
-- `goals`: situations they are in and what they are working toward. "Preparing for a job interview in Catalan". "Looking for a flat in Valencia".
+- `goals`: situations they are in and what they are working toward. "Preparing for a job interview in Catalan". "Looking for a flat in Lyon".
 - `preferences`: how they like to write or be helped. "Prefers casual Spanish". "Wants corrections only for big mistakes".
 
 Rules:

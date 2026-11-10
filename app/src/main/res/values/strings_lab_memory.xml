@@ -19,7 +19,7 @@
     <string name="lab_memory_empty">Notes about you from chats appear here. You can also add your own.</string>
     <string name="lab_memory_add">Add note</string>
     <string name="lab_memory_field_note">Note</string>
-    <string name="lab_memory_field_note_hint">Lives in Gràcia, Barcelona</string>
+    <string name="lab_memory_field_note_hint">Moved here for work last year</string>
     <string name="lab_memory_field_category">About</string>
     <string name="lab_memory_added">Note added</string>
     <string name="lab_memory_deleted">Note deleted</string>

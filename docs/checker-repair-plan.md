@@ -1,7 +1,7 @@
 # Checker repair
 
 Implementation: [PR #19](https://github.com/evanaronson/linguize/pull/19), based on `2489aa2`.
-The [evaluation record](../eval/fuzz/REPAIR.md) holds corpus results, model failures and the revision each review covers. The [original audit](../eval/fuzz/REPORT.md) checked 100 corrupted passages in their named language and Auto Detect: 200 requests.
+The [evaluation record](../eval/fuzz/REPAIR.md) holds corpus results, model failures and the revision each review covers. The [original audit](../eval/fuzz/REPORT.md) checked 100 corrupted passages in their named language and Auto-detect: 200 requests.
 
 ## Functional contract
 

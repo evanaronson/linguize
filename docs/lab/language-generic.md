@@ -29,7 +29,7 @@ for Spanish and Catalan say so instead of pretending.
 - **Settings, Writing preferences**: "Writing in" lists the writer's languages; register and
   punctuation are per language, as before.
 - **The card's picker** in popups (selection menu, share, clipboard, accessibility button)
-  offers Auto Detect and the writer's languages (and the pinned language if it is another).
+  offers Auto-detect and the writer's languages (and the pinned language if it is another).
 - **Per-app voice**, **Phrasebook** (Add a phrase) and **Words** (Import a deck) offer the
   writer's languages too.
 

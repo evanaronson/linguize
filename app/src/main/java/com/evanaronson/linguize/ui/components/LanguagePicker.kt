@@ -44,7 +44,7 @@ import kotlinx.coroutines.withContext
 import com.evanaronson.linguize.ui.text.displayName
 
 /**
- * "Auto Detect ▾": picks the language to check as, from auto-detect (null) and the writer's
+ * "Auto-detect ▾": picks the language to check as, from auto-detect (null) and the writer's
  * languages ([options]; by default [rememberMyLanguages]), plus [selected] if it isn't one of
  * them. The host draws the menu over content in the same window, without changing the
  * trigger's layout or requiring a separate popup-window token.

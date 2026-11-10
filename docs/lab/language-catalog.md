@@ -172,6 +172,8 @@ lossless WebP in `res/drawable-nodpi/lab_flag_<key>.webp`: 509 KB in all, about 
   - `flagDrawable(key)`: generated, key to drawable
   - `emblemDrawable(key)`, `emblemKeys`: the emblems (`LanguageEmblems.kt`, hand-written)
   - `languageIconContent(...)`: `Flag`, `Emblem` or `Unknown`
+  - `LanguageIconAlpha` (0.8): the opacity every language icon's picture is drawn at, here and
+    nowhere else (outline stays opaque); `AutoLanguageIcon`: Linguize's "A" at the same alpha
   - `@Composable LanguageIcon(code, variety, size = 24.dp)`: the circular flag or emblem with a
     hairline outline, or the speech bubble for an unknown code. Decorative: say the language's
     name beside it.

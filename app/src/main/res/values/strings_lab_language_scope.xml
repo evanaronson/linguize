@@ -2,7 +2,7 @@
 <resources>
     <!-- Lab, Language scope: the app-level language switch and the scoped views. -->
     <string name="lab_language_scope_language">Language</string>
-    <string name="lab_language_scope_all">All languages</string>
+    <string name="lab_language_scope_all">Auto-detect</string>
     <string name="lab_language_scope_source_all">All sources</string>
     <string name="lab_language_scope_chat_empty">No conversations in %1$s yet</string>
     <string name="lab_language_scope_chat_empty_hint">Start one and your partner writes first.</string>

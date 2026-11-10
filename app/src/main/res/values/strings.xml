@@ -18,7 +18,7 @@
     <string name="loading_history">Loading checks</string>
     <string name="history_load_failed">Couldn\'t load your checks.</string>
     <string name="back">Back</string>
-    <string name="auto_detect">Auto Detect</string>
+    <string name="auto_detect">Auto-detect</string>
     <string name="open_linguize">Open Linguize</string>
     <string name="open_settings">Open settings</string>
     <string name="retry">Retry</string>
@@ -52,7 +52,7 @@
     <string name="show_understanding">Show how Linguize read it</string>
     <string name="ai_could_not_understand">Linguize couldn\'t tell what this means</string>
     <string name="check_full_sentence">Check a full sentence</string>
-    <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
+    <string name="choose_auto_language">Choose Auto-detect to detect the language.</string>
     <string name="your_text">Your text</string>
     <string name="no_text_to_check">No text to check.</string>
     <string name="recent">History</string>
@@ -94,7 +94,7 @@
     <string name="open_accessibility">Open Accessibility</string>
     <string name="open_app_info">Open App info</string>
     <string name="wrong_language">This isn\'t %1$s</string>
-    <string name="wrong_language_detected">It looks like %1$s. Choose Auto Detect to detect the language.</string>
+    <string name="wrong_language_detected">It looks like %1$s. Choose Auto-detect to detect the language.</string>
     <string name="quoted_text">“%1$s”</string>
     <string name="model_recommended">%1$s (recommended)</string>
     <string name="model_test_works">Works · %1$.1f s</string>

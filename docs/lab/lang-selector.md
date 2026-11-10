@@ -14,7 +14,7 @@ Languages**: it is the same page.
 
 ## How to use it
 
-- **Selector** (top bar of Chat, Notes, Progress, History): Linguize (Auto, "All languages",
+- **Selector** (top bar of Chat, Notes, Progress, History): Linguize (Auto, "Auto-detect",
   the default), then the writer's languages in their order, each "Catalanize / Catalan" with a
   circular icon; a divider; **Add languages…**.
 - **Languages page** (from the selector or Settings):
@@ -50,9 +50,14 @@ Languages**: it is the same page.
 - **Names come from the catalog everywhere.** `CatalogLanguageNames` is installed as
   `Languages.names` in `App.onCreate` (the catalog is read on first use), so the selector, the
   card's picker, Settings' writing profiles, Progress headings, History and chat rows show
-  catalog names and brands. The card's picker (popups) says "Auto Detect" for detection, as
+  catalog names and brands. The card's picker (popups) says "Auto-detect" for detection, as
   copy style asks, and brand names ("Catalanize", not "Catalanize X Claude") with the same
   icons for Auto and the writer's languages.
+- **Icons at 80 % opacity.** Every language icon (flags, emblems, the speech bubble and
+  Linguize's "A") is drawn at `LanguageIconAlpha` (0.8) in `ui/language/catalog/LanguageIcon.kt`,
+  never per call site, so the surface shows through and full-colour flags don't shout. The
+  hairline outline stays opaque so pale flags keep an edge. 0.8 reads the same in both themes:
+  0.75 turned whites muddy grey on the dark ground, 0.85 barely showed on the light one.
 - **Circular icons everywhere.** The old rectangular flags (`ui/language/LanguageFlags.kt`
   and five drawables) and Linguize's rectangular "A" tile are gone; every icon is the
   catalog's circle, Castilianize's following the writer's Spanish variety. Languages without a

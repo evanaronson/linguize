@@ -18,7 +18,7 @@ the app's voice, and the card says so in one short line.
 - **Settings › Writing preferences › Per-app voice.** The page lists apps with a
   rule, then apps from recent History, then installed messaging and email apps.
 - Tap an app to set:
-  - **Language**: Auto Detect or one of your languages.
+  - **Language**: Auto-detect or one of your languages.
   - **Register**: Same as settings, Casual, Everyday or Formal.
   - **What to suggest**: Same as settings, Fixes and rewordings, Fixes only or
     Rewordings only.
@@ -37,7 +37,7 @@ The copy uses a comma rather than a middle dot ("Formal, Gmail rule"), as
 
 | Choice | Strongest first |
 |---|---|
-| Language | Catalanize or Castilianize entry, or the card's language picker › the app's rule › Auto Detect |
+| Language | Catalanize or Castilianize entry, or the card's language picker › the app's rule › Auto-detect |
 | Register | Choice on the card for this check › the app's rule › each language's writing profile |
 | What to suggest | Choice on the card for this check › the app's rule › Settings |
 

@@ -35,7 +35,7 @@
     <string name="lab_ia_progress_saved">Saved by you</string>
 
     <!-- The pages Progress opens: one header naming the language, one explanation heading. -->
-    <string name="lab_ia_progress_all_languages">All languages</string>
+    <string name="lab_ia_progress_all_languages">Auto-detect</string>
     <string name="lab_ia_progress_how">How it\'s counted</string>
 
     <!-- Summary tiles. -->

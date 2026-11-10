@@ -13,7 +13,7 @@ top of the page said "Catalan" and the bottom didn't. The chat had a third langu
 of its own, and History had none. The information hierarchy was wrong: a person writing in
 Catalan this week is in Catalan everywhere, not on one card.
 
-The first fix added one switch in the top bar but left pickers beside it: Write's "Auto
+The first fix added one switch in the top bar but left pickers beside it: Write's old "Auto
 Detect ▾" by Check, the new-conversation sheet's language dropdown and History's "Catalan ▾
 / All languages ▾". Four controls could disagree about the language, and the switch had no
 way to say "all of them", which is what most people want most of the time. Now there is
@@ -23,11 +23,11 @@ one selector, and "all" is its default.
 
 - **The selector.** The top bar of Chat, Notes, Progress and History shows, just before
   the Settings gear, the current choice's small icon and "▾". Tap it for the menu:
-  **Linguize** with its "A" tile (all languages), **Catalanize** with the senyera,
+  **Linguize** with its "A" tile (Auto-detect, every language), **Catalanize** with the senyera,
   **Castilianize** with the Spanish flag, then the writer's other languages with a code
   badge ("FR"); languages found in History but not added are only suggested
   ([Any language](language-generic.md)). Each brand name has what it means under it
-  ("All languages", "Catalan", "Spanish"); the current one is ticked. Screen readers hear
+  ("Auto-detect", "Catalan", "Spanish"); the current one is ticked. Screen readers hear
   "Language: Catalanize, Catalan".
 - **Where it isn't.** Pages opened from a tab (a conversation, Words, a saved check,
   Settings) show Back and their title, no selector. A conversation's language is fixed
@@ -53,7 +53,7 @@ What each choice means:
 Not scoped: checks from other apps (selection menu, accessibility button, Quick tile,
 share). The app's choice doesn't reach them. They detect the language, or use the
 Catalanize or Castilianize selection-menu entry, and the popup card keeps its own picker
-(Auto Detect, Catalanize, Castilianize). The result files under the detected language.
+(Auto-detect, Catalanize, Castilianize). The result files under the detected language.
 
 ## Data with no language
 

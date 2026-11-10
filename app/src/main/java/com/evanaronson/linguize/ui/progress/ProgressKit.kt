@@ -42,7 +42,7 @@ import com.evanaronson.linguize.ui.language.scopeLanguageName
 val ProgressCardPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
 /**
- * A page's first header: the language it shows ("Catalan"), or "All languages" under
+ * A page's first header: the language it shows ("Catalan"), or "Auto-detect" under
  * Linguize. Pages opened from a tab have no selector, so the page says it.
  */
 @Composable

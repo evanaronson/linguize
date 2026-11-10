@@ -28,7 +28,7 @@ one per supported language, with Casual/Everyday/Formal register and the existin
 punctuation choices. Migration copies the previous global punctuation once into
 both profiles and retains existing regional defaults. Variety is stored but has
 no editor yet; additional named profile selection is deferred. Each request
-snapshots the active profiles in language order. Auto Detect selects the matching
+snapshots the active profiles in language order. Auto-detect selects the matching
 detected-language profile; a pinned request selects its language's profile. The
 prompt gets no competing hardcoded variety when profiles are supplied. Unknown
 languages use the compatibility punctuation and everyday register with no assumed

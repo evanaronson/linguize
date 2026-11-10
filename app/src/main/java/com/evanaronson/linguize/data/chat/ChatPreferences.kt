@@ -4,15 +4,22 @@ import android.content.Context
 
 /**
  * Lab Chat's choices, in their own preferences file (`lab_chat`), never the app's settings:
- * whether the app opens to the chat, and the language the writer last chose or used in a
+ * the tab the app starts on, and the language the writer last chose or used in a
  * conversation.
  */
 class ChatPreferences(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    var openToChat: Boolean
-        get() = prefs.getBoolean(OPEN_TO_CHAT, true)
-        set(value) = prefs.edit().putBoolean(OPEN_TO_CHAT, value).apply()
+    /**
+     * "Start on". Until it's chosen, it follows the old "Open to chat" switch (on: Chat, off:
+     * Notes), whose stored value is kept as it was.
+     */
+    var startOn: StartTab
+        get() = StartTab.read(
+            prefs.getString(START_ON, null),
+            if (prefs.contains(OPEN_TO_CHAT)) prefs.getBoolean(OPEN_TO_CHAT, true) else null,
+        )
+        set(value) = prefs.edit().putString(START_ON, value.token).apply()
 
     var lastLanguage: String?
         get() = prefs.getString(LAST_LANGUAGE, null)
@@ -25,6 +32,8 @@ class ChatPreferences(context: Context) {
 
     private companion object {
         const val FILE = "lab_chat"
+        const val START_ON = "startOn"
+        /** The old "Open to chat" switch: read until "Start on" is chosen; never written. */
         const val OPEN_TO_CHAT = "openToChat"
         const val LAST_LANGUAGE = "lastLanguage"
         const val TRANSLATE_HINT_SEEN = "translateHintSeen"

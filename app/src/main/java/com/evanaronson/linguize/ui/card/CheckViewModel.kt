@@ -19,7 +19,6 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.time.DraftTiming
-import com.evanaronson.linguize.data.SecondOpinionPlan
 import com.evanaronson.linguize.history.Answer
 import com.evanaronson.linguize.history.CheckHistory
 import com.evanaronson.linguize.history.Kept
@@ -28,10 +27,8 @@ import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
-import com.evanaronson.linguize.ui.secondopinion.SecondOpinionController
 import com.evanaronson.linguize.ui.time.CardTiming
 import com.evanaronson.linguize.ui.time.ObservedState
-import com.evanaronson.linguize.ui.secondopinion.SecondOpinionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -80,8 +77,6 @@ class CheckViewModel(
     private val checker: () -> Checker,
     private val history: CheckHistory,
     private val keyRevision: (Provider) -> Long = { 0L },
-    /** Lab: whether and with what a second opinion can run; none by default. */
-    secondOpinionPlan: (CheckContext) -> SecondOpinionPlan = { SecondOpinionPlan.Off },
     /** Lab, Time spent: the card's review time; records nothing by default. */
     val timing: CardTiming = CardTiming(),
 ) : ViewModel() {
@@ -120,14 +115,6 @@ class CheckViewModel(
      * Set by [check] and kept for this card's checks; never shown or recorded, only sent.
      */
     private var replyingTo: String? = null
-
-    /** Lab: the same check asked of a second model and compared; never recorded in history. */
-    val secondOpinion = SecondOpinionController(viewModelScope, checker, secondOpinionPlan) {
-        val done = state as? CardState.Done
-        val first = done?.result as? CheckResult.Reviewed
-        val context = ranWith
-        if (first == null || context == null) null else SecondOpinionRequest(text, language, done.settled, context, first)
-    }
 
     /** The text with accepted changes, or null when nothing has been accepted. */
     val workingText: String?
@@ -417,7 +404,6 @@ class CheckViewModel(
                 CheckViewModel(
                     checker = { app.checker },
                     keyRevision = { app.keys.revision(it) },
-                    secondOpinionPlan = SecondOpinionController.plan(app),
                     timing = CardTiming(app.timeStore),
                     history = CheckHistory(
                         store = app.history,

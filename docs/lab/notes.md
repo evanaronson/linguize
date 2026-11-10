@@ -51,7 +51,7 @@ between Try it and the pad was length and patience, not purpose.
 - **Try it** used the same card. Only the **Writing pad** had a second check experience:
   checks while you pause, underlines in the editor, a panel per change, its own status
   line and its own Meaning strip, but no clarifying, no assumptions, no How it lands, no
-  Second opinion, no Undo.
+  Undo.
 
 ## What live checking added, and what it cost
 
@@ -78,7 +78,7 @@ when you switch apps is the worst outcome. Try it had no drafts at all.
 Merge into a single editor at the top of Write, checked with the one card everyone uses.
 
 - **One check.** Check opens the same card as everywhere (accept a change, Accept all,
-  Meaning, clarifying, How it lands (in the same check), Second opinion, filled [gaps]).
+  Meaning, clarifying, How it lands (in the same check), filled [gaps]).
   **Apply** puts the accepted changes in the editor. **Copy** and **Share** take the text
   out, with any accepted changes put in first.
 - **Nothing lost.** The editor is a draft, saved on the phone as you type and when you

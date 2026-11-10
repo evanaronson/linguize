@@ -47,11 +47,11 @@ what a person comes to do. It doesn't add features.
 | Job | How often | What serves it |
 |---|---|---|
 | Talk and practise | Daily, the main reason to open the app | Chat (conversations, Practise with…) |
-| Write or check one specific thing | Several times a week | Notes (one editor that keeps notes; every check fills [gaps](gaps-in-check.md) and says how it lands); card rows: How it lands, Second opinion |
+| Write or check one specific thing | Several times a week | Notes (one editor that keeps notes; every check fills [gaps](gaps-in-check.md) and says how it lands); card row: How it lands |
 | Understand something someone sent | Weekly | Understand copied text; share sheet |
 | See how I'm doing | Weekly | Practice, Your patterns, Words, Your conjugations, Phrasebook |
 | Look back at what I wrote | Weekly | History (one row per message, any source) |
-| Set up | Once, then rarely | Keys and model, languages, selection menu, accessibility button, popup, per-app voice, What Linguize knows, Open to chat, History switch |
+| Set up | Once, then rarely | Keys and model, languages, selection menu, accessibility button, popup, per-app voice, What Linguize knows, Start on, History switch |
 | In another app, before sending | Many times a day, outside this app | Selection menu, accessibility button, Quick tile, launcher shortcuts, share |
 
 ## Structure
@@ -70,8 +70,9 @@ the page under the reader, so the language is changed on the tab, one Back away.
 
 **Bottom bar: Chat, Notes, Progress, History.** Shown on these four pages and in a
 conversation (the app opens there), hidden on the other pages they open and while the
-keyboard is up. The app starts on Chat, or on Notes when **Open to chat** is off
-(Settings, Chat).
+keyboard is up. The app starts on the tab **Start on** names (Settings › App): Chat by
+default, or Notes, Progress or History. That tab is the root: Back from any other tab
+returns to it.
 
 - **Chat**: the list of conversations in the current language (every language, each with
   its flag, under Linguize; title, who the partner plays, last message, time), with **New
@@ -91,9 +92,9 @@ keyboard is up. The app starts on Chat, or on Notes when **Open to chat** is off
 - **History**: the list in the current language (every language under Linguize), with a
   source dropdown above it when there is more than one source (see
   [One list of messages](history-flat.md)).
-- **Settings** (gear): AI service and Second opinion; Checking (What to suggest); Writing
+- **Settings** (gear): AI service; Checking (What to suggest); Writing
   preferences and Per-app voice; About you (What Linguize knows); **In other apps**:
-  Selection menu, Accessibility button, Popup position; Chat (Open to chat); History.
+  Selection menu, Accessibility button, Popup position; App (Start on); History.
 
 ## Before and after
 
@@ -124,11 +125,11 @@ keyboard is up. The app starts on Chat, or on Notes when **Open to chat** is off
 | Accessibility button setup | Home, bottom | Settings › In other apps | Set up once |
 | Selection menu, Popup position | Settings › Checking, Settings › Popup | Settings › In other apps | Grouped with the accessibility button: how Linguize shows up elsewhere |
 | Settings | Gear on Home; gear in the chat bar | Gear on all four tabs, at the same place; not on pages opened from them | |
-| Open to chat | Settings › Chat: Chat or Home | Settings › Chat: Chat or Notes | Same preference, same stored value |
+| Start on (once Open to chat) | Settings › Chat: a switch, Chat or Home | Settings › App › Start on: Chat, Notes, Progress or History, on its own page | Any tab can be where you start; the old switch carries over (on: Chat, off: Notes) and its stored value is kept |
 | Try it launcher shortcut (then "Write", now "Notes") | Opened the start page (the chat, by default) | Opens Notes above the start | It promised the editor |
 | Practice's last button | Back to Home | Back to Progress | Where Back goes |
-| What Linguize knows, Per-app voice, Second opinion | Settings | Settings | Set up, edited rarely |
-| Card rows (Meaning, How it lands, Second opinion, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
+| What Linguize knows, Per-app voice | Settings | Settings | Set up, edited rarely |
+| Card rows (Meaning, How it lands, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
 | Selection menu, accessibility button, Quick tile, Check and Understand shortcuts, share text, popup's app button | System | System | Unchanged; the app button and "Open settings" still open the app and Settings |
 
 ## Navigation model
@@ -137,10 +138,15 @@ keyboard is up. The app starts on Chat, or on Notes when **Open to chat** is off
 start destination; opening a tab replaces everything above the start with that tab
 (`[Chat]`, `[Chat, Progress]`), and any other screen opens above the current one
 (`[Chat, Progress, Patterns, Pattern, Saved check]`). `Navigation.tab` is the bottom bar's
-selection. Saved state is the same list of tokens as before.
+selection. Saved state is the same list of tokens as before; a saved path's first tab
+restores as its start (`[history, notes]` is Notes above History), and a path that starts
+on no tab (an old one) starts at Notes. The start is `ChatPreferences.startOn` (`StartTab`,
+stored as `startOn` in `lab_chat`; until it's chosen it reads the old `openToChat` switch,
+which is never rewritten); `startNavigation(start, …)` in `ChatStart.kt` builds the path.
 
 `Screen.Chat` is the list of conversations; `Screen.ChatThread(id)` is one conversation
-above it (`lab_chat_thread:<id>`). The app starts at `[Chat, ChatThread(null)]`: null is
+above it (`lab_chat_thread:<id>`). With Chat as the start, the app starts at
+`[Chat, ChatThread(null)]`: null is
 "the current conversation", resolved when shown (`Navigation.replace` swaps in its id, or
 Back returns to the list when there is none, so nothing starts on its own). Another
 conversation replaces the open one; the Chat tab from a conversation returns to the list;

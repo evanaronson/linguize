@@ -16,5 +16,4 @@
 
     <!-- Settings. -->
     <string name="lab_home_ia_in_other_apps">In other apps</string>
-    <string name="lab_home_ia_open_to_chat_summary">The app starts in a conversation. Off starts on Notes.</string>
 </resources>

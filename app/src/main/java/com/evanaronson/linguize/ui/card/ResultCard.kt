@@ -54,7 +54,6 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.TextBlock
-import com.evanaronson.linguize.ui.secondopinion.WithSecondOpinion
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.languageDisplayName
 import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
@@ -185,7 +184,7 @@ private fun ReviewPages(
                     onRemoveClarification = actions.onRemoveClarification,
                 )
             } else {
-                WithSecondOpinion(actions.secondOpinion) { Suggestions(result, state.settled, actions) }
+                Suggestions(result, state.settled, actions)
             }
         }
     }

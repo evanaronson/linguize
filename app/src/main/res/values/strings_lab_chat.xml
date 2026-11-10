@@ -48,9 +48,6 @@
     <string name="lab_chat_more">Rename or delete %1$s</string>
     <string name="lab_chat_row">%1$s, %2$s, %3$s</string>
     <string name="lab_chat_row_detail">%1$s, %2$s</string>
-    <string name="lab_chat_settings_header">Chat</string>
-    <string name="lab_chat_open_to_chat">Open to chat</string>
-    <string name="lab_chat_open_to_chat_summary">The app starts in a conversation. Off starts on Home.</string>
     <!-- Where a saved check came from, on Patterns and Practice examples. -->
     <string name="lab_chat_origin_chat">Chat</string>
     <string name="lab_chat_origin_app">Another app</string>

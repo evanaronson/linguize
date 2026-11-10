@@ -2,7 +2,6 @@ package com.evanaronson.linguize.data.write
 
 import com.evanaronson.linguize.data.writeAtomically
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
@@ -150,7 +149,7 @@ class WriteDraftStore(
         val c = contents()
         // A failed Undo may be retried after the same note has been opened and edited again.
         if (c.drafts.any { it.id == draft.id }) return true
-        write(c.copy(drafts = c.drafts.filterNot { it.id == draft.id } + draft))
+        write(c.copy(drafts = c.drafts + draft))
         return true
     }
 
@@ -160,8 +159,6 @@ class WriteDraftStore(
         val text = readText(file) ?: return imported()
         return try {
             json.decodeFromString(Contents.serializer(), text)
-        } catch (_: SerializationException) {
-            setAside()
         } catch (_: IllegalArgumentException) {
             setAside()
         }
@@ -188,8 +185,6 @@ class WriteDraftStore(
         val text = legacy?.let(::readText) ?: return Contents()
         val pad = try {
             json.decodeFromString(PadContents.serializer(), text)
-        } catch (_: SerializationException) {
-            return Contents()
         } catch (_: IllegalArgumentException) {
             return Contents()
         }

@@ -80,12 +80,11 @@ class NotesViewModel(
     private data class DeletedNote(val draft: WriteDraft, val version: Int)
     private var undo by mutableStateOf<DeletedNote?>(null)
     val deleted: WriteDraft? get() = undo?.draft
-    var storageFailure by mutableStateOf<NotesStorageFailure?>(null)
-        private set
+    private class FailedStorage(val operation: NotesStorageFailure, val noteId: String?, val retry: () -> Unit)
+    private var failedStorage by mutableStateOf<FailedStorage?>(null)
+    val storageFailure get() = failedStorage?.operation
 
     private var sampleText: String? = null
-    private var failedNote: String? = null
-    private var retryStorageAction: (() -> Unit)? = null
     private val failedRestores = linkedMapOf<String, DeletedNote>()
     private val deleting = mutableSetOf<String>()
     private var saving: Job? = null
@@ -137,7 +136,7 @@ class NotesViewModel(
             else current.callbacks += onResolved
             return false
         }
-        recovered(NotesStorageFailure.Open, failedNote)
+        recovered(NotesStorageFailure.Open, failedStorage?.noteId)
         saving?.cancel()
         val next = Editor(noteId, current, deletionVersion(noteId), store.claimSelection())
         next.callbacks += onResolved
@@ -351,21 +350,17 @@ class NotesViewModel(
 
     private fun publish(loaded: List<WriteDraft>) { if (!disposed) notes = loaded }
 
-    fun retryStorage() { retryStorageAction?.invoke() }
+    fun retryStorage() { failedStorage?.retry?.invoke() }
 
     private fun failed(operation: NotesStorageFailure, noteId: String?, retry: () -> Unit) {
         if (disposed) return
-        storageFailure = operation
-        failedNote = noteId
-        retryStorageAction = retry
+        failedStorage = FailedStorage(operation, noteId, retry)
     }
 
     private fun recovered(operation: NotesStorageFailure, noteId: String?) {
         if (disposed) return
-        if (storageFailure != operation || failedNote != noteId) return
-        storageFailure = null
-        failedNote = null
-        retryStorageAction = null
+        if (failedStorage?.operation != operation || failedStorage?.noteId != noteId) return
+        failedStorage = null
         failedRestores.values.firstOrNull()?.let { removed ->
             failed(NotesStorageFailure.Restore, removed.draft.id) { restoreNote(removed) }
         }

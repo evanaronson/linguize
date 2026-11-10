@@ -36,7 +36,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
-import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
@@ -92,7 +91,6 @@ internal fun NoteEditor(
     appLanguage: String? = null,
 ) {
     val context = LocalContext.current
-    val language = noteCheckLanguage(appLanguage)
     // Set when a check was asked for with nothing in the box; cleared by typing.
     var blank by rememberSaveable { mutableStateOf(false) }
 
@@ -106,13 +104,13 @@ internal fun NoteEditor(
     }
 
     // Checks made here are never recorded in history (Origin.Tester isn't recorded).
-    fun run(language: Language?) {
+    fun run() {
         val text = write.text.trim()
         if (text.isEmpty()) {
             blank = true
         } else {
             blank = false
-            check.check(text, language, Origin.Tester)
+            check.check(text, noteCheckLanguage(appLanguage), Origin.Tester)
         }
     }
 
@@ -146,7 +144,7 @@ internal fun NoteEditor(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
+            LinguizeButton(stringResource(R.string.check), { run() }, ButtonKind.Filled)
             LinguizeButton(stringResource(R.string.lab_notes_copy), {
                 context.copyToClipboard(takeFromCard(write, check))
             }, ButtonKind.Text, enabled = hasText)
@@ -210,11 +208,9 @@ internal fun NotesEmpty() {
 /** Every note, newest first: tap one to open its page ([onOpen]); delete with Undo. */
 @Composable
 internal fun NoteList(write: NotesViewModel, onOpen: (String) -> Unit) {
-    val notes = write.notes
-    if (notes.isEmpty()) return
     val resources = LocalContext.current.resources
     ListCard(
-        *notes.map { draft ->
+        *write.notes.map { draft ->
             @Composable {
                 ListRow(
                     draft.label(),

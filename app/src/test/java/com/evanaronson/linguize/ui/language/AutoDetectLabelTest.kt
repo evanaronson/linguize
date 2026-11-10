@@ -27,9 +27,9 @@ class AutoDetectLabelTest {
 
     @Test fun theCardPickerAndItsHintsSpellItTheSameWay() {
         assertEquals("Auto-detect", resources.getString(R.string.auto_detect))
-        assertEquals("Choose Auto-detect to detect the language.", resources.getString(R.string.choose_auto_language))
+        assertEquals("Choose Auto-detect to check it in any language.", resources.getString(R.string.choose_auto_language))
         assertEquals(
-            "It looks like French. Choose Auto-detect to detect the language.",
+            "It looks like French. Choose Auto-detect to check it in that language.",
             resources.getString(R.string.wrong_language_detected, "French"),
         )
     }

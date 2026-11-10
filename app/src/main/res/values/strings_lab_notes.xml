@@ -6,7 +6,9 @@
     <string name="lab_notes_copy">Copy</string>
     <string name="lab_notes_share">Share</string>
     <string name="lab_notes_new">New note</string>
-    <string name="lab_notes_footer">Notes stay on this phone. Checks here aren\'t saved in History. In other apps, select text and choose Linguize in the menu.</string>
+    <string name="lab_notes_sample_hint">A sample to try. Check it, or write your own.</string>
+    <string name="lab_notes_kept">Notes stay on this phone. Checks here aren\'t saved in History.</string>
+    <string name="lab_notes_other_apps">In other apps, select text and choose Linguize in the menu.</string>
     <string name="lab_notes_others">Other notes</string>
     <string name="lab_notes_open">Open note</string>
     <string name="lab_notes_delete">Delete note</string>

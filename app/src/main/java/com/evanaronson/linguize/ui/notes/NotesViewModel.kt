@@ -51,6 +51,9 @@ class NotesViewModel(
     var deleted by mutableStateOf<WriteDraft?>(null)
         private set
 
+    /** The editor holds the untouched sample a fresh install starts with, which is never saved. */
+    val showingSample: Boolean get() = text == sample
+
     private val lock = Mutex()
     private var id: String? = null
     private var title = ""

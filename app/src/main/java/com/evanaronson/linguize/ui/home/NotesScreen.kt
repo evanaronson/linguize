@@ -2,7 +2,6 @@ package com.evanaronson.linguize.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,16 +19,19 @@ import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ScreenColumn
-import com.evanaronson.linguize.ui.components.SectionCard
-import com.evanaronson.linguize.ui.components.SectionHeader
-import com.evanaronson.linguize.ui.notes.NoteList
+import com.evanaronson.linguize.ui.notes.NoteCheckCard
 import com.evanaronson.linguize.ui.notes.NoteEditor
+import com.evanaronson.linguize.ui.notes.NoteList
+import com.evanaronson.linguize.ui.notes.NotesFooter
+import com.evanaronson.linguize.ui.notes.NotesPart
+import com.evanaronson.linguize.ui.notes.notesParts
 import com.evanaronson.linguize.ui.notes.rememberNotesViewModel
 
 /**
  * Notes (once Write), one of the four destinations: an editor with its notes, checked with the same card as
  * everywhere else (which also fills [gaps]). Until a key is saved ([needsKey]), a strip at the
- * top leads to it. Progress, History and Settings have places of their own.
+ * top leads to it. Then the editor and its actions, the card under them, the other notes, and
+ * the captions ([notesParts]).
  */
 @Composable
 internal fun NotesScreen(
@@ -40,14 +42,20 @@ internal fun NotesScreen(
     language: String? = null,
 ) {
     val write = rememberNotesViewModel()
+    val parts = notesParts(
+        needsKey = needsKey,
+        checking = check.state != null,
+        hasOthers = write.drafts.isNotEmpty() || write.deleted != null,
+    )
     ScreenColumn {
-        if (needsKey) AddKeyStrip(onOpenSettings)
-        SectionHeader(stringResource(R.string.lab_notes_header))
-        SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-            NoteEditor(write, check, onOpenSettings, appLanguage = language)
+        // Order and grouping: docs/lab/ia-notes.md.
+        for (part in parts) when (part) {
+            NotesPart.AddKey -> AddKeyStrip(onOpenSettings)
+            NotesPart.Editor -> NoteEditor(write, check, appLanguage = language)
+            NotesPart.CheckCard -> NoteCheckCard(write, check, onOpenSettings)
+            NotesPart.OtherNotes -> NoteList(write, onOpened = { check.dismiss(applied = false) })
+            NotesPart.Footer -> NotesFooter()
         }
-        NoteList(write, onOpened = { check.dismiss(applied = false) })
-
     }
 }
 

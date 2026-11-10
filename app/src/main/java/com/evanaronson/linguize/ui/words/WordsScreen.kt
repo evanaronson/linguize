@@ -103,10 +103,13 @@ import java.util.Locale
  * you've used for the sentences you used it in.
  */
 @Composable
-fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (language: String?, key: String, level: WordLevel) -> Unit) {
+fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, language: String?, onOpenWord: (language: String?, key: String, level: WordLevel) -> Unit) {
     val state by words.state.collectAsState()
     val context = LocalContext.current
-    LaunchedEffect(words) { words.refresh() }
+    LaunchedEffect(words, language) {
+        language?.let(words::selectLanguage)
+        words.refresh()
+    }
     WordsExportEffect(words)
     val defaultName = stringResource(R.string.lab_vocab_gaps_default_name)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->

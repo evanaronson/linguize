@@ -15,9 +15,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -57,19 +59,16 @@ import com.evanaronson.linguize.ui.progress.PageLoading
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.Instant
 import java.time.ZoneId
+import java.util.UUID
 
 /** A practice run: one item at a time, feedback and the saved reason after each, a short summary at the end. */
 @Composable
-fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
+fun PracticeScreen(model: PracticeViewModel, language: String?, onDone: () -> Unit) {
     val state by model.state.collectAsState()
-    var started by rememberSaveable { mutableStateOf(false) }
-    val loaded = state.items != null
-    LaunchedEffect(loaded) {
-        if (loaded && !started) {
-            started = true
-            if (state.run?.finished != false) model.start()
-        }
-    }
+    // Identity only: the model owns whether this page has a run, including after recreation.
+    val entry = key("practice-page-entry") { rememberSaveable { UUID.randomUUID().toString() } }
+    DisposableEffect(model, entry) { onDispose { model.leaveEntry(entry) } }
+    LaunchedEffect(model, language, entry) { model.enter(language, entry) }
     val leave = {
         model.close()
         onDone()
@@ -96,7 +95,7 @@ fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
                 PracticeHow()
             }
             run.finished -> {
-                Done(run, state, leave)
+                Done(run, state.copy(language = run.language), leave)
                 PracticeHow()
             }
             else -> {
@@ -105,9 +104,9 @@ fun PracticeScreen(model: PracticeViewModel, onDone: () -> Unit) {
                     LinguizeButton(stringResource(R.string.lab_practice_stop), leave, ButtonKind.Text)
                 }
                 SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-                    // Fixed when the item appears: answering changes the review count it depends on.
-                    val correctFirst = rememberSaveable(run.index) { state.correctFirst(item) }
-                    ItemView(run, item, correctFirst, model, canContinue = !state.saving && !state.saveFailed)
+                    key(run.id, item.id, run.index) {
+                        ItemView(run, item, state.correctFirst(item), model, canContinue = !state.saving && !state.saveFailed)
+                    }
                 }
             }
         }
@@ -129,8 +128,8 @@ private fun PracticeHow() {
 @Composable
 private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean, model: PracticeViewModel, canContinue: Boolean) {
     val answered = run.answered
-    // Keyed by position: a repeated item starts with an empty field.
-    var typed by rememberSaveable(run.index) { mutableStateOf("") }
+    // The parent's saveable group belongs to this run, item and occurrence, including repeats.
+    var typed by rememberSaveable { mutableStateOf("") }
     when (item.mode) {
         PracticeItem.Mode.Type -> {
             Label(stringResource(com.evanaronson.linguize.ui.chat.youWroteLabel(item.origin)))
@@ -282,7 +281,9 @@ private fun Done(run: PracticeRun, state: PracticeState, onDone: () -> Unit) {
     Spacer(Modifier.height(8.dp))
     SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
         Text(stringResource(R.string.lab_practice_done), style = MaterialTheme.typography.titleMedium)
-        Quiet(pluralStringResource(R.plurals.lab_practice_score, run.size, run.right, run.size), Modifier.padding(top = 4.dp))
+        if (run.size > 0) {
+            Quiet(pluralStringResource(R.plurals.lab_practice_score, run.size, run.right, run.size), Modifier.padding(top = 4.dp))
+        }
         nextLine(state)?.let { Quiet(it) }
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.End) {
             LinguizeButton(stringResource(R.string.lab_home_ia_practice_done), onDone, ButtonKind.Filled)

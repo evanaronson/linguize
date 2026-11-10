@@ -70,11 +70,15 @@ import com.evanaronson.linguize.ui.theme.Linguize
 fun PatternsScreen(
     patterns: PatternsViewModel,
     historyOn: Boolean?,
+    language: String?,
     onOpenPattern: (PatternKind) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val state by patterns.state.collectAsState()
-    LaunchedEffect(patterns) { patterns.refresh() }
+    LaunchedEffect(patterns, language) {
+        patterns.setLanguage(language)
+        patterns.refresh()
+    }
     val report = state.snapshot?.report
     ScreenColumn {
         when {

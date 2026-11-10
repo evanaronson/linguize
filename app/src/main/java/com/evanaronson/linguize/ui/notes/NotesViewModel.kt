@@ -67,6 +67,8 @@ class NotesViewModel(
     val text: String get() = editor?.draft?.text.orEmpty()
     val language: String? get() = editor?.draft?.language
     val openId: String? get() = editor?.draft?.id
+    /** A resolved editor with an acknowledged row can replace the route's current-note placeholder. */
+    val savedId: String? get() = editor?.takeIf { it.resolved && !it.loading }?.draft?.takeIf { it.saved }?.id
     val loading: Boolean get() = editor?.loading == true
     val showingSample: Boolean get() = sampleText != null && text == sampleText
 

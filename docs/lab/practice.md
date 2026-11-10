@@ -16,6 +16,9 @@ for that mistake. A run is 5 to 10 items and takes about a minute.
 - Progress shows **Practice** under its headline: "N due" with **Start practice**, or when the next practice is, for the app's current
   language: only its items are due and drilled ([Language scope](language-scope.md)). Nothing is pushed
   anywhere else: Progress is where you go when you want to practise.
+- Under Auto, opening a language's Progress block saves that language with the
+  Practice route. Recreation and Settings/Back retain it. An actual change of the
+  app language clears the block override; restoring the initial selection does not.
 - Tap it. Each item shows **You wrote** with the mistaken words underlined in
   proof vermilion, as on the check card.
   - **Type the fix** for words and short phrases. Check compares locally.
@@ -92,6 +95,32 @@ is immediate; Next waits for the save. On failure, the answer and its original t
 are retained for Retry, without counting the answer again. A failed state read does
 not become empty progress or trigger pruning. The existing 500-check window remains
 the retention policy.
+
+## Returning to a run
+
+The view model saves a compact run checkpoint through Android saved instance state:
+the run and page-entry identities, ordered suggestion ids, position, first grades,
+repeat decisions, current feedback kind and choice order, and numeric review states
+from before the run's answers. A pending grade also keeps its original time and local
+day. The checkpoint contains no copied History sentences, reasons or typed answers;
+accent feedback identifies a word by its position in the rebuilt fix.
+
+A fresh view model reads the durable schedule and rebuilds items from History before
+restoring the run. Missing source items are omitted; a failed read preserves the
+checkpoint for Retry. The durable schedule takes precedence over an older checkpoint.
+An item whose schedule advanced while the checkpoint still showed it unanswered is
+omitted, without replaying or claiming that grade for the run. A known answer can be
+retained when its saved grade matches the durable schedule. Restored pending grades
+write only if their captured prior schedule still matches; a newer, incompatible
+schedule supersedes the old work. Fresh live answers retain the ordinary serialized
+grading behavior.
+
+Restoring the same page keeps its unfinished run or completed summary. Leaving and
+opening Practice again can start a new due run, while an unfinished run continues.
+There is no independently saved "already started" flag that can suppress a missing
+run. Input and option placement are keyed to the run and its item occurrence.
+These reconstruction rules do not change the schedule file format, answer scoring,
+repeat policy or 500-check evidence window.
 
 ## Limits
 

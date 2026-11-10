@@ -41,9 +41,12 @@ import com.evanaronson.linguize.ui.components.uiLocale
 
 /** One group: how often, over time, how it was grouped, and every example with its saved check. */
 @Composable
-fun PatternDetailScreen(patterns: PatternsViewModel, kind: PatternKind, onOpenCheck: (String) -> Unit) {
+fun PatternDetailScreen(patterns: PatternsViewModel, kind: PatternKind, language: String?, onOpenCheck: (String) -> Unit) {
     val state by patterns.state.collectAsState()
-    LaunchedEffect(patterns) { patterns.refresh() }
+    LaunchedEffect(patterns, language) {
+        patterns.setLanguage(language)
+        patterns.refresh()
+    }
     val report = state.snapshot?.report
     ScreenColumn {
         when {

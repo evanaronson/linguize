@@ -20,6 +20,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -40,7 +42,7 @@ class NavigationStateTest {
                 composition.setContent {
                     CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
                         val saved = rememberNavigationStateHolder(navigation)
-                        saved.SaveableStateProvider(navigation.current.saved) {
+                        saved.SaveableStateProvider(navigation.current.saveableKey) {
                             currentValue = rememberSaveable { mutableStateOf(0) }
                         }
                     }
@@ -88,7 +90,7 @@ class NavigationStateTest {
                 composition.setContent {
                     CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
                         val saved = rememberNavigationStateHolder(navigation)
-                        saved.SaveableStateProvider(navigation.current.saved) {
+                        saved.SaveableStateProvider(navigation.current.saveableKey) {
                             currentValue = rememberSaveable { mutableStateOf(0) }
                         }
                     }
@@ -145,6 +147,72 @@ class NavigationStateTest {
                 settle()
                 assertEquals(11, currentValue.value)
                 assertEquals(setOf("notes"), screenKeys(restored.performSave()))
+            } finally {
+                composition.dispose()
+                recomposer.cancel()
+                runner.cancelAndJoin()
+            }
+        }
+    }
+
+    @Test
+    fun practiceKeepsItsEntryAndTypedAnswerWhenScopeChangesButDropsBothWhenPopped() = runBlocking(FrameClock) {
+        withTimeout(5_000) {
+            val recomposer = Recomposer(coroutineContext)
+            val runner = launch { recomposer.runRecomposeAndApplyChanges() }
+            val catalan = Screen.Practice.inScope(RouteScope.Block("ca"))
+            val spanish = Screen.Practice.inScope(RouteScope.Block("es"))
+            var navigation by mutableStateOf(Navigation(Screen.Chat).open(Screen.Progress).open(catalan))
+            var nextEntry = 0
+            var entry = ""
+            lateinit var answer: MutableState<String>
+            val registry = SaveableStateRegistry(restoredValues = null) { true }
+            val composition = Composition(EmptyApplier(), recomposer).also { composition ->
+                composition.setContent {
+                    CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
+                        val saved = rememberNavigationStateHolder(navigation)
+                        saved.SaveableStateProvider(navigation.current.saveableKey) {
+                            entry = rememberSaveable { "entry-${nextEntry++}" }
+                            answer = rememberSaveable { mutableStateOf("") }
+                        }
+                    }
+                }
+            }
+            suspend fun settle() {
+                repeat(2) {
+                    Snapshot.sendApplyNotifications()
+                    yield()
+                    recomposer.awaitIdle()
+                }
+            }
+            try {
+                val original = entry
+                answer.value = "La resposta que escric"
+                assertEquals(catalan.saved, navigation.saved.last())
+                navigation = navigation.afterLanguageChange()
+                settle()
+                assertEquals(Screen.Practice.saved, navigation.saved.last())
+                assertEquals(original, entry)
+                assertEquals("La resposta que escric", answer.value)
+
+                navigation = navigation.back()
+                settle()
+                assertFalse("Popping retires the run's page state", "practice" in screenKeys(registry.performSave()))
+                navigation = navigation.open(spanish)
+                settle()
+                assertNotEquals(original, entry)
+                assertEquals("", answer.value)
+                val second = entry
+                answer.value = "Otra respuesta"
+
+                // Cleanup must use the same key even if the popped route still has a block.
+                navigation = navigation.back()
+                settle()
+                assertFalse("practice" in screenKeys(registry.performSave()))
+                navigation = navigation.open(catalan)
+                settle()
+                assertNotEquals(second, entry)
+                assertEquals("", answer.value)
             } finally {
                 composition.dispose()
                 recomposer.cancel()

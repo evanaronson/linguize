@@ -38,6 +38,7 @@ import com.evanaronson.linguize.ui.notes.NotesEmpty
 import com.evanaronson.linguize.ui.notes.NotesFooter
 import com.evanaronson.linguize.ui.notes.NotesListPart
 import com.evanaronson.linguize.ui.notes.NotesStorageError
+import com.evanaronson.linguize.ui.notes.NotesViewModel
 import com.evanaronson.linguize.ui.notes.noteParts
 import com.evanaronson.linguize.ui.notes.notesListParts
 import com.evanaronson.linguize.ui.notes.rememberNotesViewModel
@@ -95,6 +96,7 @@ internal fun NotePage(
     LaunchedEffect(write, noteId) {
         if (write.open(noteId) { resolved(it) }) check.dismiss(applied = false)
     }
+    ResolveSavedNoteRoute(write) { resolved(it) }
     ScreenColumn {
         NotesStorageError(write)
         // Order and grouping: docs/lab/ia-notes.md.
@@ -105,6 +107,14 @@ internal fun NotePage(
             NotePart.Footer -> NotesFooter()
         }
     }
+}
+
+/** A new current note gets a stable route only after its first successful save. */
+@Composable
+internal fun ResolveSavedNoteRoute(write: NotesViewModel, onResolved: (String) -> Unit) {
+    val resolved by rememberUpdatedState(onResolved)
+    val savedId = write.savedId
+    LaunchedEffect(write, savedId) { savedId?.let { resolved(it) } }
 }
 
 /** First run: nothing can be checked until there is a key. */

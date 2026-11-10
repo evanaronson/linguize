@@ -67,11 +67,15 @@ import each other.
 [ui/home/HomeActivity](../app/src/main/java/com/evanaronson/linguize/ui/home/HomeActivity.kt)
 owns the app scaffold and the Chat, Notes, Progress, and History tabs, with Settings
 and feature/detail pages above them. The Notes tab is a list; `Screen.Note(id)` opens
-an editor explicitly. `Navigation` saves a stack of `Screen` tokens.
-The activity also distributes the app language through `scopeTo` and applies a
-Progress block's language through `scopeView`; several feature scopes therefore
-live in view models rather than in the saved route. Popup navigation and return
-handling live in `ui/popup`.
+an editor explicitly. `Navigation` saves a stack of `Screen` tokens, including a
+Progress block's language when opened under Auto. Ordinary routes follow the app
+selector; a block route retains its language through recreation and Settings/Back.
+A real app-language change clears block overrides, while the initial restored
+selection does not. Detail routes retain their intrinsic language or inherit their
+parent's block scope. The visible page applies its effective scope to its model;
+opening another page no longer changes every feature's selection as a side effect.
+Delayed current-note and current-conversation resolutions must still belong to the
+same live navigation entry. Popup navigation and return handling live in `ui/popup`.
 
 [History](history.md) owns the meaning of stored decisions. The pure
 `SessionRecording` turns card activity into records; `CheckHistory` coordinates
@@ -123,13 +127,20 @@ Asynchronous results carry the identity of the work that requested them:
 |---|---|
 | Chat | Selection, editor input and partner requests have separate ownership. Store-side checks protect delayed reply appends and title changes; an acknowledged writer append returns the current stored thread. |
 | Notes | Each requested editor buffers its own input while loading. Ordered commands and shared-store selection, input and deletion revisions protect saves, opening and Undo across hosts. Accepted commands outlive a page, but not the process. |
+| Practice | Saved instance state holds run/item identities, small answer decisions and numeric schedule baselines. History rebuilds the text; the durable schedule determines whether restored work is still current. |
 | Words | Evidence, language, deck and level form one published result; superseded analysis cannot supply its coverage or export. Storage mutations run separately from replaceable query work. |
 | Patterns | A request captures language and evidence generation before work starts. Explanation save/delete and evidence reconciliation share the service's storage lock; provider calls run outside it. |
 | Time and Conjugations | Refresh replaces older work. Time checks cancellation before sweeping measurements and labels its report with its captured language; Conjugations builds both language reports from one read and preserves the current display selection. |
 
 Cancellation releases obsolete work; ownership checks also protect publication
-and storage when a dependency finishes late. These guards do not reconstruct
-screen requests after process death or change the evidence windows below.
+and storage when a dependency finishes late. These guards do not themselves
+reconstruct pending requests after process death. Practice has a separate compact
+checkpoint: it rebuilds its queue from live History and reconciles saved decisions
+against the durable schedule before resuming. An advanced schedule can supersede
+ambiguous stale work; restoration does not invent a grade or replay an acknowledged
+one. The checkpoint copies no History text and adds no schedule-file schema. See
+[Practice](lab/practice.md#returning-to-a-run) for its reconstruction limits. The
+evidence windows below remain unchanged.
 
 Keep Android resources in their native form. `strings.xml`, `strings_lifecycle.xml`,
 and `strings_platform.xml` form one catalog; file boundaries do not affect resource

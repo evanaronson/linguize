@@ -3,8 +3,9 @@
 These tests establish a baseline before cleaning up `feature/bonanza`, starting at
 `d5d92cc13f083411ff60735c59a743ac20780704`. They preserve successful behavior and
 make confirmed failures reproducible. Step 3 repairs persistence acknowledgements
-and memory command invalidation; step 4 gives asynchronous work explicit ownership.
-Their repaired contracts now run in the normal suite.
+and memory command invalidation; step 4 gives asynchronous work explicit ownership;
+step 5 reconstructs scoped routes and Practice runs. Their repaired contracts now
+run in the normal suite.
 
 The Notes fixtures follow the later Notes navigation change (`16c25a7`, merged in
 `ef5150e`): loading the list does not open an editor; a note is opened explicitly.
@@ -125,9 +126,44 @@ These changes preserve the existing algorithms, evidence windows, file formats,
 normal export lifetimes and consecutive Chat sends. They do not implement route or
 process reconstruction, or change the corpus's missing/failure policy.
 
+## Route and run reconstruction (step 5)
+
+Progress drilldowns save their language scope with the destination. Initial
+restoration preserves an Auto language block; an actual app-language change clears
+block overrides along the live path. Word and conjugation details retain their
+intrinsic language and item identity. Legacy route tokens remain readable. The
+visible screen applies its scope, replacing the activity's feature-wide broadcasts.
+
+Delayed Chat/Notes navigation callbacks belong to the exact path that requested
+them. A missing conversation cannot pop a newer page, including a later visit to
+the same destination. A startup note acquires its explicit route ID after its first
+successful save, so another editor's current-note selection cannot change what that
+route restores. Canonicalizing that current-note route retains the editor's content
+key, preserving focus and field state while the writer is using it.
+
+Practice saves one versioned checkpoint of run and page-entry identities, item IDs,
+position, small answer/repeat decisions and schedule baselines. Items are rebuilt
+from the existing History source. There is no separately restored “already started”
+flag, and no full item/report or sentence text in the run checkpoint. Durable
+scheduling remains authoritative: restoration reconciles an older checkpoint before
+showing the run, and replay of a pending grade cannot apply the same update twice.
+An ambiguous newer durable schedule supersedes the stale restored item; the
+checkpoint is not a durable transaction log. Fresh overlapping live runs retain
+the existing serialized grading behavior.
+
+These changes retain the scheduling algorithm, first-answer grading, one repeat
+after a miss, and the documented 500-check window. They add no storage migration.
+
+The step adds 44 regressions without removing earlier tests. Coverage includes
+actual Home activity rotation and saved-Bundle recreation, fresh feature models,
+Practice saved-state registry restoration and durable grade conflicts, and Compose
+content identity during route changes. The final normal run passes all 1,924 tests
+with zero skips and the optional corpus/fuzz fixtures enabled. Release lint and
+assembly pass; lint remains at the existing 66 warnings and one hint.
+
 ## Known defects still executable
 
-After step 4, the opt-in suite contains these six failing methods. A setup
+After step 5, the opt-in suite contains these six failing methods. A setup
 exception, timeout, or unrelated assertion failure is not a successful reproduction;
 check the failure against the intended invariant below.
 
@@ -142,9 +178,10 @@ check the failure against the intended invariant below.
 
 ## Test boundaries and production changes
 
-View-model tests share one coroutine test scheduler for Main and injected IO.
+Most view-model tests share one coroutine test scheduler for Main and injected IO.
 Deferred provider replies and held dispatches establish the contested ordering;
-there are no sleeps or polling loops. Memory tests retain real IO dispatch and use
+there are no sleeps or polling loops. Activity lifecycle tests advance Robolectric's
+virtual main looper. Memory tests retain real IO dispatch and use
 explicit gates and job joins; their timeout only bounds a broken handshake.
 Persistence tests use actual temporary files or SQLite. Nonempty directories at
 temporary/destination paths force write/rename failure without relying on OS
@@ -162,8 +199,11 @@ This is a focused baseline, not complete lifecycle coverage. In particular:
   Send-button availability after failed/unclear checks remains a separate UI contract.
   History-off is represented by the existing `DraftCheck.finish` null result.
 - Notes, Chat and scoped-query tests cover selected interleavings, including late
-  completion after cancellation. Route restoration, Android process death and
-  Practice restoration remain separate work.
+  completion after cancellation. Reconstruction tests replace view-model owners
+  and restore saved state; this is not a handset process-kill test.
+- Unsent Chat drafts/checks and Notes edits not yet acknowledged at process death
+  remain transient. Saved instance state is a snapshot: a later save cannot update
+  a Bundle Android already captured.
 - Accepted Notes commands drain on the application scope after the editor closes;
   they are not a persistent command queue. Words import/delete commands and failed
   deck-cleanup retries remain scoped to their ViewModel's lifetime.

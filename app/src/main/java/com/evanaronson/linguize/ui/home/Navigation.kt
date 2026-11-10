@@ -8,7 +8,17 @@ import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import com.evanaronson.linguize.core.language.LanguageScope
+import com.evanaronson.linguize.ui.progress.ProgressView
 import com.evanaronson.linguize.ui.settings.SettingsPage
+
+/** A Progress block supplies its language under Auto; ordinary pages follow the app. */
+internal sealed interface RouteScope {
+    data object FollowApp : RouteScope
+    data class Block(val language: String) : RouteScope {
+        init { require(LanguageScope.isCode(language)) }
+    }
+}
 
 /**
  * The launcher activity's screens: few enough for a state and a back handler, no navigation
@@ -16,6 +26,10 @@ import com.evanaronson.linguize.ui.settings.SettingsPage
  * and History. Everything else opens above one of them.
  */
 internal sealed interface Screen {
+    /** Only Progress pages and their pattern detail need scope beyond their legacy token. */
+    data class Scoped(val page: Screen, val block: RouteScope.Block) : Screen {
+        init { require(page.acceptsScope) }
+    }
     /** Notes: the list of notes, with New note. Saved as "notes"; "home" (its first name, then Write) still restores. */
     data object Notes : Screen
     data object History : Screen
@@ -81,7 +95,9 @@ internal sealed interface Screen {
      * Lab, Notes navigation: one note's page, above the Notes list. [id] null is "the current
      * note", what the app opens to when Notes is the start; it's resolved when shown.
      */
-    data class Note(val id: String?) : Screen
+    data class Note(val id: String?, val openedAsCurrent: Boolean = false) : Screen {
+        init { require(!openedAsCurrent || id != null) }
+    }
 
     /** A bottom-bar destination: opening one replaces the path above the start destination. */
     val isTab: Boolean get() = this in tabs
@@ -89,6 +105,7 @@ internal sealed interface Screen {
     /** For saved instance state. */
     val saved: String
         get() = when (this) {
+            is Scoped -> "scoped:${block.language}:${page.saved}"
             Notes -> NOTES
             History -> "history"
             Settings -> "settings"
@@ -112,19 +129,29 @@ internal sealed interface Screen {
             Languages -> "lab_lang_selector"
             Notices -> "lab_lang_selector_notices"
             is ConjugationVerbs -> "conjugation_verbs:$language:${cell.orEmpty()}"
-            is Note -> if (id == null) NOTE else "$NOTE:$id"
+            is Note -> when {
+                id == null -> NOTE
+                openedAsCurrent -> "$CURRENT_NOTE:$id"
+                else -> "$NOTE:$id"
+            }
         }
 
     companion object {
         private const val CHAT_THREAD = "lab_chat_thread"
         private const val NOTES = "notes"
         private const val NOTE = "lab_notes_note"
+        private const val CURRENT_NOTE = "lab_notes_current"
 
         /** The bottom bar, in order. */
         val tabs: List<Screen> get() = listOf(Chat, Notes, Progress, History)
 
         fun restore(saved: String?): Screen? = when {
             saved == null -> null
+            saved.startsWith("scoped:") -> saved.split(':', limit = 3).takeIf {
+                it.size == 3 && LanguageScope.isCode(it[1])
+            }?.let { parts ->
+                restore(parts[2])?.takeIf { it.acceptsScope }?.inScope(RouteScope.Block(parts[1]))
+            }
             saved == NOTES || saved == "home" -> Notes
             saved == "history" -> History
             saved == "settings" -> Settings
@@ -164,9 +191,54 @@ internal sealed interface Screen {
                 .takeIf { it.size == 2 && it[0].isNotEmpty() }?.let { ConjugationVerbs(it[0], it[1].ifEmpty { null }) }
             saved == NOTE -> Note(null)
             saved.startsWith("$NOTE:") && saved.length > NOTE.length + 1 -> Note(saved.removePrefix("$NOTE:"))
+            saved.startsWith("$CURRENT_NOTE:") && saved.length > CURRENT_NOTE.length + 1 ->
+                Note(saved.removePrefix("$CURRENT_NOTE:"), openedAsCurrent = true)
             else -> null
         }
     }
+}
+
+private val Screen.acceptsScope: Boolean
+    get() = this in listOf(Screen.Patterns, Screen.Practice, Screen.Words, Screen.Conjugations, Screen.Phrasebook, Screen.TimeSpent) ||
+        this is Screen.PatternDetail
+
+/** The view to draw; its scope remains part of the route's saved identity. */
+internal val Screen.destination: Screen get() = if (this is Screen.Scoped) page else this
+internal val Screen.scope: RouteScope get() = if (this is Screen.Scoped) block else RouteScope.FollowApp
+
+/** Live work retains its content identity when only scope or a current-note placeholder resolves. */
+internal val Screen.saveableKey: String
+    get() = when {
+        destination == Screen.Practice -> Screen.Practice.saved
+        this is Screen.Note && openedAsCurrent -> Screen.Note(null).saved
+        else -> saved
+    }
+
+internal fun Screen.inScope(scope: RouteScope): Screen = when (scope) {
+    RouteScope.FollowApp -> destination
+    is RouteScope.Block -> Screen.Scoped(destination, scope)
+}
+
+/** Intrinsic detail IDs keep their language; a block is a fallback while the app is Auto. */
+internal fun Screen.effectiveLanguage(appLanguage: String?): String? = when (this) {
+    is Screen.WordDetail -> language
+    is Screen.ConjugationCell -> language
+    is Screen.ConjugationVerbs -> language
+    is Screen.Scoped -> appLanguage ?: block.language
+    else -> appLanguage
+}
+
+/** A block is captured only under Auto; unscoped/legacy routes continue to follow the app. */
+internal fun progressDestination(view: ProgressView, appLanguage: String?, block: String?): Screen {
+    val page = when (view) {
+        ProgressView.Practice -> Screen.Practice
+        ProgressView.Words -> Screen.Words
+        ProgressView.Conjugations -> Screen.Conjugations
+        ProgressView.Patterns -> Screen.Patterns
+        ProgressView.Phrasebook -> Screen.Phrasebook
+        ProgressView.Time -> Screen.TimeSpent
+    }
+    return if (appLanguage == null && block != null) page.inScope(RouteScope.Block(block)) else page
 }
 
 /**
@@ -184,9 +256,13 @@ internal data class Navigation private constructor(private val screens: List<Scr
     val current: Screen get() = screens.last()
     val parent: Screen? get() = screens.dropLast(1).lastOrNull()
     val saved: List<String> get() = screens.map { it.saved }
+    val saveableKeys: List<String> get() = screens.map { it.saveableKey }
 
     /** The bottom bar's selected destination: the tab the current screen was opened from. */
     val tab: Screen get() = screens.last { it.isTab || it == screens.first() }
+
+    /** A delayed callback belongs to this exact live path, including leave/reenter of the same route. */
+    fun owns(entry: Navigation): Boolean = this === entry
 
     fun open(screen: Screen): Navigation = when {
         screen.isTab -> if (screen == screens.first()) Navigation(screens.take(1)) else Navigation(listOf(screens.first(), screen))
@@ -204,11 +280,23 @@ internal data class Navigation private constructor(private val screens: List<Scr
     fun replace(screen: Screen): Navigation =
         if (screens.size > 1) Navigation(screens.dropLast(1) + screen) else Navigation(listOf(screen))
 
+    /** Name the acknowledged note without replacing the editor that opened as "current". */
+    fun resolveNote(id: String): Navigation {
+        val note = current as? Screen.Note ?: return this
+        return if (note.id == null) replace(Screen.Note(id, openedAsCurrent = true)) else this
+    }
+
     /**
      * Lab, Language scope: the writer switched the app's language. A conversation keeps its
      * own language, so an open one closes to the list, which now shows the new language's.
      */
-    fun afterLanguageSwitch(): Navigation = if (current is Screen.ChatThread) back() else this
+    fun afterLanguageSwitch(): Navigation = afterLanguageChange().let {
+        if (it.current is Screen.ChatThread) it.back() else it
+    }
+
+    /** Only an actual app-language transition clears block overrides; restoration never calls this. */
+    fun afterLanguageChange(): Navigation =
+        if (screens.any { it is Screen.Scoped }) Navigation(screens.map { it.destination }) else this
 
     companion object {
         fun restore(saved: List<String>?): Navigation {
@@ -224,8 +312,8 @@ internal data class Navigation private constructor(private val screens: List<Scr
 @Composable
 internal fun rememberNavigationStateHolder(navigation: Navigation): SaveableStateHolder {
     val saved = rememberSaveableStateHolder()
-    var savedScreens by rememberSaveable { mutableStateOf(navigation.saved) }
-    val liveScreens = navigation.saved
+    var savedScreens by rememberSaveable { mutableStateOf(navigation.saveableKeys) }
+    val liveScreens = navigation.saveableKeys
     SideEffect {
         // Popped screens must not accumulate in the activity's saved Bundle.
         (savedScreens - liveScreens.toSet()).forEach(saved::removeState)

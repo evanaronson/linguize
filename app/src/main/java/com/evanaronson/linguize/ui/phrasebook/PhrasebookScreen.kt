@@ -85,8 +85,9 @@ import kotlinx.coroutines.withContext
  * them all as text. [onOpenCheck] opens the saved check a phrase came from.
  */
 @Composable
-fun PhrasebookScreen(model: PhrasebookViewModel, onOpenCheck: (String) -> Unit) {
+fun PhrasebookScreen(model: PhrasebookViewModel, language: String?, onOpenCheck: (String) -> Unit) {
     val state by model.state.collectAsState()
+    LaunchedEffect(model, language) { model.setLanguage(language) }
     val deleted by model.lastDeleted.collectAsState()
     val failure by model.failure.collectAsState()
     val context = LocalContext.current

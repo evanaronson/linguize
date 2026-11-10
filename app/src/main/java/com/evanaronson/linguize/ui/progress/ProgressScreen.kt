@@ -136,8 +136,12 @@ fun ProgressScreen(
     val conjugationsState by conjugations.state.collectAsState()
     val options by languageOptions.collectAsState()
     // Time passes while Progress is away; due items are counted against the clock.
-    LaunchedEffect(practice) { practice.tick() }
+    LaunchedEffect(practice, language) {
+        practice.setLanguage(language)
+        practice.tick()
+    }
     LaunchedEffect(conjugations) { conjugations.refresh() }
+    LaunchedEffect(patterns, language) { patterns.setLanguage(language) }
 
     val wordsByLanguage = wordsState.index?.languages.orEmpty().associateBy { it.language }
     val phrases = rememberPhrases()
@@ -145,7 +149,8 @@ fun ProgressScreen(
         wordsByLanguage.filterValues { it.distinctWords > 0 }.keys +
         phrases.orEmpty().map { it.language } +
         conjugationsState.reports.filterValues { !it.isEmpty }.keys
-    val pattern = if (language == null) null else patternsState.snapshot?.report?.takeIf { it.worthShowing }
+    val pattern = if (language == null || patternsState.language != language) null
+        else patternsState.snapshot?.report?.takeIf { it.worthShowing }
 
     ScreenColumn {
         progressLayout(language, found, options.map { it.code }).forEach { section ->

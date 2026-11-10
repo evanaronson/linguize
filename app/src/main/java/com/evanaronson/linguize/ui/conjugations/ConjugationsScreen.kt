@@ -78,6 +78,7 @@ private const val TREND_MONTHS = 6
 @Composable
 fun ConjugationsScreen(
     model: ConjugationsViewModel,
+    language: String?,
     onOpenCell: (language: String, cell: Cell) -> Unit,
     /** "Show all N verbs": the full list, or a cell's ([cell] non-null). */
     onOpenVerbs: (language: String, cell: Cell?) -> Unit = { _, _ -> },
@@ -85,7 +86,10 @@ fun ConjugationsScreen(
     onOpenVerb: (language: String, lemma: String) -> Unit = { _, _ -> },
 ) {
     val state by model.state.collectAsState()
-    LaunchedEffect(model) { model.refresh() }
+    LaunchedEffect(model, language) {
+        language?.let(model::select)
+        model.refresh()
+    }
     ScreenColumn {
         // Lab, Language scope: the language is the app's, switched in the top bar.
         val report = state.report

@@ -194,7 +194,13 @@ Not chosen:
   input cannot.
 - Navigation: `Screen.Note(id)` above `Screen.Notes` (`lab_notes_note:<id>`; null is "the
   current note", `lab_notes_note`, replaced by its id once known, as Chat's current
-  conversation is). `startNavigation` opens it for the Notes start and the Notes shortcut.
+  conversation is). A new note first opened through that placeholder gains its stable
+  route id after its first acknowledged save, so recreation reopens that note rather
+  than whichever note another host later made current. The resolved-current token
+  (`lab_notes_current:<id>`) retains the placeholder's content key, so assigning the
+  id preserves the live editor and its field state. A delayed resolution applies
+  only while the originating navigation entry is still current. `startNavigation`
+  opens the placeholder for the Notes start and the Notes shortcut.
 - `ui/notes/NoteEditor`: "Write and check"; the editor with Check, Copy and Share in one row
   under it; the card below the editor (`NoteCheckCard`, `CardActions.of`, as Try it used);
   the captions; and the list's rows (`NoteList`, `NoteDeletedRow`, `NotesEmpty`). The orders

@@ -80,10 +80,20 @@ language of their History attempt, so they are the same.
   `brandName`, `brandNameResource`), drawn with `ui/components/FilterDropdown` (its
   `detail` line says what a brand name means). Only `HomeActivity` calls it, and
   `AppNavigation` draws it only on a root tab.
-- `HomeActivity` passes the current language to Chat, Notes, Progress, History and Time,
-  and sets it on the Practice, Patterns and Phrasebook view models (null: every
-  language) and, for a language, on Words and Conjugations. Under Linguize, a Progress block
-  scopes the page it opens (`scopeView`).
+- `Navigation` saves either a legacy page following the app or a `Screen.Scoped` page
+  with its `RouteScope.Block` language (`scoped:ca:patterns`, for example). The block
+  survives rotation and a fresh process under Auto. Pattern detail inherits that scope;
+  Word and Conjugation detail routes already carry their own language.
+- `HomeActivity` resolves the visible route and passes its language to the feature's
+  entry effect before loading or entering Practice. It does not broadcast scope to
+  unrelated view models. Auto still means all languages for Patterns, Practice and the
+  Phrasebook; an unscoped Words or Conjugations page keeps its last/default language.
+- An actual change of the app language clears block overrides across the live path,
+  including ancestors behind a saved check; the initial Flow emission does not.
+  Switching from Auto to Spanish and back therefore follows Auto again rather than
+  reviving an old Catalan block. Intrinsic Word/Conjugation details keep their language.
+  Chat's language-follow action clears overrides without closing that conversation;
+  the selector's explicit switch retains its existing close-to-list rule.
 - View models: `PracticeState.language` (due and runs from `scoped`) and `dueIn(language)`
   (a block's count under Linguize), `PatternsLab.load(language)`, `WordsState.shownLanguage`,
   `ConjugationsState.shown`, `PhrasebookViewModel.setLanguage` and `inLanguage`,

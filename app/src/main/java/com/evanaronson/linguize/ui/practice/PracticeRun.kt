@@ -3,6 +3,8 @@ package com.evanaronson.linguize.ui.practice
 import com.evanaronson.linguize.core.practice.AnswerResult
 import com.evanaronson.linguize.core.practice.Grade
 import com.evanaronson.linguize.core.practice.PracticeItem
+import com.evanaronson.linguize.core.practice.ReviewState
+import java.util.UUID
 
 /** The answer to the item on screen. [revealed] when the writer asked to see the fix instead. */
 data class Answered(val result: AnswerResult, val revealed: Boolean = false, val pickedCorrect: Boolean? = null)
@@ -20,6 +22,11 @@ data class PracticeRun(
     val grades: Map<String, Grade> = emptyMap(),
     /** Items already sent round again. */
     val repeated: Set<String> = emptySet(),
+    /** Identity and small decisions needed to rebuild this run from History after recreation. */
+    val id: String = UUID.randomUUID().toString(),
+    val language: String? = null,
+    val baseline: Map<String, ReviewState?> = emptyMap(),
+    val correctFirst: Boolean? = null,
 ) {
     val current: PracticeItem? get() = queue.getOrNull(index)
     val finished: Boolean get() = index >= queue.size

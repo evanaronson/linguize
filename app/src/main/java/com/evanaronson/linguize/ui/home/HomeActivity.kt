@@ -44,11 +44,12 @@ import com.evanaronson.linguize.ui.patterns.PatternsViewModel
 import com.evanaronson.linguize.ui.patterns.labelResource
 import com.evanaronson.linguize.ui.practice.PracticeScreen
 import com.evanaronson.linguize.ui.practice.PracticeViewModel
-import com.evanaronson.linguize.ui.progress.ProgressView
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
 import com.evanaronson.linguize.ui.theme.AppTheme
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 
 /** The full app has normal navigation; a popup's page and edits belong to its own host. */
 class HomeActivity : ComponentActivity() {
@@ -82,12 +83,19 @@ class HomeActivity : ComponentActivity() {
         com.evanaronson.linguize.ui.quicktile.QuickLaunch.publishInBackground(this)
         setContent {
             AppTheme {
-                val current = navigation.current
+                val entry = navigation
+                val route = entry.current
+                val current = route.destination
                 val openSettings = { navigation = navigation.open(Screen.Settings) }
                 // Lab, Language scope: one current language for Chat, Notes, Progress and History; null is Linguize (Auto).
                 val language by appLanguage.current.collectAsState()
                 LaunchedEffect(Unit) { appLanguage.load() }
-                LaunchedEffect(language) { scopeTo(language) }
+                val scopedLanguage = route.effectiveLanguage(language)
+                LaunchedEffect(appLanguage) {
+                    // Initial collection must preserve a restored Auto block. Later changes,
+                    // including Chat.follow, make live pages follow the new app choice.
+                    appLanguage.current.drop(1).collect { navigation = navigation.afterLanguageChange() }
+                }
                 val languageSelector: @Composable () -> Unit = {
                     com.evanaronson.linguize.ui.language.LanguageSwitch(appLanguage, onAddLanguages = {
                         navigation = navigation.open(Screen.Languages)
@@ -122,16 +130,13 @@ class HomeActivity : ComponentActivity() {
                     },
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-                        saved.SaveableStateProvider(current.saved) {
+                        saved.SaveableStateProvider(route.saveableKey) {
                             when (current) {
                                 Screen.Notes -> NotesScreen { navigation = navigation.open(Screen.Note(it)) }
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
                                     practice, patterns, words, conjugations, language, appLanguage.options,
                                 ) { view, block ->
-                                    // Under Linguize (Auto), a language's block opens its page in that language;
-                                    // a section for every language (the Phrasebook) opens in the app's.
-                                    scopeView(view, block ?: language)
-                                    navigation = navigation.open(view.screen)
+                                    navigation = navigation.open(progressDestination(view, language, block))
                                 }
                                 Screen.History -> HistoryScreen(
                                     history, settings,
@@ -154,18 +159,18 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
                                 is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenConversation = { navigation = navigation.open(Screen.Chat).open(Screen.ChatThread(it)) })
-                                Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
+                                Screen.Phrasebook -> PhrasebookScreen(phrasebook, scopedLanguage, onOpenCheck = ::open)
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
-                                Screen.Patterns -> PatternsScreen(patterns, settings.state?.historyEnabled, onOpenPattern = {
-                                    navigation = navigation.open(Screen.PatternDetail(it.token))
+                                Screen.Patterns -> PatternsScreen(patterns, settings.state?.historyEnabled, scopedLanguage, onOpenPattern = {
+                                    navigation = navigation.open(Screen.PatternDetail(it.token).inScope(route.scope))
                                 }, onOpenSettings = openSettings)
                                 is Screen.PatternDetail -> PatternDetailScreen(
-                                    patterns, PatternKind.read(current.kind) ?: PatternKind.Other, onOpenCheck = ::open,
+                                    patterns, PatternKind.read(current.kind) ?: PatternKind.Other, scopedLanguage, onOpenCheck = ::open,
                                 )
-                                Screen.Practice -> PracticeScreen(practice, onDone = ::back)
+                                Screen.Practice -> PracticeScreen(practice, scopedLanguage, onDone = ::back)
                                 Screen.Memory -> com.evanaronson.linguize.ui.memory.MemoryScreen(memory)
-                                Screen.Words -> com.evanaronson.linguize.ui.words.WordsScreen(words, settings.state?.historyEnabled) { language, key, level ->
+                                Screen.Words -> com.evanaronson.linguize.ui.words.WordsScreen(words, settings.state?.historyEnabled, scopedLanguage) { language, key, level ->
                                     navigation = navigation.open(Screen.WordDetail(language, key, level.token))
                                 }
                                 is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
@@ -175,17 +180,17 @@ class HomeActivity : ComponentActivity() {
                                     navigation = navigation.open(Screen.ChatThread(it))
                                 }
                                 is Screen.ChatThread -> com.evanaronson.linguize.ui.chat.ChatThreadScreen(
-                                    current.id, language, onBack = ::back,
+                                    current.id, language, onBack = { if (navigation.owns(entry)) back() },
                                     onResolved = { id ->
                                         // Only while the app is still on "the current conversation".
-                                        if (navigation.current == Screen.ChatThread(null)) {
+                                        if (navigation.owns(entry) && current.id == null) {
                                             navigation = if (id != null) navigation.replace(Screen.ChatThread(id)) else navigation.back()
                                         }
                                     },
                                     onOpenSettings = openSettings,
                                 )
                                 Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(
-                                    conjugations,
+                                    conjugations, scopedLanguage,
                                     onOpenCell = { language, cell -> navigation = navigation.open(Screen.ConjugationCell(language, cell.token)) },
                                     onOpenVerbs = { language, cell -> navigation = navigation.open(conjugationVerbsScreen(language, cell)) },
                                     onOpenVerb = { language, lemma -> navigation = navigation.open(conjugationVerbWordScreen(language, lemma)) },
@@ -197,7 +202,7 @@ class HomeActivity : ComponentActivity() {
                                         onOpenVerb = { language, lemma -> navigation = navigation.open(conjugationVerbWordScreen(language, lemma)) },
                                     )
                                 }
-                                Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, language)
+                                Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, scopedLanguage)
                                 Screen.Languages -> com.evanaronson.linguize.ui.language.LanguagesScreen(appLanguage)
                                 Screen.Notices -> com.evanaronson.linguize.ui.settings.OpenSourceNoticesScreen()
                                 is Screen.ConjugationVerbs -> com.evanaronson.linguize.ui.conjugations.ConjugationVerbsScreen(
@@ -209,10 +214,11 @@ class HomeActivity : ComponentActivity() {
                                     onOpenSettings = openSettings,
                                     onResolved = { id ->
                                         // Only while the app is still on "the current note".
-                                        if (id != null && navigation.current == Screen.Note(null)) navigation = navigation.replace(Screen.Note(id))
+                                        if (id != null && navigation.owns(entry) && current.id == null) navigation = navigation.resolveNote(id)
                                     },
                                     language = language,
                                 )
+                                is Screen.Scoped -> error("Scoped route was not unwrapped")
                             }
                         }
                     }
@@ -237,38 +243,6 @@ class HomeActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putStringArrayList(STACK, ArrayList(navigation.saved))
-    }
-
-    /**
-     * Lab, Language scope: every scoped view follows the app's current language. Under
-     * Linguize (Auto, null) Practice, Your patterns and the Phrasebook show every language;
-     * Words and Your conjugations, which show one language at a time, keep the last one
-     * until a block on Progress opens them in another ([scopeView]).
-     */
-    private fun scopeTo(language: String?) {
-        practice.setLanguage(language)
-        patterns.setLanguage(language)
-        phrasebook.setLanguage(language)
-        if (language != null) {
-            words.selectLanguage(language)
-            conjugations.select(language)
-        }
-    }
-
-    /**
-     * Lab, Consistency: Progress opens [view] in [language]: a block's under Linguize (Auto), else
-     * the app's (null is every language; Words and Your conjugations then keep theirs).
-     */
-    private fun scopeView(view: com.evanaronson.linguize.ui.progress.ProgressView, language: String?) {
-        when (view) {
-            com.evanaronson.linguize.ui.progress.ProgressView.Practice -> practice.setLanguage(language)
-            com.evanaronson.linguize.ui.progress.ProgressView.Words -> language?.let(words::selectLanguage)
-            com.evanaronson.linguize.ui.progress.ProgressView.Conjugations -> language?.let(conjugations::select)
-            com.evanaronson.linguize.ui.progress.ProgressView.Patterns -> patterns.setLanguage(language)
-            com.evanaronson.linguize.ui.progress.ProgressView.Phrasebook -> phrasebook.setLanguage(language)
-            // Time totals add up across languages; its page breaks them down.
-            com.evanaronson.linguize.ui.progress.ProgressView.Time -> Unit
-        }
     }
 
     private fun open(id: String) {
@@ -310,17 +284,6 @@ class HomeActivity : ComponentActivity() {
 @Composable
 private fun imeVisible(): Boolean = com.evanaronson.linguize.ui.components.imeVisible()
 
-/** Where a [ProgressView] lives in the navigation. */
-private val ProgressView.screen: Screen
-    get() = when (this) {
-        ProgressView.Practice -> Screen.Practice
-        ProgressView.Words -> Screen.Words
-        ProgressView.Conjugations -> Screen.Conjugations
-        ProgressView.Patterns -> Screen.Patterns
-        ProgressView.Phrasebook -> Screen.Phrasebook
-        ProgressView.Time -> Screen.TimeSpent
-    }
-
 /**
  * Lab, Consistency: the bar a screen gets. Every root tab has the same one (the wordmark, the
  * language selector, Settings); every other page has Back and its [title].
@@ -331,6 +294,7 @@ internal fun Screen.topBar(title: String, subtitle: String? = null): TopBar =
 /** A page's title in the navigation bar, and in "Back to …"; a tab's name (its bar shows the wordmark). */
 @Composable
 private fun Screen.title(): String = when (this) {
+    is Screen.Scoped -> page.title()
     Screen.Notes -> stringResource(R.string.lab_consistency_notes)
     Screen.Progress -> stringResource(R.string.lab_home_ia_progress)
     Screen.History -> stringResource(R.string.history)

@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.ui.practice
 
 import android.os.Looper
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
@@ -65,7 +66,7 @@ class PracticeViewModelTest {
     private val models = ViewModelStore()
     private val model by lazy {
         ViewModelProvider(models, viewModelFactory {
-            initializer { PracticeViewModel(history, store, clock = { now }, zone = { ZoneOffset.UTC }) }
+            initializer { PracticeViewModel(history, store, clock = { now }, zone = { ZoneOffset.UTC }, savedState = SavedStateHandle()) }
         })[PracticeViewModel::class.java]
     }
 

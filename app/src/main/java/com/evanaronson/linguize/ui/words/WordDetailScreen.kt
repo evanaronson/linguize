@@ -66,8 +66,10 @@ fun WordDetailScreen(
     val wanted = WordLevel.read(level) ?: WordLevel.Forms
     LaunchedEffect(words, language, wanted) {
         // After the process was gone, the list is rebuilt on this row's language and level.
-        if (state.shownLanguage != language) words.selectLanguage(language)
-        if (state.shownLevel != wanted) words.countBy(wanted)
+        // Record route intent even when the fresh model's defaults happen to match:
+        // its later saved-selection read must not replace the route's language or level.
+        words.selectLanguage(language)
+        words.countBy(wanted)
         words.refresh()
     }
     val shown = state.shown?.takeIf { it.language == language }

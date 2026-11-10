@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.ui.practice
 
 import android.app.Application
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
 import com.evanaronson.linguize.core.practice.AnswerResult
 import com.evanaronson.linguize.data.practice.PracticeStore
@@ -36,7 +37,7 @@ class PracticeFailureTest {
     private val file get() = File(folder.root, "practice.json")
     private val history = FakePatternHistory(listOf(check("one", 1, fix("despues", "después"), text = "despues.")))
     private val store get() = PracticeStore(file, main.dispatcher)
-    private fun model() = PracticeViewModel(history, store, clock = { 1_000_000_000_000L }, zone = { ZoneOffset.UTC })
+    private fun model() = PracticeViewModel(history, store, clock = { 1_000_000_000_000L }, zone = { ZoneOffset.UTC }, savedState = SavedStateHandle())
         .also { owners.put("practice", it) }
     @After fun close() { owners.clear() }
 

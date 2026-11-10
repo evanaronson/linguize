@@ -152,6 +152,16 @@ on no tab (an old one) starts at Notes. The start is `ChatPreferences.startOn` (
 stored as `startOn` in `lab_chat`; until it's chosen it reads the old `openToChat` switch,
 which is never rewritten); `startNavigation(start, …)` in `ChatStart.kt` builds the path.
 
+A Progress page opened from a language block under Auto saves that block with the page,
+for example `scoped:ca:patterns`; a pattern detail inherits it. Titles and Back use the
+underlying destination, while saved UI state uses the full scoped token. Legacy tokens
+still restore as pages following the app selector. The visible page derives its query
+from the restored route, so a fresh view model gets the same scope. Actual app-language
+changes clear block overrides across the live path; initial restoration does not.
+Word and Conjugation detail routes keep their explicit language and identifiers.
+Practice keeps one saveable page key while its run remains open, so changing the app
+scope preserves its entry identity and typed answer; popping the page removes that state.
+
 `Screen.Chat` is the list of conversations; `Screen.ChatThread(id)` is one conversation
 above it (`lab_chat_thread:<id>`). With Chat as the start, the app starts at
 `[Chat, ChatThread(null)]`: null is
@@ -173,6 +183,15 @@ path or a pinned shortcut from before works. An old `[lab_chat, home, history]` 
 `lab_reply`, `photo`) restore as Notes. `HomeActivity.notesIntent` asks for Notes. The
 Notes shortcut uses it.
 
+A note opened as current keeps that editor's saveable key when its ID resolves, including
+after the first successful save of a new note. Its route stores the explicit ID as
+`lab_notes_current:<id>`, preserving both record identity and the editor's state on
+recreation. Opening a different note uses that note's ordinary key.
+
+Resolution callbacks from Chat and Notes can change navigation only while they still
+own the same live path instance. Leaving and reopening an identical route invalidates
+the earlier callback, so a late missing-record result cannot pop a newer page.
+
 The bar a screen gets is `Screen.topBar(title)` in `HomeActivity.kt`: `TopBar.Root` for the
 four tabs, `TopBar.Page(title)` for everything else. `AppNavigation` draws the selector and
 the gear only on a root, and Back only on a page. A conversation draws the same
@@ -190,10 +209,6 @@ the gear only on a root, and Back only on a page. A conversation draws the same
 - `HistoryViewModel.recent` (and its tests) stays, though nothing shows Recent now.
 
 ## Limits
-
-- A page Progress opened from a language's block under Linguize keeps that language after
-  the app is recreated only as far as its view model survives; restored from scratch it
-  shows its default.
 
 - Switching tabs doesn't keep each tab's inner path. Coming back to Progress opens its top,
   not the pattern you were reading.

@@ -20,8 +20,6 @@ import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.text.descriptionResource
 import com.evanaronson.linguize.ui.text.displayName
 import com.evanaronson.linguize.ui.text.labelResource
-import com.evanaronson.linguize.ui.secondopinion.SecondOpinionPage
-import com.evanaronson.linguize.ui.secondopinion.SecondOpinionSettingsRow
 
 /** The Settings choices that open a page of their own; the row and the page share a title. */
 enum class SettingsPage(val token: String, @param:StringRes val title: Int) {
@@ -33,7 +31,7 @@ enum class SettingsPage(val token: String, @param:StringRes val title: Int) {
     Register("register", R.string.writing_register),
     Punctuation("punctuation", R.string.punctuation),
     Position("position", R.string.popup_position),
-    SecondOpinion("second_opinion", R.string.lab_second_opinion_title),
+    StartOn("start", R.string.lab_settings_start_title),
     ;
 
     companion object {
@@ -61,7 +59,6 @@ fun SettingsScreen(
     ScreenColumn {
         SectionHeader(stringResource(R.string.ai_service))
         ModelCard(state, settings, onOpen)
-        SecondOpinionSettingsRow(onOpen = { onOpen(SettingsPage.SecondOpinion) })
 
         SectionHeader(stringResource(R.string.checking))
         val suggest = stringResource(state.judgments.labelResource)
@@ -95,7 +92,7 @@ fun SettingsScreen(
             { ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) },
         )
 
-        com.evanaronson.linguize.ui.chat.ChatSettingsSection()
+        StartOnSection(onOpen)
 
         SectionHeader(stringResource(R.string.history))
         HistorySwitch(state, settings)
@@ -144,6 +141,6 @@ fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
             PopupPosition.entries, { it == state.popupPosition }, { stringResource(it.labelResource) },
             { it.descriptionResource?.let { id -> stringResource(id) } }, settings::setPopupPosition,
         )
-        SettingsPage.SecondOpinion -> SecondOpinionPage()
+        SettingsPage.StartOn -> StartOnPage()
     }
 }

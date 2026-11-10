@@ -54,7 +54,7 @@ internal sealed interface Screen {
             val LEVELS = setOf("f", "x", "l")
         }
     }
-    /** Lab: the chat, which the app opens to unless that is switched off. */
+    /** Lab: the chat, which the app opens to unless "Start on" names another tab. */
     data object Chat : Screen
     /** Lab: your conjugations. */
     data object Conjugations : Screen
@@ -147,15 +147,15 @@ internal sealed interface Screen {
 }
 
 /**
- * The actual path taken. It starts at the start destination (Chat, or Notes when "Open to
- * chat" is off); another tab sits right above it, so Back from any tab returns to the start
+ * The actual path taken. It starts at the start destination (the "Start on" tab: Chat,
+ * Notes, Progress or History); another tab sits right above it, so Back from any tab returns to the start
  * and Back from the start leaves the app. Other screens open above the current one, so the
  * same check can return to History or to Your patterns.
  */
 internal data class Navigation private constructor(private val screens: List<Screen>) {
     constructor() : this(listOf(Screen.Notes))
 
-    /** A path that starts at [root]: Chat or Notes. */
+    /** A path that starts at [root], one of the [Screen.tabs]. */
     constructor(root: Screen) : this(listOf(root))
 
     val current: Screen get() = screens.last()
@@ -188,7 +188,8 @@ internal data class Navigation private constructor(private val screens: List<Scr
     companion object {
         fun restore(saved: List<String>?): Navigation {
             val screens = saved.orEmpty().mapNotNull(Screen::restore)
-            val root = if (screens.firstOrNull() == Screen.Chat) Navigation(Screen.Chat) else Navigation()
+            // The first tab saved is the start; a path that starts elsewhere (an old one) starts at Notes.
+            val root = screens.firstOrNull()?.takeIf { it.isTab }?.let { Navigation(it) } ?: Navigation()
             return screens.fold(root) { navigation, screen -> navigation.open(screen) }
         }
     }

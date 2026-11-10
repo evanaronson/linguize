@@ -4,7 +4,6 @@ import android.content.Context
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
-import com.evanaronson.linguize.ui.secondopinion.SecondOpinionController
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -25,8 +24,6 @@ class CardActions(
     val onRemoveClarification: (() -> Unit)? = null,
     /** Lab Phrasebook: where saved phrases come from; null shows no save control. */
     val phraseOrigin: PhraseOrigin? = null,
-    /** Lab: asks a second model and compares; null where the card offers no second opinion. */
-    val secondOpinion: SecondOpinionController? = null,
 ) {
     companion object {
         /**
@@ -63,7 +60,6 @@ class CardActions(
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
             phraseOrigin = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
-            secondOpinion = check.secondOpinion,
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.home
 
+import com.evanaronson.linguize.data.chat.StartTab
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -11,7 +12,7 @@ import org.junit.Test
  */
 class ChatListNavigationTest {
     @Test fun theAppOpensIntoTheCurrentConversationWithTheListOneBackAway() {
-        val start = startNavigation(openToChat = true, openSettings = false)
+        val start = startNavigation(StartTab.Chat, openSettings = false)
         assertEquals(Screen.ChatThread(null), start.current)
         assertEquals(Screen.Chat, start.parent)
         assertEquals(Screen.Chat, start.tab)
@@ -20,7 +21,7 @@ class ChatListNavigationTest {
     }
 
     @Test fun theCurrentConversationIsReplacedByItsIdOnceKnownOrClosedWhenThereIsNone() {
-        val start = startNavigation(openToChat = true, openSettings = false)
+        val start = startNavigation(StartTab.Chat, openSettings = false)
         val found = start.replace(Screen.ChatThread("c1"))
         assertEquals(listOf("lab_chat", "lab_chat_thread:c1"), found.saved)
         assertEquals(Navigation(Screen.Chat), found.back())
@@ -66,8 +67,8 @@ class ChatListNavigationTest {
     }
 
     @Test fun shortcutsAndSettingsDontOpenAConversation() {
-        assertEquals(listOf("lab_chat", "notes"), startNavigation(openToChat = true, openSettings = false, tab = Screen.Notes).saved)
-        assertEquals(listOf("lab_chat", "settings"), startNavigation(openToChat = true, openSettings = true).saved)
-        assertEquals(Navigation(), startNavigation(openToChat = false, openSettings = false))
+        assertEquals(listOf("lab_chat", "notes"), startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Notes).saved)
+        assertEquals(listOf("lab_chat", "settings"), startNavigation(StartTab.Chat, openSettings = true).saved)
+        assertEquals(Navigation(), startNavigation(StartTab.Notes, openSettings = false))
     }
 }

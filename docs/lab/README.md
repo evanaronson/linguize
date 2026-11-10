@@ -17,7 +17,6 @@ Settings behind the gear.
 | Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Notes |
 | Before sending | [How it lands](tone-check.md): part of every check; how the message will come across, with tone fixes as ordinary rewordings | Card row, everywhere |
 | Before sending | [Replying to](reply-context.md): every chat check reads the draft as a reply to the partner's last message | Chat (automatic) |
-| Before sending | [Second opinion](second-opinion.md): rerun the check on the other provider and compare each change | Card; Settings |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
 | Writing a message | [Notes](notes.md) (once Write): one editor with its notes, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Notes |
 | Anywhere | [Share text](share-text.md): share text in from another app to check it or understand it | Share sheet |
@@ -28,7 +27,7 @@ Settings behind the gear.
 | Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Progress |
 | Learning over time | [What Linguize knows](memory.md): short notes about you, learned from chats or added, all editable | Settings, About you |
 | Learning over time | [Words](words.md): a frequency list and every word you typed, in one list: used, not yet, tried; coverage over time ([decks](vocab-gaps.md)) | Progress |
-| Every day | [Chat](chat.md): the app opens to a conversation; each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |
+| Every day | [Chat](chat.md): the app opens to a conversation (Settings › Start on can pick another tab); each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 | Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |

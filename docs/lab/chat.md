@@ -72,7 +72,8 @@ point forces the check, because there is no selection menu to choose it from.
 - **The rest of the app.** The bottom bar under the list and a conversation has Notes (the
   editor), Progress and History; Back from any of them returns to the chat. The gear on the
   list (as on every tab) opens Settings; a conversation's bar is Back and its title only.
-  **Open to chat** (Settings, Chat, on by default) can switch to starting on Notes. See
+  **Start on** (Settings › App, Chat by default) can start the app on Notes, Progress or
+  History instead; the old Open to chat switch carries over (off: Notes). See
   [Home and navigation](home-ia.md).
 - **History.** Each sent message is one row in History, the same as a message checked
   in another app, labelled "Chat · Weekend plans" where an app row says "WhatsApp". It

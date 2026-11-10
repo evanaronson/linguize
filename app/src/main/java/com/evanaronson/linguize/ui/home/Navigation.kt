@@ -30,8 +30,6 @@ internal sealed interface Screen {
     /** A past check. */
     data class Detail(val id: String) : Screen
 
-    /** The assumptions of a past check. */
-    data class DetailAssumptions(val id: String) : Screen
 
     /** Lab: saved phrases. */
     data object Phrasebook : Screen
@@ -89,7 +87,6 @@ internal sealed interface Screen {
             AccessibilitySetup -> "accessibility"
             is SettingsChoice -> "settings:${page.token}"
             is Detail -> "detail:$id"
-            is DetailAssumptions -> "assumptions:$id"
             Phrasebook -> "phrasebook"
             is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
             Patterns -> "patterns"
@@ -123,8 +120,9 @@ internal sealed interface Screen {
             saved == "accessibility" -> AccessibilitySetup
             saved.startsWith("settings:") -> SettingsPage.read(saved.removePrefix("settings:"))?.let(::SettingsChoice)
             saved.startsWith("detail:") && saved.length > "detail:".length -> Detail(saved.removePrefix("detail:"))
+            // The separate Assumptions page is gone (Lab, Meaning): its saved pages open the check.
             saved.startsWith("assumptions:") && saved.length > "assumptions:".length ->
-                DetailAssumptions(saved.removePrefix("assumptions:"))
+                Detail(saved.removePrefix("assumptions:"))
             saved == "phrasebook" -> Phrasebook
             saved == "appvoice" -> AppVoice()
             saved.startsWith("appvoice:") && saved.length > "appvoice:".length -> AppVoice(saved.removePrefix("appvoice:"))

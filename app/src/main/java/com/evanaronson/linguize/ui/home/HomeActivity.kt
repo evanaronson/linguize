@@ -32,7 +32,6 @@ import com.evanaronson.linguize.ui.components.AppNavigation
 import com.evanaronson.linguize.ui.components.TopBar
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.HistoryScreen
-import com.evanaronson.linguize.ui.history.SessionAssumptionsScreen
 import com.evanaronson.linguize.ui.history.SessionScreen
 import com.evanaronson.linguize.ui.history.SessionViewModel
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
@@ -159,10 +158,7 @@ class HomeActivity : ComponentActivity() {
                                 })
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)
                                 Screen.AccessibilitySetup -> AccessibilitySetupScreen()
-                                is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenAssumptions = {
-                                    navigation = navigation.open(Screen.DetailAssumptions(current.id))
-                                }, onOpenConversation = { navigation = navigation.open(Screen.Chat).open(Screen.ChatThread(it)) })
-                                is Screen.DetailAssumptions -> SessionAssumptionsScreen(session)
+                                is Screen.Detail -> SessionScreen(session, onDeleted = ::back, onOpenConversation = { navigation = navigation.open(Screen.Chat).open(Screen.ChatThread(it)) })
                                 Screen.Phrasebook -> PhrasebookScreen(phrasebook, onOpenCheck = ::open)
                                 is Screen.AppVoice -> current.app?.let { AppVoiceRuleScreen(appVoice, it) }
                                     ?: AppVoiceListScreen(appVoice) { navigation = navigation.open(Screen.AppVoice(it)) }
@@ -276,7 +272,6 @@ class HomeActivity : ComponentActivity() {
     private val Screen.sessionId: String?
         get() = when (this) {
             is Screen.Detail -> id
-            is Screen.DetailAssumptions -> id
             else -> null
         }
 
@@ -328,7 +323,6 @@ private fun Screen.title(): String = when (this) {
     Screen.AccessibilitySetup -> stringResource(R.string.accessibility_button)
     is Screen.SettingsChoice -> stringResource(page.title)
     is Screen.Detail -> stringResource(R.string.saved_check)
-    is Screen.DetailAssumptions -> stringResource(R.string.assumptions)
     Screen.Phrasebook -> stringResource(R.string.lab_phrasebook_title)
     is Screen.AppVoice -> appVoiceTitle(app)
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)

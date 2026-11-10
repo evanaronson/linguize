@@ -6,6 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
@@ -23,6 +26,11 @@ import com.evanaronson.linguize.data.language.CatalogLanguageNames
 import com.evanaronson.linguize.data.language.LanguageChoice
 import com.evanaronson.linguize.data.language.LanguageList
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -48,6 +56,8 @@ class LanguagesScreenTest {
     private val before = Languages.names
 
     @After fun restore() {
+        pages.forEach { it.close() }
+        pages.clear()
         Languages.names = before
     }
 
@@ -61,10 +71,19 @@ class LanguagesScreenTest {
 
     private class Choice(override var current: String? = null) : LanguageChoice
 
-    private class Page(val root: ComposeView, val activity: ComponentActivity) {
+    /**
+     * Drives its own frames: an earlier Robolectric window in the same test process can keep the
+     * shared frame dispatcher, and then this page's LaunchedEffect never runs (seen in full runs).
+     */
+    private class Page(val root: ComposeView, val activity: ComponentActivity, val frames: BroadcastFrameClock,
+        val recomposer: Recomposer, val uiScope: CoroutineScope) {
+        private var frameTime = 0L
         fun idle() {
             repeat(8) {
+                Snapshot.sendApplyNotifications()
                 shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(20))
+                frameTime += 16_666_667L
+                frames.sendFrame(frameTime)
                 Thread.sleep(5)
             }
             root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
@@ -96,7 +115,15 @@ class LanguagesScreenTest {
         fun row(code: String) = tagged("$LANGUAGES_ROW_TAG$code")
         fun texts() = nodes().flatMap { node -> node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } }
         fun click(node: SemanticsNode?) = assertTrue(requireNotNull(node).config[SemanticsActions.OnClick].action!!.invoke())
+
+        fun close() {
+            root.disposeComposition()
+            recomposer.cancel()
+            uiScope.cancel()
+        }
     }
+
+    private val pages = mutableListOf<Page>()
 
     private fun open(mine: List<String>, history: List<String> = emptyList()): Triple<Page, AppLanguage, Memory> {
         Languages.names = CatalogLanguageNames { com.evanaronson.linguize.data.language.LanguageCatalogAsset.get(ApplicationProviderContext.get()) }
@@ -104,9 +131,16 @@ class LanguagesScreenTest {
         val profiles = listOf(WritingProfile.defaultFor(Language.Spanish).copy(variety = "Mexican"))
         val language = AppLanguage(Choice(), { profiles }, { history }, memory)
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
-        val root = ComposeView(activity).apply { setContent { MaterialTheme { LanguagesScreen(language) } } }
+        val frames = BroadcastFrameClock()
+        val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + frames)
+        val recomposer = Recomposer(uiScope.coroutineContext)
+        uiScope.launch { recomposer.runRecomposeAndApplyChanges() }
+        val root = ComposeView(activity).apply {
+            setParentCompositionContext(recomposer)
+            setContent { MaterialTheme { LanguagesScreen(language) } }
+        }
         activity.setContentView(root)
-        val page = Page(root, activity)
+        val page = Page(root, activity, frames, recomposer, uiScope).also(pages::add)
         // The page reads the writer's languages and History off the main thread first.
         waitFor(page) { language.mine.value == mine && language.suggested.value == history.filter { it !in mine } }
         return Triple(page, language, memory)

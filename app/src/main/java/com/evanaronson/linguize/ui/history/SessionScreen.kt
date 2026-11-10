@@ -57,8 +57,6 @@ private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 fun SessionScreen(
     session: SessionViewModel,
     onDeleted: () -> Unit,
-    /** Unused: the readings are inline in Meaning now. [SessionAssumptionsScreen] stays for restored back stacks. */
-    @Suppress("UNUSED_PARAMETER") onOpenAssumptions: () -> Unit = {},
     /** Lab Chat: opens a chat message's conversation; offered only on chat messages. */
     onOpenConversation: ((String) -> Unit)? = null,
 ) {
@@ -165,27 +163,6 @@ private fun SavedMeaning(sessionId: String, reviewed: CheckResult.Reviewed, sett
     SectionCard(Modifier.padding(top = 16.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)) {
         MeaningLandsSection(outline, expanded, { expanded = it },
             onSettle = null, onRemoveChoice = null, onClarify = null, onRemoveClarification = null)
-    }
-}
-
-/** The readings a past check's suggestions rested on, and the writer's answers, read-only. */
-@Composable
-fun SessionAssumptionsScreen(session: SessionViewModel) {
-    ScreenColumn {
-        SavedSessionContent(session.page, session::retry) { page ->
-            val assumptions = (page.card?.result as? CheckResult.Reviewed)?.assumptions.orEmpty()
-            val readings = savedAssumptions(assumptions, page.card?.settled.orEmpty())
-            SectionHeader(stringResource(R.string.assumptions))
-            SectionCard(contentPadding = BlockPadding) {
-                if (readings.count == 0) {
-                    Quiet(stringResource(R.string.history_no_assumptions))
-                } else {
-                    Quiet(stringResource(R.string.assumptions_description_past))
-                    Spacer(Modifier.height(4.dp))
-                    AssumptionList(assumptions, readings.open, readings.settled, onSettle = null, onRemoveChoice = null)
-                }
-            }
-        }
     }
 }
 

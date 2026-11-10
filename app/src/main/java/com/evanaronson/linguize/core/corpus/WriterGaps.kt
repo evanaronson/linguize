@@ -31,6 +31,12 @@ object WriterGaps {
      */
     fun isEnglishOnly(form: String): Boolean = form.trim('\'') in ENGLISH_ONLY
 
+    /**
+     * Lab, language-generic: whether [form] in text written in [language] looks like a gap the
+     * writer left in English. Never in English text, where English words are the point.
+     */
+    fun isEnglishGap(form: String, language: String?): Boolean = language != "en" && isEnglishOnly(form)
+
     private val ENGLISH_ONLY = setOf(
         "the", "and", "with", "you", "your", "my", "our", "their", "they", "we", "she", "him", "her", "them",
         "it", "it's", "i'm", "i'll", "i've", "don't", "can't", "won't", "didn't", "isn't", "doesn't",

@@ -43,6 +43,26 @@ object ChatStart {
         return FALLBACK_LANGUAGE.takeIf { it in supported } ?: supported.first()
     }
 
+    /**
+     * A greeting to open a conversation in [language] when the partner can't write one (no
+     * key, offline). Written by hand for common languages; any other gets a plain "Hello!",
+     * which the writer can answer in their language: the partner takes over once it's reachable.
+     */
+    fun fallbackOpener(language: String): String = OPENERS[language] ?: "Hello! How is your day going?"
+
+    private val OPENERS = mapOf(
+        "ca" to "Hola! Què tal el dia?",
+        "es" to "¡Hola! ¿Qué tal tu día?",
+        "en" to "Hello! How is your day going?",
+        "fr" to "Bonjour ! Comment se passe ta journée ?",
+        "de" to "Hallo! Wie läuft dein Tag?",
+        "it" to "Ciao! Come va la giornata?",
+        "pt" to "Olá! Como está a correr o teu dia?",
+        "nl" to "Hoi! Hoe gaat je dag?",
+        "gl" to "Ola! Que tal o día?",
+        "eu" to "Kaixo! Zer moduz eguna?",
+    )
+
     /** Lab, Language scope: the conversations the Chat list shows while [language] is current (null: all). */
     fun inLanguage(conversations: List<ConversationSummary>, language: String?): List<ConversationSummary> =
         conversations.filter { language == null || it.conversation.language == language }

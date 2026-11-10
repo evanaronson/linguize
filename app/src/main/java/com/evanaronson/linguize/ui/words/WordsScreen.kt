@@ -112,6 +112,7 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
         if (uri != null) words.pick(context.contentResolver, uri, defaultName)
     }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
+    val mine = com.evanaronson.linguize.ui.components.rememberMyLanguages().map { it.code }
 
     val shown = state.shown
     if (state.index == null || shown == null) {
@@ -182,7 +183,8 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
     state.pendingImport?.let { pending ->
         ImportDialog(
             pending = pending,
-            languages = (listOfNotNull(shown.language) + BundledDecks.languages + state.languages).distinct(),
+            // Lab, language-generic: the writer's languages too, so a deck can be imported for any of them.
+            languages = (listOfNotNull(shown.language) + mine + BundledDecks.languages + state.languages).distinct(),
             onImport = words::confirmImport,
             onCancel = words::cancelImport,
         )

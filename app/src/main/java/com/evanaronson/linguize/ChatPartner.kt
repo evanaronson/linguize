@@ -61,7 +61,7 @@ class ChatPartner(
                     ""
                 }
                 val variety = settings.writingProfiles.firstOrNull { it.language == language.code }?.variety
-                    ?.takeIf { it.isNotBlank() } ?: language.variety
+                    ?.takeIf { it.isNotBlank() } ?: language.variety.orEmpty()
                 val steer = try {
                     targets(language)
                 } catch (e: CancellationException) {

@@ -3,8 +3,8 @@ package com.evanaronson.linguize.core.language
 /**
  * Lab, Language scope: the writer's current language is app-level context, not a per-screen
  * filter. One selector in the top bar of the four tabs sets it: **Linguize** (Auto, the
- * default: every language, detected), **Catalanize** (Catalan) or **Castilianize** (Spanish),
- * then any other language found in the data. Chat, Notes, Progress and History all follow it.
+ * default: every language, detected), then the writer's languages (`MyLanguages`, any ISO
+ * 639-1 code). Chat, Notes, Progress and History all follow it.
  * Pure: which choices the selector offers, what a stored choice means, and whether a piece of
  * data belongs to the current scope. A null language is Auto everywhere.
  */
@@ -14,8 +14,11 @@ object LanguageScope {
     /** What an explicit Auto choice is stored as. Anything that isn't a language code reads as Auto. */
     const val AUTO = "auto"
 
-    /** The brand languages, in the selector's order after Linguize: Catalanize, Castilianize. */
-    val BRANDS: List<String> = listOf("ca", "es")
+    /**
+     * The writer's languages before they choose any: the two the app started with,
+     * Catalanize then Castilianize. Only a default; any language can be added or removed.
+     */
+    val DEFAULT_LANGUAGES: List<String> = listOf("ca", "es")
 
     /** Whether [code] looks like an ISO 639-1 code: what History, the corpus and the chat keep. */
     fun isCode(code: String?): Boolean = code != null && CODE.matches(code)
@@ -30,22 +33,30 @@ object LanguageScope {
     fun stored(language: String?): String = language?.takeIf(::isCode) ?: AUTO
 
     /**
-     * What the selector lists, in order: Auto (null), the brand languages, then any other
-     * language found in the writer's data (most used first), then [current] if it is none of these.
+     * What the selector lists, in order: Auto (null), the writer's languages ([mine], in their
+     * order), then [current] if it is none of these (a language chosen before it was added).
      */
-    fun options(dataLanguages: List<String>, current: String?): List<String?> =
-        listOf<String?>(null) + (BRANDS + dataLanguages + listOfNotNull(current)).filter(::isCode).distinct()
+    fun options(mine: List<String>, current: String?): List<String?> =
+        listOf<String?>(null) + (mine + listOfNotNull(current)).filter(::isCode).distinct()
+
+    /**
+     * Languages [found] in the writer's data that aren't among [mine], most used first as
+     * found: what an "Add languages" screen can suggest first.
+     */
+    fun suggested(found: List<String?>, mine: List<String>): List<String> =
+        found.filter(::isCode).map { it!! }.distinct() - mine.toSet()
 
     /**
      * Under Auto, the languages that views which are inherently per-language (Practice, Words,
-     * conjugations, patterns, phrases) show a block for: the brand languages that have data,
-     * then any other language with data, alphabetically. With no data yet, the brand languages,
-     * so every view stays one tap away.
+     * conjugations, patterns, phrases) show a block for: the writer's languages ([mine]) that
+     * have data, then any other language with data, alphabetically. With no data yet, the
+     * writer's languages, so every view stays one tap away.
      */
-    fun inUse(found: Collection<String?>): List<String> {
+    fun inUse(found: Collection<String?>, mine: List<String> = DEFAULT_LANGUAGES): List<String> {
         val codes = found.filter(::isCode).map { it!! }.toSet()
-        if (codes.isEmpty()) return BRANDS
-        return BRANDS.filter { it in codes } + (codes - BRANDS.toSet()).sorted()
+        val ordered = mine.filter(::isCode).distinct()
+        if (codes.isEmpty()) return ordered
+        return ordered.filter { it in codes } + (codes - ordered.toSet()).sorted()
     }
 
     /**

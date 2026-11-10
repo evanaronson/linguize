@@ -16,6 +16,18 @@ enum class MenuEntry(@StringRes val label: Int, val language: Language?, val ali
     Auto(R.string.menu_auto, null, "LinguizeEntry"),
     Catalan(R.string.menu_catalan, Language.Catalan, "CatalanizeEntry"),
     Castilian(R.string.menu_castilian, Language.Spanish, "CastilianizeEntry"),
+    ;
+
+    companion object {
+        /**
+         * Lab, language-generic: the entries worth offering a writer whose languages are
+         * [languages]. An alias's label is fixed in the manifest, so only Catalan and Spanish
+         * have a pinned entry (docs/lab/language-generic.md); one whose language the writer
+         * doesn't write is offered only while it's [enabled], so it can be turned off.
+         */
+        fun offered(languages: List<String>, enabled: Set<MenuEntry>): List<MenuEntry> =
+            entries.filter { it.language == null || it.language.code in languages || it in enabled }
+    }
 }
 
 /**

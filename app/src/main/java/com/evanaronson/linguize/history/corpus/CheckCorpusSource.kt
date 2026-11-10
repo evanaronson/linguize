@@ -101,7 +101,10 @@ object CheckUtterances {
         val text = detail.session.text
         val rows = detail.suggestions.filter { it.decision != Decision.Superseded && (attempt == null || it.attempt == attempt) }
         val rewordings = rows.filter { it.kind == EditKind.Natural && it.decision == Decision.Accepted }.mapNotNull { span(it, text) }
-        val filled = rows.filter { it.kind == EditKind.Natural && it.decision == Decision.Accepted && fillsGap(it.fromText) }
+        val session = detail.session
+        val language = attempt?.let { session.attempts.getOrNull(it) }?.let { it.detectedLanguage ?: it.targetLanguage }
+            ?: session.detectedLanguage ?: session.targetLanguage
+        val filled = rows.filter { it.kind == EditKind.Natural && it.decision == Decision.Accepted && fillsGap(it.fromText, language) }
             .mapNotNull { span(it, text) }
         return rows.filter { it.kind == EditKind.Fix }
             .mapNotNull { fix ->
@@ -119,8 +122,8 @@ object CheckUtterances {
     }
 
     /** Whether a change's source text looks like a gap the writer left: brackets or English words. */
-    private fun fillsGap(from: String): Boolean = WriterGaps.bracketed(from).isNotEmpty() ||
-        WORD.findAll(from).any { WriterGaps.isEnglishOnly(it.value.lowercase()) }
+    private fun fillsGap(from: String, language: String?): Boolean = WriterGaps.bracketed(from).isNotEmpty() ||
+        WORD.findAll(from).any { WriterGaps.isEnglishGap(it.value.lowercase(), language) }
 
     private val WORD = Regex("""[\p{L}']+""")
 

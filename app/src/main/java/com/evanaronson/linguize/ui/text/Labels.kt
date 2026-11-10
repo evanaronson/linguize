@@ -1,5 +1,8 @@
 package com.evanaronson.linguize.ui.text
 
+import androidx.compose.ui.platform.LocalContext
+import com.evanaronson.linguize.core.language.Languages
+import com.evanaronson.linguize.ui.components.uiLocale
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -80,12 +83,16 @@ val Provider.labelResource: Int
         Provider.OpenAI -> R.string.provider_openai
     }
 
-/** Translate known language names without changing their prompt or history values. */
+/**
+ * Translate language names without changing their prompt or history values: Catalan and
+ * Spanish from the app's strings, any other language from [Languages.names] (the platform's
+ * name for it in the app's language, until the language catalog replaces it).
+ */
 @Composable
 fun Language.displayName(): String = when (code) {
     Language.Catalan.code -> stringResource(R.string.language_catalan)
     Language.Spanish.code -> stringResource(R.string.language_spanish)
-    else -> name
+    else -> Languages.names.name(code, LocalContext.current.resources.uiLocale)
 }
 
 @Composable

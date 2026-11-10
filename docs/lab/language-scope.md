@@ -24,8 +24,9 @@ one selector, and "all" is its default.
 - **The selector.** The top bar of Chat, Notes, Progress and History shows, just before
   the Settings gear, the current choice's small icon and "▾". Tap it for the menu:
   **Linguize** with its "A" tile (all languages), **Catalanize** with the senyera,
-  **Castilianize** with the Spanish flag, then any other language found in your History,
-  most used first, with a code badge ("EN"). Each brand name has what it means under it
+  **Castilianize** with the Spanish flag, then the writer's other languages with a code
+  badge ("FR"); languages found in History but not added are only suggested
+  ([Any language](language-generic.md)). Each brand name has what it means under it
   ("All languages", "Catalan", "Spanish"); the current one is ticked. Screen readers hear
   "Language: Catalanize, Catalan".
 - **Where it isn't.** Pages opened from a tab (a conversation, Words, a saved check,

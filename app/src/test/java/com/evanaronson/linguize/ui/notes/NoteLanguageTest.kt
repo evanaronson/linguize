@@ -10,8 +10,10 @@ class NoteLanguageTest {
     @Test fun theAppsLanguageDecides() {
         assertEquals(Language.Catalan, noteCheckLanguage("ca"))
         assertEquals(Language.Spanish, noteCheckLanguage("es"))
-        // Linguize detects, and so does a language no check can be pinned to.
+        // Linguize detects.
         assertNull(noteCheckLanguage(null))
-        assertNull(noteCheckLanguage("en"))
+        // Lab, language-generic: any language can be pinned; only a non-language detects.
+        assertEquals(Language.forCode("en"), noteCheckLanguage("en"))
+        assertNull(noteCheckLanguage("xx"))
     }
 }

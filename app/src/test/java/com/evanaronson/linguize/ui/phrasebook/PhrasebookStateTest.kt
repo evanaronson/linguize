@@ -87,7 +87,8 @@ class PhrasebookStateTest {
     @Test fun theAnswerNamesTheLanguageOfALiveCheck() {
         assertEquals("es", answerLanguage("""{"status":"ok","language":"Spanish"}"""))
         assertEquals("ca", answerLanguage("""{"language":"Catalan (Valencian)"}"""))
-        assertNull(answerLanguage("""{"language":"French"}"""))
+        assertEquals("fr", answerLanguage("""{"language":"French"}"""))
+        assertNull(answerLanguage("""{"language":"Elvish"}"""))
         assertNull(answerLanguage("""{"language":""}"""))
         assertNull(answerLanguage("not json"))
         assertNull(answerLanguage(null))

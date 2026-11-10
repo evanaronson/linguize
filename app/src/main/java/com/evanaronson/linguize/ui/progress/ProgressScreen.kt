@@ -62,8 +62,8 @@ enum class ProgressView { Practice, Words, Conjugations, Patterns, Phrasebook, T
  * that one (and no heading: the selector says it). Under Linguize (Auto, null), one block per
  * language in use ([LanguageScope.inUse]) of the languages [found] in the writer's data.
  */
-internal fun progressLanguages(current: String?, found: Collection<String?>): List<String> =
-    if (current != null) listOf(current) else LanguageScope.inUse(found)
+internal fun progressLanguages(current: String?, found: Collection<String?>, mine: List<String> = LanguageScope.DEFAULT_LANGUAGES): List<String> =
+    if (current != null) listOf(current) else LanguageScope.inUse(found, mine)
 
 /**
  * Lab, Progress IA: the tab's sections, top to bottom. One headline for the whole tab (this
@@ -93,8 +93,12 @@ internal fun progressViews(language: String): List<ProgressView> = listOfNotNull
 )
 
 /** The tab, top to bottom, for [current] (null is Linguize) and the languages [found] in the data. */
-internal fun progressLayout(current: String?, found: Collection<String?>): List<ProgressSection> {
-    val blocks = progressLanguages(current, found)
+internal fun progressLayout(
+    current: String?,
+    found: Collection<String?>,
+    mine: List<String> = LanguageScope.DEFAULT_LANGUAGES,
+): List<ProgressSection> {
+    val blocks = progressLanguages(current, found, mine)
     val labelled = current == null
     return buildList {
         add(ProgressSection.Headline)
@@ -144,7 +148,7 @@ fun ProgressScreen(
     val pattern = if (language == null) null else patternsState.snapshot?.report?.takeIf { it.worthShowing }
 
     ScreenColumn {
-        progressLayout(language, found).forEach { section ->
+        progressLayout(language, found, options.map { it.code }).forEach { section ->
             when (section) {
                 ProgressSection.Headline -> TimeHeadline(language) { onOpen(ProgressView.Time, null) }
                 is ProgressSection.Practice -> {

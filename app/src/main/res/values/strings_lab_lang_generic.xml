@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, language-generic: any language works; some views exist only for Spanish and Catalan so far. -->
+    <!-- %1$s: a language's name, "French". -->
+    <string name="lab_lang_generic_conjugations_unavailable">Your conjugations isn\'t available for %1$s yet. It covers Spanish and Catalan.</string>
+</resources>

@@ -1,5 +1,8 @@
 package com.evanaronson.linguize.ui.phrasebook
 
+import com.evanaronson.linguize.core.language.LanguageCodes
+import com.evanaronson.linguize.core.language.Languages
+import com.evanaronson.linguize.ui.components.rememberMyLanguages
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -189,9 +192,11 @@ private fun exportLabels(): PhraseTextLabels {
     val title = stringResource(R.string.lab_phrasebook_export_heading)
     val names = Language.all.associate { it.code to it.displayName() }
     val other = stringResource(R.string.lab_phrasebook_other_language)
+    val locale = resources.uiLocale
     return PhraseTextLabels(
         title = title,
-        language = { names[it] ?: other },
+        // Lab, language-generic: any other language by its name in the app's language.
+        language = { code -> names[code] ?: code?.takeIf(LanguageCodes::isLanguage)?.let { Languages.names.name(it, locale) } ?: other },
         insteadOf = { resources.getString(R.string.lab_phrasebook_instead_of, it) },
     )
 }
@@ -280,7 +285,8 @@ private fun AddPhrase(initialLanguage: String?, onSave: (PhraseDraft) -> Unit, o
     var phrase by rememberSaveable { mutableStateOf("") }
     var replaced by rememberSaveable { mutableStateOf("") }
     var meaning by rememberSaveable { mutableStateOf("") }
-    var language by rememberSaveable { mutableStateOf(Language.forCode(initialLanguage)?.code ?: Language.all.first().code) }
+    val mine = rememberMyLanguages()
+    var language by rememberSaveable { mutableStateOf(Language.forCode(initialLanguage)?.code ?: mine.first().code) }
     val draft = PhraseDraft(phrase, replaced, meaning, language, PhraseSource.Manual)
     val sentences = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
     SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
@@ -299,7 +305,7 @@ private fun AddPhrase(initialLanguage: String?, onSave: (PhraseDraft) -> Unit, o
         Text(stringResource(R.string.lab_phrasebook_field_language), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.selectableGroup()) {
-            Language.all.forEach { option ->
+            (mine + listOfNotNull(Language.forCode(language))).distinct().forEach { option ->
                 ChoiceRow(option.displayName(), null, selected = language == option.code, onClick = { language = option.code })
             }
         }

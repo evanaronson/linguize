@@ -60,6 +60,7 @@ import com.evanaronson.linguize.ui.progress.PageLoading
 import com.evanaronson.linguize.ui.progress.ProgressCardPadding
 import com.evanaronson.linguize.ui.progress.ScopeHeader
 import com.evanaronson.linguize.ui.progress.StatRow
+import com.evanaronson.linguize.ui.language.scopeLanguageName
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -82,7 +83,7 @@ fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: Stri
         // Lab, Progress IA: the language, then a summary, as on every page Progress opens.
         ScopeHeader(state.shown)
         when {
-            state.shown !in CONJUGATION_LANGUAGES -> EmptyCard(stringResource(R.string.lab_language_scope_conjugations_unsupported), null)
+            state.shown !in CONJUGATION_LANGUAGES -> EmptyCard(stringResource(R.string.lab_lang_generic_conjugations_unavailable, scopeLanguageName(state.shown)), null)
             report == null && state.loading -> PageLoading(stringResource(R.string.lab_conjugations_loading))
             report == null -> {
                 CardNote(stringResource(R.string.lab_conjugations_failed))

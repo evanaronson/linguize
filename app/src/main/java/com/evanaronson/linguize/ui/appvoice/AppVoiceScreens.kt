@@ -105,7 +105,9 @@ fun AppVoiceRuleScreen(voice: AppVoiceSettingsViewModel, app: String) {
     val same = stringResource(R.string.lab_app_voice_same_as_settings)
     ScreenColumn {
         SectionHeader(stringResource(R.string.lab_app_voice_language))
-        Choices(listOf(null) + Language.all, { it == rule?.language }, {
+        // Lab, language-generic: the writer's languages, and the rule's own if it's another.
+        val mine = com.evanaronson.linguize.ui.components.rememberMyLanguages()
+        Choices((listOf<Language?>(null) + mine + listOfNotNull(rule?.language)).distinct(), { it == rule?.language }, {
             it?.displayName() ?: stringResource(R.string.auto_detect)
         }, { if (it == null) stringResource(R.string.detect_language) else null }) { voice.setLanguage(app, it) }
         CardNote(stringResource(R.string.lab_app_voice_language_note))

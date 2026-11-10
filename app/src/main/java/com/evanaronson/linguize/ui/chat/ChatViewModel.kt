@@ -513,11 +513,11 @@ class ChatViewModel(
         /** What memory calls a conversation. */
         fun source(id: String) = "chat:$id"
 
-        /** A natural opener when the partner can't write one (no key, offline). */
-        fun fallbackOpener(language: Language): String = when (language.code) {
-            Language.Catalan.code -> "Hola! Què tal el dia?"
-            else -> "¡Hola! ¿Qué tal tu día?"
-        }
+        /**
+         * A natural opener when the partner can't write one (no key, offline): a short
+         * greeting in the conversation's language ([ChatStart.fallbackOpener]).
+         */
+        fun fallbackOpener(language: Language): String = ChatStart.fallbackOpener(language.code)
 
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -535,7 +535,8 @@ class ChatViewModel(
                                 lastUsed = preferences.lastLanguage,
                                 menuLanguages = runCatching { app.menu.enabled() }.getOrDefault(emptySet()).mapNotNull { it.language?.code },
                                 historyMostUsedFirst = ChatStart.mostUsed(history.map { it.targetLanguage }),
-                                supported = Language.all.map { it.code },
+                                // Lab, language-generic: a new conversation starts in one of the writer's languages.
+                                supported = runCatching { app.settings.myLanguages.codes }.getOrDefault(Language.all.map { it.code }),
                             )
                         }
                     },

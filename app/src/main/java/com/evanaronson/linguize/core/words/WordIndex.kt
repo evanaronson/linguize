@@ -234,7 +234,7 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
             val occurrences = utterances.flatMap { utterance ->
                 WordTokenizer.tokenize(utterance.text).map { Occurrence(utterance, it, utterance.isCorrected(it.start, it.end)) }
                     // A corrected English word is most likely a gap the check filled, not a word tried.
-                    .filterNot { it.tried && WriterGaps.isEnglishOnly(it.token.form) }
+                    .filterNot { it.tried && WriterGaps.isEnglishGap(it.token.form, language) }
             }
             // A form only ever capitalized, and capitalized in mid-sentence at least once, is a name
             // even at the start of a sentence. Mid-sentence capitals are names wherever they stand.

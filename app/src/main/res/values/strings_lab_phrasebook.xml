@@ -2,8 +2,6 @@
 <resources>
     <!-- Lab: Phrasebook. Phrases the writer saves from fixes and rewordings, or types in. -->
     <string name="lab_phrasebook_title">Phrasebook</string>
-    <string name="lab_phrasebook_home_row">Your phrases</string>
-    <string name="lab_phrasebook_home_empty">Tap the star on a fix or rewording to save it</string>
     <plurals name="lab_phrasebook_count">
         <item quantity="one">%1$d phrase saved</item>
         <item quantity="other">%1$d phrases saved</item>
@@ -15,7 +13,6 @@
     <string name="lab_phrasebook_not_saved">Not saved</string>
 
     <string name="lab_phrasebook_search">Search phrases</string>
-    <string name="lab_phrasebook_empty">Phrases you save from a check appear here.</string>
     <string name="lab_phrasebook_no_match">No phrases match</string>
     <string name="lab_phrasebook_other_language">Other</string>
 
@@ -37,7 +34,6 @@
 
     <string name="lab_phrasebook_show_actions">Show phrase actions</string>
     <string name="lab_phrasebook_hide_actions">Hide phrase actions</string>
-    <string name="lab_phrasebook_copy">Copy</string>
     <string name="lab_phrasebook_copy_phrase">Copy %1$s</string>
     <string name="lab_phrasebook_open_check">Open check</string>
     <string name="lab_phrasebook_delete">Delete</string>

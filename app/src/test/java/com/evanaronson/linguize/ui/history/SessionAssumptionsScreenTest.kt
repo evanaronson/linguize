@@ -83,7 +83,8 @@ class SessionAssumptionsScreenTest {
         assertFalse("A past check offers no clarify", hasText(activity.getString(R.string.not_what_you_mean)))
         assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label?.startsWith("Clarify") == true })
         assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.SetText) != null })
-        assertFalse("The readings are here, not behind a link", hasText(activity.getString(R.string.assumptions_count, 2)))
+        // Historical navigation label; its absence no longer needs a production string resource.
+        assertFalse("The readings are here, not behind a link", hasText("Assumptions, 2"))
     }
 
     @Test

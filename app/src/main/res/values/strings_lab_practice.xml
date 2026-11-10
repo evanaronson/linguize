@@ -51,7 +51,6 @@
         <item quantity="one">Next practice in %1$d day</item>
         <item quantity="other">Next practice in %1$d days</item>
     </plurals>
-    <string name="lab_practice_back_home">Back to Home</string>
     <string name="lab_practice_nothing_due">Nothing due</string>
     <string name="lab_practice_nothing_due_hint">Fixes come back when it\'s time to practice them.</string>
     <string name="lab_practice_empty">No fixes to practice</string>

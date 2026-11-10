@@ -14,10 +14,7 @@ data class NextWords(val group: String, val entries: List<DeckEntry>) {
 object VocabSuggestions {
     private val GROUPS = listOf(Pos.Verb, Pos.Noun, Pos.Adjective, Pos.Adverb).map { it.token }
 
-    /** The highest-ranked unused rows: verbs, nouns, adjectives, adverbs, then the rest. */
-    fun next(deck: VocabDeck, report: VocabReport, perGroup: Int = 5): List<NextWords> = next(deck, report.used.keys, perGroup)
-
-    /** The same, for rows whose keys are in [used]. */
+    /** The highest-ranked rows outside [used]: verbs, nouns, adjectives, adverbs, then the rest. */
     fun next(deck: VocabDeck, used: Set<String>, perGroup: Int = 5): List<NextWords> {
         val unused = deck.entries.filter { it.key !in used }
         if (!deck.hasLexemes) {

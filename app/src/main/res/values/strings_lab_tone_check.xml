@@ -7,10 +7,6 @@
     <string name="lab_tone_check_could_land_badly">Could land badly</string>
     <!-- The footer row's subtitle: the overall reading, then the model's one-line summary. -->
     <string name="lab_tone_check_row_subtitle">%1$s · %2$s</string>
-    <string name="lab_tone_check_show">Show how it lands</string>
-    <string name="lab_tone_check_hide">Hide how it lands</string>
-    <string name="lab_tone_check_expanded">Expanded</string>
-    <string name="lab_tone_check_collapsed">Collapsed</string>
     <string name="lab_tone_check_drivers">Highlighted words shape it most.</string>
     <string name="lab_tone_check_drivers_description">What shapes it most: %1$s</string>
     <string name="lab_tone_check_warmth">Warmth</string>

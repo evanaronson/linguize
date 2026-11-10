@@ -88,8 +88,8 @@ in `app/src/main/res/values/strings*.xml`; see [localization](docs/localization.
 and [copy style](docs/copy-style.md). Model IDs, stored tokens, and the prompt are
 separate contracts.
 
-History supplies stored evidence for later analysis. The [architecture guide](docs/architecture.md#evidence-first-derived-learning-later)
-explains what is still needed before those observations can support learning claims.
+History supplies stored evidence for analysis. The [architecture guide](docs/architecture.md#evidence-and-derived-learning)
+maps the current evidence sources, derived views, and limits on learning claims.
 
 ## Tuning the judgments
 

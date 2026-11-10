@@ -4,7 +4,6 @@ import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Edit
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
-import com.evanaronson.linguize.core.corpus.Span
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -84,9 +83,11 @@ class SendFlowTest {
         val accepted = revision.accept(fix.id).accept(rewording.id)
         val outgoing = Outgoings.accepted(accepted)
         assertEquals("Hola, ayer fuimos a la plaza y estuvo genial", outgoing.text)
-        assertEquals(listOf(EditKind.Fix, EditKind.Natural), outgoing.changes.map { it.kind })
+        assertEquals(listOf(
+            ChatChange(EditKind.Fix, 23, 28, "playa", "plaza", "Wrong word"),
+            ChatChange(EditKind.Natural, 31, 45, "fue muy bonito", "estuvo genial"),
+        ), outgoing.changes)
         val message = outgoing.message("m", "c", 1, sessionId = "s1")
-        assertEquals(listOf(Span(23, 28)), message.correctedSpans)
         assertEquals("s1", message.sessionId)
     }
 }

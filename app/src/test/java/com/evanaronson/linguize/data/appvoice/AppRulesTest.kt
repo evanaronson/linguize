@@ -66,7 +66,7 @@ class AppRulesTest {
 
     @Test fun unknownTokensFallBackToSettingsAndUnreadableValuesAreSkipped() {
         prefs.edit()
-            .putString("rule:a.b", """{"language":"fr","register":"formal","judgments":"everything","future":1}""")
+            .putString("rule:a.b", """{"language":"zz","register":"formal","judgments":"everything","future":1}""")
             .putString("rule:c.d", "not json")
             .putString("rule:e.f", """{"language":"xx"}""")
             .commit()

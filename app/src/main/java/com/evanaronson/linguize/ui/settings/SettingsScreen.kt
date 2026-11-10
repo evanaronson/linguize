@@ -69,7 +69,7 @@ fun SettingsScreen(
 
         SectionHeader(stringResource(R.string.writing_preferences))
         val profile = state.writingProfile
-        val language = Language.forCode(state.writingLanguage) ?: Language.Catalan
+        val language = Language.forCode(state.writingProfile.language) ?: Language.Catalan
         val register = stringResource(profile.register.labelResource)
         val punctuation = stringResource(profile.punctuation.labelResource)
         ListCard(
@@ -113,7 +113,7 @@ fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
         )
         SettingsPage.Model -> ModelPage(state, settings)
         SettingsPage.Menu -> ChoicePage(
-            MenuEntry.entries, { it in state.menu }, { stringResource(it.label) },
+            state.menuEntries, { it in state.menu }, { stringResource(it.label) },
             { it.language?.displayName() ?: stringResource(R.string.detect_language) },
             settings::toggleMenuEntry, note = stringResource(R.string.menu_note), multiple = true,
         )
@@ -123,7 +123,7 @@ fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
             settings::setJudgments,
         )
         SettingsPage.WritingIn -> ChoicePage(
-            Language.all, { it.code == state.writingLanguage }, { it.displayName() },
+            state.writingLanguages, { it.code == state.writingLanguage }, { it.displayName() },
             { language ->
                 stringResource(
                     if (language.code == state.writingLanguage) R.string.writing_language_current else R.string.writing_language_other,

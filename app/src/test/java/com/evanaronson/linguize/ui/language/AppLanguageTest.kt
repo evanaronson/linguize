@@ -55,11 +55,12 @@ class AppLanguageTest {
         assertNull(language(choice).current.value)
     }
 
-    @Test fun theSelectorOffersCatalanizeCastilianizeWithTheVarietyThenOthersInTheData() = runBlocking {
+    @Test fun theSelectorOffersTheWritersLanguagesWithTheVarietyAndSuggestsOthersInTheData() = runBlocking {
         val app = language(Choice("es"), data = listOf("es", "en"))
         app.load()
-        assertEquals(listOf(LanguageOption("ca", "standard Central Catalan"), LanguageOption("es", "Mexican"), LanguageOption("en")),
+        assertEquals(listOf(LanguageOption("ca", "standard Central Catalan"), LanguageOption("es", "Mexican")),
             app.options.value)
+        assertEquals(listOf("en"), app.suggested.value)
         app.select("fr")
         assertEquals("fr", app.options.value.last().code)
         // Not a language code: ignored.

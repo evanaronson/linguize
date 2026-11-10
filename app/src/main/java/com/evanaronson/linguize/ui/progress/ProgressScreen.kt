@@ -58,8 +58,8 @@ enum class ProgressView { Practice, Words, Conjugations, Patterns, Phrasebook, T
  * that one (and no heading: the selector says it). Under Linguize (Auto, null), one block per
  * language in use ([LanguageScope.inUse]) of the languages [found] in the writer's data.
  */
-internal fun progressLanguages(current: String?, found: Collection<String?>): List<String> =
-    if (current != null) listOf(current) else LanguageScope.inUse(found)
+internal fun progressLanguages(current: String?, found: Collection<String?>, mine: List<String> = LanguageScope.DEFAULT_LANGUAGES): List<String> =
+    if (current != null) listOf(current) else LanguageScope.inUse(found, mine)
 
 /**
  * Progress, one of the four destinations: how the writer is doing, all read from History.
@@ -98,7 +98,7 @@ fun ProgressScreen(
         wordCounts.filterValues { it > 0 }.keys +
         phrases.orEmpty().map { it.language } +
         conjugationsState.reports.filterValues { !it.isEmpty }.keys
-    val blocks = progressLanguages(language, found)
+    val blocks = progressLanguages(language, found, options.map { it.code })
 
     ScreenColumn {
         if (language != null) {
@@ -116,7 +116,8 @@ fun ProgressScreen(
                 due = if (auto) practiceState.dueIn(block) else practiceState.due,
                 wordCount = wordCounts[block] ?: 0,
                 conjugations = conjugationsState.reports[block]?.takeUnless { it.isEmpty },
-                showConjugations = !auto || block in CONJUGATION_LANGUAGES,
+                // Lab, language-generic: the grid exists for Spanish and Catalan only; another language has no row.
+                showConjugations = block in CONJUGATION_LANGUAGES,
                 // The report is for the app's language; under Linguize it covers every language, so a block doesn't show it.
                 patternSummary = if (auto) null else patternsState.snapshot?.report?.takeIf { it.worthShowing }?.let { patternsSummary(it) },
                 patternSparkline = if (auto) null else patternsState.snapshot?.report?.takeIf { it.worthShowing }?.patterns?.firstOrNull()?.buckets,

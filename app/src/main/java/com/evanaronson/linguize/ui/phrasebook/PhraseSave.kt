@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.phrasebook
 
+import com.evanaronson.linguize.core.language.LanguageCodes
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
@@ -80,7 +81,7 @@ fun phraseCandidate(from: String, to: String, why: String?, kind: EditKind, orig
     )
 }
 
-/** The language a raw check answer was judged in, as an ISO code of a language Linguize checks. */
+/** The language a raw check answer was judged in ("Catalan", "French"), as an ISO 639-1 code. */
 fun answerLanguage(raw: String?): String? {
     if (raw.isNullOrBlank()) return null
     val name = try {
@@ -89,7 +90,7 @@ fun answerLanguage(raw: String?): String? {
     } catch (_: IllegalArgumentException) {
         null
     } ?: return null
-    return Language.all.firstOrNull { name.startsWith(it.name, ignoreCase = true) || name.equals(it.code, ignoreCase = true) }?.code
+    return LanguageCodes.fromEnglishName(name)
 }
 
 /**

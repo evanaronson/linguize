@@ -54,6 +54,7 @@ import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.uiLocale
+import com.evanaronson.linguize.ui.language.scopeLanguageName
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -74,7 +75,8 @@ fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: Stri
         // Lab, Language scope: the language is the app's, switched in the top bar.
         val report = state.report
         when {
-            state.shown !in CONJUGATION_LANGUAGES -> CardNote(stringResource(R.string.lab_language_scope_conjugations_unsupported))
+            state.shown !in CONJUGATION_LANGUAGES ->
+                CardNote(stringResource(R.string.lab_lang_generic_conjugations_unavailable, scopeLanguageName(state.shown)))
             report == null && state.loading -> Loading()
             report == null -> {
                 CardNote(stringResource(R.string.lab_conjugations_failed))

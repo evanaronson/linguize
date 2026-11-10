@@ -19,16 +19,24 @@ class LanguageScopeTest {
         assertEquals("es", LanguageScope.stored("es"))
     }
 
-    @Test fun theSelectorListsLinguizeCatalanizeCastilianizeThenOthersInTheData() {
-        assertEquals(listOf(null, "ca", "es", "en"), LanguageScope.options(listOf("es", "en"), "es"))
-        assertEquals(listOf(null, "ca", "es", "fr"), LanguageScope.options(emptyList(), "fr"))
-        assertEquals(listOf(null, "ca", "es"), LanguageScope.options(listOf("auto", ""), null))
+    @Test fun theSelectorListsLinguizeThenTheWritersLanguagesThenTheCurrentOne() {
+        assertEquals(listOf(null, "ca", "es"), LanguageScope.options(listOf("ca", "es"), "es"))
+        assertEquals(listOf(null, "ca", "es", "fr"), LanguageScope.options(listOf("ca", "es"), "fr"))
+        assertEquals(listOf(null, "fr", "de"), LanguageScope.options(listOf("fr", "de"), null))
+        assertEquals(listOf(null, "ca"), LanguageScope.options(listOf("ca", "auto", ""), null))
     }
 
-    @Test fun languagesInUseAreTheBrandsWithDataThenOthers() {
+    @Test fun languagesFoundButNotAddedAreSuggested() {
+        assertEquals(listOf("en", "fr"), LanguageScope.suggested(listOf("es", "en", null, "fr", "en"), listOf("ca", "es")))
+    }
+
+    @Test fun languagesInUseAreTheWritersWithDataThenOthers() {
         assertEquals(listOf("ca", "es", "en"), LanguageScope.inUse(listOf("en", "es", "ca", null)))
         assertEquals(listOf("es"), LanguageScope.inUse(listOf("es")))
-        assertEquals(LanguageScope.BRANDS, LanguageScope.inUse(listOf(null)))
+        assertEquals(LanguageScope.DEFAULT_LANGUAGES, LanguageScope.inUse(listOf(null)))
+        // A writer of French and German: theirs first, in their order, then others found.
+        assertEquals(listOf("fr", "de"), LanguageScope.inUse(emptyList(), listOf("fr", "de")))
+        assertEquals(listOf("de", "fr", "es"), LanguageScope.inUse(listOf("es", "fr", "de"), listOf("de", "fr")))
     }
 
     @Test fun scopedViewsKeepOnlyTheirLanguageAndUnknownOnlyUnderLinguize() {

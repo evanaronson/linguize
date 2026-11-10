@@ -54,7 +54,9 @@ data class Classification(val kind: PatternKind, val basis: Basis)
 /**
  * Puts one recorded change in a group. Deterministic and offline: the same before, after,
  * reason and language always give the same answer. [language] is the ISO code the change's
- * attempt targeted, or null when unknown (then both Spanish and Catalan rules apply).
+ * attempt targeted, or null when unknown (then both Spanish and Catalan rules apply). The word
+ * rules know Spanish and Catalan words only; any other language gets the rules that hold in
+ * every language: punctuation, capitals, accents, the recorded reason and spelling.
  *
  * Rules run from the most certain to the least: changes the text itself proves, then word
  * rules, then the recorded reason, then closeness of spelling. A rewording ([EditKind.Natural])
@@ -76,6 +78,9 @@ object PatternRules {
     private fun spanish(language: String?) = language == null || language == "es"
     private fun catalan(language: String?) = language == null || language == "ca"
 
+    /** Lab, language-generic: whether the Spanish and Catalan word lists can apply at all. */
+    private fun knownWords(language: String?) = spanish(language) || catalan(language)
+
     /** What the before and after alone prove. */
     private fun exact(from: String, to: String, language: String?): Classification? {
         val a = lettersOnly(from)
@@ -94,6 +99,7 @@ object PatternRules {
     }
 
     private fun wordRule(from: String, to: String, language: String?): Classification? {
+        if (!knownWords(language)) return null
         val before = words(from)
         val after = words(to)
         val change = wordChange(before, after)

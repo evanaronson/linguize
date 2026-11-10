@@ -64,7 +64,16 @@ data class SettingsState(
     val keySaveFailed: Boolean = false,
 ) {
     val hasKey get() = keys[provider] is KeyStatus.Saved
-    val writingProfile: WritingProfile get() = writingProfiles.first { it.language == writingLanguage }
+    val writingProfile: WritingProfile get() = writingProfiles.firstOrNull { it.language == writingLanguage } ?: writingProfiles.first()
+
+    /** Lab, language-generic: the writer's languages, one writing profile each, in their order. */
+    val writingLanguages: List<Language> get() = writingProfiles.mapNotNull { Language.forCode(it.language) }
+
+    /**
+     * Lab, language-generic: the selection-menu entries Settings offers: Linguize, and a pinned
+     * entry when its language is one of the writer's, or when it's on already.
+     */
+    val menuEntries: List<MenuEntry> get() = MenuEntry.offered(writingProfiles.map { it.language }, menu)
 }
 
 /** The provider's models: loading, loaded, or failed to load. */
@@ -182,8 +191,10 @@ class SettingsViewModel(
                     )
                 }
                 val previous = state
-                val selectedLanguage = previous?.writingLanguage
-                    ?: Language.forCode(savedState[WRITING_LANGUAGE])?.code
+                // Lab, language-generic: a language no longer among the writer's falls back to the first.
+                val selectedLanguage = listOfNotNull(previous?.writingLanguage, savedState.get<String>(WRITING_LANGUAGE))
+                    .firstOrNull { code -> fresh.writingProfiles.any { it.language == code } }
+                    ?: fresh.writingProfiles.firstOrNull()?.language
                     ?: Language.Catalan.code
                 val refreshed = fresh.copy(
                     writingLanguage = selectedLanguage,
@@ -257,7 +268,7 @@ class SettingsViewModel(
 
     private fun updateWritingProfile(update: (WritingProfile) -> WritingProfile) = change { state ->
         // Read the latest complete profile so another host's unrelated fields are preserved.
-        val profile = app.settings.writingProfiles.first { it.language == state.writingLanguage }
+        val profile = app.settings.writingProfiles.firstOrNull { it.language == state.writingLanguage } ?: return@change state
         app.settings.updateWritingProfile(update(profile))
         state.copy(writingProfiles = app.settings.writingProfiles)
     }

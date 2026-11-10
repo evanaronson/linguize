@@ -33,6 +33,7 @@ Settings behind the gear.
 | Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |
 | Everywhere | [Language scope](language-scope.md): one language selector in the top bar (Linguize, Catalanize, Castilianize); Chat, Notes, Progress and History follow it. [Home and navigation](home-ia.md): one top bar on every tab | Top bar |
+| Everywhere | [Any language](language-generic.md): any ISO 639-1 language works end to end; the writer's languages are the selector's short list, with one writing profile each | Top bar; Settings; card picker |
 
 ## Language scope
 

@@ -72,5 +72,10 @@ class SelectionMenuTest {
     @Test
     fun everyEntrysLanguageIsOneChecksKnow() {
         assertTrue(MenuEntry.entries.mapNotNull { it.language }.all { it in Language.all })
+        // Lab, language-generic: a pinned entry is offered for the writer's languages, or while it's on.
+        assertEquals(listOf(MenuEntry.Auto), MenuEntry.offered(listOf("fr"), setOf(MenuEntry.Auto)))
+        assertEquals(listOf(MenuEntry.Auto, MenuEntry.Castilian), MenuEntry.offered(listOf("fr", "es"), setOf(MenuEntry.Auto)))
+        assertEquals(listOf(MenuEntry.Auto, MenuEntry.Catalan), MenuEntry.offered(listOf("fr"), setOf(MenuEntry.Catalan)))
+        assertEquals(MenuEntry.entries, MenuEntry.offered(listOf("ca", "es"), setOf(MenuEntry.Auto)))
     }
 }

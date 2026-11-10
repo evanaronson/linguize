@@ -23,16 +23,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.language.Languages
 import com.evanaronson.linguize.ui.components.FilterDropdown
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.text.displayName
-import java.util.Locale
 
 /**
  * The app's one language selector, in the top bar of the four tabs (Chat, Notes, Progress,
  * History), just before Settings: the current choice's small icon and "▾", opening a menu of
- * **Linguize** (Auto, all languages), **Catalanize**, **Castilianize**, then any other
- * language found in the data, each with its icon and what it means underneath. Screen readers
+ * **Linguize** (Auto, all languages), then the writer's languages ([AppLanguage.options]),
+ * each with its icon and what it means underneath. Screen readers
  * hear "Language: Catalanize, Catalan".
  */
 @Composable
@@ -72,7 +72,13 @@ fun LanguageIcon(option: LanguageOption?, modifier: Modifier = Modifier) {
  * and the language's own name for any other.
  */
 @Composable
-fun brandName(code: String?): String = brandNameResource(code)?.let { stringResource(it) } ?: scopeLanguageName(code.orEmpty())
+fun brandName(code: String?): String = brandNameResource(code)?.let { stringResource(it) }
+    ?: code?.let { catalogBrand(it) } ?: scopeLanguageName(code.orEmpty())
+
+/** The language catalog's brand name for [code] ([Languages.names]), if it gives one. */
+@Composable
+private fun catalogBrand(code: String): String? =
+    Languages.names.brand(code, LocalContext.current.resources.uiLocale)
 
 /** The brand name's string for Auto (null), Catalan and Spanish; null for any other language. */
 @StringRes
@@ -88,7 +94,7 @@ fun brandNameResource(code: String?): Int? = when (code) {
 fun brandDetail(code: String?): String? = when (code) {
     null -> stringResource(R.string.lab_language_scope_all)
     Language.Catalan.code, Language.Spanish.code -> scopeLanguageName(code)
-    else -> null
+    else -> if (catalogBrand(code) != null) scopeLanguageName(code) else null
 }
 
 /** A language's flag, or a small code badge when there is no flag for it. Decorative: the name is said elsewhere. */
@@ -109,10 +115,6 @@ fun LanguageFlag(option: LanguageOption, modifier: Modifier = Modifier) {
     }
 }
 
-/** A language's name in the app's language: "Catalan", "Spanish", or the system's name for any other code. */
+/** A language's name in the app's language: "Catalan", "Spanish", or [Languages.names]' name for any other code. */
 @Composable
-fun scopeLanguageName(code: String): String {
-    Language.forCode(code)?.let { return it.displayName() }
-    val locale = LocalContext.current.resources.uiLocale
-    return Locale.forLanguageTag(code).getDisplayLanguage(locale).replaceFirstChar { it.titlecase(locale) }.ifEmpty { code }
-}
+fun scopeLanguageName(code: String): String = Language.forCode(code)?.displayName() ?: code

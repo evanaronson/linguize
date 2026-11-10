@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -44,6 +45,7 @@ import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.ListCard
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
@@ -55,16 +57,15 @@ internal fun rememberNotesViewModel(): NotesViewModel =
     viewModel(factory = NotesViewModel.factory(App.of(LocalContext.current)))
 
 /**
- * Notes' editor: the open note, checked with the same card as everywhere else, in the app's
- * language (Linguize detects). Apply puts
- * the accepted changes in the editor; Copy and Share take the text out, accepted changes
- * included. Drafts save as you type, and when you leave the tab or the app.
+ * Notes' editor: "Write and check" with New note at its end, then the open note and its
+ * actions (Check, Copy, Share) in one card. Checks are in the app's language (Linguize
+ * detects); the card is drawn below by [NoteCheckCard]. Copy and Share take the text out,
+ * accepted changes included. Drafts save as you type, and when you leave the tab or the app.
  */
 @Composable
 internal fun NoteEditor(
     write: NotesViewModel,
     check: CheckViewModel,
-    onOpenSettings: () -> Unit,
     /** Lab, Language scope: the app's current language, which checks use; null (Linguize) detects. */
     appLanguage: String? = null,
 ) {
@@ -82,10 +83,6 @@ internal fun NoteEditor(
         check.dismiss(applied = false)
     }
 
-    fun applyAndClose() {
-        takeFromCard(write, check)
-    }
-
     // Checks made here are never recorded in history (Origin.Tester isn't recorded).
     fun run(language: Language?) {
         val text = write.text.trim()
@@ -97,52 +94,73 @@ internal fun NoteEditor(
         }
     }
 
-    LinguizeTextField(
-        value = write.text,
-        onValueChange = { replace(it) },
-        placeholder = stringResource(R.string.lab_notes_placeholder),
-        accessibleLabel = stringResource(R.string.your_text),
-        supporting = if (blank) stringResource(R.string.no_text_to_check) else null,
-        isError = blank,
-        large = true,
-        minLines = 4,
-    )
-    // Lab, Consistency: no language picker here; the one selector at the top decides.
-    Row(Modifier.padding(top = 12.dp)) {
-        LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
-    }
-
-    check.state?.let { state ->
-        CompositionLocalProvider(LocalLanguageHint provides LanguageHint.AppSelector) {
-            ResultCard(
-                state = state,
-                actions = CardActions.of(
-                    check, context, onClose = ::applyAndClose, onOpenSettings = onOpenSettings,
-                ),
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                scrollable = false,
-            )
-        }
-    }
-
     val hasText = write.text.isNotBlank()
-    FlowRow(
-        Modifier.padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        LinguizeButton(stringResource(R.string.lab_notes_copy), {
-            context.copyToClipboard(takeFromCard(write, check))
-        }, ButtonKind.Text, enabled = hasText)
-        LinguizeButton(stringResource(R.string.lab_notes_share), {
-            context.openExternal(shareIntent(context, takeFromCard(write, check)))
-        }, ButtonKind.Text, enabled = hasText)
+    // New note changes which note is open, so it sits with the header, not with this text's actions.
+    SectionHeader(stringResource(R.string.lab_notes_header)) {
         LinguizeButton(stringResource(R.string.lab_notes_new), {
             check.dismiss(applied = false)
             blank = false
             write.newDraft()
         }, ButtonKind.Text, enabled = hasText)
     }
-    Quiet(stringResource(R.string.lab_notes_footer), Modifier.padding(top = 8.dp))
+    SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
+        LinguizeTextField(
+            value = write.text,
+            onValueChange = { replace(it) },
+            placeholder = stringResource(R.string.lab_notes_placeholder),
+            accessibleLabel = stringResource(R.string.your_text),
+            supporting = when {
+                blank -> stringResource(R.string.no_text_to_check)
+                write.showingSample -> stringResource(R.string.lab_notes_sample_hint)
+                else -> null
+            },
+            isError = blank,
+            large = true,
+            minLines = 4,
+        )
+        // Everything that acts on this text, together and above the card.
+        // Lab, Consistency: no language picker here; the one selector at the top decides.
+        FlowRow(
+            Modifier.padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            LinguizeButton(stringResource(R.string.check), { run(language) }, ButtonKind.Filled)
+            LinguizeButton(stringResource(R.string.lab_notes_copy), {
+                context.copyToClipboard(takeFromCard(write, check))
+            }, ButtonKind.Text, enabled = hasText)
+            LinguizeButton(stringResource(R.string.lab_notes_share), {
+                context.openExternal(shareIntent(context, takeFromCard(write, check)))
+            }, ButtonKind.Text, enabled = hasText)
+        }
+    }
+}
+
+/**
+ * The check card for the open note, under the editor card at full width. Replace puts the
+ * accepted changes in the note.
+ */
+@Composable
+internal fun NoteCheckCard(write: NotesViewModel, check: CheckViewModel, onOpenSettings: () -> Unit) {
+    val context = LocalContext.current
+    val state = check.state ?: return
+    CompositionLocalProvider(LocalLanguageHint provides LanguageHint.AppSelector) {
+        ResultCard(
+            state = state,
+            actions = CardActions.of(
+                check, context, onClose = { takeFromCard(write, check) }, onOpenSettings = onOpenSettings,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            scrollable = false,
+        )
+    }
+}
+
+/** The tab's last lines: where notes are kept, and how to check in other apps. */
+@Composable
+internal fun NotesFooter() {
+    Quiet(stringResource(R.string.lab_notes_kept), Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp))
+    Quiet(stringResource(R.string.lab_notes_other_apps), Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
 }
 
 /** The other notes, under the editor: tap one to open it; delete with Undo. Nothing when there are none. */

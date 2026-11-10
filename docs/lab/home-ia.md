@@ -80,7 +80,8 @@ keyboard is up. The app starts on Chat, or on Notes when **Open to chat** is off
   straight into the current conversation, the list one Back away.
 - **Notes**: the add-key strip until there is a key; **Write and check**: one editor
   that keeps notes, checked with the same card as everywhere in the app's language, with
-  Copy, Share and New note (see [Notes](notes.md)); **Other notes** when there are others.
+  Check, Copy and Share under the editor, New note by the header, the card below (see
+  [Notes](notes.md) and [its hierarchy](ia-notes.md)); **Other notes** when there are others.
 - **Progress**, in the current language (under Linguize, the per-language sections once per
   language in use, each headed by its brand name and icon, and Time added up once): **Practice** (always shown here: "4 due" or
   "Nothing due"); **Your writing**: Words ("312 words you've written in Catalan": the words

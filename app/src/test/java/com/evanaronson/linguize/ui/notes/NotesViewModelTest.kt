@@ -33,6 +33,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -85,10 +86,20 @@ class WriteViewModelTest {
     @Test fun aFreshInstallShowsTheSampleWithoutSavingIt() {
         val write = write()
         assertEquals(sample, write.text)
+        assertTrue(write.showingSample)
         write.flush()
         settle()
         assertTrue(store().load().drafts.isEmpty())
         assertTrue(write.drafts.isEmpty())
+    }
+
+    @Test fun theSampleHintGoesOnceTheTextChanges() {
+        val write = write()
+        write.edit("Hola")
+        assertFalse(write.showingSample)
+        write.newDraft()
+        settle()
+        assertFalse(write.showingSample)
     }
 
     @Test fun typingIsSavedAfterAPauseAndOpensAgainNextTime() {

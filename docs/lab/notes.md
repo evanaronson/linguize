@@ -105,8 +105,10 @@ Not chosen:
 - `ui/notes/NotesViewModel`: the open note's text and the other notes.
   Saves 400 ms after typing stops, and at once on leaving the tab or the app. A blank
   draft, or the untouched sample, is never kept.
-- `ui/notes/NoteEditor`: the editor, Check, the card (`CardActions.of`, as Try it used),
-  Copy, Share, New note and the Other notes list. It checks in the app's language
+- `ui/notes/NoteEditor`: "Write and check" with New note at its end; the editor with Check,
+  Copy and Share in one row under it; the card below the editor (`NoteCheckCard`,
+  `CardActions.of`, as Try it used); the Other notes list; the captions. The order is
+  `notesParts` (see [Notes: information hierarchy](ia-notes.md)). It checks in the app's language
   (`noteCheckLanguage`); the card's wrong-language hint points at the selector at the top
   (`LanguageHint.AppSelector`). Checks use `Origin.Tester` and aren't saved
   in History, as Try it's weren't.

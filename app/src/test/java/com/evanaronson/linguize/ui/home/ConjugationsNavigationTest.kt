@@ -18,6 +18,23 @@ class ConjugationsNavigationTest {
     }
 
     @Test
+    fun showAllOpensTheVerbListAndAVerbOpensWords() {
+        val cell = Cell(Tense.Present, Person.S1)
+        val all = Navigation().open(Screen.Progress).open(Screen.Conjugations).open(conjugationVerbsScreen("es", null))
+        assertEquals(Screen.ConjugationVerbs("es", null), all.current)
+        assertEquals("conjugation_verbs:es:", all.current.saved)
+        assertEquals(all, Navigation.restore(all.saved))
+
+        val fromCell = Navigation().open(Screen.Conjugations).open(Screen.ConjugationCell("ca", cell.token))
+            .open(conjugationVerbsScreen("ca", cell)).open(conjugationVerbWordScreen("ca", "parlar"))
+        assertEquals(Screen.WordDetail("ca", "parlar/v", "x"), fromCell.current)
+        assertEquals(Screen.ConjugationVerbs("ca", "present:1s"), fromCell.back().current)
+        assertEquals(fromCell, Navigation.restore(fromCell.saved))
+        assertNull(Screen.restore("conjugation_verbs:"))
+        assertNull(Screen.restore("conjugation_verbs:es"))
+    }
+
+    @Test
     fun malformedCellsAreNotRestored() {
         assertNull(Screen.restore("conjugation:"))
         assertNull(Screen.restore("conjugation:es"))

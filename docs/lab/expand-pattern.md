@@ -66,7 +66,7 @@ Should adopt it later. Each is left alone here because another agent is reworkin
 - **Card, change explanations / spacing panels** (`ExplanationPanel`'s `expanded`/`onToggle`): use `disclosureToggle` for the collapsed spacing rows once the review list rework has landed.
 - **Teach me**: done. "Teach me" is a Disclosure whose content handles loading, failure and the lesson. Hide is collapse. See [Meaning](meaning-lands.md#teach-me).
 - **Phrasebook and Memory rows**: revealing row actions is closer to a selection than to a disclosure. Keep the whole-row tap, but take the state semantics from `disclosureToggle` so TalkBack says Expanded/Collapsed.
-- **Conjugations "Show all verbs"**: a one-way "show more" is fine as a button. Leave it.
+- **Conjugations "Show all verbs"**: now "Show all N verbs", a button that opens a full, searchable page (a list of hundreds is a destination, not a disclosure). See [Your conjugations](conjugations.md).
 
 Stays a page: Progress children, Settings choice pages, Word and Pattern detail, History session, Chat threads.
 

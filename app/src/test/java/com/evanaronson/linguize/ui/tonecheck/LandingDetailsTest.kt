@@ -44,11 +44,11 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
 
-/** Lab, How it lands on the rendered check card: a footer row next to Meaning that opens in place. */
+/** Lab, How it lands on the rendered check card: part of the Meaning section, which opens in place. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class LandingFooterTest {
+class LandingDetailsTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java)
         .setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
@@ -89,35 +89,38 @@ class LandingFooterTest {
         landing = landing,
     )
 
-    @Test fun theRowSitsUnderMeaningAndOpensTheDetailsInPlace() {
+    @Test fun theReadingIsMeaningsSecondLineAndItsDetailsOpenInPlace() {
         root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(landing)), actions) } }
         settle()
         val row = activity.getString(R.string.lab_tone_check_row_subtitle, activity.getString(R.string.lab_tone_check_lands_well), "friendly, a bit direct")
         assertTrue(hasText(activity.getString(R.string.meaning)))
-        assertTrue(hasText(activity.getString(R.string.lab_tone_check_title)))
         assertTrue(hasText(row))
+        assertFalse("No separate How it lands row", hasText(activity.getString(R.string.lab_tone_check_title)))
         assertFalse(hasText("Requests are often softened with podrías."))
         val directness = activity.getString(R.string.lab_tone_check_scale_description, activity.getString(R.string.lab_tone_check_directness),
             4, Landing.SCALE_MAX, activity.getString(R.string.lab_tone_check_indirect), activity.getString(R.string.lab_tone_check_blunt))
         assertFalse(hasDescription(directness))
 
-        clickText(R.string.lab_tone_check_title)
-        // Still the card's suggestions page: the details open below the row, not as a page.
+        clickText(R.string.meaning)
+        // Still the card's suggestions: the details open below the header, not as a page.
         assertTrue(hasText(activity.getString(R.string.lab_tone_check_title)))
+        assertTrue(hasText(row))
         assertTrue(hasText(landing.text))
         assertTrue(hasDescription(directness))
         assertTrue(hasText("Requests are often softened with podrías."))
         assertTrue(hasDescription(activity.getString(R.string.lab_tone_check_drivers_description, "“Quiero que”")))
 
-        clickText(R.string.lab_tone_check_title)
+        clickText(R.string.meaning)
         assertFalse(hasText("Requests are often softened with podrías."))
     }
 
-    @Test fun withoutALandingThereIsNoRow() {
+    @Test fun withoutALandingMeaningHasNoReading() {
         root.setContent { MaterialTheme { ResultCard(CardState.Done(reviewed(null)), actions) } }
         settle()
         assertTrue(hasText(activity.getString(R.string.meaning)))
+        clickText(R.string.meaning)
         assertFalse(hasText(activity.getString(R.string.lab_tone_check_title)))
+        assertFalse(hasText(activity.getString(R.string.lab_tone_check_caveat)))
     }
 
     @Test fun theDriversAreHighlightedWhereverTheyOccur() {

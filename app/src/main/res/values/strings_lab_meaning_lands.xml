@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Meaning, one section on the card for what the message says and how it lands. Read with the header's tap. -->
+    <string name="lab_meaning_lands_show">Show how your message was read</string>
+    <string name="lab_meaning_lands_hide">Hide how your message was read</string>
+    <!-- The collapsed header's line for readings the writer hasn't answered yet. -->
+    <plurals name="lab_meaning_lands_assumptions">
+        <item quantity="one">%d assumption</item>
+        <item quantity="other">%d assumptions</item>
+    </plurals>
+</resources>

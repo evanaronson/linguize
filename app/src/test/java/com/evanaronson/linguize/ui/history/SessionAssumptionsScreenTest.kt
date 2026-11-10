@@ -54,9 +54,35 @@ class SessionAssumptionsScreenTest {
     fun summaryCountsAnsweredAssumptionsOnlyOnce() = withScreen(showAssumptions = false) {
         load(SessionDetailResult.Found(detail))
 
-        assertTrue(hasText(activity.getString(R.string.assumptions_count, 2)))
-        assertFalse(hasText(activity.getString(R.string.assumptions_count, 3)))
-        assertTrue(hasText(activity.getString(R.string.assumption_summary, "Person", "Catalan speakers")))
+        // Lab, Meaning: collapsed, only the reading nobody answered is counted.
+        val one = activity.resources.getQuantityString(R.plurals.lab_meaning_lands_assumptions, 1, 1)
+        assertTrue(hasText(one))
+        assertFalse(hasText(activity.resources.getQuantityString(R.plurals.lab_meaning_lands_assumptions, 2, 2)))
+        assertFalse(hasText("Catalan speakers"))
+    }
+
+    @Test
+    fun theSavedMeaningOpensInPlaceWithEveryReadingAndNothingToChange() = withScreen(showAssumptions = false) {
+        load(SessionDetailResult.Found(detail))
+
+        val header = nodes().single {
+            it.config.getOrNull(SemanticsActions.OnClick) != null &&
+                it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == activity.getString(R.string.meaning) } == true
+        }
+        assertEquals(activity.getString(R.string.lab_expand_pattern_collapsed), header.config[SemanticsProperties.StateDescription])
+        assertEquals(activity.getString(R.string.lab_meaning_lands_show), header.config[SemanticsActions.OnClick].label)
+        assertTrue(header.config[SemanticsActions.OnClick].action!!.invoke())
+        settle()
+
+        assertTrue(hasText(activity.getString(R.string.assumptions)))
+        assertTrue(hasText(activity.getString(R.string.assumptions_description_past)))
+        assertTrue(hasText("Person"))
+        assertTrue(hasText("Catalan speakers"))
+        assertTrue(hasText("Tomorrow"))
+        assertFalse("A past check offers no clarify", hasText(activity.getString(R.string.not_what_you_mean)))
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label?.startsWith("Clarify") == true })
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.SetText) != null })
+        assertFalse("The readings are here, not behind a link", hasText(activity.getString(R.string.assumptions_count, 2)))
     }
 
     @Test

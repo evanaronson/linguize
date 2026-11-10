@@ -76,8 +76,8 @@ class MeaningClarificationTest {
         activity.setContent {
             MaterialTheme {
                 Column {
-                    UnderstandingPage("One person is leaving.", emptyList(), emptyList(),
-                        onSettle = null, onRemoveChoice = null, onBack = {},
+                    OpenMeaning("One person is leaving.", emptyList(), emptyList(),
+                        onSettle = null, onRemoveChoice = null,
                         onClarify = { answers += it })
                 }
             }
@@ -161,11 +161,11 @@ class MeaningClarificationTest {
         activity.setContent {
             MaterialTheme {
                 Column {
-                    UnderstandingPage(
+                    OpenMeaning(
                         "A group arrived.",
                         listOf(Assumption("Who?", "One person", alternatives = listOf("A group"))),
                         listOf(Settled.meaning("I meant several friends."), Settled("Who?", "A group")),
-                        onSettle = null, onRemoveChoice = null, onBack = {},
+                        onSettle = null, onRemoveChoice = null,
                     )
                 }
             }
@@ -253,7 +253,7 @@ class MeaningClarificationTest {
         activity.setContent {
             MaterialTheme {
                 Column {
-                    UnderstandingPage(
+                    OpenMeaning(
                         "", listOf(Assumption("Who?", "One person")), settled.value,
                         onSettle = { about, answer ->
                             answers += about to answer
@@ -263,7 +263,6 @@ class MeaningClarificationTest {
                             removed += about
                             settled.value = settled.value.filterNot { it.answers(about) }
                         },
-                        onBack = {},
                         onClarify = { fail("An assumption edit must keep its scope") },
                         onRemoveClarification = { fail("Removing an assumption must keep the meaning clarification") },
                     )
@@ -372,6 +371,20 @@ class MeaningClarificationTest {
         assertFalse(hasText("Clarify"))
         assertTrue(fields().isEmpty())
     }
+
+    /** The card's Meaning section, already open: what the drill-down page used to show. */
+    @androidx.compose.runtime.Composable
+    private fun OpenMeaning(
+        meaning: String,
+        assumptions: List<Assumption>,
+        settled: List<Settled>,
+        onSettle: ((String, String) -> Unit)?,
+        onRemoveChoice: ((String) -> Unit)?,
+        onClarify: ((String) -> Unit)? = null,
+        onRemoveClarification: (() -> Unit)? = null,
+    ) = MeaningLandsSection(meaningOutline(meaning, assumptions, settled, null), expanded = true, onExpandedChange = {},
+        onSettle = onSettle, onRemoveChoice = onRemoveChoice, onClarify = onClarify,
+        onRemoveClarification = onRemoveClarification)
 
     private fun actions(onClarify: (String) -> Unit) = CardActions(
         onCopy = { _, _ -> },

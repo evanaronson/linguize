@@ -200,7 +200,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
         var language by mutableStateOf<Language?>(null)
         // The app opens in a separate task. Hide this overlay until it returns, keeping
-        // the same view model, Meaning page, source field and accepted changes.
+        // the same view model, Meaning section, source field and accepted changes.
         val backFromApp: () -> Unit = {
             popupPosition = App.of(this).settings.popupPosition
             window.hidden = false

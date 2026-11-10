@@ -37,7 +37,9 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListCard
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.Quiet
-import com.evanaronson.linguize.ui.components.RowDivider
+import com.evanaronson.linguize.ui.card.MeaningLandsSection
+import com.evanaronson.linguize.ui.card.meaningOutline
+import com.evanaronson.linguize.ui.components.rememberDisclosureState
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
@@ -55,7 +57,8 @@ private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 fun SessionScreen(
     session: SessionViewModel,
     onDeleted: () -> Unit,
-    onOpenAssumptions: () -> Unit = {},
+    /** Unused: the readings are inline in Meaning now. [SessionAssumptionsScreen] stays for restored back stacks. */
+    @Suppress("UNUSED_PARAMETER") onOpenAssumptions: () -> Unit = {},
     /** Lab Chat: opens a chat message's conversation; offered only on chat messages. */
     onOpenConversation: ((String) -> Unit)? = null,
 ) {
@@ -65,7 +68,7 @@ fun SessionScreen(
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
     ScreenColumn {
-        SavedSessionContent(page, session::retry) { Shown(it, onOpenAssumptions, onOpenConversation) }
+        SavedSessionContent(page, session::retry) { Shown(it, onOpenConversation) }
         if (deletion == SessionDeletion.Failed) {
             CardNote(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
         }
@@ -112,7 +115,7 @@ internal fun savedAssumptions(assumptions: List<Assumption>, settled: List<Settl
 }
 
 @Composable
-private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpenConversation: ((String) -> Unit)?) {
+private fun Shown(page: SessionPage.Shown, onOpenConversation: ((String) -> Unit)?) {
     val session = page.session
     val reviewed = page.card?.result as? CheckResult.Reviewed
     val settled = page.card?.settled.orEmpty()
@@ -137,7 +140,7 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpen
     }
 
     // Lab, IA History: what you wrote, what was put back and what changed come first, together;
-    // the readings of it (Meaning, How it lands) follow as context.
+    // the reading of it (Meaning, with how it landed) follows as context.
     SectionHeader(stringResource(R.string.history_after))
     SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
 
@@ -148,26 +151,21 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpen
         }
     }
 
-    if (reviewed != null && (reviewed.meaning.isNotBlank() || reviewed.assumptions.isNotEmpty() || settled.isNotEmpty())) {
-        SectionHeader(stringResource(R.string.meaning))
-        SectionCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)) {
-            if (reviewed.meaning.isNotBlank()) TextBlock(reviewed.meaning, Modifier.padding(bottom = 12.dp))
-            val readings = savedAssumptions(reviewed.assumptions, settled)
-            readings.first?.let { first ->
-                ListRow(
-                    stringResource(R.string.assumptions_count, readings.count),
-                    stringResource(R.string.assumption_summary, first.first, first.second),
-                    onClick = onOpenAssumptions,
-                )
-            }
-            settled.firstOrNull { it.isMeaning }?.let {
-                if (readings.count > 0) RowDivider()
-                ListRow(stringResource(R.string.your_clarification), it.answer)
-            }
-        }
-    }
+    // Lab, Meaning: the card's one Meaning section (meaning, clarification, assumptions, how it
+    // landed), read-only, in the place the readings already had here.
+    if (reviewed != null) SavedMeaning(session.id, reviewed, settled)
+}
 
-    com.evanaronson.linguize.ui.tonecheck.SavedLandingSection(reviewed?.landing)
+/** The saved check's Meaning section: the card's, with nothing to clarify or remove. */
+@Composable
+private fun SavedMeaning(sessionId: String, reviewed: CheckResult.Reviewed, settled: List<Settled>) {
+    val outline = meaningOutline(reviewed.meaning, reviewed.assumptions, settled, reviewed.landing)
+    if (outline.parts(canClarify = false).isEmpty()) return
+    var expanded by rememberDisclosureState(sessionId)
+    SectionCard(Modifier.padding(top = 16.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)) {
+        MeaningLandsSection(outline, expanded, { expanded = it },
+            onSettle = null, onRemoveChoice = null, onClarify = null, onRemoveClarification = null)
+    }
 }
 
 /** The readings a past check's suggestions rested on, and the writer's answers, read-only. */

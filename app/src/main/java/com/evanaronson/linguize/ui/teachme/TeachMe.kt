@@ -38,7 +38,7 @@ import com.evanaronson.linguize.core.teachme.LessonTopic
 import com.evanaronson.linguize.core.teachme.QuizQuestion
 import com.evanaronson.linguize.core.teachme.QuizState
 import com.evanaronson.linguize.ui.components.ButtonKind
-import com.evanaronson.linguize.ui.components.ClarifyLink
+import com.evanaronson.linguize.ui.components.Disclosure
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.text.hintResource
 import com.evanaronson.linguize.ui.text.localizedText
@@ -46,7 +46,7 @@ import com.evanaronson.linguize.ui.text.titleResource
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
- * "Teach me" under one change's explanation: a link that opens a one-minute lesson in place
+ * "Teach me" under one change's explanation: a header that opens a one-minute lesson in place
  * (the rule, why this version, three examples, the common trap and a two-question quiz).
  * Draws nothing when there's no [topic], or outside the Linguize app (previews and tests).
  */
@@ -59,48 +59,58 @@ fun TeachMe(topic: LessonTopic?, modifier: Modifier = Modifier) {
     TeachMeContent(controller, modifier)
 }
 
-/** The lesson's states, for [TeachMe] and for tests with a fake teacher. */
+/**
+ * The lesson's states, for [TeachMe] and for tests with a fake teacher. "Teach me" is a
+ * [Disclosure] (docs/lab/expand-pattern.md): opening it asks for the lesson, and its content is
+ * the loading line, the failure with Retry, or the lesson. Collapsing it is Hide.
+ */
 @Composable
 internal fun TeachMeContent(controller: LessonController, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth()) {
         HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
-        when (val state = controller.state) {
-            LessonState.Closed -> ClarifyLink(
-                stringResource(R.string.lab_teach_me_open),
-                onClick = controller::open,
-                onClickLabel = stringResource(R.string.lab_teach_me_open_action),
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            LessonState.Loading -> Row(
-                Modifier.heightIn(min = 48.dp).padding(top = 4.dp).semantics { liveRegion = LiveRegionMode.Polite },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text(stringResource(R.string.lab_teach_me_loading), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            is LessonState.Failed -> Column(
-                Modifier.padding(top = 10.dp).semantics { liveRegion = LiveRegionMode.Polite },
-            ) {
-                Text(stringResource(state.reason.titleResource), style = MaterialTheme.typography.titleSmall)
-                val hint = state.message?.localizedText() ?: state.reason.hintResource?.let { stringResource(it) }
-                hint?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val state = controller.state
+        Disclosure(
+            expanded = state != LessonState.Closed,
+            onExpandedChange = { open -> if (open) controller.open() else controller.close() },
+            header = {
+                Text(stringResource(R.string.lab_teach_me_open), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface)
+            },
+            expandLabel = stringResource(R.string.lab_teach_me_open_action),
+            collapseLabel = stringResource(R.string.lab_teach_me_hide),
+        ) {
+            when (state) {
+                // Only while closing: the content shrinks away with nothing in it.
+                LessonState.Closed -> Unit
+                LessonState.Loading -> Row(
+                    Modifier.heightIn(min = 48.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(stringResource(R.string.lab_teach_me_loading), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Row(Modifier.align(Alignment.End).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LinguizeButton(stringResource(R.string.lab_teach_me_hide), controller::close, ButtonKind.Text)
-                    LinguizeButton(stringResource(R.string.lab_teach_me_retry), controller::retry, ButtonKind.Tonal)
+                is LessonState.Failed -> Column(
+                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                ) {
+                    Text(stringResource(state.reason.titleResource), style = MaterialTheme.typography.titleSmall)
+                    val hint = state.message?.localizedText() ?: state.reason.hintResource?.let { stringResource(it) }
+                    hint?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    LinguizeButton(stringResource(R.string.lab_teach_me_retry), controller::retry, ButtonKind.Tonal,
+                        modifier = Modifier.align(Alignment.End).padding(top = 8.dp))
                 }
+                is LessonState.Ready -> LessonView(state.lesson, state.quiz, controller)
             }
-            is LessonState.Ready -> LessonView(state.lesson, state.quiz, controller)
         }
     }
 }
 
 @Composable
 private fun LessonView(lesson: Lesson, quiz: QuizState, controller: LessonController) {
-    Column(Modifier.padding(top = 10.dp)) {
+    Column {
         Heading(stringResource(R.string.lab_teach_me_title))
         Body(lesson.rule, Modifier.padding(top = 4.dp))
 

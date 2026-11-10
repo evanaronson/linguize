@@ -13,7 +13,7 @@ menu, the accessibility button and Notes):
 | Is anything wrong? | Fixes |
 | Would a native say it? | Rewordings |
 | Does it say what I mean? | Meaning |
-| How will it come across? | How it lands |
+| How will it come across? | Meaning: how it lands ([one section](meaning-lands.md)) |
 
 How it lands used to be a separate button, request, loading screen and page, with whole
 "warmer" or "more polite" versions to swap in. That was a second check to remember to run,
@@ -29,10 +29,10 @@ writing is wrong, and without a second wait.
 
 ## How it looks
 
-- **The row.** A reviewed card has a footer row **How it lands** under **Meaning**, with the
-  reading in one line: *Lands well · friendly, a bit direct*, *Could land differently · polite
-  but cold*, or *Could land badly · reads as an order*.
-- **The details.** Tapping the row opens them in place, under it (tap again to close): the
+- **The line.** The card's **Meaning** section ([Meaning](meaning-lands.md)) shows the
+  reading as its second line, under the meaning: *Lands well · friendly, a bit direct*, *Could
+  land differently · polite but cold*, or *Could land badly · reads as an order*.
+- **The details.** Opening Meaning shows them as its last part, **How it lands**: the
   text as it will read after the fixes, with the words that shape it most highlighted; three
   scales, warmth (cold to warm), directness (indirect to blunt) and formality (casual to
   formal), each 1 to 5; and up to three short notes ("Requests are usually softened with
@@ -43,10 +43,10 @@ writing is wrong, and without a second wait.
   reason: "Warmer greeting", "Softer request". They are accepted, undone and applied like any
   other change, so what goes back is exactly what the writer reviewed. A message that already
   lands well gets none for tone. Casual is not wrong.
-- **No reading, no row.** An answer without one (an older answer, a reused one from before
+- **No reading, no line.** An answer without one (an older answer, a reused one from before
   this, a model that left it out, or an unclear or wrong-language message) shows the card as
   before.
-- **History.** A saved check whose answer has a reading shows it, read-only, under Meaning.
+- **History.** A saved check whose answer has a reading shows it, read-only, in its Meaning section.
 
 ## How it works
 
@@ -75,8 +75,9 @@ writing is wrong, and without a second wait.
   answers; no schema change. The prompt hash gains `-t<hash of the rules and schema>` after
   any gap suffix, so answers with and without the tone rules are never reused for each other.
   A saved check reads `landing` from its decided attempt's raw answer (`SavedLanding`).
-- **The card.** `ui/tonecheck/LandingFooter` is the row and its details; `ResultCard` calls it
-  with one line. No controller, no loader, no page.
+- **The card.** `ui/tonecheck/LandingDetails` draws the details; the Meaning section
+  (`ui/card/MeaningLands.kt`) puts the line in its header and the details last. No controller,
+  no loader, no page.
 
 ## Respecting the writer
 
@@ -103,6 +104,6 @@ promises, apologies or new content, and never make tone a fix.
   hash in order; prompt growth.
 - `ToneInCheckCheckerTest`: the one composed request; answers with, without and with a bad
   `landing`; tone rewordings through the edit engine; reuse; a chat check with all three.
-- `ui/tonecheck/LandingFooterTest`: the rendered card's row, its details opening in place,
-  no row without a reading, highlighting.
+- `ui/tonecheck/LandingDetailsTest`: the rendered card's line in Meaning, its details opening
+  in place, nothing without a reading, highlighting.
 - `ui/card/ReplyContextCheckTest`: `workingText` is the accepted changes only.

@@ -62,9 +62,9 @@ Using `Disclosure` now:
 
 Should adopt it later. Each is left alone here because another agent is reworking it or because it needs a separate decision:
 
-- **Card, Meaning + How it lands**: merge both into Disclosures in the card footer, and remove `UnderstandingPage`'s in-card navigation and its `NavigationBackHandler`. `LandingFooter` becomes a `Disclosure` with its header. Next agent.
+- **Card, Meaning + How it lands**: done. They are one `Disclosure`, Meaning, at the card's foot, and the Meaning page, its Back level and the separate How it lands row are gone. See [Meaning](meaning-lands.md).
 - **Card, change explanations / spacing panels** (`ExplanationPanel`'s `expanded`/`onToggle`): use `disclosureToggle` for the collapsed spacing rows once the review list rework has landed.
-- **Teach me**: "Teach me ›" opens a lesson in place, so it should be a Disclosure ("Teach me" with a down chevron) whose content handles loading, failure and the lesson. Hide becomes collapse.
+- **Teach me**: done. "Teach me" is a Disclosure whose content handles loading, failure and the lesson. Hide is collapse. See [Meaning](meaning-lands.md#teach-me).
 - **Phrasebook and Memory rows**: revealing row actions is closer to a selection than to a disclosure. Keep the whole-row tap, but take the state semantics from `disclosureToggle` so TalkBack says Expanded/Collapsed.
 - **Conjugations "Show all verbs"**: a one-way "show more" is fine as a button. Leave it.
 

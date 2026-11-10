@@ -20,13 +20,14 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
-import com.evanaronson.linguize.testing.KnownBonanzaDefect
 import com.evanaronson.linguize.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,7 +37,6 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -143,8 +143,8 @@ class PatternsAsyncContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun aSpanishExplanationCompletingAfterALanguageChangeCannotReplaceTheCatalanReport() = runTest(main.dispatcher) {
+        client.ignoreCancellation = true
         val patterns = patterns()
         advanceUntilIdle()
         assertEquals("es", patterns.state.value.language)
@@ -169,6 +169,102 @@ class PatternsAsyncContractTest {
         assertEquals(catalanSources, patterns.state.value.snapshot?.report?.evidenceSessions)
         assertNull(patterns.state.value.snapshot?.explanation)
         assertFalse(patterns.state.value.explaining)
+        assertNull(notes.saved)
+    }
+
+    @Test fun aScopeChangeBeforeTheExplanationStartsNeverSendsTheOldReport() = runTest(main.dispatcher) {
+        val patterns = patterns()
+        advanceUntilIdle()
+        patterns.explain()
+        patterns.setLanguage("ca")
+        advanceUntilIdle()
+        assertTrue(client.requests.isEmpty())
+        assertEquals(catalanSources, patterns.state.value.snapshot?.report?.evidenceSessions)
+        assertFalse(patterns.state.value.explaining)
+    }
+
+    @Test fun anOldExplanationFailureCannotClearTheNewLanguagesLoadingState() = runTest(main.dispatcher) {
+        client.ignoreCancellation = true
+        val patterns = patterns()
+        advanceUntilIdle()
+        patterns.explain()
+        runCurrent()
+        val spanishReply = client.answer
+
+        patterns.setLanguage("ca")
+        advanceUntilIdle()
+        client.answer = CompletableDeferred()
+        patterns.explain()
+        runCurrent()
+        assertEquals(2, client.requests.size)
+        assertTrue(patterns.state.value.explaining)
+
+        spanishReply.completeExceptionally(CheckFailure(CheckFailure.Reason.Timeout))
+        runCurrent()
+        assertTrue(patterns.state.value.explaining)
+        assertNull(patterns.state.value.explainFailure)
+        assertEquals(catalanSources, patterns.state.value.snapshot?.report?.evidenceSessions)
+
+        client.answer.complete(REPLY)
+        advanceUntilIdle()
+        assertEquals(catalanSources, notes.saved?.sources?.toSet())
+    }
+
+    @Test fun anOldExplanationSuccessCannotClearTheNewLanguagesFailure() = runTest(main.dispatcher) {
+        client.ignoreCancellation = true
+        val patterns = patterns()
+        advanceUntilIdle()
+        patterns.explain()
+        runCurrent()
+        val spanishReply = client.answer
+
+        patterns.setLanguage("ca")
+        advanceUntilIdle()
+        client.answer = CompletableDeferred()
+        patterns.explain()
+        runCurrent()
+        client.answer.completeExceptionally(CheckFailure(CheckFailure.Reason.Timeout))
+        advanceUntilIdle()
+        val failed = patterns.state.value
+        assertEquals(CheckFailure.Reason.Timeout, failed.explainFailure?.reason)
+
+        spanishReply.complete(REPLY)
+        advanceUntilIdle()
+        assertEquals(failed, patterns.state.value)
+        assertNull(notes.saved)
+    }
+
+    @Test fun aHistoryRevisionInvalidatesTheExplanationBeforeTheRebuildDebounce() = runTest(main.dispatcher) {
+        client.ignoreCancellation = true
+        val patterns = patterns()
+        advanceUntilIdle()
+        patterns.explain()
+        runCurrent()
+
+        history.delete("es-1")
+        runCurrent()
+        assertTrue(patterns.state.value.loading)
+        client.answer.complete(REPLY)
+        runCurrent()
+        assertNull(notes.saved)
+        assertFalse(patterns.state.value.explaining)
+        advanceUntilIdle()
+        assertEquals(setOf("es-2"), patterns.state.value.snapshot?.report?.evidenceSessions)
+    }
+
+    @Test fun deletingWhileTheProviderIsPendingCannotRestoreTheExplanation() = runTest(main.dispatcher) {
+        client.ignoreCancellation = true
+        val patterns = patterns()
+        advanceUntilIdle()
+        patterns.explain()
+        runCurrent()
+        patterns.deleteExplanation()
+        advanceUntilIdle()
+        client.answer.complete(REPLY)
+        advanceUntilIdle()
+        assertNull(notes.saved)
+        assertNull(patterns.state.value.snapshot?.explanation)
+        assertFalse(patterns.state.value.explaining)
     }
 
     private class Notes : ExplanationStore {
@@ -180,10 +276,12 @@ class PatternsAsyncContractTest {
 
     private class GatedClient : ProviderClient {
         var answer = CompletableDeferred<String>()
+        var ignoreCancellation = false
         val requests = mutableListOf<GenerationRequest>()
         override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
             requests += request
-            return answer.await()
+            val pending = answer
+            return if (ignoreCancellation) withContext(NonCancellable) { pending.await() } else pending.await()
         }
         override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("Unused")
         override suspend fun models(key: String): List<String> = emptyList()

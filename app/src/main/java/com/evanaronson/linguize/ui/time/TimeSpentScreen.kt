@@ -77,7 +77,7 @@ fun TimeHeadline(language: String? = null, onOpen: () -> Unit) {
     val model = timeSpent() ?: return
     val state by model.state.collectAsState()
     LaunchedEffect(model, language) { model.refresh(language) }
-    val report = state.report
+    val report = state.report.takeIf { state.language == language }
     SectionHeader(stringResource(R.string.lab_ia_progress_this_week))
     val openLabel = stringResource(R.string.lab_time_spent_open)
     SectionCard(
@@ -117,7 +117,7 @@ fun TimeSpentScreen(historyOn: Boolean?, language: String? = null) {
     val model = timeSpent() ?: return
     val state by model.state.collectAsState()
     LaunchedEffect(model, language) { model.refresh(language) }
-    val report = state.report
+    val report = state.report.takeIf { state.language == language }
     ScreenColumn {
         // Lab, Progress IA: like every page Progress opens, it starts with its language and a summary.
         ScopeHeader(language)

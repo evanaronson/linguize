@@ -85,6 +85,12 @@ Everything is pure Kotlin and offline. Nothing is stored: the grid is rebuilt fr
 `App.corpus` each time the screen opens, so deleting a check or chat removes its text from
 the grid on the next visit.
 
+`ConjugationsViewModel` builds Spanish and Catalan reports together from one corpus read.
+A refresh replaces pending work instead of being dropped; an obsolete result or failure
+cannot update the current request. Choosing a language while loading changes which of
+those reports is shown, and completion preserves that selection. A failed read keeps
+the last reports for retry; the corpus's existing source-failure fallback still applies.
+
 ### Morphology
 
 **Generation, not lookup.** About 440 Spanish and 420 Catalan verbs are listed in the source

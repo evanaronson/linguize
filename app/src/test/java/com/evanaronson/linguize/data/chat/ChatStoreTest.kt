@@ -69,6 +69,34 @@ class ChatStoreTest {
         assertFalse(store.rename("missing", "x", custom = true))
     }
 
+    @Test fun partnerAppendRequiresTheExpectedTailAndPreservesAnExistingGeneratedTitle() = runBlocking {
+        store.create(first.copy(title = "Already named"))
+        store.add(opener)
+        store.add(mine)
+        val reply = ChatMessage.partner("p2", "c1", "A current reply", 40)
+        assertEquals(PartnerAppend.Superseded, store.appendPartner(reply, opener.id, "Stale title") { true })
+        assertEquals(listOf(opener, mine), store.messages("c1"))
+        val saved = store.appendPartner(reply, mine.id, "Another generated title") { true } as PartnerAppend.Saved
+        assertEquals(listOf(opener, mine, reply), saved.snapshot.messages)
+        assertEquals("Already named", saved.snapshot.conversation.title)
+        assertFalse(saved.snapshot.conversation.titleIsCustom)
+        assertEquals(saved.snapshot, store.readThread("c1"))
+    }
+
+    @Test fun strictThreadReadRetainsTheLegacyUnreadableMessagePolicy() = runBlocking {
+        store.create(first)
+        store.add(opener)
+        store.add(mine)
+        android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(ChatStore.DATABASE).path, null,
+            android.database.sqlite.SQLiteDatabase.OPEN_READWRITE).use { db ->
+            db.execSQL("UPDATE messages SET changes = 'not-json' WHERE id = ?", arrayOf(opener.id))
+        }
+        val loaded = store.readThread("c1")!!
+        assertEquals("c1", loaded.conversation.id)
+        assertEquals(listOf(mine), loaded.messages)
+        assertEquals(store.messages("c1"), loaded.messages)
+    }
+
     @Test fun deleteRemovesTheConversationAndItsMessages() = runBlocking {
         store.create(first)
         store.add(opener)

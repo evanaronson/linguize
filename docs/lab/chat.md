@@ -121,6 +121,13 @@ point forces the check, because there is no selection menu to choose it from.
   migrations were added to History. A message whose check failed, was unclear or in
   another language is never sent, so it is never saved. With History off, nothing is
   saved; the chat still works from its own store.
+- **Request ownership.** Selection, editor input and partner requests have separate
+  identities. Opening a conversation joins its pending creation; a late creation,
+  reply, failure or cancellation cannot replace a newer selection or clear its state.
+  An accepted writer save can finish after navigation, and its acknowledgement returns
+  the authoritative stored thread. Store-side guards reject stale partner appends and
+  renames; an automatic title updates only an eligible conversation and cannot replace
+  a manual title. Failed list/thread reads preserve the current screen and offer Retry.
 - **Links.** The chat's database (`lab_chat`, version 4) notes each message's History
   session (`messages.session_id`) and each reply's translation (`messages.translation`).
   `ChatStore.threads` maps sessions to conversations; History uses it for a chat row's

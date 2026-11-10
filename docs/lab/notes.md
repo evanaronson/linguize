@@ -177,13 +177,21 @@ Not chosen:
 - `data/write/WriteDraftStore` (the notes; names kept from Write): drafts and which one is open, in `lab_write.json` in the
   app's files directory, written through a temporary file and a rename. An unreadable file
   is set aside, not overwritten. Reads `lab_writing_pad.json` once to import its drafts and
-  never writes it.
+  never writes it. All hosts use `App.notesStore`; selection, input and explicit-deletion
+  revisions reject stale writes and prevent an old Undo from reversing a newer deletion.
 - `ui/notes/NotesViewModel`: every note (the list) and the one open on a note's page.
   `open(id)` opens a note by id (a new note's id from `newNoteId()`, blank until something is
   written), or with null the current one (the last opened, else the newest, else the
   sample); it returns false when that note is already open, so the card stays. Saves 400 ms
   after typing stops, and at once on leaving the page or the app. A blank note, or the
   untouched sample, is never kept; an emptied note keeps its id.
+- Each requested editor owns input typed while its note is loading. Read, open, save,
+  delete and Undo commands execute in order; only the current editor can resolve
+  navigation. Accepted commands drain on the app scope after the view model closes,
+  while callbacks to the closed page are suppressed. An empty-text autosave removes the
+  stored row without invalidating the editor. After another host explicitly deletes
+  that note, fresh typing or an explicit save retry can save it again; older queued
+  input cannot.
 - Navigation: `Screen.Note(id)` above `Screen.Notes` (`lab_notes_note:<id>`; null is "the
   current note", `lab_notes_note`, replaced by its id once known, as Chat's current
   conversation is). `startNavigation` opens it for the Notes start and the Notes shortcut.
@@ -202,3 +210,5 @@ Not chosen:
 - One check at a time, by button. There is no checking as you type.
 - The whole draft is checked, up to Linguize's 3,000-character limit.
 - Drafts are on this phone only. Removing Linguize Lab deletes them.
+- Accepted commands can outlive the page, but the command queue is not persisted across
+  process death. Only acknowledged file contents survive a restart.

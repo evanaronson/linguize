@@ -3,12 +3,13 @@
 These tests establish a baseline before cleaning up `feature/bonanza`, starting at
 `d5d92cc13f083411ff60735c59a743ac20780704`. They preserve successful behavior and
 make confirmed failures reproducible. Step 3 repairs persistence acknowledgements
-and memory command invalidation; its repaired contracts now run in the normal suite.
+and memory command invalidation; step 4 gives asynchronous work explicit ownership.
+Their repaired contracts now run in the normal suite.
 
 The Notes fixtures follow the later Notes navigation change (`16c25a7`, merged in
 `ef5150e`): loading the list does not open an editor; a note is opened explicitly.
-The pending-open defect remains covered. Its mechanism changed from overwriting
-an accepted edit to silently rejecting an edit while the text field remains available.
+Step 4 repairs the pending-open defect: input from the available editor belongs to
+the requested note and survives the delayed read.
 
 ## Run the two suites
 
@@ -89,20 +90,49 @@ saved text and accepted changes, file formats, independent retention rules, and 
 500-check Practice window remain unchanged. Chat adds a forward SQLite migration
 for pending cleanup; it does not migrate or combine the other feature stores.
 
+## Asynchronous ownership repairs (step 4)
+
+Six more original contracts now run in the normal suite: pending Chat creation,
+late creation replacing a newer selection, stale reply status, automatic titles
+overwriting manual titles, typing during a Notes open, and a Patterns explanation
+publishing under the wrong language.
+
+This step also adds 76 regressions for delayed completion, overlapping commands,
+cross-editor saves, retry ownership and export retirement. The normal suite has
+1,880 passing tests with the optional corpus/fuzz fixtures enabled; no earlier
+test was removed. Release lint and assembly pass, with the existing 66 lint
+warnings and one hint.
+
+Chat owns selection and partner requests separately. Pending creation is tracked
+by conversation ID; message appends check ownership and return an authoritative
+thread snapshot, and automatic titles update only an eligible stored conversation.
+Accepted writer saves still finish when navigation supersedes their screen.
+
+Notes gives each requested editor its own input and serializes accepted commands.
+Shared store ownership protects both note content and the persisted selection;
+delayed saves cannot recreate deleted notes or overwrite a newer edit. Input can
+arrive before the saved note finishes loading. Accepted commands drain after the
+editor closes, while disposed or superseded editors cannot resolve navigation.
+
+Words publishes a coherent evidence/language/deck/level result only for its current
+request. Patterns, Time and Conjugations also reject superseded work. Patterns
+protects saved explanations at its storage boundary, including explicit deletion
+and reconciliation with History. Words exports now share the application's export
+owner: captured retirement generations reject stale evidence and queued writers,
+and exact-file checks protect newer exports from old cleanup callbacks.
+
+These changes preserve the existing algorithms, evidence windows, file formats,
+normal export lifetimes and consecutive Chat sends. They do not implement route or
+process reconstruction, or change the corpus's missing/failure policy.
+
 ## Known defects still executable
 
-After step 3, the opt-in suite contains these 12 failing methods. A setup
+After step 4, the opt-in suite contains these six failing methods. A setup
 exception, timeout, or unrelated assertion failure is not a successful reproduction;
 check the failure against the intended invariant below.
 
 | Class | Method | Desired invariant |
 |---|---|---|
-| `ChatBehaviorContractTest` | `openingAnAutomaticallyCreatedConversationWaitsForItsPendingCreation` | Navigation cannot report the conversation being created as missing. |
-| | `aManualTitleSetDuringAReplySurvivesInStorage` | A late automatic title cannot overwrite a manual title on disk. |
-| | `cancellingAnOlderReplyDoesNotClearTheNewReplyStatus` | An older request cannot clear the active request's loading status. |
-| | `delayedCreationDoesNotReplaceANewerSelectionAndItsDraft` | Late creation cannot replace the user's newer selection and draft. |
-| `NotesAsyncContractTest` | `typingWhileAnotherNoteOpensIsNotSilentlyDiscarded` | Input from the available editor is not lost during a pending note switch. |
-| `PatternsAsyncContractTest` | `aSpanishExplanationCompletingAfterALanguageChangeCannotReplaceTheCatalanReport` | The selected language and displayed report remain coherent. |
 | `WriterEvidenceContractTest` | `aBracketedGapIsNotVocabularyKnowledgeForChatTargets` | A writer's bracketed gap is not evidence that they know the word. |
 | | `aPhraseInsideABracketedGapIsNotDeckCoverage` | Phrase matching obeys the same gap exclusion. |
 | | `spanishPerfectCannotJoinTwoSentences` | Compound tense recognition respects sentence boundaries. |
@@ -121,9 +151,9 @@ temporary/destination paths force write/rename failure without relying on OS
 permissions. New instances read the durable state where restart consistency matters.
 
 Step 1 added optional dispatcher parameters on `ChatStore`, `ChatPartner`, and
-`PatternsLab`, all defaulting to `Dispatchers.IO`. Step 3 adds the persistence and
-failure handling described above, with scheduler seams where needed to test actual
-store/coordinator behavior. `kotlinx-coroutines-test` remains a test-only dependency
+`PatternsLab`, all defaulting to `Dispatchers.IO`. Steps 3 and 4 add the persistence,
+failure handling and operation ownership described above, with scheduler seams
+where needed to test actual store/coordinator behavior. `kotlinx-coroutines-test` remains a test-only dependency
 at the existing coroutines version, with dependency verification metadata recorded.
 
 This is a focused baseline, not complete lifecycle coverage. In particular:
@@ -131,9 +161,12 @@ This is a focused baseline, not complete lifecycle coverage. In particular:
 - Chat tests drive the coordinator and store. They do not click Compose actions;
   Send-button availability after failed/unclear checks remains a separate UI contract.
   History-off is represented by the existing `DraftCheck.finish` null result.
-- Notes and Patterns cover selected interleavings. Words' overlapping queries,
-  route restoration, Android process death, and Practice restoration need further tests
-  when those areas are changed.
+- Notes, Chat and scoped-query tests cover selected interleavings, including late
+  completion after cancellation. Route restoration, Android process death and
+  Practice restoration remain separate work.
+- Accepted Notes commands drain on the application scope after the editor closes;
+  they are not a persistent command queue. Words import/delete commands and failed
+  deck-cleanup retries remain scoped to their ViewModel's lifetime.
 - Corpus deletion fixtures check derived recomputation. Separate conversation
   cleanup tests cover durable pending work and acknowledged retries; cleanup still
   is not one transaction across all feature stores.
@@ -142,10 +175,7 @@ This is a focused baseline, not complete lifecycle coverage. In particular:
 - Corrected memory provenance applies to new learning updates. Older files do not
   retain previous claim text, so incorrectly merged historical support cannot be
   reconstructed automatically.
-- Conversation cleanup serializes retirement with History exports. Words CSV
-  generation still has its separate captured-query/write lifecycle; stale export
-  invalidation belongs with the next operation-identity step. Chat list/detail reads
-  also retain their existing null/empty fallback on read failure; mutation
-  acknowledgements do not resolve that loading-state ambiguity.
+- Export tests cover captured evidence, queued writers, retirement and exact-file
+  ownership; they do not drive Android's share sheet or another app reading a URI.
 - Provider fakes stop at request preparation and parsing. HTTP behavior, live model
   quality, and handset behavior remain outside these tests.

@@ -76,10 +76,14 @@ class VocabGapsStore(private val dir: File) {
         read(selectionFile) { json.decodeFromString(VocabSelection.serializer(), it) } ?: VocabSelection()
     }
 
-    fun saveSelection(selection: VocabSelection) = synchronized(lock) {
+    fun saveSelection(selection: VocabSelection, current: () -> Boolean = { true }): Boolean = synchronized(lock) {
+        if (!current()) return@synchronized false
         // Automatic selection writes must not replace an existing file that could not be read.
-        if (selection() == selection) return@synchronized
+        val before = selection()
+        if (!current()) return@synchronized false
+        if (before == selection) return@synchronized true
         writeAtomically(selectionFile, json.encodeToString(VocabSelection.serializer(), selection))
+        true
     }
 
     private fun <T> read(file: File, decode: (String) -> T): T? {

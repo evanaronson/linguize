@@ -127,6 +127,14 @@ class App : Application() {
         com.evanaronson.linguize.data.memory.MemoryStore(java.io.File(filesDir, com.evanaronson.linguize.data.memory.MemoryStore.FILE_NAME))
     }
 
+    /** One cached store owns notes across the app's editor view models. */
+    val notesStore by lazy {
+        com.evanaronson.linguize.data.write.WriteDraftStore(
+            java.io.File(filesDir, com.evanaronson.linguize.data.write.WriteDraftStore.FILE_NAME),
+            legacy = java.io.File(filesDir, com.evanaronson.linguize.data.write.WriteDraftStore.PAD_FILE_NAME),
+        )
+    }
+
     /** Lab Chat: conversations in their own `lab_chat` database, and the partner that answers. */
     val chatStore by lazy { com.evanaronson.linguize.data.chat.ChatStore(this) }
     val chatPartner by lazy {
@@ -159,7 +167,10 @@ class App : Application() {
             forgetMemory = { userMemory.forget(it) },
             deleteHistory = { history.delete(it) },
             deleteTiming = { timeStore.deleteAcknowledged(it) },
-            forgetExports = { withContext(Dispatchers.IO) { exports.clearAcknowledged() } },
+            forgetExports = {
+                exports.invalidate()
+                withContext(Dispatchers.IO) { exports.clearAcknowledged() }
+            },
         )
     }
 

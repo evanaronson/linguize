@@ -8,6 +8,8 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * One Write draft. [language] is a language code, or null for auto-detect. [title] is only
@@ -51,6 +53,7 @@ class WriteDraftStore(
     private val file: File,
     private val legacy: File? = null,
 ) {
+    data class Selection(val draft: WriteDraft?, val empty: Boolean, val deletionVersion: Int)
     @Serializable
     private data class Contents(val version: Int = 1, val currentId: String? = null, val drafts: List<WriteDraft> = emptyList())
 
@@ -69,9 +72,32 @@ class WriteDraftStore(
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private var cache: Contents? = null
+    private val selection = AtomicLong()
+    private val edits = AtomicLong()
+    private val latestEdits = ConcurrentHashMap<String, Long>()
+    private val deletions = ConcurrentHashMap<String, Int>()
+
+    /** Reserves selection without IO; delayed saves from older editors still keep their text. */
+    fun claimSelection(): Long = selection.incrementAndGet()
+
+    /** Input order is reserved on Main, before a save can be delayed behind IO. */
+    fun noteEdited(id: String?): Long = edits.incrementAndGet().also { revision ->
+        if (id != null) latestEdits.merge(id, revision) { previous, next -> maxOf(previous, next) }
+    }
+
+    fun deletionVersion(id: String?): Int = id?.let { deletions[it] } ?: 0
 
     @Synchronized
     fun load(): WriteDrafts = contents().let { c -> WriteDrafts(c.currentId, c.drafts.sortedByDescending { it.updatedAt }) }
+
+    /** The chosen contents and their deletion version are one synchronized read. */
+    @Synchronized
+    fun loadSelection(id: String?): Selection {
+        val loaded = load()
+        val draft = if (id != null) loaded.drafts.firstOrNull { it.id == id }
+            else loaded.current ?: loaded.drafts.firstOrNull()
+        return Selection(draft, loaded.drafts.isEmpty(), deletionVersion(draft?.id ?: id))
+    }
 
     /** Adds or replaces [draft] and makes it the open one. */
     @Synchronized
@@ -80,26 +106,52 @@ class WriteDraftStore(
         write(Contents(currentId = draft.id, drafts = c.drafts.filterNot { it.id == draft.id } + draft))
     }
 
+    /** Saves text without letting an older editor replace the most recently selected note. */
+    @Synchronized
+    fun save(draft: WriteDraft, selectedBy: Long?, revision: Long, expectedDeletion: Int): Boolean {
+        if (deletionVersion(draft.id) != expectedDeletion || !latest(draft.id, revision)) return false
+        val c = contents()
+        val next = if (draft.isBlank) {
+            // Emptying an editor removes its row, but typing in that same editor may save it again.
+            c.copy(currentId = c.currentId.takeIf { it != draft.id }, drafts = c.drafts.filterNot { it.id == draft.id })
+        } else {
+            val current = if (selectedBy != null && selection.get() == selectedBy) draft.id else c.currentId
+            c.copy(currentId = current, drafts = c.drafts.filterNot { it.id == draft.id } + draft)
+        }
+        if (next != c) write(next)
+        return true
+    }
+
     /** Opens draft [id], or nothing (a new blank draft not saved yet) for null. */
     @Synchronized
-    fun setCurrent(id: String?) {
+    fun setCurrent(id: String?, selectedBy: Long? = null) {
+        if (selectedBy != null && selection.get() != selectedBy) return
         val c = contents()
         if (c.currentId == id) return
         write(c.copy(currentId = id?.takeIf { wanted -> c.drafts.any { it.id == wanted } }))
     }
 
     @Synchronized
-    fun delete(id: String) {
+    fun delete(id: String): Int {
         val c = contents()
-        if (c.drafts.none { it.id == id }) return
-        write(c.copy(currentId = c.currentId.takeIf { it != id }, drafts = c.drafts.filterNot { it.id == id }))
+        if (c.drafts.any { it.id == id }) {
+            write(c.copy(currentId = c.currentId.takeIf { it != id }, drafts = c.drafts.filterNot { it.id == id }))
+        }
+        return deletions.merge(id, 1) { before, increment -> before + increment }!!
     }
+
+    private fun latest(id: String, revision: Long): Boolean =
+        latestEdits.merge(id, revision) { previous, next -> maxOf(previous, next) } == revision
 
     /** Puts back [draft] as it was, as when a deletion is undone; the open draft stays open. */
     @Synchronized
-    fun restore(draft: WriteDraft) {
+    fun restore(draft: WriteDraft, expectedDeletion: Int? = null): Boolean {
+        if (expectedDeletion != null && deletionVersion(draft.id) != expectedDeletion) return false
         val c = contents()
+        // A failed Undo may be retried after the same note has been opened and edited again.
+        if (c.drafts.any { it.id == draft.id }) return true
         write(c.copy(drafts = c.drafts.filterNot { it.id == draft.id } + draft))
+        return true
     }
 
     private fun contents(): Contents = cache ?: read().also { cache = it }

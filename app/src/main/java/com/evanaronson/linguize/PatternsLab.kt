@@ -19,10 +19,13 @@ import com.evanaronson.linguize.llm.lab.PatternsPrompt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicLong
 
 /** How a saved explanation relates to the current report. */
 enum class ExplanationStatus {
@@ -67,6 +70,7 @@ class PatternsLab(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val lock = Mutex()
+    private val explanationRequest = AtomicLong()
 
     /**
      * Reads History and builds the report; null when History couldn't be read. With a
@@ -75,25 +79,36 @@ class PatternsLab(
      * evidence is gone, and it shows only for the language it was made from.
      */
     suspend fun load(language: String? = null): PatternsSnapshot? = withContext(io) {
-        val details = history.patternEvidence() ?: return@withContext null
-        val all = reconcile(PatternAnalyser.analyse(details))
-        if (language == null) return@withContext all
+        lock.withLock { loadLocked(language) }
+    }
+
+    private suspend fun loadLocked(language: String?): PatternsSnapshot? {
+        val details = history.patternEvidence() ?: return null
+        currentCoroutineContext().ensureActive()
+        // Read evidence and reconcile under the same lock: an older read must never delete
+        // an explanation saved from newer evidence while that read was suspended.
+        val all = reconcileLocked(PatternAnalyser.analyse(details))
+        if (language == null) return all
         val report = PatternAnalyser.analyse(details.filter { it.session.targetLanguage == language })
         val status = all.explanation?.let { saved -> explanationStatus(saved, report)?.takeIf { saved.sources.isNotEmpty() } }
-        PatternsSnapshot(report, all.explanation?.takeIf { status != null }, status)
+        return PatternsSnapshot(report, all.explanation?.takeIf { status != null }, status)
     }
 
     /** Deletes a saved explanation whose evidence is gone, and says how the rest relates to [report]. */
     suspend fun reconcile(report: PatternReport): PatternsSnapshot = lock.withLock {
-        withContext(io) {
-            val saved = notes.read() ?: return@withContext PatternsSnapshot(report)
-            val status = explanationStatus(saved, report)
-            if (status == null) {
-                notes.delete()
-                PatternsSnapshot(report)
-            } else {
-                PatternsSnapshot(report, saved, status)
-            }
+        withContext(io) { reconcileLocked(report) }
+    }
+
+    private suspend fun reconcileLocked(report: PatternReport): PatternsSnapshot {
+        currentCoroutineContext().ensureActive()
+        val saved = notes.read() ?: return PatternsSnapshot(report)
+        val status = explanationStatus(saved, report)
+        return if (status == null) {
+            currentCoroutineContext().ensureActive()
+            notes.delete()
+            PatternsSnapshot(report)
+        } else {
+            PatternsSnapshot(report, saved, status)
         }
     }
 
@@ -105,14 +120,26 @@ class PatternsLab(
      */
     suspend fun watch() {
         history.revisions().collectLatest {
-            val saved = runCatching { withContext(io) { notes.read() } }.getOrNull()
+            val saved = try {
+                withContext(io) { notes.read() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
             if (saved != null) load()
         }
     }
 
     /** Whether there is a key for the chosen service, so Explain can be offered. */
     suspend fun canExplain(): Boolean = withContext(io) {
-        runCatching { !keys.get(settings.provider).isNullOrBlank() }.getOrDefault(false)
+        try {
+            !keys.get(settings.provider).isNullOrBlank()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** The service an explanation would be sent to. */
@@ -123,44 +150,57 @@ class PatternsLab(
      * and returns a fresh snapshot (so a check deleted meanwhile still removes it).
      * Throws [CheckFailure].
      */
-    suspend fun explain(report: PatternReport, language: String? = null): PatternsSnapshot = withContext(io) {
-        val briefs = briefs(report)
-        if (briefs.isEmpty()) throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
-        val provider = settings.provider
-        val model = settings.model(provider) ?: provider.recommendedModel
-        val key = keys.get(provider)?.takeUnless { it.isBlank() } ?: throw CheckFailure(CheckFailure.Reason.NoKey)
-        if (key.any { it !in '!'..'~' }) {
-            throw CheckFailure(CheckFailure.Reason.BadKey, userMessage = CheckFailure.Message.InvalidKey)
+    suspend fun explain(report: PatternReport, language: String? = null): PatternsSnapshot {
+        val generation = explanationRequest.incrementAndGet()
+        return withContext(io) {
+            val briefs = briefs(report)
+            if (briefs.isEmpty()) throw CheckFailure(CheckFailure.Reason.BadResponse, userMessage = CheckFailure.Message.EmptyReply)
+            val provider = settings.provider
+            val model = settings.model(provider) ?: provider.recommendedModel
+            val key = keys.get(provider)?.takeUnless { it.isBlank() } ?: throw CheckFailure(CheckFailure.Reason.NoKey)
+            if (key.any { it !in '!'..'~' }) {
+                throw CheckFailure(CheckFailure.Reason.BadKey, userMessage = CheckFailure.Message.InvalidKey)
+            }
+            val request = prompt()
+            val reply = try {
+                currentCoroutineContext().ensureActive()
+                if (generation != explanationRequest.get()) throw CancellationException("Explanation superseded")
+                val raw = clients.getValue(provider).generate(key, model, request.request(briefs, settings.nativeLanguage))
+                currentCoroutineContext().ensureActive()
+                request.read(raw, briefs.mapTo(hashSetOf()) { it.id })
+            } catch (e: CheckFailure) {
+                throw e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e)
+            }
+            val saved = SavedExplanation(
+                summary = reply.summary,
+                tips = reply.tips.map { SavedTip(it.pattern, it.tip) },
+                fingerprint = report.fingerprint,
+                analyser = report.analyser,
+                prompt = request.version,
+                provider = provider.token,
+                model = model,
+                createdAt = now(),
+                sources = report.evidenceSessions.toList(),
+                checks = report.checksCounted,
+            )
+            lock.withLock {
+                currentCoroutineContext().ensureActive()
+                if (generation != explanationRequest.get()) throw CancellationException("Explanation superseded")
+                notes.write(saved)
+                loadLocked(language) ?: reconcileLocked(report)
+            }
         }
-        val request = prompt()
-        val reply = try {
-            val raw = clients.getValue(provider).generate(key, model, request.request(briefs, settings.nativeLanguage))
-            request.read(raw, briefs.mapTo(hashSetOf()) { it.id })
-        } catch (e: CheckFailure) {
-            throw e
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e)
-        }
-        val saved = SavedExplanation(
-            summary = reply.summary,
-            tips = reply.tips.map { SavedTip(it.pattern, it.tip) },
-            fingerprint = report.fingerprint,
-            analyser = report.analyser,
-            prompt = request.version,
-            provider = provider.token,
-            model = model,
-            createdAt = now(),
-            sources = report.evidenceSessions.toList(),
-            checks = report.checksCounted,
-        )
-        lock.withLock { notes.write(saved) }
-        load(language) ?: reconcile(report)
     }
 
     /** Deletes the saved explanation; the patterns themselves stay, as they're rebuilt from History. */
-    suspend fun deleteExplanation() = lock.withLock { withContext(io) { notes.delete() } }
+    suspend fun deleteExplanation() {
+        explanationRequest.incrementAndGet()
+        lock.withLock { withContext(io) { notes.delete() } }
+    }
 
     companion object {
         /** What the model is told about each group: groups and a few distinct examples, never whole messages. */

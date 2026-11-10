@@ -173,7 +173,8 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (languag
                 }
                 if (shown.words.isNotEmpty()) {
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-                        LinguizeButton(stringResource(R.string.lab_words_export), words::exportCsv, ButtonKind.Text)
+                        LinguizeButton(stringResource(R.string.lab_words_export), words::exportCsv, ButtonKind.Text,
+                            enabled = state.exportReady)
                     }
                 }
                 YourDecks(state, onImport = { picker.launch(DECK_MIME_TYPES) }, onDelete = { deleting = it })
@@ -550,7 +551,7 @@ private fun WordsExportEffect(words: WordsViewModel) {
     val export by words.export.collectAsState()
     LaunchedEffect(export) {
         export?.let {
-            share(context, it)
+            if (it !is WordsExport.Ready || words.isExportCurrent(it)) share(context, it)
             words.exportHandled()
         }
     }

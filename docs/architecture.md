@@ -99,17 +99,37 @@ not a transaction across features or a guarantee against every power-loss scenar
 In particular,
 [data/Exports](../app/src/main/java/com/evanaronson/linguize/data/Exports.kt)
 manages files through an output-stream callback, so it need not know the history
-schema. UI code owns sharing and requests cleanup. The files named `Exports.kt`
-in these layers have different responsibilities.
+schema. History and Words share the application's export owner and use a unique
+file for each share. Retirement invalidates captured evidence and queued writers;
+discarding one result addresses that exact file, so an old callback cannot remove
+a newer export. UI code owns sharing and requests cleanup. The files named
+`Exports.kt` in these layers have different responsibilities.
 
 `App` owns lazily created shared services and a process-wide `appScope`. The scope
 runs recording/cleanup work, memory learning, cached chat-target builds, and the
-pattern explanation watcher. Screen operations generally run in `viewModelScope`.
+pattern explanation watcher. It also drains accepted Notes commands after their
+view model closes; all Notes hosts share `App.notesStore`. Screen queries generally
+run in `viewModelScope`. Words deck mutations and failed cleanup IDs remain owned
+by that view model; they have no durable queue or process reconstruction.
 A process scope outlives a screen, not the process: Chat deletion removes
 its local rows and records pending cleanup in the same SQLite transaction. Cleanup
 of History, time and learned memory is idempotent; the pending record survives a
 restart and is retired only after those stores acknowledge completion. The stores
 remain separate, so their cleanup can finish at different times.
+
+Asynchronous results carry the identity of the work that requested them:
+
+| Feature | Ownership boundary |
+|---|---|
+| Chat | Selection, editor input and partner requests have separate ownership. Store-side checks protect delayed reply appends and title changes; an acknowledged writer append returns the current stored thread. |
+| Notes | Each requested editor buffers its own input while loading. Ordered commands and shared-store selection, input and deletion revisions protect saves, opening and Undo across hosts. Accepted commands outlive a page, but not the process. |
+| Words | Evidence, language, deck and level form one published result; superseded analysis cannot supply its coverage or export. Storage mutations run separately from replaceable query work. |
+| Patterns | A request captures language and evidence generation before work starts. Explanation save/delete and evidence reconciliation share the service's storage lock; provider calls run outside it. |
+| Time and Conjugations | Refresh replaces older work. Time checks cancellation before sweeping measurements and labels its report with its captured language; Conjugations builds both language reports from one read and preserves the current display selection. |
+
+Cancellation releases obsolete work; ownership checks also protect publication
+and storage when a dependency finishes late. These guards do not reconstruct
+screen requests after process death or change the evidence windows below.
 
 Keep Android resources in their native form. `strings.xml`, `strings_lifecycle.xml`,
 and `strings_platform.xml` form one catalog; file boundaries do not affect resource

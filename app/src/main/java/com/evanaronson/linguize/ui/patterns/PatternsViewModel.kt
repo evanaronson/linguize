@@ -10,14 +10,14 @@ import com.evanaronson.linguize.PatternsLab
 import com.evanaronson.linguize.PatternsSnapshot
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -53,38 +53,68 @@ class PatternsViewModel internal constructor(
     private val _state = MutableStateFlow(PatternsState())
     val state: StateFlow<PatternsState> = _state.asStateFlow()
 
-    private val asked = MutableStateFlow(0)
-
-    /** Lab, Language scope: the language the report is for; null is every language. */
-    private val language = MutableStateFlow<String?>(null)
+    /** One evidence read and its selected language, captured together before any suspension. */
+    private data class Query(val generation: Long, val language: String?)
+    private val query = MutableStateFlow(Query(0, null))
+    private var rebuildJob: Job? = null
     private var explainJob: Job? = null
+    private var explanationGeneration = 0L
 
     init {
         viewModelScope.launch {
-            combine(revisions, asked, language) { revision, ask, language -> Triple(revision, ask, language) }
-                .debounce(REBUILD_DELAY_MS)
-                .collectLatest { (_, _, language) -> rebuild(language) }
+            revisions.collect { requestRebuild(query.value.language) }
+        }
+        viewModelScope.launch {
+            query.debounce(REBUILD_DELAY_MS).collect { captured ->
+                if (query.value != captured) return@collect
+                rebuildJob?.cancel()
+                rebuildJob = viewModelScope.launch { rebuild(captured) }
+            }
         }
     }
 
     /** Reads History again, and whether a key is saved now (it may have been added in Settings). */
     fun refresh() {
-        asked.update { it + 1 }
+        requestRebuild(query.value.language)
     }
 
     /** Lab, Language scope: groups only [language]'s fixes. */
     fun setLanguage(language: String?) {
-        if (this.language.value == language) return
-        // The old language's groups mustn't show under the new one while it's read.
-        _state.update { it.copy(snapshot = null, loading = true, language = language) }
-        this.language.value = language
+        if (query.value.language == language) return
+        requestRebuild(language)
     }
 
-    private suspend fun rebuild(language: String?) {
-        _state.update { it.copy(loading = it.snapshot == null, failed = false) }
-        val snapshot = lab.load(language)
+    private fun requestRebuild(language: String?) {
+        val previous = query.value
+        query.value = Query(previous.generation + 1, language)
+        // Invalidate immediately, before the debounce can let an old result finish.
+        rebuildJob?.cancel()
+        cancelExplanation()
+        _state.update {
+            it.copy(
+                snapshot = it.snapshot.takeIf { previous.language == language },
+                loading = true, failed = false, language = language,
+            )
+        }
+    }
+
+    private fun cancelExplanation() {
+        explanationGeneration++
+        explainJob?.cancel()
+        _state.update { it.copy(explaining = false, explainFailure = null) }
+    }
+
+    private suspend fun rebuild(captured: Query) {
+        val snapshot = lab.load(captured.language)
         val canExplain = lab.canExplain()
-        val provider = runCatching { lab.provider() }.getOrNull()
+        val provider = try {
+            lab.provider()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        if (query.value != captured) return
         _state.update {
             it.copy(
                 loading = false,
@@ -98,25 +128,35 @@ class PatternsViewModel internal constructor(
 
     /** Sends the current groups to the chosen service for a short explanation, and saves it. */
     fun explain() {
+        if (_state.value.loading || _state.value.failed) return
         val report = _state.value.snapshot?.report ?: return
         if (explainJob?.isActive == true) return
+        val captured = query.value
+        val generation = ++explanationGeneration
+        fun current() = query.value == captured && explanationGeneration == generation
         _state.update { it.copy(explaining = true, explainFailure = null) }
         explainJob = viewModelScope.launch {
             try {
-                val snapshot = lab.explain(report, language.value)
-                _state.update { it.copy(snapshot = snapshot) }
+                if (!current()) return@launch
+                val snapshot = lab.explain(report, captured.language)
+                if (current()) _state.update { it.copy(snapshot = snapshot) }
             } catch (e: CheckFailure) {
-                _state.update { it.copy(explainFailure = ExplainFailure(e.reason, e.userMessage)) }
+                if (current()) _state.update { it.copy(explainFailure = ExplainFailure(e.reason, e.userMessage)) }
             } finally {
-                _state.update { it.copy(explaining = false) }
+                if (current()) _state.update { it.copy(explaining = false) }
             }
         }
     }
 
     fun deleteExplanation() {
+        requestRebuild(query.value.language)
+        val captured = query.value
+        val generation = explanationGeneration
         viewModelScope.launch {
             lab.deleteExplanation()
-            _state.update { it.copy(snapshot = it.snapshot?.copy(explanation = null, status = null), explainFailure = null) }
+            if (query.value == captured && explanationGeneration == generation) {
+                _state.update { it.copy(snapshot = it.snapshot?.copy(explanation = null, status = null), explainFailure = null) }
+            }
         }
     }
 

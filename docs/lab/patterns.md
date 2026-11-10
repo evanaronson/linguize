@@ -114,14 +114,24 @@ prompt version (a hash of the prompt asset and schema), provider, model, time, n
 checks, and the session ids whose examples it used. `explanationStatus` decides on every
 build:
 
-- a different analyser version, or any source session no longer in History: deleted;
+- a different analyser version, or any source session absent from the current bounded
+  evidence report: deleted;
 - same sources plus newer checks: kept, marked "Newer checks aren't included";
 - same fingerprint: current.
 
 `PatternsLab.watch()` runs for the life of the process and applies this rule after every
 History write, including Delete, Delete all and Undo deletions made from other screens, so
-a saved explanation never outlives the checks it used. It reads nothing while no
-explanation is saved. History itself is never written.
+successful reads reconcile the explanation with its evidence. A failed History read
+keeps the saved explanation for retry. The watcher reads no History while no explanation
+is saved. History itself is never written.
+
+The view model captures language and evidence generation together. Language changes,
+refreshes and observed History revisions invalidate pending work before the rebuild
+debounce; an old explanation cannot publish a report, failure or loading state under a
+newer request. Explain waits until the current report finishes loading successfully.
+`PatternsLab` serializes evidence reads and reconciliation with explanation save/delete,
+so an old read cannot delete a newer explanation. Provider calls run outside that lock;
+deleting an explanation or starting another request invalidates older saves.
 
 ### Explain my patterns
 
@@ -139,7 +149,8 @@ reply must name only groups that were sent, once each, or nothing is saved.
   History off, copied, or not put back are missing. It is not an error rate or proof of
   progress (see [What the records can support](../history.md#what-the-records-can-support)).
 - Rules cover Spanish and Catalan; other languages get only the exact and reason rules.
-- Reads up to 400 newest checks; older ones are left out.
+- Reads up to 400 newest checks; older ones are left out. A saved explanation whose
+  source falls outside that window is removed even if the source still exists in History.
 - A deletion waiting for Undo stays in the report until it is committed.
 - The explanation is written by the chosen model and can be wrong; it is sent only when
   the writer taps the button.

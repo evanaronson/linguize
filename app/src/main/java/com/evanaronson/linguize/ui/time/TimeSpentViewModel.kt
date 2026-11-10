@@ -10,7 +10,11 @@ import com.evanaronson.linguize.core.time.TimeReport
 import com.evanaronson.linguize.data.time.TimeStore
 import com.evanaronson.linguize.history.HistoryCursor
 import com.evanaronson.linguize.history.HistoryStore
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** The Time page: null until read. */
-data class TimeState(val report: TimeReport? = null)
+data class TimeState(val report: TimeReport? = null, val language: String? = null)
 
 /**
  * Lab, Time spent: reads the measurements, first dropping those whose History session is gone
@@ -30,20 +34,32 @@ class TimeSpentViewModel(
     /** Every History session there is; null when History couldn't be read (nothing is swept then). */
     private val sessions: suspend () -> Set<String>?,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val worker: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(TimeState())
     val state: StateFlow<TimeState> = mutableState.asStateFlow()
+    private var generation = 0L
+    private var refreshJob: Job? = null
 
     /** Reads again, for [language] only (Lab, Language scope; null is every language). */
     fun refresh(language: String? = null) {
-        viewModelScope.launch { mutableState.value = TimeState(load(language)) }
+        val request = ++generation
+        refreshJob?.cancel()
+        mutableState.value = TimeState(mutableState.value.report.takeIf { mutableState.value.language == language }, language)
+        refreshJob = viewModelScope.launch {
+            val report = load(language)
+            if (request == generation) mutableState.value = TimeState(report, language)
+        }
     }
 
     internal suspend fun load(language: String? = null): TimeReport {
         val now = clock()
-        sessions()?.let { store.sweep(it, now) }
+        val savedSessions = sessions()
+        // A superseded History read must not delete measurements using its old session set.
+        currentCoroutineContext().ensureActive()
+        savedSessions?.let { store.sweep(it, now) }
         val records = store.all()
-        return withContext(Dispatchers.Default) { TimeReport.of(records, now, language = language) }
+        return withContext(worker) { TimeReport.of(records, now, language = language) }
     }
 
     companion object {

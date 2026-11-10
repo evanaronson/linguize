@@ -10,6 +10,7 @@ import com.evanaronson.linguize.data.vocabgaps.ImportedDeck
 import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
 import com.evanaronson.linguize.data.vocabgaps.VocabSelection
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /**
@@ -40,25 +41,27 @@ class DeckLibrary(
     private val lemmatizer: () -> Lemmatizer,
     private val store: VocabGapsStore,
     private val bundled: BundledDecks,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val compute: CoroutineDispatcher = Dispatchers.Default,
 ) {
     /** Languages with a deck, bundled first. */
-    suspend fun languages(): List<String> = withContext(Dispatchers.IO) {
+    suspend fun languages(): List<String> = withContext(io) {
         (BundledDecks.languages + store.imported().map { it.language }).distinct()
     }
 
-    suspend fun decks(language: String): List<DeckChoice> = withContext(Dispatchers.IO) {
+    suspend fun decks(language: String): List<DeckChoice> = withContext(io) {
         val own = BundledDecks.languages.takeIf { language in it }?.let { deck(BundledDecks.idFor(language)) }
             ?.let { listOf(DeckChoice(it.id, "", language, it.size, bundled = true, formsOnly = it.formsOnly)) }.orEmpty()
         own + store.imported().filter { it.language == language }.map { DeckChoice(it.id, it.name, it.language, it.size, bundled = false) }
     }
 
-    suspend fun imported(): List<ImportedDeck> = withContext(Dispatchers.IO) { store.imported() }
+    suspend fun imported(): List<ImportedDeck> = withContext(io) { store.imported() }
 
     /**
      * The deck with [id], read once per morphology and kept: a bundled deck is grouped into
      * lexemes with the lemmatizer, an imported one parsed from its file. Null when it's gone.
      */
-    suspend fun deck(id: String): VocabDeck? = withContext(Dispatchers.Default) {
+    suspend fun deck(id: String): VocabDeck? = withContext(compute) {
         val morphology = lemmatizer()
         synchronized(decks) { decks[id]?.takeIf { it.first === morphology }?.second }
             ?: read(id, morphology)?.also { deck -> synchronized(decks) { decks[id] = morphology to deck } }
@@ -70,14 +73,14 @@ class DeckLibrary(
         if (id.startsWith(VocabGapsStore.IMPORTED_PREFIX)) store.importedDeck(id)
         else BundledDecks.languages.firstOrNull { BundledDecks.idFor(it) == id }?.let { bundled.deck(it, morphology) }
 
-    suspend fun import(text: String, name: String, language: String): ImportOutcome = withContext(Dispatchers.IO) {
+    suspend fun import(text: String, name: String, language: String): ImportOutcome = withContext(io) {
         when (val parsed = DeckParser.parse(text, language)) {
             is DeckParse.Failed -> ImportOutcome.Failed(parsed.reason)
             is DeckParse.Parsed -> ImportOutcome.Imported(store.import(name, language, parsed.entries), parsed.skipped)
         }
     }
 
-    suspend fun delete(id: String) = withContext(Dispatchers.IO) {
+    suspend fun delete(id: String) = withContext(io) {
         try {
             store.delete(id)
         } finally {
@@ -86,7 +89,9 @@ class DeckLibrary(
         }
     }
 
-    suspend fun selection(): VocabSelection = withContext(Dispatchers.IO) { store.selection() }
+    suspend fun selection(): VocabSelection = withContext(io) { store.selection() }
 
-    suspend fun select(selection: VocabSelection) = withContext(Dispatchers.IO) { store.saveSelection(selection) }
+    suspend fun select(selection: VocabSelection, current: () -> Boolean = { true }): Boolean = withContext(io) {
+        store.saveSelection(selection, current)
+    }
 }

@@ -120,6 +120,15 @@ lexemes with a known part of speech, then the deck's own forms column, then spel
 folding), and multi-word rows ("a menudo") are found in the writer's texts. The coverage is
 kept under the index fingerprint, deck and level. Reports are no longer saved to disk.
 
+**Request ownership.** Each query captures evidence, language, deck and counting level
+as one result. Scope changes and observed History revisions invalidate older work before
+the rebuild debounce; late coverage cannot attach to a newer selection. Export waits for
+the complete current result. Selection writes check the same ownership under the store
+lock. Deck import and deletion run separately from replaceable queries: a finished import
+selects its deck only if the writer has not chosen another scope, and failed deletions keep
+their exact cleanup IDs for Retry. These mutations and retry IDs belong to the view model;
+they are not a persistent queue and do not resume after process death.
+
 **Only input counts.** The `check` source gives each visible saved check's *original*
 text, exactly as typed, never the text that was put back. `Utterance.corrected` holds the
 spans of fixes the writer accepted, plus fixes a rewording they accepted took over
@@ -157,7 +166,12 @@ only in the texts, which used to drop out of this level. Without a deck: just th
 
 **Storage.** Nothing is copied from the corpus.
 `filesDir/lab_vocab_gaps/` keeps imported decks and the last language and deck. The CSV is
-written to the export cache folder the FileProvider shares and replaced by the next one.
+written through the application's shared `Exports` owner to the cache folder the
+FileProvider shares. Each export gets a unique file: a new Words CSV replaces older Words
+files while keeping the current History export, and a new History export retires both.
+Clear and deletion cleanup also retire both. A captured retirement generation rejects
+stale evidence and queued writers; a late callback can discard only its own exact file.
+The existing five-minute expiry policy applies to both formats.
 
 ## Limits
 

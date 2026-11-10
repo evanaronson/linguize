@@ -90,10 +90,14 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
   and chat message id, origin, language, `writing_ms` (null when not measured), `review_ms`,
   words, changes offered and accepted, time, and the rules version. Only measurements.
 - `core/time/WritingEstimator.kt` (version 1) and `TimeReport.kt` derive everything on read.
+- `TimeSpentViewModel` captures the requested language with each refresh. A newer refresh
+  cancels the old one; an obsolete History read cannot sweep measurements or publish its
+  report. Changing language clears the previous scope's report while the new one loads.
 - **Deletion.** Deleting a conversation deletes its rows with its History sessions. Every
   time Time is read, rows whose session History no longer has (deleted from History, or
   History cleared) are dropped (`TimeSweep`); a row younger than 10 minutes is kept, since
   its session's write may still be landing.
+  A failed History read skips the sweep, preserving measurements for a later retry.
 - **History off.** Nothing is timed: the rows hang off History sessions, and someone who
   turned History off asked the app not to keep a record of their writing. The page says so.
 - The History schema is unchanged.

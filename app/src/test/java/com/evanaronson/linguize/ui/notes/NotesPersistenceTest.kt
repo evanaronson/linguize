@@ -42,11 +42,11 @@ class NotesPersistenceTest {
 
     private fun store() = WriteDraftStore(file)
 
-    private fun notes(io: CoroutineDispatcher = main.dispatcher): NotesViewModel {
+    private fun notes(io: CoroutineDispatcher = main.dispatcher, shared: WriteDraftStore = store()): NotesViewModel {
         val owner = ViewModelStore().also { owners += it }
         return ViewModelProvider(owner, viewModelFactory {
             initializer {
-                NotesViewModel(store(), { "Sample" }, clock = { 10L }, io = io, newId = { "new" })
+                NotesViewModel(shared, { "Sample" }, clock = { 10L }, io = io, newId = { "new" })
             }
         })[NotesViewModel::class.java]
     }
@@ -321,6 +321,92 @@ class NotesPersistenceTest {
         assertNull(notes.storageFailure)
         assertEquals(other.id, notes.openId)
         assertEquals("Keep this unsaved text", store().load().others.single().text)
+    }
+
+
+    @Test fun aFailedSwitchRetainsBothOutgoingAndTargetInputThroughRetry() = runTest(main.dispatcher) {
+        val other = WriteDraft("b", "Other note", "ca", "Other title", 2)
+        store().saveCurrent(other)
+        store().saveCurrent(original)
+        val io = HeldDispatcher(main.dispatcher)
+        val notes = notes(io)
+        notes.open(original.id)
+        advanceUntilIdle()
+        notes.edit("Unsaved outgoing input")
+        val obstruction = blockWrite()
+        io.hold()
+        val resolved = mutableListOf<String?>()
+        notes.open(other.id) { resolved += it }
+        notes.edit("Input for the requested note")
+        runCurrent()
+        io.release()
+        advanceUntilIdle()
+
+        assertEquals(other.id, notes.openId)
+        assertEquals("Input for the requested note", notes.text)
+        assertEquals(original, store().load().current)
+        assertTrue(obstruction.deleteRecursively())
+        notes.retryStorage()
+        advanceUntilIdle()
+
+        assertNull(notes.storageFailure)
+        assertEquals(other.id, notes.openId)
+        assertEquals("Input for the requested note", notes.text)
+        assertEquals(other.copy(text = notes.text, updatedAt = 10L), store().load().current)
+        assertEquals("Unsaved outgoing input", store().load().others.single().text)
+        assertEquals(listOf(other.id), resolved)
+    }
+
+    @Test fun aStaleFailedUndoCannotReplaceNewTextWrittenUnderTheSameNoteId() = runTest(main.dispatcher) {
+        store().saveCurrent(original)
+        val notes = notes()
+        advanceUntilIdle()
+        notes.delete(original.id)
+        advanceUntilIdle()
+        val obstruction = blockWrite()
+        notes.undoDelete()
+        advanceUntilIdle()
+        assertEquals(NotesStorageFailure.Restore, notes.storageFailure)
+        assertTrue(obstruction.deleteRecursively())
+        notes.open(original.id)
+        advanceUntilIdle()
+        notes.edit("New text under the restored identity")
+        notes.flush()
+        advanceUntilIdle()
+
+        notes.retryStorage()
+        advanceUntilIdle()
+
+        assertNull(notes.storageFailure)
+        assertEquals("New text under the restored identity", store().load().current?.text)
+        assertEquals("New text under the restored identity", notes.text)
+    }
+
+
+    @Test fun aFailedUndoCannotReverseALaterDeletionFromAnotherHost() = runTest(main.dispatcher) {
+        val shared = store().apply { saveCurrent(original) }
+        val older = notes(shared = shared)
+        advanceUntilIdle()
+        older.delete(original.id)
+        advanceUntilIdle()
+        val obstruction = blockWrite()
+        older.undoDelete()
+        advanceUntilIdle()
+        assertEquals(NotesStorageFailure.Restore, older.storageFailure)
+        assertTrue(obstruction.deleteRecursively())
+        shared.restore(original)
+        val newer = notes(shared = shared)
+        advanceUntilIdle()
+        newer.delete(original.id)
+        advanceUntilIdle()
+
+        older.retryStorage()
+        advanceUntilIdle()
+
+        assertTrue(store().load().drafts.isEmpty())
+        assertNull(older.deleted)
+        assertNull(older.storageFailure)
+        assertEquals(original, newer.deleted)
     }
 
     private class HeldDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {

@@ -221,6 +221,7 @@ private fun ExplainCard(
                         stringResource(if (explanation == null) R.string.lab_patterns_explain else R.string.lab_patterns_explain_again),
                         onExplain,
                         if (explanation == null) ButtonKind.Tonal else ButtonKind.Text,
+                        enabled = !state.loading && !state.failed,
                     )
                     if (explanation != null) {
                         LinguizeButton(stringResource(R.string.lab_patterns_delete_explanation), onDelete, ButtonKind.Destructive)

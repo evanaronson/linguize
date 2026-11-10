@@ -33,12 +33,15 @@ import com.evanaronson.linguize.core.time.DraftTimer
 import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
+import com.evanaronson.linguize.data.chat.ChatSnapshot
+import com.evanaronson.linguize.data.chat.PartnerAppend
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.chat.ChatPrompt
 import com.evanaronson.linguize.llm.chat.PartnerReply
 import com.evanaronson.linguize.llm.chat.Turn
 import com.evanaronson.linguize.ui.card.CardState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -143,6 +146,9 @@ class ChatViewModel(
     var creatingConversationId by mutableStateOf<String?>(null)
         private set
 
+    var loadFailed by mutableStateOf(false)
+        private set
+
     /** The partner is writing (the opener or a reply). */
     var replying by mutableStateOf(false)
         private set
@@ -182,26 +188,84 @@ class ChatViewModel(
     private var unsavedPartner: PartnerMessage? = null
     private var learnedQuiet = false
 
-    private data class PartnerMessage(val message: ChatMessage, val title: String? = null)
+    /** Revocation is visible to the SQLite dispatcher as well as to Main continuations. */
+    private class Permit { @Volatile var active = true }
+    private class Selection(val id: String?, val permit: Permit = Permit())
+    private class PartnerOperation(val selection: Selection, val permit: Permit = Permit())
+    private var selection: Selection? = null
+    private var editor = Any()
+    private var partnerOperation: PartnerOperation? = null
+    private data class CreationResult(val conversation: Conversation, val saved: Boolean)
+    private val creations = mutableMapOf<String, CompletableDeferred<CreationResult>>()
+    private val renames = mutableMapOf<String, Permit>()
+    private val acknowledgedRenames = mutableMapOf<String, Permit>()
+    private var listRead: Any? = null
+    private var settingsRead: Any? = null
+    private var peopleRead: Any? = null
+    private var metadataCommand: Any? = null
+    private var failedRead: (() -> Unit)? = null
+    private var failedReadIsList = false
+
+    private data class PartnerMessage(val message: ChatMessage, val afterMessageId: String?, val title: String? = null)
+
+    private fun select(id: String?): Selection {
+        selection?.permit?.active = false
+        cancelPartner()
+        listRead = null
+        creatingConversationId = null
+        failedRead = null
+        loadFailed = false
+        return Selection(id).also { selection = it }
+    }
+
+    private fun owns(owner: Selection) = selection === owner && owner.permit.active
+    private fun owns(operation: PartnerOperation) = partnerOperation === operation &&
+        operation.permit.active && owns(operation.selection)
+
+    private fun cancelPartner() {
+        partnerOperation?.permit?.active = false
+        partnerOperation = null
+        replyJob?.cancel()
+        replying = false
+    }
+
+    private fun ChatSnapshot.thread() = ChatThread(conversation, messages)
+
+    /** A manual title acknowledged after a transaction's snapshot still wins on screen. */
+    private fun ChatSnapshot.afterRename(previous: Permit?): ChatThread {
+        val shown = thread?.conversation?.takeIf { it.id == conversation.id }
+        return if (shown != null && acknowledgedRenames[conversation.id] !== previous) {
+            ChatThread(conversation.copy(title = shown.title, titleIsCustom = shown.titleIsCustom), messages)
+        } else thread()
+    }
+
+    fun retryLoad() { failedRead?.invoke() }
+
+    private fun readFailed(retry: () -> Unit, error: Exception, isList: Boolean = false) {
+        Log.w(TAG, "Couldn't load chat", error)
+        failedRead = retry
+        failedReadIsList = isList
+        loadFailed = true
+    }
 
     /** Lab, Time spent: the draft's writing time, measured invisibly. */
     private val drafting = DraftTimer(clock)
 
     /** The list of conversations is showing: reads it again. Memory learns from quiet ones, once. */
     fun showList() {
+        val owner = select(null)
         refreshSettings()
-        viewModelScope.launch { readList() }
+        viewModelScope.launch { if (owns(owner)) readList() }
     }
 
-    /**
-     * The app opened to "the current conversation" in [language]: the latest one in it while
-     * it is still going ([ChatStart.opening]), which opens. [onResolved] gets its id, or null
-     * when there is none (the list shows instead; nothing starts on its own).
-     */
+    /** Resolve the current conversation only while this navigation request still owns selection. */
     fun openCurrent(language: String?, onResolved: (String?) -> Unit) {
+        val owner = select(null)
         refreshSettings()
         viewModelScope.launch {
-            val all = readList()
+            if (!owns(owner)) return@launch
+            val all = readList(requiredBy = owner) { openCurrent(language, onResolved) } ?: return@launch
+            if (!owns(owner)) return@launch
             val latest = all.firstOrNull { language == null || it.conversation.language == language }
             when (val opening = ChatStart.opening(latest, clock())) {
                 is ChatStart.Opening.Resume -> {
@@ -213,9 +277,22 @@ class ChatViewModel(
         }
     }
 
-    private suspend fun readList(): List<ConversationSummary> {
-        val all = store.conversations()
+    private suspend fun readList(requiredBy: Selection? = null, retry: () -> Unit = { showList() }): List<ConversationSummary>? {
+        val request = Any().also { listRead = it }
+        val all = try {
+            store.readConversations()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (listRead === request || requiredBy?.let(::owns) == true) readFailed(retry, e, isList = true)
+            return null
+        }
+        if (listRead !== request) return all
         conversations = visible(all, thread?.conversation?.id)
+        if (failedReadIsList) {
+            failedRead = null
+            loadFailed = false
+        }
         if (!learnedQuiet) {
             learnedQuiet = true
             learnQuiet(all)
@@ -223,12 +300,13 @@ class ChatViewModel(
         return all
     }
 
-    /** Back from Settings or the background: the key may have changed. */
     fun refreshSettings() {
         // A later Chat visit retries interrupted or failed cleanup, without a polling loop.
         appScope.launch { drainDeletions() }
+        val request = Any().also { settingsRead = it }
         viewModelScope.launch {
             val (key, hintSeen) = withContext(Dispatchers.IO) { partner.hasKey() to preferences.translateHintSeen }
+            if (settingsRead !== request) return@launch
             needsKey = !key
             translateHint = !hintSeen
             val current = thread
@@ -246,72 +324,125 @@ class ChatViewModel(
         leave()
         val who = persona?.trim()?.take(ChatPrompt.MAX_PERSONA)?.takeIf { it.isNotEmpty() }
         val id = UUID.randomUUID().toString()
+        val owner = select(id)
         val now = clock()
         val title = who?.let { deriveTitle(it) }.orEmpty()
-        // Picked in the sheet, else the app's language: known now, so the thread shows at once.
         val known = (language ?: currentLanguage())?.takeIf { Language.forCode(it) != null }
         creatingConversationId = id
         conversationSaveFailure = null
         if (known != null && !savingMessage) show(ChatThread(Conversation(id, title, known, now, now, persona = who), emptyList()))
-        val pendingSend = sendJob
-        viewModelScope.launch {
-            pendingSend?.join()
-            val conversation = Conversation(id, title, known ?: startLanguage(), now, now, persona = who)
-            createConversation(conversation)
-        }
+        create(owner) { Conversation(id, title, known ?: startLanguage(), now, now, persona = who) }
         return id
     }
 
-    private suspend fun createConversation(conversation: Conversation) {
-        creatingConversationId = conversation.id
-        val created = withContext(NonCancellable) {
-            store.create(conversation).also { saved ->
-                creatingConversationId = null
-                conversationSaveFailure = if (saved) null else ConversationWriteFailure.Create(conversation)
+    /** Creation may finish durably after navigation, but only its selection can publish or prune. */
+    private fun create(owner: Selection, conversation: suspend () -> Conversation) {
+        val completion = CompletableDeferred<CreationResult>()
+        metadataCommand = completion
+        val id = checkNotNull(owner.id)
+        creations[id] = completion
+        val pendingSend = sendJob
+        viewModelScope.launch {
+            try {
+                pendingSend?.join()
+                val record = conversation()
+                val created = withContext(NonCancellable) { store.create(record) }
+                if (owns(owner)) {
+                    creatingConversationId = null
+                    if (metadataCommand === completion) {
+                        conversationSaveFailure = if (created) null else ConversationWriteFailure.Create(record)
+                    }
+                    if (created) {
+                        if (thread?.conversation?.id != id) show(ChatThread(record, emptyList()))
+                        writeOpener(record)
+                    }
+                }
+                completion.complete(CreationResult(record, created))
+                if (created && owns(owner)) {
+                    // The permission is checked again in delete's transaction, after IO dispatch.
+                    val all = readList { open(id) }.orEmpty()
+                    for (old in all.filter { it.writerMessages == 0 && it.conversation.id != id }) {
+                        if (!owns(owner)) break
+                        if (old.conversation.id !in creations) store.delete(old.conversation.id) { owner.permit.active }
+                    }
+                    appScope.launch { drainDeletions() }
+                    reloadList()
+                }
+            } catch (e: CancellationException) {
+                completion.cancel(e)
+                throw e
+            } finally {
+                if (creations[id] === completion) creations.remove(id)
             }
         }
-        if (!created) return
-        // An unanswered opener holds nothing the writer typed: one is enough.
-        store.conversations().filter { it.writerMessages == 0 && it.conversation.id != conversation.id }
-            .forEach { store.delete(it.conversation.id) }
-        appScope.launch { drainDeletions() }
-        if (thread?.conversation?.id != conversation.id) show(ChatThread(conversation, emptyList()))
-        writeOpener(conversation)
-        reloadList()
     }
 
     fun retryConversationWrite() {
         val failed = conversationSaveFailure ?: return
         conversationSaveFailure = null
         when (failed) {
-            is ConversationWriteFailure.Create -> if (creatingConversationId == null) {
+            is ConversationWriteFailure.Create -> if (failed.id !in creations) {
+                val owner = selection?.takeIf { it.id == failed.id } ?: select(failed.id)
                 creatingConversationId = failed.id
-                viewModelScope.launch { createConversation(failed.conversation) }
+                create(owner) { failed.conversation }
             }
             is ConversationWriteFailure.Rename -> rename(failed.id, failed.title)
             is ConversationWriteFailure.Delete -> delete(failed.id)
         }
     }
 
-    /** Opens conversation [id]; [onMissing] when it no longer exists (deleted meanwhile). */
+    /** Opens [id]; a pending local creation is joined, and only a successful missing read navigates back. */
     fun open(id: String, onMissing: () -> Unit = {}) {
-        thread?.takeIf { it.conversation.id == id }?.let {
-            onLanguage(it.conversation.language)
+        if (selection?.id == id && thread?.conversation?.id == id && !loadFailed) {
+            onLanguage(checkNotNull(thread).conversation.language)
             return
         }
         leave()
+        val pendingCreate = creations[id]
+        val owner = selection?.takeIf { pendingCreate != null && it.id == id && it.permit.active } ?: select(id)
+        if (pendingCreate != null) {
+            creatingConversationId = id
+            metadataCommand = pendingCreate
+        }
         val pendingSend = sendJob
         viewModelScope.launch {
             pendingSend?.join()
-            val conversation = store.conversation(id) ?: return@launch onMissing()
-            show(ChatThread(conversation, store.messages(id)))
-            if (thread?.messages?.isEmpty() == true) writeOpener(conversation)
+            if (!owns(owner)) return@launch
+            if (pendingCreate != null) {
+                val created = pendingCreate.await()
+                if (!owns(owner)) return@launch
+                creatingConversationId = null
+                if (!created.saved) {
+                    if (metadataCommand === pendingCreate) {
+                        conversationSaveFailure = ConversationWriteFailure.Create(created.conversation)
+                    }
+                    return@launch
+                }
+                if (thread?.conversation?.id == id && partnerOperation != null) return@launch
+            }
+            val loaded = try {
+                store.readThread(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (owns(owner)) readFailed({ open(id, onMissing) }, e)
+                return@launch
+            }
+            if (!owns(owner)) return@launch
+            loadFailed = false
+            failedRead = null
+            if (loaded == null) return@launch onMissing()
+            if (thread?.conversation?.id == id) {
+                thread = loaded.thread()
+                onLanguage(loaded.conversation.language)
+            } else show(loaded.thread())
+            if (loaded.messages.isEmpty()) writeOpener(loaded.conversation)
         }
     }
 
     private fun show(next: ChatThread) {
-        replyJob?.cancel()
-        replying = false
+        editor = Any()
+        cancelPartner()
         replyFailure = null
         replySaveFailed = false
         unsavedPartner = null
@@ -332,17 +463,33 @@ class ChatViewModel(
 
     /** Reads who memory knows the writer writes to, for the new-conversation sheet. */
     fun loadPeople() {
-        viewModelScope.launch { knownPeople = runCatching { people() }.getOrDefault(emptyList()) }
+        val request = Any().also { peopleRead = it }
+        viewModelScope.launch {
+            val loaded = try {
+                people()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            if (peopleRead === request) knownPeople = loaded
+        }
     }
 
     fun rename(id: String, title: String) {
         val trimmed = title.trim().take(MAX_TITLE)
+        renames[id]?.active = false
+        val operation = Permit().also { renames[id] = it }
+        metadataCommand = operation
         viewModelScope.launch {
-            if (!store.rename(id, trimmed, custom = trimmed.isNotEmpty())) {
-                conversationSaveFailure = ConversationWriteFailure.Rename(id, trimmed)
+            val saved = store.rename(id, trimmed, custom = trimmed.isNotEmpty()) { operation.active }
+            if (!operation.active) return@launch
+            if (!saved) {
+                if (metadataCommand === operation) conversationSaveFailure = ConversationWriteFailure.Rename(id, trimmed)
                 return@launch
             }
-            conversationSaveFailure = null
+            acknowledgedRenames[id] = operation
+            if (metadataCommand === operation) conversationSaveFailure = null
             thread?.takeIf { it.conversation.id == id }?.let {
                 thread = it.copy(conversation = it.conversation.copy(title = trimmed, titleIsCustom = trimmed.isNotEmpty()))
             }
@@ -356,17 +503,17 @@ class ChatViewModel(
      * for good, so the conversation does too.
      */
     fun delete(id: String) {
-        val wasOpen = thread?.conversation?.id == id
+        val command = Any().also { metadataCommand = it }
         val pendingSend = sendJob
         appScope.launch(Dispatchers.Main.immediate) {
             pendingSend?.join()
             if (store.delete(id) == null) {
-                conversationSaveFailure = ConversationWriteFailure.Delete(id)
+                if (metadataCommand === command) conversationSaveFailure = ConversationWriteFailure.Delete(id)
                 return@launch
             }
-            conversationSaveFailure = null
-            if (wasOpen && thread?.conversation?.id == id) {
-                replyJob?.cancel()
+            if (metadataCommand === command) conversationSaveFailure = null
+            if (selection?.id == id) select(null)
+            if (thread?.conversation?.id == id) {
                 draftCheck?.stop()
                 send = SendState.Composing
             }
@@ -383,7 +530,7 @@ class ChatViewModel(
                 drainDeletions()
             }
             // Conversations are deleted from the list, so nothing opens in its place.
-            if (wasOpen && thread?.conversation?.id == id) thread = null
+            if (thread?.conversation?.id == id) thread = null
             reloadList()
         }
     }
@@ -427,7 +574,7 @@ class ChatViewModel(
     /** Send tapped: the draft is checked first. */
     fun send() {
         val currentId = thread?.conversation?.id ?: return
-        if (creatingConversationId == currentId ||
+        if (selection?.id != currentId || creatingConversationId == currentId ||
             (conversationSaveFailure as? ConversationWriteFailure.Create)?.id == currentId) return
         handle(SendEvent.Send(draft.text))
         if (send is SendState.Checking) drafting.sendTapped()
@@ -485,33 +632,37 @@ class ChatViewModel(
 
     private fun deliver(outgoing: Outgoing) {
         val current = thread ?: return
+        val owner = selection?.takeIf { it.id == current.conversation.id } ?: return
+        val writingIn = editor
+        val renameAtStart = acknowledgedRenames[current.conversation.id]
         val check = draftCheck
         val id = UUID.randomUUID().toString()
         val message = outgoing.message(id, current.conversation.id, clock(), check?.sessionId)
+        cancelPartner()
         savingMessage = true
         sendSaveFailed = false
         unsavedOutgoing = outgoing
         send = SendState.Reviewing(outgoing.raw)
         sendJob = viewModelScope.launch {
-            // Once the user's message is committed, cancellation must not skip its acknowledgement.
-            // Opening another thread waits for this short write, so the captured check stays current.
+            // The accepted writer command and its History acknowledgement survive navigation.
+            // Navigation waits for this commit; generated turns use independently revocable permits.
             withContext(NonCancellable) {
                 try {
-                    if (!store.add(message)) {
-                        sendSaveFailed = true
+                    val saved = store.appendWriter(message)
+                    if (saved == null) {
+                        if (editor === writingIn) sendSaveFailed = true
                         return@withContext
                     }
                     check?.finish(outgoing.text, drafting.sent(id))
+                    // Returning from the list may reuse this editor. A committed draft must
+                    // be retired there too, even though navigation revoked reply ownership.
+                    if (editor !== writingIn) return@withContext
                     draft = TextFieldValue()
                     send = SendState.Composing
                     unsavedOutgoing = null
-                    val now = thread?.takeIf { it.conversation.id == current.conversation.id } ?: return@withContext
-                    val withMessage = now.copy(
-                        conversation = now.conversation.copy(updatedAt = maxOf(now.conversation.updatedAt, message.at)),
-                        messages = now.messages + message,
-                    )
+                    val withMessage = saved.afterRename(renameAtStart)
                     thread = withMessage
-                    requestReply(withMessage)
+                    if (owns(owner)) requestReply(withMessage)
                     reloadList()
                 } finally {
                     savingMessage = false
@@ -527,95 +678,110 @@ class ChatViewModel(
 
     fun retryReply() {
         val current = thread ?: return
-        if (replying) return
+        if (replying || selection?.id != current.conversation.id) return
         val unsaved = unsavedPartner?.takeIf { it.message.conversationId == current.conversation.id }
         if (unsaved != null) {
-            replying = true
-            replySaveFailed = false
-            replyJob = viewModelScope.launch {
-                try {
-                    savePartner(unsaved)
-                } finally {
-                    if (thread?.conversation?.id == current.conversation.id) replying = false
-                }
-            }
+            launchPartner { operation -> savePartner(unsaved, operation) }
         } else if (current.awaitingReply) requestReply(current)
+        else if (current.messages.isEmpty()) writeOpener(current.conversation)
     }
 
-    private fun requestReply(current: ChatThread) {
-        replyJob?.cancel()
+    /** All opener/reply/retry effects, including finally, belong to this exact request. */
+    private fun launchPartner(block: suspend (PartnerOperation) -> Unit) {
+        val selected = selection ?: return
+        cancelPartner()
+        val operation = PartnerOperation(selected).also { partnerOperation = it }
         replying = true
         replyFailure = null
         replySaveFailed = false
         unsavedPartner = null
+        replyJob = viewModelScope.launch {
+            try {
+                block(operation)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: CheckFailure) {
+                if (owns(operation)) {
+                    replyFailure = e
+                    if (e.reason == CheckFailure.Reason.NoKey) needsKey = true
+                }
+            } finally {
+                if (owns(operation)) replying = false
+            }
+        }
+    }
+
+    private fun requestReply(current: ChatThread) {
         val conversation = current.conversation
         val language = Language.forCode(conversation.language) ?: Language.Spanish
         val history = current.messages.map { Turn(it.fromWriter, it.text) }
         val needTitle = conversation.title.isEmpty() && !conversation.titleIsCustom
-        replyJob = viewModelScope.launch {
-            try {
-                val answer = partner.reply(language, history, needTitle, conversation.persona)
-                val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
-                val title = if (needTitle) {
-                    (answer.title ?: deriveTitle(current.messages.firstOrNull { it.fromWriter }?.text.orEmpty()))
-                        .take(MAX_TITLE).takeIf { it.isNotEmpty() }
-                } else null
-                savePartner(PartnerMessage(reply, title))
+        launchPartner { operation ->
+            val answer = partner.reply(language, history, needTitle, conversation.persona)
+            val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
+            val title = if (needTitle) {
+                (answer.title ?: deriveTitle(current.messages.firstOrNull { it.fromWriter }?.text.orEmpty()))
+                    .take(MAX_TITLE).takeIf { it.isNotEmpty() }
+            } else null
+            savePartner(PartnerMessage(reply, current.messages.lastOrNull()?.id, title), operation)
+        }
+    }
+
+    private fun writeOpener(conversation: Conversation) {
+        val language = Language.forCode(conversation.language) ?: Language.Spanish
+        launchPartner { operation ->
+            val answer = try {
+                partner.open(language, conversation.persona)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CheckFailure) {
-                replyFailure = e
-                if (e.reason == CheckFailure.Reason.NoKey) needsKey = true
-            } finally {
-                if (thread?.conversation?.id == conversation.id) replying = false
+                if (owns(operation) && e.reason == CheckFailure.Reason.NoKey) needsKey = true
+                PartnerReply(fallbackOpener(language), null)
             }
+            val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
+            savePartner(PartnerMessage(opener, afterMessageId = null), operation)
         }
     }
 
-    private suspend fun writeOpener(conversation: Conversation) {
-        val language = Language.forCode(conversation.language) ?: Language.Spanish
-        replying = true
-        val answer = try {
-            partner.open(language, conversation.persona)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: CheckFailure) {
-            if (e.reason == CheckFailure.Reason.NoKey) needsKey = true
-            PartnerReply(fallbackOpener(language), null)
-        } finally {
-            replying = false
-        }
-        val now = thread ?: return
-        // Another conversation, an opener already there, or a language changed while this one was written.
-        if (now.conversation.id != conversation.id || now.messages.isNotEmpty() || now.conversation.language != conversation.language) return
-        val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
-        savePartner(PartnerMessage(opener))
-    }
-
-    /** A generated answer is visible only after its message was saved; retry reuses that answer. */
-    private suspend fun savePartner(pending: PartnerMessage) = withContext(NonCancellable) {
-        val message = pending.message
-        if (!store.add(message)) {
-            if (thread?.conversation?.id == message.conversationId) {
-                unsavedPartner = pending
-                replySaveFailed = true
+    /** A generated answer is visible only after its eligible message was saved; retry reuses it. */
+    private suspend fun savePartner(pending: PartnerMessage, operation: PartnerOperation) {
+        if (!owns(operation)) return
+        val renameAtStart = acknowledgedRenames[pending.message.conversationId]
+        withContext(NonCancellable) {
+            val saved = store.appendPartner(pending.message, pending.afterMessageId, pending.title) {
+                operation.permit.active && operation.selection.permit.active
             }
-            return@withContext
+            if (!owns(operation)) return@withContext
+            when (saved) {
+                PartnerAppend.Failed -> {
+                    unsavedPartner = pending
+                    replySaveFailed = true
+                }
+                PartnerAppend.Superseded -> {
+                    // Another writer/VM may have advanced the durable tail. Retry must use
+                    // that acknowledged conversation, while retaining this editor's draft.
+                    val refreshed = try {
+                        store.readThread(pending.message.conversationId)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (owns(operation)) readFailed({ open(pending.message.conversationId) }, e)
+                        return@withContext
+                    }
+                    if (owns(operation)) {
+                        thread = refreshed?.afterRename(renameAtStart)
+                        unsavedPartner = null
+                        replySaveFailed = false
+                    }
+                }
+                is PartnerAppend.Saved -> {
+                    unsavedPartner = null
+                    replySaveFailed = false
+                    thread = saved.snapshot.afterRename(renameAtStart)
+                    reloadList()
+                }
+            }
         }
-        val title = pending.title?.takeIf { store.rename(message.conversationId, it, custom = false) }
-        val now = thread
-        if (now != null && now.conversation.id == message.conversationId) {
-            unsavedPartner = null
-            replySaveFailed = false
-            thread = now.copy(
-                conversation = now.conversation.copy(
-                    updatedAt = maxOf(now.conversation.updatedAt, message.at),
-                    title = title?.takeIf { !now.conversation.titleIsCustom } ?: now.conversation.title,
-                ),
-                messages = now.messages + message,
-            )
-        }
-        reloadList()
     }
 
     // Memory and the list.
@@ -656,7 +822,7 @@ class ChatViewModel(
     }
 
     private suspend fun reloadList() {
-        conversations = visible(store.conversations(), thread?.conversation?.id)
+        readList { viewModelScope.launch { reloadList() } }
     }
 
     /** Conversations worth listing: any the writer spoke in, and the open one. */
@@ -664,6 +830,8 @@ class ChatViewModel(
         all.filter { it.writerMessages > 0 || it.conversation.id == openId }
 
     override fun onCleared() {
+        selection?.permit?.active = false
+        cancelPartner()
         leave()
     }
 

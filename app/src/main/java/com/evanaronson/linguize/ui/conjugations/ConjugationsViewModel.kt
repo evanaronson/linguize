@@ -10,9 +10,12 @@ import com.evanaronson.linguize.core.conjugations.ConjugationMap
 import com.evanaronson.linguize.core.conjugations.ConjugationReport
 import com.evanaronson.linguize.core.corpus.Utterance
 import com.evanaronson.linguize.core.morphology.Morphology
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,17 +57,28 @@ class ConjugationsViewModel internal constructor(
     private val mutable = MutableStateFlow(ConjugationsState())
     val state: StateFlow<ConjugationsState> = mutable.asStateFlow()
     private var job: Job? = null
+    private var generation = 0L
 
     fun refresh() {
-        if (job?.isActive == true) return
+        val request = ++generation
+        job?.cancel()
+        mutable.update { it.copy(loading = it.reports.isEmpty(), failed = false) }
         job = viewModelScope.launch {
-            val reports = runCatching {
+            val reports = try {
                 withContext(worker) {
                     val all = utterances()
+                    currentCoroutineContext().ensureActive()
                     val tables = morphology()
-                    CONJUGATION_LANGUAGES.associateWith { ConjugationMap.build(all, it, tables, zone()) }
+                    val timeZone = zone()
+                    CONJUGATION_LANGUAGES.associateWith { ConjugationMap.build(all, it, tables, timeZone) }
                 }
-            }.getOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                null
+            }
+            if (request != generation) return@launch
             mutable.update {
                 if (reports == null) it.copy(loading = false, failed = true)
                 else it.copy(loading = false, failed = false, reports = reports)

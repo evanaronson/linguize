@@ -1,13 +1,13 @@
 package com.evanaronson.linguize.data
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -149,17 +149,15 @@ class ExportsTest {
                     finish.await()
                     it.write("private history".toByteArray())
                     true
-                }!!
+                }
             }
             started.await()
-            val clearing = async { exports.clear() }
-            yield()
+            val clearing = async(start = CoroutineStart.UNDISPATCHED) { exports.clear() }
             assertFalse("clear cannot finish before the writer", clearing.isCompleted)
             finish.complete(Unit)
-            val file = writing.await()
+            assertNull("the retired writer must not publish its file", writing.await())
             clearing.await()
-            assertFalse(file.exists())
-            assertFalse(exports.isCurrent(file))
+            assertTrue(folder.listFiles()!!.isEmpty())
         }
     }
 

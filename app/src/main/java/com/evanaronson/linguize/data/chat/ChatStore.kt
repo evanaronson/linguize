@@ -28,10 +28,19 @@ data class PendingChatDeletion(val conversationId: String, val sessionIds: List<
 /** Malformed work stays in the database without preventing independent valid cleanup. */
 data class PendingChatDeletions(val entries: List<PendingChatDeletion>, val hasUnreadableEntries: Boolean)
 
+/** A single acknowledged database view, including messages committed by earlier operations. */
+data class ChatSnapshot(val conversation: Conversation, val messages: List<ChatMessage>)
+
+sealed interface PartnerAppend {
+    data class Saved(val snapshot: ChatSnapshot) : PartnerAppend
+    data object Superseded : PartnerAppend
+    data object Failed : PartnerAppend
+}
+
 /**
  * Lab Chat's conversations and messages, in their own SQLite database (`lab_chat`), apart from
- * History and settings. Every call runs on [Dispatchers.IO] by default; a failure is logged and reads as
- * nothing (or false), so the chat never crashes the app.
+ * History and settings. Calls run on [Dispatchers.IO] by default. Coordinator reads throw so
+ * an unavailable database is not mistaken for missing content; legacy convenience reads retain their fallbacks.
  */
 class ChatStore(
     context: Context,
@@ -40,9 +49,19 @@ class ChatStore(
 ) {
     private val helper = Helper(context.applicationContext, name)
 
-    /** Every conversation, most recently active first. */
-    suspend fun conversations(): List<ConversationSummary> = io("list conversations", emptyList()) { db ->
-        db.rawQuery(
+    /** Every conversation, most recently active first. Legacy callers retain the empty fallback. */
+    suspend fun conversations(): List<ConversationSummary> = io("list conversations", emptyList()) { it.summaries() }
+
+    /** A failed read throws; an empty successful read is an actual empty list. */
+    suspend fun readConversations(): List<ConversationSummary> = withContext(dispatcher) { helper.readableDatabase.summaries() }
+
+    /** Conversation and messages come from one transaction. Only a successful missing read returns null. */
+    suspend fun readThread(id: String): ChatSnapshot? = withContext(dispatcher) {
+        helper.readableDatabase.let { db -> db.transaction { db.snapshot(id) } }
+    }
+
+    private fun SQLiteDatabase.summaries(): List<ConversationSummary> =
+        rawQuery(
             """SELECT c.*,
                  (SELECT m.text FROM messages m WHERE m.conversation = c.id ORDER BY m.at DESC, m.seq DESC LIMIT 1) AS last_text,
                  (SELECT m.from_writer FROM messages m WHERE m.conversation = c.id ORDER BY m.at DESC, m.seq DESC LIMIT 1) AS last_from_writer,
@@ -57,7 +76,6 @@ class ChatStore(
                 }
             }
         }
-    }
 
     suspend fun conversation(id: String): Conversation? = io("read a conversation", null) { db ->
         db.rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id)).use { if (it.moveToFirst()) it.conversation() else null }
@@ -73,17 +91,65 @@ class ChatStore(
 
     /** Adds [message] and makes its conversation the most recently active. */
     suspend fun add(message: ChatMessage): Boolean = io("save a message", false) { db ->
-        db.transaction {
-            db.insertOrThrow(MESSAGES, null, message.values())
-            db.execSQL("UPDATE conversations SET updated_at = MAX(updated_at, ?) WHERE id = ?", arrayOf<Any>(message.at, message.conversationId))
-        }
+        db.transaction { db.insertMessage(message) }
         true
     }
 
-    suspend fun rename(id: String, title: String, custom: Boolean): Boolean = update(id, "rename a conversation") {
-        put("title", title)
-        put("title_custom", if (custom) 1 else 0)
+    /** The writer's acknowledgement includes every turn committed before this message. */
+    suspend fun appendWriter(message: ChatMessage): ChatSnapshot? = io("save a writer message", null) { db ->
+        db.transaction {
+            db.insertMessage(message)
+            checkNotNull(db.snapshot(message.conversationId))
+        }
     }
+
+    /**
+     * A generated turn belongs to one request and one preceding turn. Recheck both after IO
+     * dispatch, in the same transaction as the append. [permitted] must be safe across threads.
+     */
+    suspend fun appendPartner(
+        message: ChatMessage,
+        afterMessageId: String?,
+        title: String?,
+        permitted: () -> Boolean,
+    ): PartnerAppend = io<PartnerAppend>("save a partner message", PartnerAppend.Failed) { db ->
+        db.transaction {
+            val last = db.rawQuery(
+                "SELECT id FROM messages WHERE conversation = ? ORDER BY at DESC, seq DESC LIMIT 1",
+                arrayOf(message.conversationId),
+            ).use { if (it.moveToFirst()) it.getString(0) else null }
+            if (last != afterMessageId || !permitted()) return@transaction PartnerAppend.Superseded
+            db.insertMessage(message)
+            if (title != null) {
+                // The provider cannot overwrite a title chosen while its answer was in flight.
+                db.update(CONVERSATIONS, ContentValues().apply { put("title", title) },
+                    "id = ? AND title_custom = 0 AND title = ''", arrayOf(message.conversationId))
+            }
+            PartnerAppend.Saved(checkNotNull(db.snapshot(message.conversationId)))
+        }
+    }
+
+    private fun SQLiteDatabase.insertMessage(message: ChatMessage) {
+        insertOrThrow(MESSAGES, null, message.values())
+        execSQL("UPDATE conversations SET updated_at = MAX(updated_at, ?) WHERE id = ?", arrayOf<Any>(message.at, message.conversationId))
+    }
+
+    private fun SQLiteDatabase.snapshot(id: String): ChatSnapshot? {
+        val conversation = rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id))
+            .use { if (it.moveToFirst()) it.conversation() else null } ?: return null
+        return ChatSnapshot(conversation, messages(id))
+    }
+
+    suspend fun rename(id: String, title: String, custom: Boolean, permitted: () -> Boolean = { true }): Boolean =
+        io("rename a conversation", false) { db ->
+            db.transaction {
+                if (!permitted()) return@transaction false
+                db.update(CONVERSATIONS, ContentValues().apply {
+                    put("title", title)
+                    put("title_custom", if (custom) 1 else 0)
+                }, "id = ?", arrayOf(id)) > 0
+            }
+        }
 
     suspend fun setLearned(id: String, count: Int): Boolean = update(id, "note what memory learned") {
         put("learned_count", count)
@@ -129,7 +195,7 @@ class ChatStore(
      * Deletes [id] and its messages and durably queues their History/memory cleanup in the same
      * transaction. Returns the deleted record, or null if none was removed (including failure).
      */
-    suspend fun delete(id: String): Pair<Conversation, List<ChatMessage>>? = io("delete a conversation", null) { db ->
+    suspend fun delete(id: String, permitted: () -> Boolean = { true }): Pair<Conversation, List<ChatMessage>>? = io("delete a conversation", null) { db ->
         db.transaction {
             val conversation = db.rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id))
                 .use { if (it.moveToFirst()) it.conversation() else null } ?: return@transaction null
@@ -139,6 +205,7 @@ class ChatStore(
                 arrayOf(id),
             ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
             val messages = db.messages(id)
+            if (!permitted()) return@transaction null
             db.delete(MESSAGES, "conversation = ?", arrayOf(id))
             db.delete(CONVERSATIONS, "id = ?", arrayOf(id))
             db.insertOrThrow(DELETIONS, null, ContentValues().apply {

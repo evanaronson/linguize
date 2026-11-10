@@ -32,20 +32,25 @@ import com.evanaronson.linguize.data.vocabgaps.ImportedDeck
 import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
 import com.evanaronson.linguize.data.vocabgaps.VocabSelection
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
+import java.util.concurrent.atomic.AtomicLong
 
 /** A file picked for import, waiting for a name and a language. */
 data class PendingImport(val text: String, val suggestedName: String)
@@ -70,6 +75,10 @@ sealed interface WordsStorageFailure {
 data class WordsState(
     /** True until the first build finishes. */
     val loading: Boolean = true,
+    /** The current scope/evidence has not finished producing one coherent result yet. */
+    val measuring: Boolean = true,
+    /** Export is available only after the complete current query has been published. */
+    val exportReady: Boolean = false,
     val index: WordIndex? = null,
     /** The language chosen; null picks the most used. */
     val language: String? = null,
@@ -113,7 +122,7 @@ data class WordsState(
 
 /** A CSV ready for the share sheet, or a failed write. */
 sealed interface WordsExport {
-    data class Ready(val uri: Uri, val language: String?) : WordsExport
+    data class Ready(val uri: Uri, val language: String?, val file: File) : WordsExport
     data object Failed : WordsExport
 }
 
@@ -123,13 +132,18 @@ sealed interface WordsExport {
  * fingerprint, rebuilt after every History write and whenever a screen asks), and the chosen
  * deck's coverage is counted from that index, cached by the index fingerprint, deck and level.
  */
-@OptIn(FlowPreview::class)
 class WordsViewModel internal constructor(
     private val corpus: Corpus,
     private val lemmatizer: Lemmatizer,
     private val decks: DeckLibrary?,
     revisions: Flow<Long>,
-    private val exportCsv: suspend (LanguageWords, DeckCoverage?) -> Uri? = { _, _ -> null },
+    private val compute: CoroutineDispatcher = Dispatchers.Default,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val exports: Exports? = null,
+    private val shareFile: (File) -> Uri = { Uri.fromFile(it) },
+    private val countCoverage: suspend (LanguageWords, VocabDeck) -> DeckCoverage = { words, deck ->
+        withContext(compute) { DeckCoverage.build(words, deck, lemmatizer) }
+    },
 ) : ViewModel() {
     private val cache = WordIndexCache(lemmatizer)
     private val _state = MutableStateFlow(WordsState())
@@ -138,228 +152,353 @@ class WordsViewModel internal constructor(
     private val _export = MutableStateFlow<WordsExport?>(null)
     val export: StateFlow<WordsExport?> = _export.asStateFlow()
 
-    private val asked = MutableStateFlow(0)
-    private var coverageKey: String? = null
+    private data class CoverageKey(val fingerprint: String, val language: String?, val deckId: String?, val level: WordLevel)
+    private data class ReadyWords(
+        val query: Long, val key: CoverageKey, val words: LanguageWords,
+        val coverage: DeckCoverage?, val exportGeneration: Long,
+    )
+
+    private val queries = AtomicLong()
+    private val selectionWrites = Mutex()
+    private val deleteWrites = Mutex()
+    private val failedDeletes = LinkedHashSet<String>()
+    private var queryJob: Job? = null
+    private var needsRebuild = true
+    private var indexGeneration: Long? = null
+    private var lastCoverage: Pair<CoverageKey, DeckCoverage?>? = null
+    private var readyWords: ReadyWords? = null
     private var restored = false
+    private var languageChosen = false
+    private var deckChosen = false
+    private var levelChosen = false
+    private var scopeVersion = 0L
+    private var exportVersion = 0L
+    private var exportJob: Job? = null
+    private var pickVersion = 0L
+    private var pickJob: Job? = null
+    private var importVersion = 0L
 
     init {
         viewModelScope.launch {
-            combine(revisions, asked) { revision, ask -> revision to ask }
-                .debounce(REBUILD_DELAY_MS)
-                .collectLatest { rebuild() }
+            // Invalidate immediately, then debounce the expensive read. A delayed revision must
+            // never leave an old calculation or export eligible to publish in the meantime.
+            revisions.collect { requestQuery(rebuild = true, delayed = true) }
         }
     }
 
     /** Reads the corpus again; cheap when nothing changed. */
-    fun refresh() {
-        asked.update { it + 1 }
+    fun refresh() { requestQuery(rebuild = true, delayed = true) }
+
+    private fun current(query: Long) = queries.get() == query
+
+    private fun requestQuery(
+        rebuild: Boolean = false,
+        delayed: Boolean = false,
+        clearCoverage: Boolean = false,
+        change: (WordsState) -> WordsState = { it },
+    ): Job {
+        val query = queries.incrementAndGet()
+        queryJob?.cancel()
+        invalidateExport()
+        readyWords = null
+        needsRebuild = needsRebuild || rebuild
+        _state.update {
+            val next = change(it)
+            if (clearCoverage) next.copy(measuring = true, exportReady = false, coverage = null, decks = emptyList(), deckFailed = false)
+            else next.copy(measuring = true, exportReady = false)
+        }
+        return viewModelScope.launch {
+            if (delayed) delay(REBUILD_DELAY_MS)
+            loadQuery(query)
+        }.also { queryJob = it }
     }
 
-    private suspend fun rebuild() {
-        val index = withContext(Dispatchers.Default) { cache.index(corpus.utterances()) }
+    private suspend fun loadQuery(query: Long) {
+        val exportGeneration = exports?.generation() ?: 0L
+        val before = _state.value
+        val index = if (needsRebuild || before.index == null || indexGeneration != exportGeneration) {
+            withContext(compute) { cache.index(corpus.utterances()) }
+        } else before.index
+        if (!current(query)) return
+
+        var readFailure: WordsStorageFailure? = null
         if (!restored && decks != null) {
-            val saved = try {
-                decks.selection().also {
-                    restored = true
-                    clearStorageFailure(WordsStorageFailure.ReadSelection)
-                }
-            } catch (_: IOException) {
-                _state.update { it.copy(storageFailure = WordsStorageFailure.ReadSelection) }
-                null
-            }
-            if (saved != null) {
+            try {
+                val saved = decks.selection()
+                if (!current(query)) return
+                restored = true
                 _state.update {
                     it.copy(
-                        language = it.language ?: saved.language,
-                        deckId = it.deckId ?: saved.deckId,
-                        level = it.level ?: if (saved.level == VocabLevel.Lemma) WordLevel.Lemmas else null,
+                        language = if (languageChosen) it.language else saved.language,
+                        deckId = if (deckChosen || (it.language != null && it.language != saved.language)) it.deckId else saved.deckId,
+                        level = if (levelChosen) it.level else if (saved.level == VocabLevel.Lemma) WordLevel.Lemmas else null,
+                        coverage = null, decks = emptyList(), deckFailed = false,
+                        storageFailure = it.storageFailure.takeUnless { failure -> failure == WordsStorageFailure.ReadSelection },
                     )
                 }
+            } catch (_: IOException) {
+                if (!current(query)) return
+                readFailure = WordsStorageFailure.ReadSelection
             }
         }
-        val deckLanguages = try {
-            decks?.languages().orEmpty()
-        } catch (_: IOException) {
-            _state.update { it.copy(storageFailure = WordsStorageFailure.ReadDecks) }
-            _state.value.languages
-        }
+        val intent = _state.value
         val written = index.languages.mapNotNull { it.language }
-        val languages = (written + deckLanguages).distinct()
-        _state.update { it.copy(loading = false, index = index, languages = languages) }
-        measure()
-    }
-
-    /** Counts the chosen deck against the shown language, unless that's already counted. */
-    private suspend fun measure() {
-        val state = _state.value
-        val words = state.shown ?: return
-        val language = words.language
+        val languages: List<String>
         val choices: List<DeckChoice>
         val imported: List<ImportedDeck>
+        val words: LanguageWords
+        val choice: DeckChoice?
+        val deck: VocabDeck?
         try {
-            choices = if (language != null) decks?.decks(language).orEmpty() else emptyList()
+            val deckLanguages = decks?.languages().orEmpty()
+            if (!current(query)) return
+            languages = (written + deckLanguages).distinct()
+            val language = intent.language ?: languages.firstOrNull()
+            words = if (language == null) index.languages.firstOrNull() ?: LanguageWords.empty(null)
+                else index.language(language) ?: LanguageWords.empty(language)
+            choices = if (words.language != null) decks?.decks(words.language).orEmpty() else emptyList()
+            if (!current(query)) return
             imported = decks?.imported().orEmpty()
+            if (!current(query)) return
+            choice = choices.firstOrNull { it.id == intent.deckId } ?: choices.firstOrNull()
+            deck = choice?.let { decks?.deck(it.id) }
+            if (!current(query)) return
         } catch (_: IOException) {
-            _state.update { it.copy(storageFailure = WordsStorageFailure.ReadDecks) }
-            return
-        }
-        val choice = choices.firstOrNull { it.id == state.deckId } ?: choices.firstOrNull()
-        val level = state.shownLevel
-        val key = listOf(state.index?.fingerprint, choice?.id, level == WordLevel.Lemmas, language).joinToString("|")
-        if (key == coverageKey && state.coverage?.deck?.id == choice?.id) {
-            _state.update { it.copy(decks = choices, deckId = choice?.id, imported = imported) }
-            clearStorageFailure(WordsStorageFailure.ReadDecks)
-            saveSelection()
-            return
-        }
-        val deck: VocabDeck? = try {
-            choice?.let { decks?.deck(it.id) }
-        } catch (_: IOException) {
-            _state.update { it.copy(storageFailure = WordsStorageFailure.ReadDecks) }
-            return
-        }
-        val coverage = deck?.let {
-            withContext(Dispatchers.Default) {
-                val variant = if (level == WordLevel.Lemmas || !it.hasLexemes) it.byLemma() else it
-                DeckCoverage.build(words, variant, lemmatizer)
+            if (!current(query)) return
+            _state.update {
+                // Keep a previous result intact on read failure. On first load, writer evidence
+                // can still be shown without pretending the failed deck read was an empty list.
+                it.copy(loading = false, measuring = false, index = it.index ?: index,
+                    languages = if (it.index == null) written else it.languages,
+                    storageFailure = WordsStorageFailure.ReadDecks)
             }
+            return
         }
-        coverageKey = key
+        val level = if (words.morphology) intent.level ?: WordLevel.Lexemes else WordLevel.Forms
+        val key = CoverageKey(index.fingerprint, words.language, choice?.id, level)
+        val coverage = lastCoverage?.takeIf { it.first == key }?.second ?: deck?.let {
+            val variant = if (level == WordLevel.Lemmas || !it.hasLexemes) it.byLemma() else it
+            countCoverage(words, variant)
+        }
+        if (!current(query)) return
+        if (exports != null && exports.generation() != exportGeneration) {
+            requestQuery(rebuild = true, delayed = true)
+            return
+        }
+
+        // Every field that describes a measurement changes together. Filters/import feedback
+        // remain current because they are independent inputs owned by their own actions.
+        lastCoverage = key to coverage
+        indexGeneration = exportGeneration
+        needsRebuild = false
+        readyWords = ReadyWords(query, key, words, coverage, exportGeneration)
         _state.update {
-            it.copy(decks = choices, deckId = choice?.id, coverage = coverage, deckFailed = choice != null && deck == null, imported = imported)
+            it.copy(loading = false, measuring = false, exportReady = true, index = index, languages = languages,
+                decks = choices, deckId = choice?.id, coverage = coverage,
+                deckFailed = choice != null && deck == null, imported = imported,
+                storageFailure = readFailure ?: pendingDeleteFailure() ?: it.storageFailure.takeUnless { failure ->
+                    failure == WordsStorageFailure.ReadDecks || failure == WordsStorageFailure.ReadSelection
+                })
         }
-        clearStorageFailure(WordsStorageFailure.ReadDecks)
-        saveSelection()
+        saveSelection(query, key)
     }
 
-    private suspend fun saveSelection() {
+    private suspend fun saveSelection(query: Long, key: CoverageKey) {
         val lab = decks ?: return
-        // An unreadable saved selection is not a fresh install: do not replace it with defaults.
+        val language = key.language ?: return
         if (!restored) return
-        val state = _state.value
-        val language = state.shownLanguage ?: return
-        try {
-            lab.select(VocabSelection(language, state.deckId, if (state.shownLevel == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme))
-            clearStorageFailure(WordsStorageFailure.SaveSelection)
-        } catch (_: IOException) {
-            _state.update { it.copy(storageFailure = WordsStorageFailure.SaveSelection) }
+        // The IO write checks the same atomic token under the store's lock. Serialization also
+        // ensures an already-started old write cannot finish after the newer selection is saved.
+        selectionWrites.withLock {
+            if (!current(query)) return
+            try {
+                val saved = lab.select(VocabSelection(language, key.deckId,
+                    if (key.level == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme)) { current(query) }
+                if (saved && current(query)) clearStorageFailure(WordsStorageFailure.SaveSelection)
+            } catch (_: IOException) {
+                if (current(query)) _state.update { it.copy(storageFailure = WordsStorageFailure.SaveSelection) }
+            }
         }
     }
 
     private fun clearStorageFailure(failure: WordsStorageFailure) = _state.update {
-        if (it.storageFailure == failure) it.copy(storageFailure = null) else it
+        if (it.storageFailure == failure) it.copy(storageFailure = pendingDeleteFailure()) else it
     }
 
     fun retryStorage() {
         when (val failure = _state.value.storageFailure) {
             is WordsStorageFailure.DeleteDeck -> deleteDeck(failure.id)
-            WordsStorageFailure.SaveSelection -> viewModelScope.launch { saveSelection() }
-            WordsStorageFailure.ReadDecks, WordsStorageFailure.ReadSelection -> {
-                coverageKey = null
-                refresh()
-            }
+            WordsStorageFailure.SaveSelection -> requestQuery()
+            WordsStorageFailure.ReadDecks, WordsStorageFailure.ReadSelection -> requestQuery(rebuild = true)
             null -> Unit
         }
     }
 
-    private fun remeasure() {
-        viewModelScope.launch { measure() }
-    }
-
     fun selectLanguage(language: String?) {
-        if (language == _state.value.language) return
-        _state.update { it.copy(language = language, deckId = null, filter = WordFilter.All, query = "") }
-        remeasure()
+        val changed = !languageChosen || language != _state.value.language
+        languageChosen = true
+        if (!changed) return
+        scopeVersion++
+        requestQuery(clearCoverage = true) {
+            it.copy(language = language, deckId = null, filter = WordFilter.All, query = "")
+        }
     }
 
     fun selectDeck(id: String) {
-        if (id == _state.value.deckId) return
-        _state.update { it.copy(deckId = id) }
-        coverageKey = null
-        remeasure()
+        val changed = !deckChosen || id != _state.value.deckId
+        deckChosen = true
+        if (!changed) return
+        scopeVersion++
+        requestQuery(clearCoverage = true) { it.copy(deckId = id) }
     }
 
     fun countBy(level: WordLevel) {
-        if (level == _state.value.shownLevel) return
-        _state.update { it.copy(level = level) }
-        remeasure()
+        val changed = !levelChosen || level != _state.value.level
+        levelChosen = true
+        if (!changed) return
+        scopeVersion++
+        requestQuery(clearCoverage = true) { it.copy(level = level) }
     }
 
     fun sortBy(sort: WordSort) = _state.update { it.copy(sort = sort) }
     fun filter(filter: WordFilter) = _state.update { it.copy(filter = filter) }
     fun search(query: String) = _state.update { it.copy(query = query) }
 
-    /** Writes the shown language's CSV for the share sheet. */
+    private fun invalidateExport() {
+        exportVersion++
+        exportJob?.cancel()
+        val obsolete = _export.value as? WordsExport.Ready
+        _export.value = null
+        if (obsolete != null && exports != null) viewModelScope.launch(io) { exports.discard(obsolete.file) }
+    }
+
+    /** Writes only a complete result belonging to the current query and source generation. */
     fun exportCsv() {
-        val state = _state.value
-        val words = state.shown ?: return
-        viewModelScope.launch {
-            val uri = runCatching { exportCsv(words, state.coverage) }.getOrNull()
-            _export.value = uri?.let { WordsExport.Ready(it, words.language) } ?: WordsExport.Failed
+        val writer = exports ?: return
+        val snapshot = readyWords?.takeIf { current(it.query) && !_state.value.measuring } ?: return
+        if (writer.generation() != snapshot.exportGeneration) {
+            // A deletion may invalidate exports without another History revision. Re-read the
+            // evidence instead of granting a new ticket to an old snapshot forever.
+            requestQuery(rebuild = true)
+            return
+        }
+        invalidateExport()
+        val request = writer.requestWords(snapshot.exportGeneration)
+        val version = exportVersion
+        exportJob = viewModelScope.launch {
+            var file: File? = null
+            var offered = false
+            try {
+                withContext(io) {
+                    file = writer.writeWords(LocalDate.now(), snapshot.key.language, request) { output ->
+                        output.write(WordViews.csv(snapshot.words, snapshot.coverage).toByteArray(Charsets.UTF_8))
+                        true
+                    }
+                }
+                if (version != exportVersion || !current(snapshot.query)) return@launch
+                val ready = file?.takeIf(writer::isCurrent)
+                if (ready != null) {
+                    _export.value = WordsExport.Ready(shareFile(ready), snapshot.key.language, ready)
+                    offered = true
+                } else if (writer.generation() != snapshot.exportGeneration) {
+                    requestQuery(rebuild = true)
+                } else {
+                    _export.value = WordsExport.Failed
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: IOException) {
+                if (version == exportVersion && current(snapshot.query)) _export.value = WordsExport.Failed
+            } catch (_: IllegalArgumentException) {
+                if (version == exportVersion && current(snapshot.query)) _export.value = WordsExport.Failed
+            } finally {
+                if (!offered) file?.let { obsolete ->
+                    withContext(NonCancellable + io) { writer.discard(obsolete) }
+                }
+            }
         }
     }
 
-    fun exportHandled() {
-        _export.value = null
-    }
+    /** Rechecked immediately before handing the URI to another app. */
+    fun isExportCurrent(result: WordsExport.Ready): Boolean =
+        _export.value == result && exports?.isCurrent(result.file) == true
 
-    /** Reads a picked document; a deck is at most a few megabytes of text. */
+    fun exportHandled() { _export.value = null }
+
+    /** Reads a picked document; only the newest picker result can open the import dialog. */
     fun pick(resolver: ContentResolver, uri: Uri, fallbackName: String) {
-        viewModelScope.launch {
-            val read = withContext(Dispatchers.IO) {
-                runCatching {
+        val version = ++pickVersion
+        pickJob?.cancel()
+        pickJob = viewModelScope.launch {
+            val read = withContext(io) {
+                try {
                     val size = resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
                         if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
                     }
-                    if (size != null && size > MAX_BYTES) return@runCatching null
+                    if (size != null && size > MAX_BYTES) return@withContext Result.success(null)
                     val bytes = resolver.openInputStream(uri)?.use { it.readUpTo(MAX_BYTES + 1) } ?: error("No stream")
-                    if (bytes.size > MAX_BYTES) null else decodeDeck(bytes)
+                    Result.success(if (bytes.size > MAX_BYTES) null else decodeDeck(bytes))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
                 }
             }
+            if (version != pickVersion) return@launch
             val text = read.getOrNull()
             when {
                 read.isFailure -> _state.update { it.copy(importMessage = ImportMessage.Unreadable) }
                 text == null -> _state.update { it.copy(importMessage = ImportMessage.TooLarge) }
                 else -> {
-                    val name = withContext(Dispatchers.IO) { displayName(resolver, uri) }
+                    val name = withContext(io) { displayName(resolver, uri) }
                         ?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: fallbackName
-                    _state.update { it.copy(pendingImport = PendingImport(text, name), importMessage = null) }
+                    if (version == pickVersion) _state.update { it.copy(pendingImport = PendingImport(text, name), importMessage = null) }
                 }
             }
         }
     }
 
-    fun cancelImport() = _state.update { if (it.importing) it else it.copy(pendingImport = null) }
+    fun cancelImport() {
+        if (_state.value.importing) return
+        pickVersion++
+        pickJob?.cancel()
+        _state.update { it.copy(pendingImport = null) }
+    }
 
     fun confirmImport(name: String, language: String) {
         val pending = _state.value.pendingImport ?: return
         val lab = decks ?: return
         if (_state.value.importing) return
+        val version = ++importVersion
+        val picked = pickVersion
+        val selected = scopeVersion
         _state.update { it.copy(importing = true, importMessage = null) }
+        // An accepted mutation is not a child of the replaceable query job.
         viewModelScope.launch {
             try {
                 when (val outcome = lab.import(pending.text, name.ifBlank { pending.suggestedName }, language)) {
                     is ImportOutcome.Imported -> {
-                        _state.update {
-                            it.copy(
-                                pendingImport = null,
-                                importMessage = ImportMessage.Imported(outcome.deck.size),
-                                language = language,
-                                languages = (it.languages + language).distinct(),
-                                deckId = outcome.deck.id,
-                            )
+                        if (picked == pickVersion) _state.update {
+                            it.copy(pendingImport = null, importMessage = ImportMessage.Imported(outcome.deck.size))
                         }
-                        coverageKey = null
-                        measure()
+                        val selectImported = selected == scopeVersion
+                        if (selectImported) {
+                            scopeVersion++
+                            languageChosen = true
+                            deckChosen = true
+                        }
+                        requestQuery(clearCoverage = selectImported) {
+                            if (selectImported) it.copy(language = language, deckId = outcome.deck.id) else it
+                        }.join()
                     }
-                    is ImportOutcome.Failed -> _state.update {
+                    is ImportOutcome.Failed -> if (picked == pickVersion) _state.update {
                         it.copy(pendingImport = null, importMessage = ImportMessage.Failed(outcome.reason))
                     }
                 }
             } catch (_: IOException) {
-                _state.update { it.copy(importMessage = ImportMessage.SaveFailed) }
+                if (picked == pickVersion) _state.update { it.copy(importMessage = ImportMessage.SaveFailed) }
             } finally {
-                _state.update { it.copy(importing = false) }
+                if (version == importVersion) _state.update { it.copy(importing = false) }
             }
         }
     }
@@ -367,21 +506,41 @@ class WordsViewModel internal constructor(
     fun deleteDeck(id: String) {
         val lab = decks ?: return
         viewModelScope.launch {
-            try {
-                lab.delete(id)
-            } catch (_: IOException) {
-                // The index may have committed before physical file cleanup failed.
-                // Refresh its membership and retain the cleanup ID for an explicit retry.
-                coverageKey = null
-                measure()
-                _state.update { it.copy(storageFailure = WordsStorageFailure.DeleteDeck(id)) }
-                return@launch
+            deleteWrites.withLock {
+                try {
+                    lab.delete(id)
+                } catch (_: IOException) {
+                    // Each failed command keeps its exact cleanup ID, even if a later deletion
+                    // succeeds. Membership may already have committed, so refresh it first.
+                    failedDeletes += id
+                    requestQuery().join()
+                    publishDeleteFailure()
+                    return@withLock
+                }
+                failedDeletes -= id
+                publishDeleteFailure()
+                _state.update { it.copy(importMessage = null) }
+                requestQuery(clearCoverage = _state.value.deckId == id) {
+                    it.copy(deckId = it.deckId.takeIf { current -> current != id })
+                }
             }
-            clearStorageFailure(WordsStorageFailure.DeleteDeck(id))
-            _state.update { it.copy(importMessage = null, deckId = it.deckId.takeIf { current -> current != id }) }
-            coverageKey = null
-            measure()
         }
+    }
+
+    private fun pendingDeleteFailure() = failedDeletes.firstOrNull()?.let { WordsStorageFailure.DeleteDeck(it) }
+
+    private fun publishDeleteFailure() = _state.update {
+        it.copy(storageFailure = pendingDeleteFailure() ?: it.storageFailure.takeUnless { failure -> failure is WordsStorageFailure.DeleteDeck })
+    }
+
+    override fun onCleared() {
+        queries.incrementAndGet()
+        pickVersion++
+        importVersion++
+        exportVersion++
+        readyWords = null
+        _export.value = null
+        super.onCleared()
     }
 
     private fun displayName(resolver: ContentResolver, uri: Uri): String? = runCatching {
@@ -401,21 +560,13 @@ class WordsViewModel internal constructor(
                     store = VocabGapsStore(File(app.filesDir, VocabGapsStore.DIR)),
                     bundled = BundledDecks { name -> app.assets.open(name).bufferedReader().use { it.readText() } },
                 )
-                WordsViewModel(app.corpus, app.lemmatizer, decks, app.history.revisions()) { words, coverage -> writeCsv(app, words, coverage) }
+                WordsViewModel(
+                    app.corpus, app.lemmatizer, decks, app.history.revisions(), exports = app.exports,
+                    shareFile = { file -> FileProvider.getUriForFile(app, "${app.packageName}.files", file) },
+                )
             }
         }
 
-        /** Into the cache folder the FileProvider shares; the next History export or prune removes it. */
-        private suspend fun writeCsv(app: App, words: LanguageWords, coverage: DeckCoverage?): Uri = withContext(Dispatchers.IO) {
-            val folder = File(app.cacheDir, Exports.FOLDER).apply { mkdirs() }
-            folder.listFiles { file -> file.name.startsWith(CSV_PREFIX) }?.forEach { it.delete() }
-            val name = "$CSV_PREFIX${words.language ?: "other"}-${LocalDate.now()}-"
-            val file = File.createTempFile(name, ".csv", folder)
-            file.writeText(WordViews.csv(words, coverage), Charsets.UTF_8)
-            FileProvider.getUriForFile(app, "${app.packageName}.files", file)
-        }
-
-        private const val CSV_PREFIX = "linguize-words-"
     }
 }
 

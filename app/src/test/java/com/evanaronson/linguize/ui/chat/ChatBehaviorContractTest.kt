@@ -31,7 +31,6 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.chat.ChatPrompt
-import com.evanaronson.linguize.testing.KnownBonanzaDefect
 import com.evanaronson.linguize.testing.MainDispatcherRule
 import com.evanaronson.linguize.ui.card.CardState
 import kotlinx.coroutines.CompletableDeferred
@@ -50,7 +49,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -123,7 +121,7 @@ class ChatBehaviorContractTest {
         }
     }
 
-    private suspend fun seed(id: String = "thread", title: String = "", custom: Boolean = false, writerLast: Boolean = false) {
+    private suspend fun seed(id: String = "thread", title: String = "", custom: Boolean = false, writerLast: Boolean = false, store: ChatStore = this.store) {
         assertTrue(store.create(Conversation(id, title, "es", 1, 2, titleIsCustom = custom)))
         assertTrue(store.add(ChatMessage.partner("opener-$id", id, "¿Qué tal?", 2)))
         if (writerLast) assertTrue(store.add(ChatMessage("writer-$id", id, true, "Bien", "Bien", at = 3)))
@@ -521,6 +519,19 @@ class ChatBehaviorContractTest {
         return try { reopened.messages("thread") } finally { reopened.close() }
     }
 
+    private suspend fun withHeldStore(block: suspend (ChatStore, HeldDispatcher) -> Unit) {
+        val io = HeldDispatcher(main.dispatcher)
+        val held = ChatStore(context, name = null, dispatcher = io)
+        try {
+            block(held, io)
+        } finally {
+            io.release()
+            owners.clear()
+            main.dispatcher.scheduler.runCurrent()
+            held.close()
+        }
+    }
+
     private class HeldDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
         var hold = false
         private val pending = ArrayDeque<Pair<CoroutineContext, Runnable>>()
@@ -528,6 +539,9 @@ class ChatBehaviorContractTest {
         override fun dispatch(context: CoroutineContext, block: Runnable) {
             if (hold) pending.addLast(context to block) else delegate.dispatch(context, block)
         }
+        /** Execute SQLite without resuming its Main acknowledgement yet. */
+        fun runFirstNow() { pending.removeFirst().second.run() }
+        fun runLastNow() { pending.removeLast().second.run() }
         fun release() {
             hold = false
             while (pending.isNotEmpty()) {
@@ -538,7 +552,6 @@ class ChatBehaviorContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun openingAnAutomaticallyCreatedConversationWaitsForItsPendingCreation() = runTest(main.dispatcher) {
         val language = CompletableDeferred<String>()
         var resolving = false
@@ -561,7 +574,6 @@ class ChatBehaviorContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun aManualTitleSetDuringAReplySurvivesInStorage() = runTest(main.dispatcher) {
         seed(writerLast = true)
         val answer = CompletableDeferred<String>()
@@ -585,7 +597,6 @@ class ChatBehaviorContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun cancellingAnOlderReplyDoesNotClearTheNewReplyStatus() = runTest(main.dispatcher) {
         seed()
         val first = CompletableDeferred<String>()
@@ -615,7 +626,6 @@ class ChatBehaviorContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun delayedCreationDoesNotReplaceANewerSelectionAndItsDraft() = runTest(main.dispatcher) {
         seed(id = "existing", writerLast = true)
         val language = CompletableDeferred<String>()
@@ -632,4 +642,409 @@ class ChatBehaviorContractTest {
         assertEquals("The latest selected conversation must remain visible", "existing", chat.thread!!.conversation.id)
         assertEquals("Still writing here", chat.draft.text)
     }
+
+    @Test fun anOlderCreationCannotPruneTheNewerBlankThreadOrItsDraft() = runTest(main.dispatcher) {
+        val language = CompletableDeferred<String>()
+        val chat = model(startLanguage = { language.await() })
+        val old = chat.newConversation()
+        runCurrent()
+        val selected = chat.newConversation(language = "es")
+        runCurrent()
+        chat.onDraftChange(TextFieldValue("A draft in the newer conversation"))
+        language.complete("es")
+        runCurrent()
+        assertNotNull(store.conversation(old))
+        assertNotNull("Stale creation must not prune the newer empty conversation", store.conversation(selected))
+        assertEquals(selected, chat.thread!!.conversation.id)
+        assertEquals("A draft in the newer conversation", chat.draft.text)
+        assertEquals(1, requests.size)
+    }
+
+    @Test fun olderOpenReadCannotReplaceTheNewerSelectionOrDraft() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(id = "first", store = held)
+            seed(id = "second", store = held)
+            val chat = model(store = held)
+            io.hold = true
+            chat.open("first")
+            runCurrent()
+            chat.open("second")
+            runCurrent()
+            io.runLastNow()
+            runCurrent()
+            assertEquals("second", chat.thread!!.conversation.id)
+            chat.onDraftChange(TextFieldValue("Keep this draft"))
+            io.release()
+            runCurrent()
+            assertEquals("second", chat.thread!!.conversation.id)
+            assertEquals("Keep this draft", chat.draft.text)
+        }
+    }
+
+    @Test fun anObsoleteMissingReadCannotNavigateBackFromTheNewSelection() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(store = held)
+            val chat = model(store = held)
+            var missing = false
+            io.hold = true
+            chat.open("deleted") { missing = true }
+            runCurrent()
+            chat.open("thread")
+            runCurrent()
+            io.release()
+            runCurrent()
+            assertFalse(missing)
+            assertEquals("thread", chat.thread!!.conversation.id)
+        }
+    }
+
+    @Test fun aReplyQueuedForStorageIsRevokedByLeavingAndReopeningTheSameWriterTurn() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(writerLast = true, store = held)
+            seed(id = "other", store = held)
+            val oldAnswer = CompletableDeferred<String>()
+            val newAnswer = CompletableDeferred<String>()
+            val chat = model(store = held, answer = { if (requests.size == 1) oldAnswer.await() else newAnswer.await() })
+            chat.open("thread")
+            runCurrent()
+            chat.retryReply()
+            runCurrent()
+            io.hold = true
+            oldAnswer.complete("""{"reply":"Obsolete answer","title":"Obsolete title"}""")
+            runCurrent()
+            assertTrue(io.hasPendingWork)
+            chat.open("other")
+            runCurrent()
+            chat.open("thread")
+            runCurrent()
+            io.release()
+            runCurrent()
+            assertTrue(held.messages("thread").none { it.text == "Obsolete answer" })
+            assertEquals("", held.conversation("thread")!!.title)
+            chat.retryReply()
+            runCurrent()
+            assertTrue(chat.replying)
+            assertEquals(2, requests.size)
+            newAnswer.complete("""{"reply":"Current answer","title":"Current title"}""")
+            runCurrent()
+            assertEquals("Current answer", chat.thread!!.messages.last().text)
+            assertEquals(chat.thread!!.messages, held.messages("thread"))
+            assertFalse(chat.replying)
+            assertFalse(chat.replySaveFailed)
+        }
+    }
+
+    @Test fun anOpenerQueuedForStorageCannotAppendAfterTheWriterSpeaks() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            val opener = CompletableDeferred<String>()
+            val reply = CompletableDeferred<String>()
+            val chat = model(store = held, answer = { if (requests.size == 1) opener.await() else reply.await() })
+            val id = chat.newConversation(language = "es")
+            runCurrent()
+            io.hold = true
+            opener.complete("""{"reply":"Late opener"}""")
+            runCurrent()
+            chat.onDraftChange(TextFieldValue("I spoke first"))
+            chat.send()
+            chat.onCardState(clean("I spoke first"))
+            runCurrent()
+            io.release()
+            runCurrent()
+            assertEquals(listOf("I spoke first"), held.messages(id).map { it.text })
+            assertTrue(chat.replying)
+            assertEquals(2, requests.size)
+            reply.complete("""{"reply":"A reply to your message"}""")
+            runCurrent()
+            assertEquals(listOf("I spoke first", "A reply to your message"), chat.thread!!.messages.map { it.text })
+        }
+    }
+
+    @Test fun aReplyCommittedBeforeItsMainAcknowledgementRemainsInTheNextSendContext() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(writerLast = true, store = held)
+            val first = CompletableDeferred<String>()
+            val second = CompletableDeferred<String>()
+            val chat = model(store = held, answer = { if (requests.size == 1) first.await() else second.await() })
+            chat.open("thread")
+            runCurrent()
+            chat.retryReply()
+            runCurrent()
+            io.hold = true
+            first.complete("""{"reply":"Already committed reply"}""")
+            runCurrent()
+            io.runFirstNow() // SQLite commits; its Main continuation has not run.
+            assertTrue(chat.thread!!.messages.none { it.text == "Already committed reply" })
+            chat.onDraftChange(TextFieldValue("The next writer message"))
+            chat.send()
+            chat.onCardState(clean("The next writer message"))
+            runCurrent()
+            io.release()
+            runCurrent()
+            assertEquals(2, requests.size)
+            assertTrue(requests.last().user.contains("Already committed reply"))
+            assertTrue(requests.last().user.contains("The next writer message"))
+            assertEquals(listOf("¿Qué tal?", "Bien", "Already committed reply", "The next writer message"),
+                chat.thread!!.messages.map { it.text })
+            second.complete("""{"reply":"The final answer"}""")
+            runCurrent()
+            assertEquals(held.messages("thread"), chat.thread!!.messages)
+            assertEquals(5, chat.thread!!.messages.size)
+        }
+    }
+
+    @Test fun unavailableListPreservesPreviousResultsAndCanRetry() = runTest(main.dispatcher) {
+        withNamedStore("list-read-failure") { named ->
+            seed(writerLast = true, store = named)
+            val chat = model(store = named)
+            chat.showList()
+            runCurrent()
+            val previous = chat.conversations
+            assertEquals(1, previous.size)
+            sql("list-read-failure", "ALTER TABLE conversations RENAME TO unavailable_conversations")
+            chat.showList()
+            runCurrent()
+            assertTrue(chat.loadFailed)
+            assertEquals(previous, chat.conversations)
+            sql("list-read-failure", "ALTER TABLE unavailable_conversations RENAME TO conversations")
+            chat.retryLoad()
+            runCurrent()
+            assertFalse(chat.loadFailed)
+            assertEquals(previous, chat.conversations)
+        }
+    }
+
+    @Test fun unavailableThreadIsNotReportedMissingAndCanRetryWithoutDiscardingPreviousData() = runTest(main.dispatcher) {
+        withNamedStore("thread-read-failure") { named ->
+            seed(store = named)
+            seed(id = "other", store = named)
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+            chat.onDraftChange(TextFieldValue("Keep the old draft until the next thread loads"))
+            sql("thread-read-failure", "ALTER TABLE conversations RENAME TO unavailable_conversations")
+            var missing = false
+            chat.open("other") { missing = true }
+            runCurrent()
+            assertFalse(missing)
+            assertTrue(chat.loadFailed)
+            assertEquals("thread", chat.thread!!.conversation.id)
+            assertEquals("Keep the old draft until the next thread loads", chat.draft.text)
+            sql("thread-read-failure", "ALTER TABLE unavailable_conversations RENAME TO conversations")
+            chat.retryLoad()
+            runCurrent()
+            assertFalse(chat.loadFailed)
+            assertFalse(missing)
+            assertEquals("other", chat.thread!!.conversation.id)
+        }
+    }
+
+
+    @Test fun leavingForTheListDuringAWriterCommitDoesNotResurrectTheSentDraftOnReturn() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(store = held)
+            val chat = model(store = held)
+            chat.open("thread")
+            runCurrent()
+            chat.onDraftChange(TextFieldValue("Commit before leaving"))
+            chat.send()
+            io.hold = true
+            chat.onCardState(clean("Commit before leaving"))
+            runCurrent()
+            chat.showList()
+            runCurrent()
+            io.release()
+            runCurrent()
+            chat.open("thread")
+            runCurrent()
+            assertEquals(SendState.Composing, chat.send)
+            assertEquals("", chat.draft.text)
+            assertEquals(listOf("Commit before leaving"), card.finished)
+            assertEquals(1, chat.thread!!.messages.count { it.fromWriter })
+            assertEquals("Commit before leaving", chat.thread!!.messages.last().text)
+            assertTrue(requests.isEmpty())
+        }
+    }
+
+    @Test fun aBackgroundListRefreshCannotStealCurrentRouteResolution() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(writerLast = true, store = held)
+            val chat = model(store = held)
+            chat.open("thread")
+            runCurrent()
+            io.hold = true
+            var resolved: String? = "unresolved"
+            chat.openCurrent(null) { resolved = it }
+            runCurrent()
+            chat.rename("thread", "Renamed while resolving")
+            runCurrent()
+            io.runLastNow() // Rename commits, then its list refresh supersedes list publication.
+            runCurrent()
+            io.runFirstNow() // The current-route query still owns its navigation result.
+            runCurrent()
+            assertEquals("thread", resolved)
+            io.release()
+            runCurrent()
+            assertEquals("thread", chat.thread!!.conversation.id)
+            assertEquals("Renamed while resolving", chat.thread!!.conversation.title)
+        }
+    }
+
+
+    @Test fun anOlderManualRenameCannotOverwriteTheLatestCommandAfterIoDispatch() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            seed(store = held)
+            val chat = model(store = held)
+            chat.open("thread")
+            runCurrent()
+            io.hold = true
+            chat.rename("thread", "Older title")
+            runCurrent()
+            chat.rename("thread", "Latest title")
+            runCurrent()
+            io.runLastNow()
+            runCurrent()
+            assertEquals("Latest title", chat.thread!!.conversation.title)
+            io.release()
+            runCurrent()
+            assertEquals("Latest title", held.conversation("thread")!!.title)
+            assertEquals("Latest title", chat.thread!!.conversation.title)
+            assertNull(chat.conversationSaveFailure)
+        }
+    }
+
+
+    @Test fun rejoiningAFailedPendingCreationKeepsItsExactRetryCommand() = runTest(main.dispatcher) {
+        withNamedStore("rejoined-create-failure") { named ->
+            seed(id = "existing", writerLast = true, store = named)
+            sql("rejoined-create-failure", "CREATE TRIGGER fail_create BEFORE INSERT ON conversations " +
+                "BEGIN SELECT RAISE(ABORT, 'forced create failure'); END")
+            val language = CompletableDeferred<String>()
+            val chat = model(store = named, startLanguage = { language.await() })
+            val id = chat.newConversation(persona = "My teacher")
+            runCurrent()
+            chat.open("existing")
+            runCurrent()
+            chat.open(id)
+            runCurrent()
+            language.complete("es")
+            runCurrent()
+            val failure = chat.conversationSaveFailure as ConversationWriteFailure.Create
+            assertEquals(id, failure.id)
+            assertEquals("My teacher", failure.conversation.persona)
+            assertNull(chat.creatingConversationId)
+            sql("rejoined-create-failure", "DROP TRIGGER fail_create")
+            chat.retryConversationWrite()
+            runCurrent()
+            assertEquals(id, chat.thread!!.conversation.id)
+            assertEquals("My teacher", named.conversation(id)!!.persona)
+            assertNull(chat.conversationSaveFailure)
+        }
+    }
+
+    @Test fun unavailableCurrentRouteDoesNotResolveAsAnEmptyConversationList() = runTest(main.dispatcher) {
+        withNamedStore("current-read-failure") { named ->
+            seed(writerLast = true, store = named)
+            val chat = model(store = named)
+            sql("current-read-failure", "ALTER TABLE conversations RENAME TO unavailable_conversations")
+            var resolved: String? = "unresolved"
+            chat.openCurrent(null) { resolved = it }
+            runCurrent()
+            assertEquals("unresolved", resolved)
+            assertTrue(chat.loadFailed)
+            sql("current-read-failure", "ALTER TABLE unavailable_conversations RENAME TO conversations")
+            chat.retryLoad()
+            runCurrent()
+            assertEquals("thread", resolved)
+            assertFalse(chat.loadFailed)
+            assertEquals("thread", chat.thread!!.conversation.id)
+        }
+    }
+
+
+    @Test fun anOlderRenameSuccessCannotClearTheNewConversationFailure() = runTest(main.dispatcher) {
+        val name = "metadata-failure-owner"
+        context.deleteDatabase(name)
+        val io = HeldDispatcher(main.dispatcher)
+        val named = ChatStore(context, name, io)
+        try {
+            seed(writerLast = true, store = named)
+            val chat = model(store = named)
+            chat.open("thread")
+            runCurrent()
+            io.hold = true
+            chat.rename("thread", "A durable older rename")
+            runCurrent()
+            sql(name, "CREATE TRIGGER fail_create BEFORE INSERT ON conversations " +
+                "BEGIN SELECT RAISE(ABORT, 'forced create failure'); END")
+            val failedId = chat.newConversation(language = "es")
+            runCurrent()
+            io.runLastNow() // New creation fails before the older rename commits.
+            runCurrent()
+            assertEquals(failedId, (chat.conversationSaveFailure as ConversationWriteFailure.Create).id)
+            io.release()
+            runCurrent()
+            assertEquals("A durable older rename", named.conversation("thread")!!.title)
+            assertEquals(failedId, (chat.conversationSaveFailure as ConversationWriteFailure.Create).id)
+            sql(name, "DROP TRIGGER fail_create")
+            chat.retryConversationWrite()
+            runCurrent()
+            assertNotNull(named.conversation(failedId))
+            assertNull(chat.conversationSaveFailure)
+        } finally {
+            io.release()
+            owners.clear()
+            main.dispatcher.scheduler.runCurrent()
+            named.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test fun anOlderMetadataFailureCannotReplaceTheNewConversationSuccess() = runTest(main.dispatcher) {
+        withHeldStore { held, io ->
+            val chat = model(store = held)
+            io.hold = true
+            chat.rename("missing", "An obsolete failed command")
+            runCurrent()
+            val id = chat.newConversation(language = "es")
+            runCurrent()
+            io.runLastNow() // New creation commits before the older failing rename.
+            runCurrent()
+            assertNull(chat.conversationSaveFailure)
+            io.release()
+            runCurrent()
+            assertEquals(id, chat.thread!!.conversation.id)
+            assertNotNull(held.conversation(id))
+            assertNull(chat.conversationSaveFailure)
+        }
+    }
+
+    @Test fun aReplySupersededByAnExternalWriterRefreshesItsTailBeforeRetry() = runTest(main.dispatcher) {
+        seed(writerLast = true)
+        val first = CompletableDeferred<String>()
+        val second = CompletableDeferred<String>()
+        val chat = model(answer = { if (requests.size == 1) first.await() else second.await() })
+        chat.open("thread")
+        runCurrent()
+        chat.retryReply()
+        runCurrent()
+        chat.onDraftChange(TextFieldValue("Keep this unsent draft"))
+        val external = ChatMessage("external-writer", "thread", true, "An external send", "An external send", at = 4)
+        assertTrue(store.add(external))
+        first.complete("""{"reply":"Answer to the obsolete tail"}""")
+        runCurrent()
+        assertFalse(chat.replying)
+        assertEquals(external, chat.thread!!.messages.last())
+        assertEquals(store.messages("thread"), chat.thread!!.messages)
+        assertEquals("Keep this unsent draft", chat.draft.text)
+        chat.retryReply()
+        runCurrent()
+        assertTrue(requests.last().user.contains("An external send"))
+        second.complete("""{"reply":"Answer to the current tail"}""")
+        runCurrent()
+        assertEquals("Answer to the current tail", chat.thread!!.messages.last().text)
+        assertEquals("Keep this unsent draft", chat.draft.text)
+        assertEquals(store.messages("thread"), chat.thread!!.messages)
+        assertTrue(chat.thread!!.messages.none { it.text == "Answer to the obsolete tail" })
+    }
+
 }

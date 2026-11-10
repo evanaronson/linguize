@@ -48,6 +48,7 @@ fun ChatListScreen(language: String?, onOpenSettings: () -> Unit = {}, onOpen: (
     val options by com.evanaronson.linguize.ui.language.AppLanguage.of(app).options.collectAsState()
     LaunchedEffect(chat, language) { chat.showList() }
     Column(Modifier.fillMaxSize()) {
+        if (chat.loadFailed) ChatSaveFailure(com.evanaronson.linguize.R.string.lab_chat_load_failed, chat::retryLoad)
         ConversationSaveFailure(chat)
         Box(Modifier.weight(1f)) {
             ConversationList(
@@ -136,6 +137,7 @@ fun ChatThreadScreen(
             persona = thread?.conversation?.persona,
             onBack = onBack,
         )
+        if (chat.loadFailed) ChatSaveFailure(com.evanaronson.linguize.R.string.lab_chat_load_failed, chat::retryLoad)
         ConversationSaveFailure(chat, id ?: thread?.conversation?.id)
         if (chat.creatingConversationId == id && id != null) {
             Progress(stringResource(R.string.lab_chat_saving_conversation))

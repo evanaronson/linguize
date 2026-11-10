@@ -6,7 +6,6 @@ import com.evanaronson.linguize.core.vocab.DeckParse
 import com.evanaronson.linguize.core.vocab.DeckParser
 import com.evanaronson.linguize.core.vocab.VocabDeck
 import com.evanaronson.linguize.core.vocab.VocabLevel
-import com.evanaronson.linguize.core.vocab.VocabReport
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -22,10 +21,9 @@ data class ImportedDeck(val id: String, val name: String, val language: String, 
 data class VocabSelection(val language: String? = null, val deckId: String? = null, val level: VocabLevel = VocabLevel.Lexeme)
 
 /**
- * Lab-local storage for Vocabulary gaps, in its own folder `lab_vocab_gaps` (under the app's
- * files). It holds imported decks, the last selection and reports derived from the corpus.
- * A report is only a cache: it carries the fingerprint of its evidence and is ignored, then
- * replaced, as soon as the corpus or the deck changes. Call off the main thread.
+ * Imported decks and Words' last selection, in the existing `lab_vocab_gaps` folder under
+ * the app's files. Call off the main thread. Coverage is derived in memory; reports left
+ * by the former Vocabulary gaps screen are only removed when their deck is deleted.
  */
 class VocabGapsStore(private val dir: File) {
     private val decksDir get() = File(dir, "decks")
@@ -54,25 +52,13 @@ class VocabGapsStore(private val dir: File) {
         return deck
     }
 
-    /** Deletes an imported deck, its words and any report built on it. */
+    /** Deletes an imported deck, its words and any cached reports left by older builds. */
     @Synchronized
     fun delete(id: String) {
         val remaining = imported().filterNot { it.id == id }
         writeAtomically(index, json.encodeToString(ListSerializer(ImportedDeck.serializer()), remaining))
         File(decksDir, "$id.csv").delete()
         VocabLevel.entries.forEach { File(reportsDir, fileName(id, it)).delete() }
-    }
-
-    /** The saved report for [deckId] at [level], only if it was built from exactly this evidence. */
-    @Synchronized
-    fun report(deckId: String, level: VocabLevel, fingerprint: String): VocabReport? =
-        read(File(reportsDir, fileName(deckId, level))) { json.decodeFromString(VocabReport.serializer(), it) }
-            ?.takeIf { it.fingerprint == fingerprint && it.deckId == deckId && it.level == level }
-
-    @Synchronized
-    fun saveReport(report: VocabReport) {
-        reportsDir.mkdirs()
-        writeAtomically(File(reportsDir, fileName(report.deckId, report.level)), json.encodeToString(VocabReport.serializer(), report))
     }
 
     @Synchronized

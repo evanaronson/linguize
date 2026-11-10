@@ -4,13 +4,8 @@
     <string name="lab_home_ia_progress">Progress</string>
     <string name="lab_home_ia_destinations">Sections of the app</string>
 
-    <!-- Notes (once Write): tools beside Try it. Unused. -->
-    <string name="lab_home_ia_more_ways">More ways to write</string>
-
     <!-- Progress. -->
     <string name="lab_home_ia_your_writing">Your writing</string>
-    <string name="lab_home_ia_language">Language for your writing</string>
-    <string name="lab_home_ia_fixes_and_phrases">Fixes and phrases</string>
     <string name="lab_home_ia_phrasebook_summary">Phrases you starred on a check</string>
     <string name="lab_home_ia_practice_done">Back to Progress</string>
 

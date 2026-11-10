@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Conversations and messages in the `lab_chat` database, and the corpus read from them. */
+/** Conversations and messages in the `lab_chat` database, including upgrades from older versions. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class ChatStoreTest {
@@ -57,20 +57,19 @@ class ChatStoreTest {
         assertEquals(0, list[1].writerMessages)
     }
 
-    @Test fun renamesChangesLanguageAndNotesWhatMemoryLearned() = runBlocking {
+    @Test fun renamesAndNotesWhatMemoryLearned() = runBlocking {
         store.create(first)
         store.rename("c1", "Tengo frío", custom = true)
-        store.setLanguage("c1", "ca")
         store.setLearned("c1", 2)
         val stored = store.conversation("c1")!!
         assertEquals("Tengo frío", stored.title)
         assertTrue(stored.titleIsCustom)
-        assertEquals("ca", stored.language)
+        assertEquals(first.language, stored.language)
         assertEquals(2, stored.learnedCount)
         assertFalse(store.rename("missing", "x", custom = true))
     }
 
-    @Test fun deleteRemovesEverythingAndUndoBringsItBack() = runBlocking {
+    @Test fun deleteRemovesTheConversationAndItsMessages() = runBlocking {
         store.create(first)
         store.add(opener)
         store.add(mine)
@@ -80,17 +79,6 @@ class ChatStoreTest {
         assertTrue(store.conversations().isEmpty())
         assertTrue(store.messages("c1").isEmpty())
         assertNull(store.delete("c1"))
-
-        store.restore(removed.first, removed.second)
-        assertEquals(listOf(opener, mine), store.messages("c1"))
-    }
-
-    @Test fun replacingMessagesSwapsAnUnansweredOpener() = runBlocking {
-        store.create(first)
-        store.add(opener)
-        val catalan = ChatMessage.partner("p2", "c1", "Hola! Què tal?", 12)
-        store.replaceMessages("c1", listOf(catalan))
-        assertEquals(listOf(catalan), store.messages("c1"))
     }
 
     @Test fun notesEachMessagesSavedCheckAndGroupsThemByConversation() = runBlocking {

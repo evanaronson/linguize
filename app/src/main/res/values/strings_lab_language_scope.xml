@@ -7,6 +7,4 @@
     <string name="lab_language_scope_chat_empty">No conversations in %1$s yet</string>
     <string name="lab_language_scope_chat_empty_hint">Start one and your partner writes first.</string>
     <string name="lab_language_scope_history_empty">No messages in %1$s yet.</string>
-    <string name="lab_language_scope_progress_note">Everything here is for %1$s. Switch the language at the top for another.</string>
-    <string name="lab_language_scope_open_conversation">Open %1$s</string>
 </resources>

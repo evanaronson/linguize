@@ -16,7 +16,6 @@
     <string name="lab_consistency_new_auto">In the language you last used here. Choose one at the top.</string>
 
     <!-- Progress under Linguize (Auto): a block per language in use. -->
-    <string name="lab_consistency_progress_auto_note">One section per language. Choose one at the top to see only it.</string>
     <string name="lab_consistency_progress_open_in">%1$s in %2$s</string>
 
     <!-- The card in the app, when the text is in another language than the one chosen. -->

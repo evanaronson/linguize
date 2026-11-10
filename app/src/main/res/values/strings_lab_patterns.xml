@@ -11,10 +11,6 @@
         <item quantity="other">%1$s, %2$s and %3$d more</item>
     </plurals>
 
-    <plurals name="lab_patterns_intro">
-        <item quantity="one">From %1$d saved check since %2$s.</item>
-        <item quantity="other">From %1$d saved checks since %2$s.</item>
-    </plurals>
     <string name="lab_patterns_inferred_note">Linguize groups the fixes itself, so treat the groups as hints.</string>
     <string name="lab_patterns_recurring">Recurring</string>
     <string name="lab_patterns_not_grouped">Not grouped</string>
@@ -23,7 +19,6 @@
         <item quantity="other">%d other fixes</item>
     </plurals>
     <string name="lab_patterns_not_grouped_summary">Seen in only one check, or no rule matched</string>
-    <string name="lab_patterns_how">How this works</string>
     <string name="lab_patterns_how_counting">Only fixes you accepted and put back count. A text checked again counts once, and reused answers don\'t count.</string>
     <string name="lab_patterns_how_deleting">Deleting a check removes it from here, and deletes any explanation that used it.</string>
     <string name="lab_patterns_how_version">Analyser %1$s. Reads your %2$d newest checks at most.</string>

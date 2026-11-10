@@ -235,8 +235,8 @@ Cancelled requests, failures before a history session opens, unsaved decisions,
 and storage failures leave gaps. Reused answers and repeated checks are not
 independent mistakes. The data contains no full measure of the writer's writing
 or correctness, so it cannot by itself establish learning progress or an error
-rate. See [Architecture](architecture.md#evidence-first-derived-learning-later)
-for the prerequisites for deriving learning from these observations.
+rate. See [Architecture](architecture.md#evidence-and-derived-learning)
+for the current evidence paths and limits of derived learning.
 
 ## Language keys
 

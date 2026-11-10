@@ -2,13 +2,9 @@
 <resources>
     <!-- Lab: Chat. A conversation partner who only talks; Linguize checks each message before it goes. -->
     <string name="lab_chat_title">Chat</string>
-    <string name="lab_chat_home_subtitle">Talk with a native speaker. Linguize checks each message before it goes.</string>
     <string name="lab_chat_new">New conversation</string>
     <string name="lab_chat_untitled">New conversation</string>
     <string name="lab_chat_conversations">Conversations</string>
-    <string name="lab_chat_open_conversations">Open conversations</string>
-    <string name="lab_chat_open_home">Open Home</string>
-    <string name="lab_chat_language">Conversation language: %1$s. Change language</string>
     <string name="lab_chat_composer_label">Your message</string>
     <string name="lab_chat_composer_placeholder">Write a message</string>
     <string name="lab_chat_send">Send</string>
@@ -39,23 +35,11 @@
     <string name="lab_chat_delete_title">Delete conversation?</string>
     <string name="lab_chat_delete_body">Its messages, their checks in History and what was learned from it are deleted.</string>
     <string name="lab_chat_more">Rename or delete %1$s</string>
-    <string name="lab_chat_row">%1$s, %2$s, %3$s</string>
-    <string name="lab_chat_row_detail">%1$s, %2$s</string>
     <!-- Where a saved check came from, on Patterns and Practice examples. -->
     <string name="lab_chat_origin_chat">Chat</string>
     <string name="lab_chat_origin_app">Another app</string>
     <string name="lab_chat_you_wrote_in_chat">You wrote in a chat</string>
     <string name="lab_chat_you_wrote_in_app">You wrote in another app</string>
-    <!-- History: a chat conversation as one row. -->
-    <string name="lab_chat_history_row">Chat, %1$s</string>
-    <plurals name="lab_chat_history_messages">
-        <item quantity="one">%d message</item>
-        <item quantity="other">%d messages</item>
-    </plurals>
-    <plurals name="lab_chat_history_corrected">
-        <item quantity="one">%d corrected</item>
-        <item quantity="other">%d corrected</item>
-    </plurals>
     <string name="lab_chat_open_conversation">Open conversation</string>
     <!-- v3: one new-conversation sheet, translations with every reply. -->
     <string name="lab_chat_who_label">Who are you talking to?</string>

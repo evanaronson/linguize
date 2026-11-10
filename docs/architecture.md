@@ -10,7 +10,7 @@ owners without adding a module or framework for each responsibility.
 | Location | Owns |
 |---|---|
 | [app/src/main/java/com/evanaronson/linguize/](../app/src/main/java/com/evanaronson/linguize/) | Production Kotlin, described below |
-| [app/src/main/assets/](../app/src/main/assets/) | The shipped model prompt and answer schema; also read by the eval |
+| [app/src/main/assets/](../app/src/main/assets/) | Shipped model prompts, answer schemas, and linguistic data; the eval reads the base check contract |
 | [app/src/main/res/](../app/src/main/res/) | Android strings, themes, icons, and platform configuration |
 | [app/src/test/](../app/src/test/) | JVM and Robolectric regressions, generally mirroring production packages |
 | [eval/](../eval/README.md) | Curated linguistic cases and checks against live models |
@@ -35,11 +35,11 @@ composition root.
 | Package | Responsibility | Other app layers it may import |
 |---|---|---|
 | `codec` | Stable enum tokens and serialization | None |
-| `core` | Check options, verdicts, alignment, suggested edits, and accepting or undoing edits | `codec` |
+| `core` | Check/edit rules, corpus and language analysis, chat send state, memory facts, and practice scheduling | `codec` |
 | `llm` | Prompt formatting/parsing, provider APIs, transport, and check failures | `core`, `codec` |
 | `history` | Recorded evidence, recording rules, storage, answer reuse, and replay | `core`, `codec` |
-| `data` | Preferences, credentials, selection-menu configuration, temporary export files | `llm`, `core`, `codec`, resources |
-| root | `App` composes services; `Checker` runs checks; `CheckContext` captures their settings | All of the above, resources |
+| `data` | Preferences, credentials, feature stores, imported decks, selection-menu configuration, and exports | `llm`, `core`, `codec`, resources |
+| root | `App` composes services; `Checker`, `ChatPartner`, `ChatTargets`, `PatternsLab`, `Teacher`, and `LabUserMemory` coordinate feature operations | All of the above, resources |
 | `ui` | View models, shared card, app screens, navigation, and localized presentation | Root and all lower layers |
 | `menu`, `accessibility` | Android entry points and returning changes to the source app | `ui`, root, and all lower layers |
 
@@ -57,7 +57,7 @@ real dependency change is needed.
 
 ## Where behavior belongs
 
-The three check hosts share
+The selection-menu, clipboard/share, accessibility, Notes, and Chat check hosts share
 [ui/card](../app/src/main/java/com/evanaronson/linguize/ui/card/).
 `CheckViewModel` owns the visible check and accepted edits; `CardActions` gives
 hosts the same card actions. The selection-menu activity and accessibility service
@@ -65,33 +65,93 @@ own their different Android lifecycles and replacement mechanisms. They do not
 import each other.
 
 [ui/home/HomeActivity](../app/src/main/java/com/evanaronson/linguize/ui/home/HomeActivity.kt)
-currently hosts Home, History, Settings, and saved-check navigation. Its package
-name describes the launcher destination, although it owns the full app scaffold.
-Popup navigation and return handling live in `ui/popup`. Moving the app host into
-a new package can wait until navigation needs a larger separation.
+owns the app scaffold and the Chat, Notes, Progress, and History tabs, with Settings
+and feature/detail pages above them. The Notes tab is a list; `Screen.Note(id)` opens
+an editor explicitly. `Navigation` saves a stack of `Screen` tokens.
+The activity also distributes the app language through `scopeTo` and applies a
+Progress block's language through `scopeView`; several feature scopes therefore
+live in view models rather than in the saved route. Popup navigation and return
+handling live in `ui/popup`.
 
 [History](history.md) owns the meaning of stored decisions. The pure
 `SessionRecording` turns card activity into records; `CheckHistory` coordinates
 writes and reuse; `HistoryStore` is the storage boundary. SQL, migrations, and row
 mapping stay beside that feature. The edit engine does not know recording exists.
 
-`data` owns the app's other persistence. In particular,
+`data` owns the app's other persistence. Chat keeps conversations, raw/sent text,
+accepted changes, translations, and optional History links in its own SQLite
+database. It remains usable with History disabled; History-only deletion does not
+delete the conversation. Notes, saved phrases, memory facts, practice schedules,
+imported decks, lessons, pattern explanations, and measured time have separate
+stores. These stores have different retention rules: a deliberately saved phrase,
+for example, survives deletion of its source check. See the feature documents in
+[docs/lab](lab/) for their file formats and policies.
+
+In particular,
 [data/Exports](../app/src/main/java/com/evanaronson/linguize/data/Exports.kt)
 manages files through an output-stream callback, so it need not know the history
 schema. UI code owns sharing and requests cleanup. The files named `Exports.kt`
 in these layers have different responsibilities.
+
+`App` owns lazily created shared services and a process-wide `appScope`. The scope
+runs recording/cleanup work, memory learning, cached chat-target builds, and the
+pattern explanation watcher. Screen operations generally run in `viewModelScope`.
+A process scope outlives a screen, not the process: Chat deletion currently removes
+its local rows and then launches History/time/memory cleanup separately. There is
+no cross-store transaction or durable cleanup queue at that boundary.
 
 Keep Android resources in their native form. `strings.xml`, `strings_lifecycle.xml`,
 and `strings_platform.xml` form one catalog; file boundaries do not affect resource
 IDs or translation fallback. Follow [localization](localization.md) and
 [copy style](copy-style.md) when changing visible text.
 
-## Evidence first, derived learning later
+## Model requests
 
-History currently supports browsing, replay, and reuse of a recent answer. It
-does not build a writer profile or infer recurring mistakes. Its raw model answers
-and final decisions are useful observations, with the [limits described in the
-history contract](history.md#what-the-records-can-support).
+`App` supplies the base check prompt plus gap and tone rules to `Checker`.
+`CheckComposition` builds the effective prompt/schema; chat checks also add reply
+rules and the partner's last message. `ComposedPromptClient` and `ReplyingClient`
+adapt these requests to the shared providers' `generate` API. They remain active
+production paths. Answers are read with the base check contract, with optional
+tone data interpreted separately. `CheckContext` captures settings and prompt
+identity for recording and reuse.
+
+Chat replies, memory extraction, lessons, and pattern explanations use their own
+contracts through the same provider clients. The command-line model eval still
+reads the base check assets; it does not reproduce the app's full composition.
+The [Bonanza contract tests](bonanza-contracts.md) cover the effective app request,
+repair, and parsing without making live provider calls.
+
+## Evidence and derived learning
+
+History supports browsing, replay, and answer reuse, and already supplies learning
+features. Its raw model answers and final decisions are observations, with the
+[limits described in the history contract](history.md#what-the-records-can-support).
+
+| Consumer | Current evidence path | Derived state |
+|---|---|---|
+| Words and Conjugations | `App.corpus` → `CheckCorpusSource`, up to 3,000 saved checks | Word index/deck coverage and morphology reports, rebuilt from original writer text and changed-word spans |
+| Chat practice targets | The same corpus → `PracticeTargetsBuilder` | Per-language cached target blocks; vocabulary still uses `VocabAnalyser` and `WordFolding`, while Words uses `WordIndex`/`DeckCoverage` |
+| Patterns | History's `patternEvidence`, up to 400 checks | Deterministic report plus an optional saved model explanation with source IDs and fingerprint |
+| Practice | `PracticeSource` reads up to 500 History checks | Rebuilt items plus separately stored review schedules; the current policy prunes schedules outside the loaded set |
+| User memory | Chat exchanges → `LabUserMemory`, independently of the corpus | Model-proposed facts and writer-owned notes in `MemoryStore`; `ChatPartner` includes enabled memory in its prompt |
+
+`CheckCorpusSource` is the only source registered in `App.corpus`. It reads eligible
+History records, including recorded Chat messages, rather than scanning Chat's
+independent store. A conversation with History disabled therefore remains visible
+in Chat but does not contribute new corpus evidence. `CheckUtterances` maps original
+text, source/session identity, language, and the words changed by accepted
+corrections (whole spans for filled gaps); it also
+applies the existing reuse and rechecked-output exclusions. Corpus reads currently
+skip a source that throws, so an empty result does not prove a successful empty
+History read.
+
+Reports and caches have feature-specific lifetimes. Words and Conjugations rebuild
+from the corpus; Patterns watches History revisions and reconciles its saved
+explanation against the current bounded report. Those analysis windows are not
+inventories of every surviving source record. Keep the window, retention, and
+authorship policies explicit when changing an analyser. The older vocabulary path
+is still needed by Chat targets and shared deck matching; removing the former
+Vocabulary gaps screen did not make that engine obsolete.
 
 Two kinds of improvement need different evidence. A wrong linguistic suggestion
 belongs in a reviewed eval case with an expected judgment. A lookup failure,
@@ -100,24 +160,10 @@ corresponding Android or offline test. A transport error is not a writing mistak
 The [eval guide](../eval/README.md) describes how curated cases support prompt and
 provider changes.
 
-Before implementing learning, define the claim it should make and how to assess
-it. A count of accepted suggestions alone cannot establish correctness, authorship,
-or improvement over time. Reused answers and repeated checks also need an explicit
-counting rule.
-
-Any future learning output should be derived separately from the source records.
-It should identify the sessions, attempts, and suggestions it used, record the
-analyser/model/prompt version, and distinguish inferred patterns from reviewed
-conclusions. Deleting source history must also remove or invalidate dependent
-outputs; a changed analyser must be able to rebuild them. Evaluation needs reviewed
-examples and a baseline before such claims appear in the UI.
-
-These are prerequisites, not a proposed implementation. Add a learning package,
-storage table, worker, or server only with a concrete feature and its tests. The
-same applies to sync: UUIDs and versioned records help, but deletion propagation,
-consent, conflict rules, and a versioned network contract are still undecided.
-Existing stored fields and migration code should remain compatible while those
-decisions are deferred.
+A count of accepted suggestions alone cannot establish correctness, authorship,
+or improvement over time. Preserve source identity and current counting rules when
+refactoring; review semantic changes separately. Existing stored fields, enum
+tokens, legacy decoding, and database migrations remain compatibility boundaries.
 
 ## When to split further
 

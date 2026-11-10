@@ -66,8 +66,6 @@ data class DeckCoverage(
     fun rankOf(lexeme: Lexeme): Int? =
         byKey[if (lexeme.pos == Pos.Unknown) lexeme.lemma else "${lexeme.lemma}/${lexeme.pos.token}"]?.rank ?: lemmaRank[lexeme.lemma]
 
-    fun rankOfLemma(lemma: String): Int? = lemmaRank[lemma]
-
     companion object {
         /**
          * Measures [deck] against [words]. Each written form goes through the deck's matching

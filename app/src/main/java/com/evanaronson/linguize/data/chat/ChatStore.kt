@@ -13,6 +13,7 @@ import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.SentCheck
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -21,10 +22,14 @@ import kotlinx.serialization.json.Json
 
 /**
  * Lab Chat's conversations and messages, in their own SQLite database (`lab_chat`), apart from
- * History and settings. Every call runs on [Dispatchers.IO]; a failure is logged and reads as
+ * History and settings. Every call runs on [Dispatchers.IO] by default; a failure is logged and reads as
  * nothing (or false), so the chat never crashes the app.
  */
-class ChatStore(context: Context, name: String? = DATABASE) {
+class ChatStore(
+    context: Context,
+    name: String? = DATABASE,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
     private val helper = Helper(context.applicationContext, name)
 
     /** Every conversation, most recently active first. */
@@ -53,14 +58,6 @@ class ChatStore(context: Context, name: String? = DATABASE) {
     /** [id]'s messages, oldest first. */
     suspend fun messages(id: String): List<ChatMessage> = io("read messages", emptyList()) { db -> db.messages(id) }
 
-    /** Every conversation with its messages, for the corpus. */
-    suspend fun everything(): List<Pair<Conversation, List<ChatMessage>>> = io("read all conversations", emptyList()) { db ->
-        val conversations = db.rawQuery("SELECT * FROM conversations", null).use { cursor ->
-            buildList { while (cursor.moveToNext()) add(cursor.conversation()) }
-        }
-        conversations.map { it to db.messages(it.id) }
-    }
-
     suspend fun create(conversation: Conversation): Boolean = io("create a conversation", false) { db ->
         db.insertOrThrow(CONVERSATIONS, null, conversation.values())
         true
@@ -75,22 +72,9 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         true
     }
 
-    /** Replaces [conversationId]'s messages with [messages] (a fresh opener in another language). */
-    suspend fun replaceMessages(conversationId: String, messages: List<ChatMessage>): Boolean = io("replace messages", false) { db ->
-        db.transaction {
-            db.delete(MESSAGES, "conversation = ?", arrayOf(conversationId))
-            messages.forEach { db.insertOrThrow(MESSAGES, null, it.values()) }
-        }
-        true
-    }
-
     suspend fun rename(id: String, title: String, custom: Boolean): Boolean = update(id, "rename a conversation") {
         put("title", title)
         put("title_custom", if (custom) 1 else 0)
-    }
-
-    suspend fun setLanguage(id: String, language: String): Boolean = update(id, "change a conversation's language") {
-        put("language", language)
     }
 
     suspend fun setLearned(id: String, count: Int): Boolean = update(id, "note what memory learned") {
@@ -133,7 +117,7 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         out
     }
 
-    /** Deletes [id] and its messages; returns them, so the deletion can be undone with [restore]. */
+    /** Deletes [id] and its messages; returns the deleted record, or null if none was removed. */
     suspend fun delete(id: String): Pair<Conversation, List<ChatMessage>>? = io("delete a conversation", null) { db ->
         db.transaction {
             val conversation = db.rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id))
@@ -145,19 +129,11 @@ class ChatStore(context: Context, name: String? = DATABASE) {
         }
     }
 
-    suspend fun restore(conversation: Conversation, messages: List<ChatMessage>): Boolean = io("restore a conversation", false) { db ->
-        db.transaction {
-            db.insertWithOnConflict(CONVERSATIONS, null, conversation.values(), SQLiteDatabase.CONFLICT_REPLACE)
-            messages.forEach { db.insertWithOnConflict(MESSAGES, null, it.values(), SQLiteDatabase.CONFLICT_REPLACE) }
-        }
-        true
-    }
-
     private suspend fun update(id: String, what: String, values: ContentValues.() -> Unit): Boolean = io(what, false) { db ->
         db.update(CONVERSATIONS, ContentValues().apply(values), "id = ?", arrayOf(id)) > 0
     }
 
-    private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(dispatcher) {
         try {
             block(helper.writableDatabase)
         } catch (e: Exception) {

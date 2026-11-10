@@ -119,4 +119,3 @@ Use `disclosureToggle` + `DisclosureChevron` when the trigger and the content ar
 ## Limits
 
 - `Disclosure` does not decide how many sections can be open at once. Keep the state in a view model (as Chat does) for one-at-a-time.
-- The History strings `history_expanded` / `history_collapsed` are no longer used by the code. They were left in place to keep shared string files untouched, and can be removed in a cleanup.

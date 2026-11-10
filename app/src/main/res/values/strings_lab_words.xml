@@ -3,14 +3,9 @@
     <!-- Lab: Your words. Counts only what the writer typed themselves. -->
     <string name="lab_words_title">Words</string>
     <string name="lab_words_open">Open words</string>
-    <plurals name="lab_words_home_summary">
-        <item quantity="one">%1$d word you\'ve written in %2$s</item>
-        <item quantity="other">%1$d words you\'ve written in %2$s</item>
-    </plurals>
     <string name="lab_words_history_summary">Common words you\'ve used, and the ones you haven\'t</string>
     <string name="lab_words_other_language">Other</string>
 
-    <string name="lab_words_language">Language</string>
     <string name="lab_words_stat_distinct">Words</string>
     <string name="lab_words_stat_lexemes">Lexemes</string>
     <string name="lab_words_stat_lemmas">Lemmas</string>
@@ -58,7 +53,6 @@
 
     <string name="lab_words_empty_title">No words yet</string>
     <string name="lab_words_empty">Words from the checks you put back show up here.</string>
-    <string name="lab_words_how_header">How it\'s counted</string>
     <string name="lab_words_how">Only words you typed yourself count, from your saved checks. Words Linguize suggested never count.</string>
     <string name="lab_words_how_tried">A word a fix you accepted replaced counts as used wrong. Words a fix kept, and rewordings, don\'t count against you.</string>
     <string name="lab_words_how_accuracy">Right and wrong add up to every use. The percent is the share used right.</string>

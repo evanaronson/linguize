@@ -53,7 +53,7 @@ class VocabDeckTest {
         val report = VocabAnalyser(Lemmatizer.Identity).analyse(deck, emptyList()).copy(
             used = mapOf("ser/v" to WordUse(1, 0, emptyList())),
         )
-        val next = VocabSuggestions.next(deck, report)
+        val next = VocabSuggestions.next(deck, report.used.keys)
         assertEquals(listOf("v", "n", "adj", "other"), next.map { it.group })
         assertEquals(listOf("tener"), next.first().entries.map { it.lemma })
         assertEquals(listOf("casa", "tener", "grande"), VocabSuggestions.targets(deck, report).map { it.lemma })

@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.core.chat
 
 import com.evanaronson.linguize.core.EditKind
-import com.evanaronson.linguize.core.corpus.Span
 
 /** Lab Chat: one conversation with the practice partner. [language] is an ISO 639-1 code. */
 data class Conversation(
@@ -58,8 +57,6 @@ data class ChatChange(
     init {
         require(start in 0..end) { "A change starts at or before its end" }
     }
-
-    val span get() = Span(start, end)
 }
 
 /**
@@ -89,9 +86,6 @@ data class ChatMessage(
             "Each change must hold its text in the raw message"
         }
     }
-
-    /** The spans of [raw] an accepted fix replaced: what the writer tried and got wrong. */
-    val correctedSpans: List<Span> get() = changes.filter { it.kind == EditKind.Fix }.map { it.span }
 
     companion object {
         /** A partner reply, or the opener. */

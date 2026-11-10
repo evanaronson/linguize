@@ -149,6 +149,9 @@ class ChatStoreTest {
         assertNull(upgraded.messages("old").single().translation)
         upgraded.add(ChatMessage.partner("p", "old", "¿Qué tal?", 3, translation = "How are you?"))
         assertEquals("How are you?", upgraded.messages("old").last().translation)
+        assertTrue(upgraded.delete("old"))
+        assertNull(upgraded.conversation("old"))
+        assertTrue(upgraded.messages("old").isEmpty())
         upgraded.close()
     }
 

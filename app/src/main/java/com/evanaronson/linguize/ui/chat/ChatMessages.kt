@@ -81,7 +81,6 @@ import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.card.Failure
 import com.evanaronson.linguize.ui.card.Progress
 import com.evanaronson.linguize.ui.card.ResultCard
-import com.evanaronson.linguize.ui.card.ReviewActions
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.DisclosureMotion
 import com.evanaronson.linguize.ui.components.LinguizeButton
@@ -377,21 +376,12 @@ internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: 
     val context = LocalContext.current
     val state = check.state
     val revision = ((state as? CardState.Done)?.result as? CheckResult.Reviewed)?.revision
-    val actions = CardActions(
-        onCopy = { text, kind -> context.copyToClipboard(text); check.copied(kind) },
-        review = ReviewActions(
-            onAccept = check::accept,
-            onAcceptAll = { check.acceptAll(it) },
-            onUndo = check::undo,
-            onApply = { revision?.let(chat::sendReviewed) },
-            applyLabel = R.string.lab_chat_send,
-        ),
-        onRetry = check::recheck,
+    val actions = CardActions.of(
+        check, context,
+        onClose = { revision?.let(chat::sendReviewed) },
         onOpenSettings = onOpenSettings,
-        onSettle = check::settle,
-        onRemoveChoice = check::removeChoice,
-        onClarify = check::clarifyMeaning,
-        onRemoveClarification = check::removeMeaning,
+        applyLabel = R.string.lab_chat_send,
+        phraseOrigin = null,
     )
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         if (chat.savingMessage) {

@@ -43,6 +43,7 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.practice.AnswerResult
 import com.evanaronson.linguize.core.practice.Hint
 import com.evanaronson.linguize.core.practice.PracticeItem
+import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.ExplanationPanel
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.InsetShape
@@ -132,7 +133,11 @@ private fun ItemView(run: PracticeRun, item: PracticeItem, correctFirst: Boolean
     var typed by rememberSaveable { mutableStateOf("") }
     when (item.mode) {
         PracticeItem.Mode.Type -> {
-            Label(stringResource(com.evanaronson.linguize.ui.chat.youWroteLabel(item.origin)))
+            Label(stringResource(when (item.origin) {
+                null -> R.string.lab_practice_you_wrote
+                Origin.Chat.token -> R.string.lab_chat_you_wrote_in_chat
+                else -> R.string.lab_chat_you_wrote_in_app
+            }))
             MarkedSentence(item)
             if (answered == null) {
                 Spacer(Modifier.height(16.dp))

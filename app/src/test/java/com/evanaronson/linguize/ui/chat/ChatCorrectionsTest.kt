@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.ui.chat
 
 import android.app.Application
+import android.content.Context
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
@@ -18,18 +19,45 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelStore
+import androidx.test.core.app.ApplicationProvider
+import com.evanaronson.linguize.ChatPartner
+import com.evanaronson.linguize.FakeClient
+import com.evanaronson.linguize.FakePreferences
+import com.evanaronson.linguize.QUESTION
+import com.evanaronson.linguize.QUESTION_JSON
+import com.evanaronson.linguize.QUESTION_VERDICT
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
+import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.chat.ChatChange
 import com.evanaronson.linguize.core.chat.ChatMessage
+import com.evanaronson.linguize.core.chat.Conversation
+import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.chat.SentCheck
+import com.evanaronson.linguize.core.time.DraftTiming
+import com.evanaronson.linguize.data.ProviderKeys
+import com.evanaronson.linguize.data.chat.ChatPreferences
+import com.evanaronson.linguize.data.chat.ChatStore
+import com.evanaronson.linguize.fakeChecker
+import com.evanaronson.linguize.history.CheckHistory
 import com.evanaronson.linguize.history.Decision
+import com.evanaronson.linguize.history.HistoryEnvironment
+import com.evanaronson.linguize.history.Origin
+import com.evanaronson.linguize.history.SqliteHistoryStore
+import com.evanaronson.linguize.llm.ModelAnswer
+import com.evanaronson.linguize.ui.card.CardState
+import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.theme.LinguizeTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -168,6 +196,90 @@ class ChatCorrectionsTest {
         }
     }
 
+    @Test fun theChatReviewKeepsAcceptAndUndoSeparateFromSendWithoutPhraseSaving() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = ChatStore(context, name = null)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val models = ViewModelStore()
+        val preferences = FakePreferences()
+        val checker = fakeChecker(preferences, FakeClient { ModelAnswer(QUESTION_VERDICT, QUESTION_JSON) })
+        val card = CheckViewModel({ checker }, CheckHistory(SqliteHistoryStore(context), object : HistoryEnvironment {
+            override val enabled = false
+            override val deviceId = "device"
+            override val appVersion = "1"
+        }, scope))
+        val chat = ChatViewModel(
+            store, ChatPartner(preferences, ProviderKeys { null }, emptyMap(), { error("No partner request") }) {
+                error("No partner request")
+            }, ChatPreferences(context), memory = { error("No learning during review") },
+            startLanguage = { "ca" }, drainDeletions = {}, people = { emptyList() },
+            translate = { error("No translation during review") }, warmTargets = {}, appScope = scope,
+        )
+        models.put("card", card)
+        models.put("chat", chat)
+        chat.draftCheck = object : DraftCheck {
+            override val sessionId: String? get() = card.pendingSessionId
+            override fun start(draft: String, language: Language, replyingTo: String?) = card.check(draft, language, Origin.Chat)
+            override fun stop() = card.discard()
+            override fun finish(sent: String, timing: DraftTiming?): String? = card.dismissSent(sent, timing)
+        }
+        fun waitFor(condition: () -> Boolean) {
+            val deadline = System.nanoTime() + 5_000_000_000L
+            while (!condition()) {
+                check(System.nanoTime() < deadline) { "Timed out waiting for the chat review" }
+                shadowOf(Looper.getMainLooper()).idle()
+                Thread.sleep(2)
+            }
+        }
+        try {
+            runBlocking {
+                store.create(Conversation("review", "", "ca", 1, 1))
+                store.add(reply.copy(conversationId = "review"))
+            }
+            chat.open("review")
+            waitFor { chat.thread != null }
+            chat.onDraftChange(TextFieldValue(QUESTION))
+            chat.send()
+            waitFor { card.state is CardState.Done }
+            chat.onCardState(card.state)
+            val reviewed = (card.state as CardState.Done).result as CheckResult.Reviewed
+            val correction = reviewed.revision.edits.single().replacement.trim()
+            show({ if (chat.send != SendState.Composing) ReviewPanel(chat, card, 600.dp, {}) }) { root, activity, flush ->
+                fun click(id: Int, afterClick: () -> Unit = {}) {
+                    val button = nodes(root, merged = true).single { node ->
+                        node.config.getOrNull(SemanticsProperties.Text)?.any { it.text == activity.getString(id) } == true &&
+                            node.config.getOrNull(SemanticsActions.OnClick) != null
+                    }
+                    assertTrue(requireNotNull(button.config[SemanticsActions.OnClick].action).invoke())
+                    afterClick()
+                    flush()
+                }
+                assertFalse(descriptions(root).contains(activity.getString(R.string.lab_phrasebook_save_phrase, correction)))
+                assertTrue(hasText(root, activity.getString(R.string.lab_chat_send_as_written)))
+                click(R.string.accept)
+                assertEquals("Com estàs?", card.workingText)
+                assertTrue(hasText(root, activity.getString(R.string.lab_chat_send)))
+                assertFalse(hasText(root, activity.getString(R.string.apply)))
+                assertFalse(chat.thread!!.messages.any { it.fromWriter })
+                click(R.string.undo)
+                assertNull(card.workingText)
+                assertFalse(chat.thread!!.messages.any { it.fromWriter })
+                click(R.string.accept)
+                click(R.string.lab_chat_send) {
+                    waitFor { chat.thread!!.messages.any { it.fromWriter } && chat.conversations.singleOrNull()?.writerMessages == 1 }
+                }
+                assertEquals("Com estàs?", chat.thread!!.messages.single { it.fromWriter }.text)
+                assertEquals(SendState.Composing, chat.send)
+                assertEquals("", chat.draft.text)
+                assertNull(card.state)
+            }
+        } finally {
+            scope.cancel()
+            models.clear()
+            store.close()
+        }
+    }
+
     private fun bubble(root: View, description: String): SemanticsNode = nodes(root).single { node ->
         node.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(description) == true
     }
@@ -220,7 +332,7 @@ class ChatCorrectionsTest {
     private fun descriptions(root: View): List<String> =
         nodes(root).flatMap { it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() }
 
-    private fun nodes(root: View): List<SemanticsNode> {
+    private fun nodes(root: View, merged: Boolean = false): List<SemanticsNode> {
         fun owner(view: View): SemanticsOwner? {
             val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
             if (method != null) return method.invoke(view) as SemanticsOwner
@@ -228,6 +340,7 @@ class ChatCorrectionsTest {
             return null
         }
         fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-        return flatten(requireNotNull(owner(root)).unmergedRootSemanticsNode)
+        val semantics = requireNotNull(owner(root))
+        return flatten(if (merged) semantics.rootSemanticsNode else semantics.unmergedRootSemanticsNode)
     }
 }

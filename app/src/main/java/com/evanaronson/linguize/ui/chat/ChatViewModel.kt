@@ -129,15 +129,13 @@ class ChatViewModel(
     /** The checked message is being committed; its draft and check remain intact until then. */
     val savingMessage get() = send is SendState.Saving
     val sendSaveFailed get() = send is SendState.SaveFailed
-    var replySaveFailed by mutableStateOf(false)
-        private set
+    val replySaveFailed get() = unsavedPartner != null
     var conversationSaveFailure by mutableStateOf<ConversationWriteFailure?>(null)
         private set
     var creatingConversationId by mutableStateOf<String?>(null)
         private set
 
-    var loadFailed by mutableStateOf(false)
-        private set
+    val loadFailed get() = failedRead != null
 
     /** The partner is writing (the opener or a reply). */
     var replying by mutableStateOf(false)
@@ -174,7 +172,7 @@ class ChatViewModel(
 
     private var replyJob: Job? = null
     private var sendJob: Job? = null
-    private var unsavedPartner: PartnerMessage? = null
+    private var unsavedPartner by mutableStateOf<PartnerMessage?>(null)
     private var learnedQuiet = false
 
     /** Revocation is visible to the SQLite dispatcher as well as to Main continuations. */
@@ -192,7 +190,7 @@ class ChatViewModel(
     private var settingsRead: Any? = null
     private var peopleRead: Any? = null
     private var metadataCommand: Any? = null
-    private var failedRead: (() -> Unit)? = null
+    private var failedRead by mutableStateOf<(() -> Unit)?>(null)
     private var failedReadIsList = false
 
     private data class PartnerMessage(val message: ChatMessage, val afterMessageId: String?, val title: String? = null)
@@ -203,7 +201,6 @@ class ChatViewModel(
         listRead = null
         creatingConversationId = null
         failedRead = null
-        loadFailed = false
         return Selection(id).also { selection = it }
     }
 
@@ -232,7 +229,6 @@ class ChatViewModel(
         Log.w(TAG, "Couldn't load chat", error)
         failedRead = retry
         failedReadIsList = isList
-        loadFailed = true
     }
 
     /** Lab, Time spent: the draft's writing time, measured invisibly. */
@@ -278,7 +274,6 @@ class ChatViewModel(
         conversations = visible(all, thread?.conversation?.id)
         if (failedReadIsList) {
             failedRead = null
-            loadFailed = false
         }
         if (!learnedQuiet) {
             learnedQuiet = true
@@ -416,7 +411,6 @@ class ChatViewModel(
                 return@launch
             }
             if (!owns(owner)) return@launch
-            loadFailed = false
             failedRead = null
             if (loaded == null) return@launch onMissing()
             if (thread?.conversation?.id == id) {
@@ -431,7 +425,6 @@ class ChatViewModel(
         editor = Any()
         cancelPartner()
         replyFailure = null
-        replySaveFailed = false
         unsavedPartner = null
         expanded = null
         focusDraft = false
@@ -670,7 +663,6 @@ class ChatViewModel(
         val operation = PartnerOperation(selected).also { partnerOperation = it }
         replying = true
         replyFailure = null
-        replySaveFailed = false
         unsavedPartner = null
         replyJob = viewModelScope.launch {
             try {
@@ -730,10 +722,7 @@ class ChatViewModel(
             }
             if (!owns(operation)) return@withContext
             when (saved) {
-                PartnerAppend.Failed -> {
-                    unsavedPartner = pending
-                    replySaveFailed = true
-                }
+                PartnerAppend.Failed -> unsavedPartner = pending
                 PartnerAppend.Superseded -> {
                     // Another writer/VM may have advanced the durable tail. Retry must use
                     // that acknowledged conversation, while retaining this editor's draft.
@@ -745,15 +734,9 @@ class ChatViewModel(
                         if (owns(operation)) readFailed({ open(pending.message.conversationId) }, e)
                         return@withContext
                     }
-                    if (owns(operation)) {
-                        thread = refreshed?.afterRename(renameAtStart)
-                        unsavedPartner = null
-                        replySaveFailed = false
-                    }
+                    if (owns(operation)) thread = refreshed?.afterRename(renameAtStart)
                 }
                 is PartnerAppend.Saved -> {
-                    unsavedPartner = null
-                    replySaveFailed = false
                     thread = saved.snapshot.afterRename(renameAtStart)
                     reloadList()
                 }

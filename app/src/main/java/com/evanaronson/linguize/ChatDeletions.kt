@@ -21,33 +21,25 @@ class ChatDeletions(
      * disk for the next startup, chat visit, or deletion. Cancellation also leaves it pending.
      */
     suspend fun drain(): Boolean = draining.withLock {
-        val pending = try {
-            store.pendingDeletions()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w(TAG, "Couldn't read pending conversation cleanup", e)
-            return@withLock false
-        }
-        var complete = !pending.hasUnreadableEntries
-        for (deletion in pending.entries) {
-            // Forget first: it invalidates queued learning before its first suspension, even
-            // if another child fails. Still attempt independent cleanup after a storage error.
-            var acknowledged = attempt { forgetMemory("chat:${deletion.conversationId}"); true }
-            for (id in deletion.sessionIds) {
-                val deleted = attempt { deleteHistory(id) }
-                acknowledged = deleted && acknowledged
+        attempt {
+            val pending = store.pendingDeletions()
+            var complete = !pending.hasUnreadableEntries
+            for (deletion in pending.entries) {
+                // Forget first: it invalidates queued learning before its first suspension, even
+                // if another child fails. Still attempt independent cleanup after a storage error.
+                var acknowledged = attempt { forgetMemory("chat:${deletion.conversationId}"); true }
+                for (id in deletion.sessionIds) {
+                    acknowledged = attempt { deleteHistory(id) } && acknowledged
+                }
+                acknowledged = attempt { deleteTiming(deletion.sessionIds) } && acknowledged
+                if (deletion.sessionIds.isNotEmpty()) {
+                    acknowledged = attempt { forgetExports() } && acknowledged
+                }
+                if (acknowledged) acknowledged = attempt { store.completeDeletion(deletion) }
+                complete = acknowledged && complete
             }
-            val timingDeleted = attempt { deleteTiming(deletion.sessionIds) }
-            acknowledged = timingDeleted && acknowledged
-            if (deletion.sessionIds.isNotEmpty()) {
-                val exportsDeleted = attempt { forgetExports() }
-                acknowledged = exportsDeleted && acknowledged
-            }
-            if (acknowledged) acknowledged = attempt { store.completeDeletion(deletion) }
-            complete = acknowledged && complete
+            complete
         }
-        complete
     }
 
     private suspend fun attempt(action: suspend () -> Boolean): Boolean = try {

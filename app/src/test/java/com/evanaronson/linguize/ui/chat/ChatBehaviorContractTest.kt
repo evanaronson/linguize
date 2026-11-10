@@ -297,7 +297,7 @@ class ChatBehaviorContractTest {
     }
 
     @Test fun aFailedReplySaveKeepsTheWriterWaitingAndRetriesTheSameGeneratedAnswer() = runTest(main.dispatcher) {
-        withNamedStore("reply-save-failure") { named ->
+        withHeldStore("reply-save-failure") { named, io ->
             assertTrue(named.create(Conversation("thread", "", "es", 1, 2)))
             assertTrue(named.add(ChatMessage("writer", "thread", true, "Hola", "Hola", at = 3)))
             failInserts("reply-save-failure", fromWriter = false)
@@ -313,13 +313,33 @@ class ChatBehaviorContractTest {
             assertEquals(chat.thread!!.messages, readFresh("reply-save-failure"))
             assertEquals(1, requests.size)
 
+            // Retrying hides the failure while SQLite runs, then retains the same answer if it fails again.
+            io.hold = true
+            chat.retryReply()
+            runCurrent()
+            assertTrue(io.hasPendingWork)
+            assertTrue(chat.replying)
+            assertFalse(chat.replySaveFailed)
+            assertTrue(chat.thread!!.awaitingReply)
+            assertEquals(1, requests.size)
+            io.release()
+            runCurrent()
+            assertFalse(chat.replying)
+            assertTrue(chat.replySaveFailed)
+            assertTrue(chat.thread!!.awaitingReply)
+            assertEquals(listOf("writer"), chat.thread!!.messages.map { it.id })
+            assertEquals(chat.thread!!.messages, readFresh("reply-save-failure"))
+            assertEquals(1, requests.size)
+
             sql("reply-save-failure", "DROP TRIGGER fail_message")
             chat.retryReply()
             runCurrent()
             assertFalse(chat.replySaveFailed)
             assertFalse(chat.thread!!.awaitingReply)
             assertEquals(1, requests.size) // Retry the saved answer, not another provider request.
+            assertEquals("¡Hola!", chat.thread!!.messages.last().text)
             assertEquals("Hi!", chat.thread!!.messages.last().translation)
+            assertEquals("Greeting", chat.thread!!.conversation.title)
             assertEquals(chat.thread!!.messages, readFresh("reply-save-failure"))
         }
     }
@@ -525,9 +545,10 @@ class ChatBehaviorContractTest {
         return try { reopened.messages("thread") } finally { reopened.close() }
     }
 
-    private suspend fun withHeldStore(block: suspend (ChatStore, HeldDispatcher) -> Unit) {
+    private suspend fun withHeldStore(name: String? = null, block: suspend (ChatStore, HeldDispatcher) -> Unit) {
+        name?.let(context::deleteDatabase)
         val io = HeldDispatcher(main.dispatcher)
-        val held = ChatStore(context, name = null, dispatcher = io)
+        val held = ChatStore(context, name = name, dispatcher = io)
         try {
             block(held, io)
         } finally {
@@ -535,6 +556,7 @@ class ChatBehaviorContractTest {
             owners.clear()
             main.dispatcher.scheduler.runCurrent()
             held.close()
+            name?.let(context::deleteDatabase)
         }
     }
 

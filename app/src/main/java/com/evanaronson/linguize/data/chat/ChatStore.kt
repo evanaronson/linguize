@@ -149,8 +149,8 @@ class ChatStore(
             }
         }
 
-    suspend fun setLearned(id: String, count: Int): Boolean = update(id, "note what memory learned") {
-        put("learned_count", count)
+    suspend fun setLearned(id: String, count: Int): Boolean = io("note what memory learned", false) { db ->
+        db.update(CONVERSATIONS, ContentValues().apply { put("learned_count", count) }, "id = ?", arrayOf(id)) > 0
     }
 
     /** The History sessions [conversationId]'s messages were saved as. */
@@ -203,7 +203,6 @@ class ChatStore(
                 arrayOf(id),
             ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
             if (!permitted()) return@transaction false
-            db.delete(MESSAGES, "conversation = ?", arrayOf(id))
             db.delete(CONVERSATIONS, "id = ?", arrayOf(id))
             db.insertOrThrow(DELETIONS, null, ContentValues().apply {
                 put("conversation", id)
@@ -239,10 +238,6 @@ class ChatStore(
         helper.writableDatabase.delete(DELETIONS, "conversation = ? AND session_ids = ?", arrayOf(
             deletion.conversationId, json.encodeToString(sessionList, deletion.sessionIds),
         )) == 1
-    }
-
-    private suspend fun update(id: String, what: String, values: ContentValues.() -> Unit): Boolean = io(what, false) { db ->
-        db.update(CONVERSATIONS, ContentValues().apply(values), "id = ?", arrayOf(id)) > 0
     }
 
     private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(dispatcher) {

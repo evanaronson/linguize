@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.patterns.PairCount
 import com.evanaronson.linguize.history.patterns.Pattern
 import com.evanaronson.linguize.history.patterns.PatternExample
@@ -142,7 +143,9 @@ private fun Examples(examples: List<PatternExample>, showBasis: Boolean, onOpenC
                     .padding(vertical = 12.dp)
                     .semantics(mergeDescendants = true) { },
             ) {
-                val from = stringResource(com.evanaronson.linguize.ui.chat.originLabel(example.origin))
+                val from = stringResource(
+                    if (example.origin == Origin.Chat.token) R.string.lab_chat_origin_chat else R.string.lab_chat_origin_app,
+                )
                 Text(listOfNotNull(date, from, group, basis).joinToString(stringResource(R.string.status_separator)),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(change, style = MaterialTheme.typography.bodyLarge,

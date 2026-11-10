@@ -38,6 +38,8 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
+            @androidx.annotation.StringRes applyLabel: Int = com.evanaronson.linguize.R.string.apply,
+            phraseOrigin: PhraseOrigin? = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
@@ -49,6 +51,7 @@ class CardActions(
                     onAcceptAll = { check.acceptAll(it) },
                     onUndo = check::undo,
                     onApply = onClose,
+                    applyLabel = applyLabel,
                 )
             } else {
                 null
@@ -59,7 +62,7 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
-            phraseOrigin = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
+            phraseOrigin = phraseOrigin,
         )
     }
 }

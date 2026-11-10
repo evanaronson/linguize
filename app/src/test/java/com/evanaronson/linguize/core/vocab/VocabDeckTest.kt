@@ -58,4 +58,27 @@ class VocabDeckTest {
         assertEquals(listOf("tener"), next.first().entries.map { it.lemma })
         assertEquals(listOf("casa", "tener", "grande"), VocabSuggestions.targets(deck, report).map { it.lemma })
     }
+
+    @Test
+    fun theLemmaViewOfACutDeckStillFillsItsRowsBySummedCount() {
+        val lexemes = listOf(
+            DeckEntry(1, "como", Pos.Conjunction.token, count = 100),
+            DeckEntry(2, "casa", Pos.Noun.token, count = 90),
+            DeckEntry(3, "como", Pos.Adverb.token, count = 50),
+            DeckEntry(4, "vino", Pos.Noun.token, count = 40),
+            DeckEntry(5, "casa", Pos.Verb.token, count = 30),
+            DeckEntry(6, "vino", Pos.Verb.token, count = 30),
+        )
+        val deck = VocabDeck("es", "", "es", lexemes, true).top(3)
+        assertEquals(listOf("como/conj", "casa/n", "como/adv"), deck.entries.map { it.key })
+        assertEquals(3, deck.reserve.size)
+        val lemmas = deck.byLemma()
+        assertEquals(listOf("como", "casa", "vino"), lemmas.entries.map { it.lemma })
+        assertEquals(listOf(150L, 120L, 70L), lemmas.entries.map { it.count })
+        assertEquals(listOf(1, 2, 3), lemmas.entries.map { it.rank })
+        assertEquals(VocabLevel.Lemma, lemmas.level)
+        // An uncut deck merges every row, as before.
+        assertEquals(3, VocabDeck("es", "", "es", lexemes, true).byLemma().size)
+        assertEquals(deck, deck.top(3))
+    }
 }

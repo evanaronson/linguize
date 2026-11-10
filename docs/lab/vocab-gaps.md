@@ -14,9 +14,16 @@ OpenSubtitles2018 corpus, and are shared under **CC BY-SA 4.0**:
   frequent Spanish lemmas with part of speech and the word forms counted toward each.
   Adapted from `frequency.csv` in [doozan/spanish_data](https://github.com/doozan/spanish_data),
   which is derived from hermitdave/FrequencyWords with tagging by FreeLing.
-- `app/src/main/assets/lab_vocab_ca.csv` (`rank,form,count`): the 5,000 most frequent Catalan
-  **word forms**, from `content/2018/ca/ca_50k.txt` in
-  [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords).
+- `app/src/main/assets/lab_vocab_ca.csv` (`rank,form,count`): the 15,000 most frequent
+  Catalan **word forms** (of 50,000), from `content/2018/ca/ca_50k.txt` in
+  [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords). It ships three
+  times as many forms as Words shows, because grouping forms into lexemes shrinks the list
+  (see "Top 5,000" below).
+- `scripts/build_vocab_decks.py` makes both files from the sources, deterministically:
+  `python3 -I scripts/build_vocab_decks.py --spanish frequency.csv --catalan ca_50k.txt --out app/src/main/assets`.
+  Its docstring lists the filters (Spanish: no DUPLICATE rows, proper nouns or lemmas
+  that aren't lowercase Spanish letters; forms with a count of 50 or more, at most 40.
+  Catalan: forms of Catalan letters only).
 - `app/src/main/assets/lab_vocab_SOURCES.md` ships with them. Words shows the
   attribution under "About these lists".
 
@@ -80,6 +87,20 @@ With `App.lemmatizer`'s morphology, step 1 catches most words and Catalan forms 
 lexemes. Decks are read again when the lemmatizer changes.
 
 **By lemma** is the same deck with rows that share a lemma merged (`VocabDeck.byLemma`).
+When every row has a count, merged rows are ranked by their summed count; otherwise each sits
+where its first lexeme was.
+
+**Top 5,000.** Each bundled deck shows exactly its 5,000 most frequent rows at the level
+shown, lexeme or lemma (`BundledDecks.SIZE`), so the 5,000 bar is always full. The deck is
+grouped first and cut after (`VocabDeck.top`); the rows below the cut stay in
+`VocabDeck.reserve`, are never shown or counted, and only let `byLemma` merge the full list
+before it cuts to 5,000 again. Earlier builds shipped only the top 5,000 Catalan forms, and
+grouping them left 3,517 lexemes and 3,183 lemmas. Grouping 15,000 forms leaves about 11,400
+lexemes and 10,000 lemmas, and their top 5,000 agree with grouping all 50,000 forms for about
+99.5% of rows; the rest are near-ties at the cut, where a lexeme's rarer forms fall outside
+the file. The Spanish source lists each lemma once (homographs are merged or flagged
+DUPLICATE), so its 5,000 rows are 5,000 lexemes and 5,000 lemmas. Without morphology
+(Identity) Catalan shows its top 5,000 forms.
 
 **Names.** The word index leaves names out before matching (see [Words](words.md)).
 
@@ -110,6 +131,9 @@ earlier builds in `reports/` are no longer read.
   matched by spelling.
 - The Spanish list's lemmatization and tagging are FreeLing's ("madre" is listed under
   "padre"). Catalan is word forms until morphology arrives.
+- Catalan sums count only the 15,000 shipped forms, so a lexeme near rank 5,000 whose
+  other forms are rarer than that may rank a little low. Forms the morphology doesn't know
+  stay rows of their own.
 - Subtitle frequencies favour spoken language. "Rarer" means rare in subtitles, not
   sophisticated in any absolute sense.
 - Multi-word entries from imported decks are found as phrases by exact spelling only.

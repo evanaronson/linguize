@@ -71,9 +71,10 @@ fun HistoryScreen(
     val resources = LocalResources.current
     var filterToken by rememberSaveable { mutableStateOf(HistoryFilter.All.token) }
     val filter = HistoryFilter.read(filterToken)
-    val choices = remember(page.rows, filter) { filterChoices(page.rows, filter) }
     // Lab, Consistency: no language filter of its own; the selector at the top decides.
     val shownLanguage = language
+    // Lab, IA History: offer only the sources there are messages from in this language.
+    val choices = remember(page.rows, filter, shownLanguage) { filterChoices(page.rows, filter, shownLanguage) }
     val items = remember(page.rows, filter, shownLanguage) { historyItems(historyRows(page.rows, filter, shownLanguage)) }
     val shownCount by rememberUpdatedState(items.size)
     HistoryDeletionFeedback(history, snackbar)
@@ -91,31 +92,37 @@ fun HistoryScreen(
         }.collect { cursor -> if (cursor != null) history.loadMore() }
     }
 
+    // Lab, IA History: the count covers every language and source, like Export and Delete all,
+    // so it sits with them at the end rather than over a list it doesn't describe.
+    val kept by settings.history.collectAsState()
     val title = keptHistoryTitle(settings)
+    val hasData = (kept?.count ?: 0) > 0
     Box(Modifier.fillMaxSize()) {
         // Don't lay out an empty LazyColumn over a restored scroll position while loading.
         if (page.rows.isEmpty()) {
             ScreenColumn {
-                title?.let { SectionHeader(it) }
-                if (historyOn == false) SectionCard { HistoryOff(onOpenSettings) }
+                if (historyOn == false) SectionCard(Modifier.padding(top = 16.dp)) { HistoryOff(onOpenSettings) }
                 when {
                     page.loading || (!page.failed && page.next != null) -> LoadingHistory()
                     page.failed -> HistoryRetry(history::retryHistory)
+                    // Nothing saved yet: say what will appear. With History off, its notice says it.
+                    historyOn != false -> SectionCard(Modifier.padding(top = 16.dp)) {
+                        Quiet(stringResource(R.string.lab_ia_history_empty), Modifier.padding(vertical = 16.dp))
+                    }
                     else -> Unit
                 }
-                HistoryDataCard(settings)
+                if (hasData) HistoryData(settings, title)
             }
         } else {
             val now = System.currentTimeMillis()
             val hasFooter = page.loading || page.failed || page.next != null
             LazyColumn(state = list, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-                item(key = "history-title", contentType = "title") { title?.let { SectionHeader(it) } }
                 if (historyOn == false) item(key = "history-off", contentType = "notice") {
-                    SectionCard(Modifier.padding(bottom = 12.dp)) { HistoryOff(onOpenSettings) }
+                    SectionCard(Modifier.padding(top = 16.dp)) { HistoryOff(onOpenSettings) }
                 }
                 // A source is only worth choosing when messages come from more than one place.
                 if (choices.size > 2 || filter != HistoryFilter.All) item(key = "history-filter", contentType = "filter") {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         SourceFilter(choices, filter, page.rows) { filterToken = it.token }
                     }
                 }
@@ -138,7 +145,9 @@ fun HistoryScreen(
                                 val row = item.row
                                 val delete = { history.delete(row.summary.id) }
                                 SwipeToDelete(onDelete = delete) {
-                                    SessionRow(row, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
+                                    // Under one language every row is in it, so the row doesn't repeat it.
+                                    SessionRow(row, time, onClick = { onOpen(row.summary.id) }, onDelete = delete,
+                                        showLanguage = shownLanguage == null)
                                 }
                             }
                         }
@@ -154,10 +163,19 @@ fun HistoryScreen(
                         }
                     }
                 }
-                item(key = "history-data", contentType = "data") { HistoryDataCard(settings) }
+                if (hasData) item(key = "history-data", contentType = "data") { HistoryData(settings, title) }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** Export and Delete all, with what they cover under them: "45 checks since 5 Oct". */
+@Composable
+private fun HistoryData(settings: SettingsViewModel, title: String?) {
+    Column {
+        HistoryDataCard(settings)
+        title?.let { Quiet(it, Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp)) }
     }
 }
 
@@ -181,11 +199,10 @@ private fun filterName(filter: HistoryFilter, rows: List<RecentRow>): String = w
 }
 
 @Composable
-private fun emptyFilterText(filter: HistoryFilter, rows: List<RecentRow>, language: String?): String = when (filter) {
-    is HistoryFilter.App -> stringResource(R.string.lab_history_flat_no_app_messages, appName(rows, filter))
-    HistoryFilter.Chat -> stringResource(R.string.lab_history_flat_no_chat_messages)
-    // All sources is empty only in a language with nothing yet: an empty History shows its own page.
-    HistoryFilter.All -> language?.let { stringResource(R.string.lab_language_scope_history_empty, scopeLanguageName(it)) }.orEmpty()
+private fun emptyFilterText(filter: HistoryFilter, rows: List<RecentRow>, language: String?): String {
+    val languageName = language?.let { scopeLanguageName(it) }
+    val args = listOfNotNull((filter as? HistoryFilter.App)?.let { appName(rows, it) }, languageName)
+    return emptyFilterResource(filter, language)?.let { stringResource(it, *args.toTypedArray()) }.orEmpty()
 }
 
 @Composable

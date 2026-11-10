@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, IA History: the History tab when nothing is saved yet. -->
+    <string name="lab_ia_history_empty">Chat messages and checks you put back in other apps appear here.</string>
+    <!-- An empty source filter in one language: the app's name, then the language. -->
+    <string name="lab_ia_history_no_app_messages_in">No messages from %1$s in %2$s yet.</string>
+    <string name="lab_ia_history_no_chat_messages_in">No chat messages in %1$s yet.</string>
+</resources>

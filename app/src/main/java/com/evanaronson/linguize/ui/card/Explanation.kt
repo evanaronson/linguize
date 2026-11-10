@@ -84,6 +84,10 @@ internal fun ExplanationPanel(
     phrase: PhraseDraft? = null,
     /** Lab: the second opinion's badge for this change, under the change. */
     badge: (@Composable () -> Unit)? = null,
+    /** Lab, Review flow: leaves this change and moves to the next; shown beside Accept. */
+    onSkip: (() -> Unit)? = null,
+    /** Lab, Review flow: "Change 2 of 5", heard before the change. */
+    position: String? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -101,7 +105,7 @@ internal fun ExplanationPanel(
             .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(start = 14.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
     ) {
-        description?.let { ChangeLine(from, to, it) }
+        description?.let { ChangeLine(from, to, it, position) }
         if (!context.isNullOrBlank()) {
             Text(context, style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -115,9 +119,12 @@ internal fun ExplanationPanel(
                     modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
             }
         }
-        if (phrase != null && expanded) {
+        val skip = onSkip?.takeIf { onAccept != null && expanded }
+        if ((phrase != null || skip != null) && expanded) {
             Row(Modifier.align(Alignment.End).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                SavePhraseButton(phrase)
+                phrase?.let { SavePhraseButton(it) }
+                // Lab, Review flow: Skip moves on, leaving this change underlined.
+                skip?.let { LinguizeButton(stringResource(R.string.lab_review_flow_skip), it, ButtonKind.Text) }
                 onAccept?.let {
                     LinguizeButton(stringResource(R.string.accept), onClick = it,
                         kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal)
@@ -165,9 +172,10 @@ internal fun ExplanationPanel(
 
 /** "vaig poder → podré", with the old words struck through; spoken in words. */
 @Composable
-private fun ChangeLine(from: String, to: String, description: String) {
+private fun ChangeLine(from: String, to: String, description: String, position: String? = null) {
     val display = if (from.isEmpty() || to.isEmpty()) description
         else stringResource(R.string.change_replacement, from, to)
+    val spoken = position?.let { stringResource(R.string.lab_review_flow_spoken, it, description) } ?: description
     Text(
         buildAnnotatedString {
             append(display)
@@ -180,7 +188,7 @@ private fun ChangeLine(from: String, to: String, description: String) {
         },
         style = MaterialTheme.typography.bodyLarge,
         // In words: the arrow would be read out as "right arrow".
-        modifier = Modifier.semantics { contentDescription = description },
+        modifier = Modifier.semantics { contentDescription = spoken },
     )
 }
 

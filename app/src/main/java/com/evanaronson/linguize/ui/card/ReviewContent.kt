@@ -36,6 +36,9 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         return
     }
 
+    // Lab, Review flow: one selection walks every change in order (see ReviewQueue.kt).
+    val flow = rememberReviewFlow(result, actions.review != null)
+
     val incomplete = result.withheld.isNotEmpty()
     if (incomplete) {
         val title = when {
@@ -55,13 +58,14 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
             (kind in result.withheld || kind == EditKind.Natural && EditKind.Fix in result.withheld)
     }.forEachIndexed { index, kind ->
         if (incomplete || index > 0) SectionDivider()
-        EditSection(kind, result, settled, actions)
+        EditSection(kind, result, settled, actions, flow.selection)
     }
 
     val review = actions.review
     if (review != null && result.revision.canUndo) {
         SectionDivider()
-        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel)
+        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel,
+            modifier = flow.finalAction)
     }
 }
 
@@ -73,8 +77,9 @@ private fun looksGoodDetail(kinds: List<EditKind>) = when {
 
 /** "3 changes accepted   Undo  [Replace]" (Send in the chat): the card's one filled action. */
 @Composable
-internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?, applyLabel: Int = R.string.apply) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?, applyLabel: Int = R.string.apply,
+    modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             pluralStringResource(R.plurals.changes_accepted_count, count, count),
             style = MaterialTheme.typography.labelLarge,
@@ -87,7 +92,8 @@ internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?,
 }
 
 @Composable
-private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
+private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions,
+    selection: ReviewSelection? = null) {
     val revision = result.revision
     val review = actions.review
     val fix = kind == EditKind.Fix
@@ -121,6 +127,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
         onSettle = actions.onSettle,
         dotted = !fix,
         edge = Linguize.colors.proof,
+        selection = selection,
     )
     Spacer(Modifier.height(10.dp))
     if (remaining.isEmpty()) {

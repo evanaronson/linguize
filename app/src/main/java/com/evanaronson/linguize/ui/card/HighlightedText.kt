@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -35,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.LinkAnnotation
@@ -71,7 +73,7 @@ data class Highlight(
     val answers: List<String> = emptyList(),
 )
 
-/** Deletions and spacing cannot offer a visible text target; show their controls separately. */
+/** Deletions and spacing have no visible text to underline; they get a mark (see [markChanges]). */
 internal fun Highlight.needsPanel(text: String) = text.substring(range).isSpacing()
 
 private fun Char.isLineBreak() = this in "\r\n\u0085\u2028\u2029"
@@ -106,20 +108,36 @@ fun HighlightedText(
     dotted: Boolean = false,
     /** The explanation's edge; the fix colour even when the mark itself is grey. */
     edge: Color = accent,
+    /** Lab, Review flow: a selection shared with the card's other sections; null keeps its own. */
+    selection: ReviewSelection? = null,
 ) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    var selectedId by remember { mutableStateOf<Int?>(null) }
+    var ownSelectedId by remember { mutableStateOf<Int?>(null) }
+    val selectedId = if (selection != null) selection.selected else ownSelectedId
+    val select: (Int?) -> Unit = selection?.onSelect ?: { ownSelectedId = it }
+    // Accepting from a shared selection lets the flow move on; on its own the text just closes it.
+    val afterAccept: () -> Unit = if (selection != null) ({}) else ({ ownSelectedId = null })
     val explanation = remember { BringIntoViewRequester() }
-    val (panels, visible) = remember(text, changes) { changes.partition { it.needsPanel(text) } }
+    // Every change is drawn in the text: deletions and spacing as a mark at their place.
+    val marked = remember(text, changes) { markChanges(text, changes) }
+    val visible = remember(marked, changes) { changes.map { it.copy(range = marked.ranges.getValue(it.id)) } }
     val selected = visible.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
     val boxes = remember(layout, visible) {
         visible.map { change -> layout?.let { lineBoxes(it, change.range) }.orEmpty() }
     }
     val tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSystemInDarkTheme()) 0.1f else 0.06f)
+    val struckColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    val annotated = remember(text, changes, accent) {
+    // Links keep their identity (and keyboard focus) as the selection moves.
+    val currentSelected by rememberUpdatedState(selectedId)
+    val currentSelect by rememberUpdatedState(select)
+    val annotated = remember(marked, visible, accent, struckColor) {
         buildAnnotatedString {
-            append(text)
+            append(marked.text)
+            for (range in marked.struck) {
+                addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough, color = struckColor),
+                    range.first, range.last + 1)
+            }
             for (change in visible) {
                 addLink(
                     LinkAnnotation.Clickable(
@@ -128,7 +146,7 @@ fun HighlightedText(
                             background = accent.copy(alpha = 0.3f),
                             textDecoration = TextDecoration.Underline,
                         )),
-                    ) { selectedId = if (selectedId == change.id) null else change.id },
+                    ) { currentSelect(if (currentSelected == change.id) null else change.id) },
                     change.range.first,
                     change.range.last + 1,
                 )
@@ -150,18 +168,25 @@ fun HighlightedText(
         }
         listOfNotNull(
             CustomAccessibilityAction(whyLabel) {
-                selectedId = change.id
+                select(change.id)
                 true
             },
             onReplace?.let { replace ->
                 CustomAccessibilityAction(replaceLabel) {
-                    selectedId = null
+                    afterAccept()
                     replace(change.id)
                     true
                 }
             },
         )
-    }
+    } + listOfNotNull(selection?.onSkip?.takeIf { onReplace != null && selected != null }?.let { skip ->
+        CustomAccessibilityAction(stringResource(R.string.lab_review_flow_skip_action)) {
+            skip()
+            true
+        }
+    })
+    // Screen readers hear the real text: the marks only stand in for what a tap can't reach.
+    val spokenText = text.takeIf { marked.hasMarks }
 
     Column {
         Text(
@@ -182,7 +207,8 @@ fun HighlightedText(
             }),
             modifier = Modifier
                 .semantics {
-                    customActions = actions + CustomAccessibilityAction(copyDescription) {
+                    spokenText?.let { contentDescription = it }
+                    customActions = actions +CustomAccessibilityAction(copyDescription) {
                         onCopy()
                         true
                     }
@@ -216,31 +242,22 @@ fun HighlightedText(
                     detectTapGestures { position ->
                         val result = layout ?: return@detectTapGestures
                         val hit = nearest(result, visible, position, maxDistance = TOUCH_RADIUS.toPx())
-                        selectedId = if (hit == null || hit.id == selectedId) null else hit.id
+                        currentSelect(if (hit == null || hit.id == currentSelected) null else hit.id)
                     }
                 },
         )
 
-        panels.forEach { change ->
-            Spacer(Modifier.height(8.dp))
-            val replacement = text.substring(change.range)
-            ChangeExplanation(change, replacement, edge,
-                onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
-                context = change.context(text),
-                expanded = selectedId == change.id,
-                onToggle = { selectedId = if (selectedId == change.id) null else change.id },
-                modifier = if (selectedId == change.id) Modifier.bringIntoViewRequester(explanation) else Modifier,
-                onSettle = onSettle,
-                sentence = sentenceAround(text, change.range.first, change.range.last + 1),
-                rewording = dotted,
-            )
-        }
-
-        val shown = selected?.let { visible.getOrNull(it) }
-        // Whenever a change is tapped, scroll (the card, or the screen around it) so its
-        // explanation and Accept button are fully visible, once the panel has opened.
-        LaunchedEffect(selectedId) {
-            if (selectedId != null) {
+        // Explanations use the real text and its ranges, never the marked copy.
+        val shown = selected?.let { changes.getOrNull(it) }
+        // Whenever a change is selected here (tapped, or reached by the review flow), scroll
+        // (the card, or the screen around it) so its explanation and Accept button are fully
+        // visible, once the panel has opened. Another section's selection leaves this one be,
+        // and so does the one a result opens on: the card shows its own top first.
+        val arrived = remember { BooleanArray(1) }
+        LaunchedEffect(shown?.id) {
+            val first = !arrived[0]
+            arrived[0] = true
+            if (shown != null && !(first && selection != null)) {
                 delay(EXPAND_MILLIS)
                 explanation.bringIntoView()
             }
@@ -250,9 +267,12 @@ fun HighlightedText(
         // the fixes it touches), and then its range no longer fits the shorter text.
         val lastShown = remember { arrayOfNulls<Pair<Highlight, String>>(1) }
         val lastSentence = remember { arrayOfNulls<String>(1) }
+        val lastContext = remember { arrayOfNulls<String>(1) }
         if (shown != null) {
             lastShown[0] = shown to text.substring(shown.range)
             lastSentence[0] = sentenceAround(text, shown.range.first, shown.range.last + 1)
+            // A deletion or spacing change also shows the words around it.
+            lastContext[0] = if (shown.needsPanel(text)) shown.context(text) else null
         }
         AnimatedVisibility(visible = shown != null) {
             val (change, replacement) = lastShown[0] ?: return@AnimatedVisibility
@@ -262,10 +282,13 @@ fun HighlightedText(
                     change,
                     replacement,
                     edge,
-                    onReplace = onReplace?.let { replace -> { selectedId = null; replace(change.id) } },
+                    onReplace = onReplace?.let { replace -> { afterAccept(); replace(change.id) } },
+                    context = lastContext[0],
                     onSettle = onSettle,
                     sentence = lastSentence[0],
                     rewording = dotted,
+                    onSkip = selection?.onSkip?.takeIf { onReplace != null },
+                    position = selection?.position?.takeIf { selection.selected == change.id },
                 )
             }
         }
@@ -293,6 +316,10 @@ private fun ChangeExplanation(
     /** Lab: the sentence the change sits in, for its lesson. */
     sentence: String? = null,
     rewording: Boolean = false,
+    /** Lab, Review flow: moves on without accepting. */
+    onSkip: (() -> Unit)? = null,
+    /** Lab, Review flow: "Change 2 of 5", spoken with the change. */
+    position: String? = null,
 ) {
     val from = change.from.visibleValue()
     val to = replacement.visibleValue()
@@ -317,6 +344,8 @@ private fun ChangeExplanation(
         expanded = expanded,
         onToggle = onToggle,
         onToggleLabel = whyLabel(change.from, replacement, from, to),
+        onSkip = onSkip,
+        position = position,
         lesson = lessonTopic(change.from, replacement, change.why, LocalLessonSource.current?.language, sentence),
         phrase = phraseCandidate(change.from, replacement, change.why,
             if (rewording) EditKind.Natural else EditKind.Fix, LocalPhraseOrigin.current),

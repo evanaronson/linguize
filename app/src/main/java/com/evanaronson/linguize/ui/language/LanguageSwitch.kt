@@ -1,11 +1,9 @@
 package com.evanaronson.linguize.ui.language
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,7 +24,7 @@ import com.evanaronson.linguize.ui.text.displayName
 /**
  * The app's one language selector, in the top bar of the four tabs (Chat, Notes, Progress,
  * History), just before Settings: the current choice's small circular icon and "▾", opening a
- * menu of **Linguize** (Auto, all languages), then the writer's languages in their order
+ * menu of **Linguize** (Auto-detect), then the writer's languages in their order
  * ([AppLanguage.options]), each with its brand name, icon and what it means underneath
  * ("Catalan"), then **Add languages…** ([onAddLanguages], the Languages page). Screen readers
  * hear "Language: Catalanize, Catalan".
@@ -63,16 +61,13 @@ fun selectorOptions(options: List<LanguageOption>): List<LanguageOption?> = list
 
 /**
  * Linguize's circular mark for Auto (null), else the language's circular flag or emblem from the
- * catalog, following the variety for Castilianize's flag. Decorative.
+ * catalog, following the variety for Castilianize's flag. Both are drawn in `ui/language/catalog`
+ * at [com.evanaronson.linguize.ui.language.catalog.LanguageIconAlpha]. Decorative.
  */
 @Composable
 fun LanguageIcon(option: LanguageOption?, modifier: Modifier = Modifier, size: Dp = 24.dp) {
     if (option == null) {
-        Icon(
-            painterResource(R.drawable.lab_lang_selector_auto), contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier.size(size),
-        )
+        com.evanaronson.linguize.ui.language.catalog.AutoLanguageIcon(size, modifier)
     } else {
         com.evanaronson.linguize.ui.language.catalog.LanguageIcon(option.code, option.variety, size, modifier)
     }
@@ -102,7 +97,7 @@ fun brandNameResource(code: String?): Int? = when (code) {
     else -> null
 }
 
-/** What a brand name means, said under it in the menu and to screen readers: "All languages", "Catalan". */
+/** What a brand name means, said under it in the menu and to screen readers: "Auto-detect", "Catalan". */
 @Composable
 fun brandDetail(code: String?): String? = when (code) {
     null -> stringResource(R.string.lab_language_scope_all)

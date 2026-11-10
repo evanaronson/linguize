@@ -79,7 +79,7 @@ internal fun filterChoices(rows: List<RecentRow>, selected: HistoryFilter = Hist
 
 /**
  * Lab, Language scope: the rows History shows, newest first: those [filter] keeps, written in
- * [language] (null is All languages). A row whose language wasn't known shows only under All.
+ * [language] (null is Linguize, Auto-detect, every language). A row whose language wasn't known shows only under All.
  */
 internal fun historyRows(rows: List<RecentRow>, filter: HistoryFilter, language: String?): List<RecentRow> =
     rows.filter { filter.keeps(it) && LanguageScope.keeps(it.summary.targetLanguage, language) }

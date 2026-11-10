@@ -48,6 +48,16 @@ fun languageIconContent(catalog: LanguageCatalog, code: String?, variety: String
         ?: LanguageIconContent.Unknown
 
 /**
+ * How opaque every language icon's picture is: the catalog's flags and emblems, the speech bubble
+ * and Linguize's Auto mark ([AutoLanguageIcon]). Flags at full colour shout over the app's quiet
+ * surfaces; at 80 % the light ground (and the dark one in dark theme) shows through, the same
+ * amount in both themes. 0.75 left whites grey and muddy on the dark ground; 0.85 barely showed
+ * on the light one. Only the picture fades: the hairline outline stays fully opaque, so a mostly
+ * white flag (Japan's) still has an edge.
+ */
+const val LanguageIconAlpha = 0.8f
+
+/**
  * A language's small circular icon, from the app's language catalog: its flag (following the
  * writer's [variety]: Castilianize is Mexico's for Mexican Spanish) or emblem clipped to a circle
  * with a hairline outline, or, for a code the catalog doesn't know, a speech bubble in the same
@@ -65,13 +75,13 @@ fun LanguageIcon(code: String?, variety: String? = null, size: Dp = 24.dp, modif
         is LanguageIconContent.Emblem -> Picture(content.drawable, size, modifier)
         LanguageIconContent.Unknown -> Box(
             modifier.size(size).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = LanguageIconAlpha))
                 .border(1.dp, outline, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painterResource(R.drawable.lab_emblem_unknown), contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = LanguageIconAlpha),
                 modifier = Modifier.size(size * 0.62f),
             )
         }
@@ -83,6 +93,20 @@ private fun Picture(@DrawableRes drawable: Int, size: Dp, modifier: Modifier) {
     val outline = MaterialTheme.colorScheme.outlineVariant
     Image(
         painterResource(drawable), contentDescription = null,
+        alpha = LanguageIconAlpha,
         modifier = modifier.size(size).clip(CircleShape).border(0.5.dp, outline, CircleShape),
+    )
+}
+
+/**
+ * Linguize's circular "A" for Auto-detect, the size of a language's icon and as see-through
+ * ([LanguageIconAlpha]), so the selector's icons read as one set. Decorative.
+ */
+@Composable
+fun AutoLanguageIcon(size: Dp = 24.dp, modifier: Modifier = Modifier) {
+    Icon(
+        painterResource(R.drawable.lab_lang_selector_auto), contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = LanguageIconAlpha),
+        modifier = modifier.size(size),
     )
 }

@@ -124,7 +124,7 @@ acceptance or suggestion order.
 A session stores the latest attempt's complete `writingProfiles` list, and each
 attempt preserves its own list. An empty historical list means the preferences
 were not captured, not today's defaults. Profiles do not inherit, and editing a
-profile never rewrites old attempts. Auto Detect requests retain every profile
+profile never rewrites old attempts. Auto-detect requests retain every profile
 sent to the provider. Cache matching includes these exact request-time values.
 
 Unassessed historical rows remain null and missing profile lists remain empty.
@@ -241,16 +241,16 @@ for the prerequisites for deriving learning from these observations.
 ## Language keys
 
 Row schema 5 (database version 6) adds explicit ISO 639-1 language codes to sessions
-and attempts. `requestedLanguage` remains the user's choice (`null` means Auto Detect).
+and attempts. `requestedLanguage` remains the user's choice (`null` means Auto-detect).
 `detectedLanguage` records a readable successful answer's detected language; it is
 `null` for failures, unclear text, or an unrecognized language. Raw answers remain
 unchanged evidence. `targetLanguage` is the explicit request when present, otherwise
 the detection. For example, requesting Spanish on Catalan text records target `es`
-and detected `ca`; Auto Detect on Catalan records target/detected `ca`.
+and detected `ca`; Auto-detect on Catalan records target/detected `ca`.
 
 The session's target and detection describe its latest completed attempt, including
 a failed retry; they never silently retain a previous attempt's detection. An open
-explicit-language session knows its target before any answer; an Auto Detect session
+explicit-language session knows its target before any answer; an Auto-detect session
 does not. Requested language and settings remain the reuse key: a detection is an
 answer, not a new input.
 

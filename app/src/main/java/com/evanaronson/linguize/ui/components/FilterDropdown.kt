@@ -54,7 +54,7 @@ fun <T> FilterDropdown(
     closed: (@Composable (T) -> Unit)? = null,
     /** Whether the closed control names what it chooses ("Sort: Newest"), for a row of several. */
     labelled: Boolean = false,
-    /** What an option means, under its name in the menu and after it for screen readers ("All languages"). */
+    /** What an option means, under its name in the menu and after it for screen readers ("Auto-detect"). */
     detail: (@Composable (T) -> String?)? = null,
     /** Drawn after the options, for an action such as "Add languages…"; [close] closes the menu. */
     footer: (@Composable (close: () -> Unit) -> Unit)? = null,

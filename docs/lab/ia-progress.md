@@ -88,7 +88,7 @@ Catalan, chosen or not; before, a chosen other language got a row whose page onl
 
 **The pages.** One shape for Words, Your conjugations, Your patterns and Time spent:
 
-1. A header naming the language ("Catalan", or "All languages" under Linguize). The page
+1. A header naming the language ("Catalan", or "Auto-detect" under Linguize). The page
    has no selector, so it says what it shows.
 2. A summary card of stat tiles: a big figure over what it counts.
    - Words: coverage, then words, lexemes, lemmas, written, this month (unchanged).

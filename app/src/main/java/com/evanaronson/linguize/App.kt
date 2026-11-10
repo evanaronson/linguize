@@ -73,8 +73,8 @@ class App : Application() {
             .callTimeout(30, TimeUnit.SECONDS)
             .build()
         mapOf(
-            Provider.Gemini to GeminiClient(http, prompt),
-            Provider.OpenAI to OpenAIClient(http, prompt),
+            Provider.Gemini to GeminiClient(http),
+            Provider.OpenAI to OpenAIClient(http),
         )
     }
 
@@ -119,6 +119,11 @@ class App : Application() {
     /** Lab: Spanish and Catalan morphology; its tables are built on first use, off the main thread. */
     val morphology by lazy { com.evanaronson.linguize.core.morphology.Morphology() }
 
+    /** Immutable bundled vocabulary, parsed and grouped once for Words and Chat. */
+    val bundledDecks by lazy {
+        com.evanaronson.linguize.data.vocabgaps.BundledDecks { name -> assets.open(name).bufferedReader().use { it.readText() } }
+    }
+
     /** Lab: what Linguize remembers about the writer (docs/lab/memory.md). */
     val userMemory: com.evanaronson.linguize.core.memory.UserMemory by lazy {
         LabUserMemory(settings, keys, clients, memoryStore) {
@@ -150,7 +155,7 @@ class App : Application() {
     /** Lab Chat: what the partner steers toward, from the corpus, conjugations and vocabulary gaps. */
     val chatTargets by lazy {
         ChatTargets({ corpus.utterances() }, { morphology }, { lemmatizer },
-            com.evanaronson.linguize.data.vocabgaps.BundledDecks { name -> assets.open(name).bufferedReader().use { it.readText() } },
+            bundledDecks,
             appScope, evidenceRevision = { historyEvidence.revision() })
     }
 

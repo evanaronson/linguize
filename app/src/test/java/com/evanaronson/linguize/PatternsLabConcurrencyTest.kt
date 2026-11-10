@@ -8,9 +8,7 @@ import com.evanaronson.linguize.history.patterns.FakePatternHistory
 import com.evanaronson.linguize.history.patterns.PatternAnalyser
 import com.evanaronson.linguize.history.patterns.PatternFixtures.check
 import com.evanaronson.linguize.history.patterns.PatternFixtures.fix
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
@@ -46,7 +44,6 @@ class PatternsLabConcurrencyTest {
         source, notes, FakePreferences(), { "key" },
         mapOf(Provider.Gemini to object : ProviderClient {
             override suspend fun generate(key: String, model: String, request: GenerationRequest) = generate()
-            override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("Unused")
             override suspend fun models(key: String): List<String> = emptyList()
         }),
         { PatternsPrompt("Explain patterns") }, io = StandardTestDispatcher(testScheduler),

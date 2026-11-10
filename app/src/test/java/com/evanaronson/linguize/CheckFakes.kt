@@ -7,13 +7,11 @@ import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.data.CheckPreferences
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
 import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
-import com.evanaronson.linguize.llm.generation
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -42,12 +40,6 @@ internal class FakeClient(@Volatile var answer: suspend (RecordedCheck) -> Model
         // The fixture's raw bytes are the provider boundary. Never synthesize a successful
         // answer from its verdict: malformed wire fixtures must reach the real parser.
         return answer(recorded).raw
-    }
-
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
-        val recorded = RecordedCheck(Prompt("", "{}").generation(request))
-        checks += Triple(key, model, recorded)
-        return answer(recorded)
     }
 
     override suspend fun models(key: String): List<String> = listOf("m-2", "m-1")

@@ -125,7 +125,7 @@ fun ResultCard(
                     }
                     if (actions.onClarify != null || state.settled.any { it.isMeaning }) {
                         Spacer(Modifier.height(8.dp))
-                        MeaningSection("", state.settled, actions.onClarify, actions.onRemoveClarification,
+                        MeaningSection(state.settled, actions.onClarify, actions.onRemoveClarification,
                             editorTitle = stringResource(R.string.meaning),
                             submitKind = if (state.retainedRevision?.canUndo == true && actions.review != null)
                                 ButtonKind.Tonal else ButtonKind.Filled)

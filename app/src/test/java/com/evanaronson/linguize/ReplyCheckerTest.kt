@@ -2,9 +2,7 @@ package com.evanaronson.linguize
 
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.llm.CheckFailure
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -33,7 +31,7 @@ class ReplyCheckerTest {
     @Test
     fun withoutAMessageTheShippedRequestIsGeneratedUnchanged() = runBlocking<Unit> {
         val checked = checker.check(QUESTION, null)
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         val sent = client.generations.single()
         assertEquals(prompt.system, sent.system)
         assertEquals(prompt.schema, sent.schema)
@@ -51,9 +49,9 @@ class ReplyCheckerTest {
         assertEquals(reply.hash(prompt, message), context.promptHash)
         val checked = checker.check(QUESTION, null, context = context, replyingTo = message)
 
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         val sent = client.generations.single()
-        assertEquals(reply.system(prompt), sent.system)
+        assertEquals(reply.system(prompt.system), sent.system)
         assertTrue(sent.user.startsWith(ReplyPrompt.LINE_PREFIX + "{\"message\":\"Com estàs?\"}\n"))
         assertTrue(sent.user.endsWith("Text: <text>$QUESTION</text>"))
         assertEquals(prompt.schema, sent.schema)
@@ -102,14 +100,8 @@ class ReplyCheckerTest {
     }
 
     private class RecordingClient : ProviderClient {
-        val checks: MutableList<CheckRequest> = Collections.synchronizedList(mutableListOf())
         val generations: MutableList<GenerationRequest> = Collections.synchronizedList(mutableListOf())
         val answers: MutableList<String> = Collections.synchronizedList(mutableListOf())
-
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
-            checks += request
-            return ModelAnswer(QUESTION_VERDICT, QUESTION_JSON)
-        }
 
         override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
             generations += request

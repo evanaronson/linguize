@@ -26,6 +26,18 @@ data class DeckEntry(
     val key: String get() = if (pos == null) lemma else "$lemma/$pos"
 }
 
+/** Of the deck's [top] most frequent rows, how many the writer [used]. */
+@Serializable
+data class Milestone(val top: Int, val used: Int) {
+    val percent: Int get() = if (top == 0) 0 else used * 100 / top
+
+    companion object {
+        /** Standard groups below the deck size, followed by the whole deck. */
+        fun tops(size: Int): List<Int> =
+            (listOf(100, 500, 1_000, 2_000, 5_000).filter { it < size } + size).filter { it > 0 }
+    }
+}
+
 /** Whether a deck counts lexemes (lemma with part of speech) or lemmas. */
 enum class VocabLevel { Lexeme, Lemma }
 

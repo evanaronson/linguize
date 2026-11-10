@@ -18,35 +18,34 @@ class CheckCompositionTest {
     private val gaps = GapsInCheck.load(::read)
     private val tone = ToneInCheck.load(::read)
     private val reply = ReplyPrompt.load(::read)
+    private val request = CheckRequest("Sí, a las 5", null, Punctuation.Moderate, Judgments.Both)
 
     @Test
     fun theOrderIsShippedThenGapsThenToneThenTheReply() {
-        val composed = CheckComposition.prompt(base, gaps, tone)
-        val system = reply.system(composed)
+        val system = CheckComposition.prepare(base, gaps, tone, request, reply, "Hola").generation.system
         val positions = listOf(base.system.trimEnd(), gaps.addendum.trim(), tone.addendum.trim(), reply.addendum.trim())
             .map { system.indexOf(it) }
         assertEquals(0, positions.first())
         assertEquals(positions.sorted(), positions)
         assertTrue(positions.all { it >= 0 })
         // The same inputs always compose to the same request.
-        assertEquals(system, reply.system(CheckComposition.prompt(base, gaps, tone)))
+        assertEquals(system, CheckComposition.prepare(base, gaps, tone, request, reply, "Hola").generation.system)
     }
 
     @Test
     fun theUserMessageIsTheShippedOneWithTheReplyLineInFront() {
-        val composed = CheckComposition.prompt(base, gaps, tone)
-        val request = CheckRequest("Sí, a las 5", null, Punctuation.Moderate, Judgments.Both)
-        assertEquals(base.userMessage(request), composed.userMessage(request))
-        val generation = reply.generation(composed, request, "¿Le va bien el martes?")
+        val composed = CheckComposition.prepare(base, gaps, tone, request).generation
+        assertEquals(base.userMessage(request), composed.user)
+        val generation = CheckComposition.prepare(base, gaps, tone, request, reply, "¿Le va bien el martes?").generation
         assertEquals(ReplyPrompt.LINE_PREFIX + "{\"message\":\"¿Le va bien el martes?\"}\n" + base.userMessage(request), generation.user)
         assertTrue("landing" in (generation.schema["properties"] as JsonObject))
     }
 
     @Test
     fun onlyTheToneRulesTouchTheSchema() {
-        assertEquals(base.schema, CheckComposition.prompt(base, gaps, null).schema)
-        assertEquals(tone.schema(base.schema), CheckComposition.prompt(base, gaps, tone).schema)
-        assertSame(base, CheckComposition.prompt(base, null, null))
+        assertEquals(base.schema, CheckComposition.prepare(base, gaps, null, request).generation.schema)
+        assertEquals(tone.schema(base.schema), CheckComposition.prepare(base, gaps, tone, request).generation.schema)
+        assertSame(base.schema, CheckComposition.prepare(base, null, null, request).generation.schema)
     }
 
     @Test

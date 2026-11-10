@@ -6,9 +6,7 @@ import com.evanaronson.linguize.data.ProviderKeys
 import com.evanaronson.linguize.data.teachme.LessonCache
 import com.evanaronson.linguize.data.teachme.LessonKey
 import com.evanaronson.linguize.llm.CheckFailure
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.teachme.LESSON_JSON
@@ -31,7 +29,6 @@ class TeacherTest {
             requests += Triple(key, model, request)
             return answer()
         }
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("not a check")
         override suspend fun models(key: String) = emptyList<String>()
     }
 

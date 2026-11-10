@@ -56,7 +56,7 @@ class VocabDeckTest {
         val next = VocabSuggestions.next(deck, report.used.keys)
         assertEquals(listOf("v", "n", "adj", "other"), next.map { it.group })
         assertEquals(listOf("tener"), next.first().entries.map { it.lemma })
-        assertEquals(listOf("casa", "tener", "grande"), VocabSuggestions.targets(deck, report).map { it.lemma })
+        assertEquals(listOf("casa", "tener", "grande"), VocabSuggestions.targets(deck, report.used.keys).map { it.lemma })
     }
 
     @Test

@@ -30,7 +30,9 @@ class SendFlowTest {
 
     @Test fun nothingToReviewSendsAtOnceMarkedLooksGood() {
         val transition = SendState.Checking(draft).on(SendEvent.Checked(clean))
-        assertEquals(Transition(SendState.Composing, Effect.Deliver(Outgoing(draft, draft, emptyList(), SentCheck.LooksGood))), transition)
+        val outgoing = Outgoing(draft, draft, emptyList(), SentCheck.LooksGood)
+        assertEquals(Transition(SendState.Saving(outgoing), Effect.Deliver(outgoing)), transition)
+        assertEquals(Transition(SendState.Composing), transition.state.on(SendEvent.Saved))
     }
 
     @Test fun anyChangeOpensTheCardEvenARewordingAlone() {
@@ -42,8 +44,8 @@ class SendFlowTest {
     @Test fun theCardsSendSendsTheAcceptedSubset() {
         val both = Revision(draft, listOf(other, fix, rewording))
         val sent = SendState.Reviewing(draft).on(SendEvent.SendReviewed(both.accept(fix.id)))
-        assertEquals(SendState.Composing, sent.state)
         val outgoing = (sent.effect as Effect.Deliver).outgoing
+        assertEquals(SendState.Saving(outgoing), sent.state)
         assertEquals(draft, outgoing.raw)
         assertEquals("Hola, ayer fuimos a la plaza y fue muy bonito", outgoing.text)
         assertEquals(SentCheck.Corrected, outgoing.check)
@@ -69,6 +71,21 @@ class SendFlowTest {
 
     @Test fun aRetryThatComesBackCleanLeavesTheCardOpenForSend() {
         assertEquals(Transition(SendState.Reviewing(draft)), SendState.Reviewing(draft).on(SendEvent.Checked(clean)))
+    }
+
+    @Test fun aSaveFailureKeepsTheAcceptedMessageAndRetriesWithoutAnotherCheck() {
+        val delivery = SendState.Reviewing(draft).on(SendEvent.SendReviewed(revision.accept(fix.id)))
+        val outgoing = (delivery.effect as Effect.Deliver).outgoing
+        for (event in listOf(SendEvent.Edit, SendEvent.RetrySave, SendEvent.Checked(clean), SendEvent.SendReviewed(revision))) {
+            assertEquals(Transition(delivery.state), delivery.state.on(event))
+        }
+        val failed = delivery.state.on(SendEvent.SaveFailed)
+        assertEquals(Transition(SendState.SaveFailed(outgoing)), failed)
+        assertEquals(delivery, failed.state.on(SendEvent.RetrySave))
+        assertEquals(Transition(SendState.Composing, Effect.CancelCheck), failed.state.on(SendEvent.Edit))
+        for (event in listOf(SendEvent.Saved, SendEvent.SaveFailed, SendEvent.RetrySave)) {
+            assertEquals(Transition(SendState.Composing), SendState.Composing.on(event))
+        }
     }
 
     @Test fun staleAnswersAndRevisionsAreIgnored() {

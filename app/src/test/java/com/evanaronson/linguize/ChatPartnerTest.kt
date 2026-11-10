@@ -8,7 +8,6 @@ import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.FakeHttp
 import com.evanaronson.linguize.llm.GeminiClient
 import com.evanaronson.linguize.llm.OpenAIClient
-import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.chat.ChatPrompt
 import com.evanaronson.linguize.llm.chat.Turn
@@ -23,7 +22,6 @@ import java.io.File
 
 /** The partner goes through the same clients as checks, with its own contract and the writer's memory. */
 class ChatPartnerTest {
-    private val checkPrompt = Prompt("CORRECTION PROMPT MUST NOT BE SENT", "{}")
     private val chatPrompt = ChatPrompt.load { File("src/main/assets/$it").readText() }
     private val memory = object : UserMemory {
         override suspend fun forPrompt() = "Has a dog called Pipa."
@@ -44,7 +42,7 @@ class ChatPartnerTest {
         for (provider in Provider.entries) {
             val answers = listOf("""{"reply":"Hola! Com està la Pipa?","translation":"Hi! How's Pipa?","title":""}""", """{"reply":"Que bé!","title":"La Pipa"}""")
             val http = FakeHttp { _, index -> 200 to payload(provider, answers[index]) }
-            val client = if (provider == Provider.Gemini) GeminiClient(http.client, checkPrompt) else OpenAIClient(http.client, checkPrompt)
+            val client = if (provider == Provider.Gemini) GeminiClient(http.client) else OpenAIClient(http.client)
             val prefs = FakePreferences().apply { this.provider = provider }
             val partner = ChatPartner(prefs, ProviderKeys { "key" }, mapOf(provider to client), { memory }) { chatPrompt }
 
@@ -65,7 +63,7 @@ class ChatPartnerTest {
     @Test fun practiceTargetsAndAStandInGoWithEveryRequest() = runBlocking {
         val http = FakeHttp { _, _ -> 200 to payload(Provider.Gemini, """{"reply":"Bon dia. Li escric per la caldera.","title":""}""") }
         val asked = mutableListOf<String>()
-        val partner = ChatPartner(FakePreferences(), ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client, checkPrompt)),
+        val partner = ChatPartner(FakePreferences(), ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client)),
             { memory }, targets = { language -> asked += language.code; "- Verb forms they rarely or never write: future, I." }) { chatPrompt }
         partner.open(Language.Catalan, persona = "Jordi, my landlord, formal")
         val body = http.body(0)
@@ -77,7 +75,7 @@ class ChatPartnerTest {
 
     @Test fun noKeyFailsBeforeAnythingIsSent() = runBlocking {
         val http = FakeHttp { _, _ -> error("nothing should be sent") }
-        val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, mapOf(Provider.Gemini to GeminiClient(http.client, checkPrompt)),
+        val partner = ChatPartner(FakePreferences(), ProviderKeys { null }, mapOf(Provider.Gemini to GeminiClient(http.client)),
             { memory }) { chatPrompt }
         assertFalse(partner.hasKey())
         try {

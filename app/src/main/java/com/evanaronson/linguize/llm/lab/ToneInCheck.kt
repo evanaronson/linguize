@@ -2,7 +2,6 @@ package com.evanaronson.linguize.llm.lab
 
 import com.evanaronson.linguize.core.lab.Landing
 import com.evanaronson.linguize.core.lab.LandingOverall
-import com.evanaronson.linguize.llm.Prompt
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -40,9 +39,6 @@ class ToneInCheck(val addendum: String, landingSchema: String) {
         (base["propertyOrdering"] as? JsonArray)?.let { composed["propertyOrdering"] = JsonArray(it.filterNot { name -> name == JsonPrimitive(FIELD) } + JsonPrimitive(FIELD)) }
         return JsonObject(composed)
     }
-
-    /** [base] with the tone rules and the `landing` property added. */
-    fun prompt(base: Prompt): Prompt = Prompt(system(base.system), schema(base.schema).toString())
 
     /** The context's prompt hash: [baseHash] with a suffix for these rules and schema. */
     fun hash(baseHash: String): String = baseHash + "-t" + MessageDigest.getInstance("SHA-256")

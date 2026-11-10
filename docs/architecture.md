@@ -167,7 +167,8 @@ incomplete answer may receive one repair request with the same captured options.
 `selectRepairedCheck`, also used by the explicit historical replay harness,
 chooses the whole repaired answer only when its withheld judgments are a strict
 subset of the first answer's. It never splices answers or ranks them by edit count.
-Model testing still uses the provider's plain base-check helper.
+Model testing prepares and reads the same plain base check through `generate`;
+provider clients own transport and model discovery, without prompt dependencies.
 
 Chat replies, memory extraction, lessons, and pattern explanations use their own
 contracts through the same provider clients. The command-line model eval obtains
@@ -193,7 +194,7 @@ features. Its raw model answers and final decisions are observations, with the
 | Consumer | Current evidence path | Derived state |
 |---|---|---|
 | Words and Conjugations | `App.corpus` → `CheckCorpusSource` → `App.historyEvidence`, up to 3,000 saved checks | Word index/deck coverage and morphology reports, rebuilt from original writer text and changed-word spans |
-| Chat practice targets | The same 3,000-check corpus → `PracticeTargetsBuilder` | Per-language target blocks; vocabulary still uses `VocabAnalyser` and `WordFolding`, while Words uses `WordIndex`/`DeckCoverage` |
+| Chat practice targets | The same 3,000-check corpus → `PracticeTargetsBuilder` | Per-language target blocks; vocabulary uses `usedDeckKeys` and `WordFolding`, while Words uses `WordIndex`/`DeckCoverage` |
 | Patterns | `App.historyEvidence`, up to 400 checks | Deterministic report plus an optional saved model explanation with source IDs and fingerprint |
 | Practice | `PracticeSource` → `App.historyEvidence`, up to 500 checks | Rebuilt items plus separately stored review schedules; the existing policy prunes schedules outside the successfully loaded set |
 | User memory | Chat exchanges → `LabUserMemory`, independently of the corpus | Model-proposed facts and writer-owned notes in `MemoryStore`; `ChatPartner` includes enabled memory in its prompt |

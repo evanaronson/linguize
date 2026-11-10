@@ -99,8 +99,7 @@ class Exports(cacheDir: File, private val clock: () -> Long = System::currentTim
 
     /** Removes every export, finished or not. */
     suspend fun clear() {
-        invalidate()
-        writes.withLock { clearFiles() }
+        clearAcknowledged()
     }
 
     /** Stops sharing/queued snapshots immediately; the caller still clears files off the main thread. */
@@ -113,41 +112,7 @@ class Exports(cacheDir: File, private val clock: () -> Long = System::currentTim
     /** Same retirement policy, but reports failure so durable deletion work can retry it. */
     suspend fun clearAcknowledged(): Boolean {
         invalidate()
-        return writes.withLock {
-            // A writer captured after invalidation may have won this mutex first.
-            synchronized(ownership) {
-                currentHistory = null
-                currentWords = null
-            }
-            val files = try {
-                Files.newDirectoryStream(folder.toPath())
-            } catch (_: NoSuchFileException) {
-                return@withLock true
-            } catch (_: IOException) {
-                return@withLock false
-            } catch (_: SecurityException) {
-                return@withLock false
-            }
-            try {
-                files.use {
-                    var complete = true
-                    for (file in it) {
-                        try {
-                            Files.deleteIfExists(file)
-                        } catch (_: IOException) {
-                            complete = false
-                        }
-                    }
-                    complete
-                }
-            } catch (_: IOException) {
-                false
-            } catch (_: DirectoryIteratorException) {
-                false
-            } catch (_: SecurityException) {
-                false
-            }
-        }
+        return writes.withLock { clearFiles() }
     }
 
     /** Retires just this result; an old screen must not delete another host's newer export. */
@@ -161,14 +126,12 @@ class Exports(cacheDir: File, private val clock: () -> Long = System::currentTim
     }
 
     /** Removes exports written more than [KEEP_MILLIS] ago; whatever they were shared with has had its time. */
-    suspend fun prune() = writes.withLock {
-        val now = clock()
-        // A wall clock set backwards must not leave private exports around indefinitely.
-        folder.listFiles()?.filter { it.lastModified() < now - KEEP_MILLIS || it.lastModified() > now }
-            ?.forEach {
-                retire(it)
-                it.delete()
-            }
+    suspend fun prune() {
+        writes.withLock {
+            val now = clock()
+            // A wall clock set backwards must not leave private exports around indefinitely.
+            deleteFiles { it.lastModified() < now - KEEP_MILLIS || it.lastModified() > now }
+        }
     }
 
     private fun retire(file: File) = synchronized(ownership) {
@@ -176,12 +139,36 @@ class Exports(cacheDir: File, private val clock: () -> Long = System::currentTim
         if (currentWords == file) currentWords = null
     }
 
-    private fun clearFiles(wordsOnly: Boolean = false) {
+    private fun clearFiles(wordsOnly: Boolean = false): Boolean {
+        // A writer captured after invalidation may have won the writer mutex first.
         synchronized(ownership) {
             if (!wordsOnly) currentHistory = null
             currentWords = null
         }
-        folder.listFiles()?.filter { !wordsOnly || it.name.startsWith(WORDS_PREFIX) }?.forEach { it.delete() }
+        return deleteFiles { !wordsOnly || it.name.startsWith(WORDS_PREFIX) }
+    }
+
+    /** Best-effort callers ignore the result; durable deletion work retries an incomplete pass. */
+    private fun deleteFiles(matches: (File) -> Boolean): Boolean {
+        val files = try { Files.newDirectoryStream(folder.toPath()) }
+            catch (_: NoSuchFileException) { return true }
+            catch (_: IOException) { return false }
+            catch (_: SecurityException) { return false }
+        return try {
+            files.use {
+                var complete = true
+                for (path in it) {
+                    val file = path.toFile()
+                    if (!matches(file)) continue
+                    retire(file)
+                    try { Files.deleteIfExists(path) }
+                    catch (_: IOException) { complete = false }
+                }
+                complete
+            }
+        } catch (_: IOException) { false }
+        catch (_: DirectoryIteratorException) { false }
+        catch (_: SecurityException) { false }
     }
 
     companion object {

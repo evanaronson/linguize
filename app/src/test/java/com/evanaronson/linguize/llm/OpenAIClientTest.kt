@@ -70,7 +70,7 @@ class OpenAIClientTest {
     fun aMalformedModelListIsNotShownAsASuccessfulEmptyList() {
         val http = FakeHttp { _, _ -> 200 to "{}" }
         val failure = assertThrows(CheckFailure::class.java) {
-            runBlocking { OpenAIClient(http.client, prompt).models("key") }
+            runBlocking { OpenAIClient(http.client).models("key") }
         }
         assertEquals(Reason.BadResponse, failure.reason)
     }
@@ -81,7 +81,7 @@ class OpenAIClientTest {
             if (index == 0) 400 to """{"error":{"message":"Unsupported value: 'reasoning.effort'","param":"reasoning.effort"}}"""
             else 200 to answer(VERDICT_JSON)
         }
-        runBlocking { OpenAIClient(http.client, prompt).check("key", "gpt-x", request) }
+        runBlocking { prompt.read(OpenAIClient(http.client).generate("key", "gpt-x", prompt.generation(request))) }
         assertEquals(2, http.requests.size)
         assertTrue("\"reasoning\"" in http.body(0))
         assertFalse("\"reasoning\"" in http.body(1))
@@ -98,7 +98,7 @@ class OpenAIClientTest {
             {"id":"gpt-6.1-sol"},{"id":"gpt-image-2.5-flare"},{"id":"chatgpt-image-latest"},
             {"id":"gpt-realtime-2"},{"id":"text-embedding-3-small"}
         ]}""" }
-        val models = runBlocking { OpenAIClient(http.client, prompt).models("key") }
+        val models = runBlocking { OpenAIClient(http.client).models("key") }
         assertEquals(setOf("chat-latest", "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"), models.toSet())
         assertEquals(4, models.size)
         assertEquals("gpt-6.1-sol", models.first())
@@ -108,7 +108,7 @@ class OpenAIClientTest {
     fun newerReasoningModelsStartWithLowWithoutAnAvoidableRetry() {
         for (model in listOf("gpt-6.1-sol", "gpt-6.1-sol-2026-09-29", "gpt-6-astra")) {
             val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
-            runBlocking { OpenAIClient(http.client, prompt).check("key", model, request) }
+            runBlocking { prompt.read(OpenAIClient(http.client).generate("key", model, prompt.generation(request))) }
             assertEquals(1, http.requests.size)
             assertTrue(http.body(0).contains("\"effort\":\"low\""))
         }
@@ -118,7 +118,7 @@ class OpenAIClientTest {
     fun efficientAndOlderModelsKeepTheirNoReasoningRequest() {
         for (model in listOf("gpt-6-luna", "gpt-6-sol", "chat-latest")) {
             val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
-            runBlocking { OpenAIClient(http.client, prompt).check("key", model, request) }
+            runBlocking { prompt.read(OpenAIClient(http.client).generate("key", model, prompt.generation(request))) }
             assertTrue(http.body(0).contains("\"effort\":\"none\""))
         }
     }

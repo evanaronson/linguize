@@ -10,9 +10,7 @@ import com.evanaronson.linguize.history.patterns.PatternAnalyser
 import com.evanaronson.linguize.history.patterns.PatternFixtures.check
 import com.evanaronson.linguize.history.patterns.PatternFixtures.fix
 import com.evanaronson.linguize.llm.CheckFailure
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
@@ -53,7 +51,6 @@ class PatternsLabTest {
             requests += request
             return answer
         }
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("not used")
         override suspend fun models(key: String): List<String> = emptyList()
     }
 

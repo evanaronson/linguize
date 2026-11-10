@@ -22,6 +22,12 @@ data class Conversation(
     val persona: String? = null,
 )
 
+/** One conversation and its messages, oldest first; storage returns an acknowledged snapshot. */
+data class ChatSnapshot(val conversation: Conversation, val messages: List<ChatMessage>) {
+    /** The writer spoke last and no answer came: offer a retry. */
+    val awaitingReply get() = messages.lastOrNull()?.fromWriter == true
+}
+
 /** How a writer's message was checked before it was sent. */
 enum class SentCheck(val token: String) {
     /** A partner message, or a writer message sent without any check. */

@@ -17,6 +17,7 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Understood
 import com.evanaronson.linguize.core.chat.ChatMessage
+import com.evanaronson.linguize.core.chat.ChatSnapshot
 import com.evanaronson.linguize.core.chat.ChatStart
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
@@ -33,7 +34,6 @@ import com.evanaronson.linguize.core.time.DraftTimer
 import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
-import com.evanaronson.linguize.data.chat.ChatSnapshot
 import com.evanaronson.linguize.data.chat.PartnerAppend
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.chat.ChatPrompt
@@ -51,14 +51,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
-
-/** The open conversation and its messages, oldest first. */
-data class ChatThread(val conversation: Conversation, val messages: List<ChatMessage>) {
-    val writerMessages get() = messages.count { it.fromWriter }
-
-    /** The writer spoke last and no answer came: offer a retry. */
-    val awaitingReply get() = messages.lastOrNull()?.fromWriter == true
-}
 
 /** The exact metadata write that can be retried without losing the writer's input. */
 sealed interface ConversationWriteFailure {
@@ -127,7 +119,7 @@ class ChatViewModel(
 ) : ViewModel() {
     var conversations by mutableStateOf<List<ConversationSummary>>(emptyList())
         private set
-    var thread by mutableStateOf<ChatThread?>(null)
+    var thread by mutableStateOf<ChatSnapshot?>(null)
         private set
     var draft by mutableStateOf(TextFieldValue())
         private set
@@ -135,10 +127,8 @@ class ChatViewModel(
         private set
 
     /** The checked message is being committed; its draft and check remain intact until then. */
-    var savingMessage by mutableStateOf(false)
-        private set
-    var sendSaveFailed by mutableStateOf(false)
-        private set
+    val savingMessage get() = send is SendState.Saving
+    val sendSaveFailed get() = send is SendState.SaveFailed
     var replySaveFailed by mutableStateOf(false)
         private set
     var conversationSaveFailure by mutableStateOf<ConversationWriteFailure?>(null)
@@ -184,7 +174,6 @@ class ChatViewModel(
 
     private var replyJob: Job? = null
     private var sendJob: Job? = null
-    private var unsavedOutgoing: Outgoing? = null
     private var unsavedPartner: PartnerMessage? = null
     private var learnedQuiet = false
 
@@ -229,14 +218,12 @@ class ChatViewModel(
         replying = false
     }
 
-    private fun ChatSnapshot.thread() = ChatThread(conversation, messages)
-
     /** A manual title acknowledged after a transaction's snapshot still wins on screen. */
-    private fun ChatSnapshot.afterRename(previous: Permit?): ChatThread {
+    private fun ChatSnapshot.afterRename(previous: Permit?): ChatSnapshot {
         val shown = thread?.conversation?.takeIf { it.id == conversation.id }
         return if (shown != null && acknowledgedRenames[conversation.id] !== previous) {
-            ChatThread(conversation.copy(title = shown.title, titleIsCustom = shown.titleIsCustom), messages)
-        } else thread()
+            copy(conversation = conversation.copy(title = shown.title, titleIsCustom = shown.titleIsCustom))
+        } else this
     }
 
     fun retryLoad() { failedRead?.invoke() }
@@ -330,7 +317,7 @@ class ChatViewModel(
         val known = (language ?: currentLanguage())?.takeIf { Language.forCode(it) != null }
         creatingConversationId = id
         conversationSaveFailure = null
-        if (known != null && !savingMessage) show(ChatThread(Conversation(id, title, known, now, now, persona = who), emptyList()))
+        if (known != null && !savingMessage) show(ChatSnapshot(Conversation(id, title, known, now, now, persona = who), emptyList()))
         create(owner) { Conversation(id, title, known ?: startLanguage(), now, now, persona = who) }
         return id
     }
@@ -353,7 +340,7 @@ class ChatViewModel(
                         conversationSaveFailure = if (created) null else ConversationWriteFailure.Create(record)
                     }
                     if (created) {
-                        if (thread?.conversation?.id != id) show(ChatThread(record, emptyList()))
+                        if (thread?.conversation?.id != id) show(ChatSnapshot(record, emptyList()))
                         writeOpener(record)
                     }
                 }
@@ -433,21 +420,19 @@ class ChatViewModel(
             failedRead = null
             if (loaded == null) return@launch onMissing()
             if (thread?.conversation?.id == id) {
-                thread = loaded.thread()
+                thread = loaded
                 onLanguage(loaded.conversation.language)
-            } else show(loaded.thread())
+            } else show(loaded)
             if (loaded.messages.isEmpty()) writeOpener(loaded.conversation)
         }
     }
 
-    private fun show(next: ChatThread) {
+    private fun show(next: ChatSnapshot) {
         editor = Any()
         cancelPartner()
         replyFailure = null
         replySaveFailed = false
         unsavedPartner = null
-        sendSaveFailed = false
-        unsavedOutgoing = null
         expanded = null
         focusDraft = false
         draft = TextFieldValue()
@@ -507,7 +492,7 @@ class ChatViewModel(
         val pendingSend = sendJob
         appScope.launch(Dispatchers.Main.immediate) {
             pendingSend?.join()
-            if (store.delete(id) == null) {
+            if (!store.delete(id)) {
                 if (metadataCommand === command) conversationSaveFailure = ConversationWriteFailure.Delete(id)
                 return@launch
             }
@@ -602,8 +587,6 @@ class ChatViewModel(
      */
     fun editDraft() {
         if (savingMessage || send == SendState.Composing) return
-        sendSaveFailed = false
-        unsavedOutgoing = null
         drafting.keptEditing(draftCheck?.reviewMs() ?: 0L)
         handle(SendEvent.Edit)
         focusDraft = true
@@ -615,7 +598,6 @@ class ChatViewModel(
     }
 
     private fun handle(event: SendEvent) {
-        if (savingMessage) return
         val transition = send.on(event)
         send = transition.state
         when (val effect = transition.effect) {
@@ -631,49 +613,44 @@ class ChatViewModel(
     }
 
     private fun deliver(outgoing: Outgoing) {
-        val current = thread ?: return
-        val owner = selection?.takeIf { it.id == current.conversation.id } ?: return
+        val current = thread
+        val owner = selection
+        if (current == null || owner == null || owner.id != current.conversation.id) {
+            send = SendState.Composing
+            return
+        }
         val writingIn = editor
         val renameAtStart = acknowledgedRenames[current.conversation.id]
         val check = draftCheck
         val id = UUID.randomUUID().toString()
         val message = outgoing.message(id, current.conversation.id, clock(), check?.sessionId)
         cancelPartner()
-        savingMessage = true
-        sendSaveFailed = false
-        unsavedOutgoing = outgoing
-        send = SendState.Reviewing(outgoing.raw)
         sendJob = viewModelScope.launch {
             // The accepted writer command and its History acknowledgement survive navigation.
             // Navigation waits for this commit; generated turns use independently revocable permits.
             withContext(NonCancellable) {
-                try {
-                    val saved = store.appendWriter(message)
-                    if (saved == null) {
-                        if (editor === writingIn) sendSaveFailed = true
-                        return@withContext
-                    }
-                    check?.finish(outgoing.text, drafting.sent(id))
-                    // Returning from the list may reuse this editor. A committed draft must
-                    // be retired there too, even though navigation revoked reply ownership.
-                    if (editor !== writingIn) return@withContext
-                    draft = TextFieldValue()
-                    send = SendState.Composing
-                    unsavedOutgoing = null
-                    val withMessage = saved.afterRename(renameAtStart)
-                    thread = withMessage
-                    if (owns(owner)) requestReply(withMessage)
-                    reloadList()
-                } finally {
-                    savingMessage = false
+                val saved = store.appendWriter(message)
+                if (saved == null) {
+                    if (editor === writingIn) handle(SendEvent.SaveFailed)
+                    return@withContext
                 }
+                check?.finish(outgoing.text, drafting.sent(id))
+                // Returning from the list may reuse this editor. A committed draft must
+                // be retired there too, even though navigation revoked reply ownership.
+                if (editor !== writingIn) return@withContext
+                draft = TextFieldValue()
+                handle(SendEvent.Saved)
+                val withMessage = saved.afterRename(renameAtStart)
+                thread = withMessage
+                if (owns(owner)) requestReply(withMessage)
+                reloadList()
             }
         }
     }
 
     /** Retries the same checked message without discarding accepted changes or rerunning the model. */
     fun retrySend() {
-        if (!savingMessage) unsavedOutgoing?.let(::deliver)
+        if (selection?.id == thread?.conversation?.id) handle(SendEvent.RetrySave)
     }
 
     fun retryReply() {
@@ -711,7 +688,7 @@ class ChatViewModel(
         }
     }
 
-    private fun requestReply(current: ChatThread) {
+    private fun requestReply(current: ChatSnapshot) {
         val conversation = current.conversation
         val language = Language.forCode(conversation.language) ?: Language.Spanish
         val history = current.messages.map { Turn(it.fromWriter, it.text) }

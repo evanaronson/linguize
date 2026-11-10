@@ -3,7 +3,7 @@ package com.evanaronson.linguize.data.vocabgaps
 import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.morphology.Morphology
 import com.evanaronson.linguize.core.morphology.MorphologyLemmatizer
-import com.evanaronson.linguize.core.vocab.VocabAnalyser
+import com.evanaronson.linguize.core.vocab.Milestone
 import com.evanaronson.linguize.core.vocab.VocabDeck
 import com.evanaronson.linguize.core.vocab.VocabLevel
 import org.junit.Assert.assertEquals
@@ -29,7 +29,7 @@ class BundledDecksTest {
         val counts = deck.entries.map { it.count ?: 0L }
         assertEquals(label, counts.sortedDescending(), counts)
         assertTrue(label, deck.reserve.all { (it.count ?: 0L) <= counts.last() })
-        assertEquals(label, listOf(100, 500, 1_000, 2_000, 5_000), VocabAnalyser.milestones(deck.size))
+        assertEquals(label, listOf(100, 500, 1_000, 2_000, 5_000), Milestone.tops(deck.size))
         assertEquals(label, 5_000, deck.entries.take(5_000).size)
     }
 

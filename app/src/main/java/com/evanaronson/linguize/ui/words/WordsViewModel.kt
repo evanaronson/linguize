@@ -29,7 +29,6 @@ import com.evanaronson.linguize.core.words.WordLevel
 import com.evanaronson.linguize.core.words.WordSort
 import com.evanaronson.linguize.core.words.WordViews
 import com.evanaronson.linguize.data.Exports
-import com.evanaronson.linguize.data.vocabgaps.BundledDecks
 import com.evanaronson.linguize.data.vocabgaps.ImportedDeck
 import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
 import com.evanaronson.linguize.data.vocabgaps.VocabSelection
@@ -195,6 +194,16 @@ class WordsViewModel internal constructor(
 
     /** Reads the corpus again; cheap when nothing changed. */
     fun refresh() { requestQuery(rebuild = true, delayed = true) }
+
+    /** A list follows an explicit language; a detail also pins its level and nullable language. */
+    fun enter(language: String?, level: WordLevel? = null) {
+        val chooseLanguage = if (language != null || level != null) languageChange(language) else null
+        val chooseLevel = level?.let(::levelChange)
+        requestQuery(rebuild = true, delayed = true, clearCoverage = chooseLanguage != null || chooseLevel != null) {
+            val scoped = chooseLanguage?.invoke(it) ?: it
+            chooseLevel?.invoke(scoped) ?: scoped
+        }
+    }
 
     private fun current(query: Long) = queries.get() == query
 
@@ -366,13 +375,15 @@ class WordsViewModel internal constructor(
     }
 
     fun selectLanguage(language: String?) {
+        languageChange(language)?.let { requestQuery(clearCoverage = true, change = it) }
+    }
+
+    private fun languageChange(language: String?): ((WordsState) -> WordsState)? {
         val changed = !languageChosen || language != _state.value.language
         languageChosen = true
-        if (!changed) return
+        if (!changed) return null
         scopeVersion++
-        requestQuery(clearCoverage = true) {
-            it.copy(language = language, deckId = null, filter = WordFilter.All, query = "")
-        }
+        return { it.copy(language = language, deckId = null, filter = WordFilter.All, query = "") }
     }
 
     fun selectDeck(id: String) {
@@ -384,11 +395,15 @@ class WordsViewModel internal constructor(
     }
 
     fun countBy(level: WordLevel) {
+        levelChange(level)?.let { requestQuery(clearCoverage = true, change = it) }
+    }
+
+    private fun levelChange(level: WordLevel): ((WordsState) -> WordsState)? {
         val changed = !levelChosen || level != _state.value.level
         levelChosen = true
-        if (!changed) return
+        if (!changed) return null
         scopeVersion++
-        requestQuery(clearCoverage = true) { it.copy(level = level) }
+        return { it.copy(level = level) }
     }
 
     fun sortBy(sort: WordSort) = _state.update { it.copy(sort = sort) }
@@ -593,7 +608,7 @@ class WordsViewModel internal constructor(
                 val decks = DeckLibrary(
                     lemmatizer = { app.lemmatizer },
                     store = VocabGapsStore(File(app.filesDir, VocabGapsStore.DIR)),
-                    bundled = BundledDecks { name -> app.assets.open(name).bufferedReader().use { it.readText() } },
+                    bundled = app.bundledDecks,
                 )
                 WordsViewModel(
                     app.corpus, app.lemmatizer, decks, app.history.revisions(), exports = app.exports,

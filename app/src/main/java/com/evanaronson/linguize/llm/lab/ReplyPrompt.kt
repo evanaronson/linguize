@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.llm.lab
 
 import com.evanaronson.linguize.llm.CheckRequest
-import com.evanaronson.linguize.llm.GenerationRequest
 import com.evanaronson.linguize.llm.Prompt
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -18,7 +17,7 @@ import java.security.MessageDigest
  */
 class ReplyPrompt(val addendum: String) {
     /** The shipped instructions, then the reply rules. */
-    fun system(base: Prompt): String = base.system.trimEnd() + "\n\n" + addendum.trim() + "\n"
+    fun system(baseSystem: String): String = baseSystem.trimEnd() + "\n\n" + addendum.trim() + "\n"
 
     /**
      * One `Replying to:` JSON line, then [Prompt.userMessage] exactly as a check without context
@@ -27,15 +26,6 @@ class ReplyPrompt(val addendum: String) {
      */
     fun userMessage(base: Prompt, request: CheckRequest, message: String): String =
         "$LINE_PREFIX${messageJson(message)}\n" + base.userMessage(request)
-
-    /** What the provider is sent: the shipped schema, name and output limit, with composed instructions and message. */
-    fun generation(base: Prompt, request: CheckRequest, message: String) = GenerationRequest(
-        system = system(base),
-        user = userMessage(base, request, message),
-        schema = base.schema,
-        name = NAME,
-        maxTokens = Prompt.MAX_OUTPUT_TOKENS,
-    )
 
     /**
      * Stands in for [Prompt.hash] in a check with context. It differs from the shipped hash and
@@ -50,9 +40,6 @@ class ReplyPrompt(val addendum: String) {
     companion object {
         const val ASSET = "lab_reply_context_prompt.md"
         const val LINE_PREFIX = "Replying to: "
-
-        /** The shipped answer's name, so providers treat it as the same structured answer. */
-        private const val NAME = "check"
 
         /** The same bound as the text: a message, not a thread. */
         const val MAX_CHARS = 3000

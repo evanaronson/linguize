@@ -17,7 +17,7 @@ class ComposedProviderWireContractTest {
     @Test
     fun geminiWireBytesPreserveEveryFrozenPreparedRequest() = runBlocking {
         val http = FakeHttp { _, _ -> 200 to geminiAnswer() }
-        val client = GeminiClient(http.client, PreparedCheckFixtures.base)
+        val client = GeminiClient(http.client)
         for ((index, fixture) in PreparedCheckFixtures.cases.withIndex()) {
             val prepared = fixture.prepare()
             fixture.assertGeneration(prepared.generation)
@@ -36,7 +36,7 @@ class ComposedProviderWireContractTest {
     @Test
     fun openAiWireBytesPreserveEveryFrozenRequestAndRemoveOnlyTopLevelPropertyOrdering() = runBlocking {
         val http = FakeHttp { _, _ -> 200 to openAiAnswer() }
-        val client = OpenAIClient(http.client, PreparedCheckFixtures.base)
+        val client = OpenAIClient(http.client)
         for ((index, fixture) in PreparedCheckFixtures.cases.withIndex()) {
             val prepared = fixture.prepare()
             fixture.assertGeneration(prepared.generation)
@@ -65,8 +65,8 @@ class ComposedProviderWireContractTest {
                 if (index == 0) 400 to """{"error":{"message":"unsupported $option"}}"""
                 else 200 to if (provider == Provider.Gemini) geminiAnswer() else openAiAnswer()
             }
-            val client = if (provider == Provider.Gemini) GeminiClient(http.client, PreparedCheckFixtures.base)
-                else OpenAIClient(http.client, PreparedCheckFixtures.base)
+            val client = if (provider == Provider.Gemini) GeminiClient(http.client)
+                else OpenAIClient(http.client)
             val model = if (provider == Provider.Gemini) "gemini-fixture-model" else "gpt-6.1-sol"
             assertEquals(VERDICT_JSON, client.generate("fixture-key", model, generation))
             assertEquals(VERDICT_JSON, client.generate("fixture-key", model, generation))

@@ -33,7 +33,7 @@ class ReplyPromptTest {
 
     @Test
     fun theSystemIsTheShippedPromptFollowedByTheReplyRules() {
-        val system = reply.system(base)
+        val system = reply.system(base.system)
         assertTrue(system.startsWith(base.system.trimEnd()))
         assertTrue(system.endsWith(reply.addendum.trim() + "\n"))
         assertTrue("## Replying to a message" in system)
@@ -65,12 +65,12 @@ class ReplyPromptTest {
 
     @Test
     fun theRequestUsesTheShippedSchemaNameAndLimit() {
-        val composed = reply.generation(base, request, incoming)
+        val composed = CheckComposition.prepare(base, null, null, request, reply, incoming).generation
         val shipped = base.generation(request)
         assertEquals(shipped.schema, composed.schema)
         assertEquals(shipped.name, composed.name)
         assertEquals(shipped.maxTokens, composed.maxTokens)
-        assertEquals(reply.system(base), composed.system)
+        assertEquals(reply.system(base.system), composed.system)
         assertEquals(reply.userMessage(base, request, incoming), composed.user)
     }
 

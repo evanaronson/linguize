@@ -49,6 +49,13 @@ class WordIndexTest {
         assertEquals(4, ca.wordsThisMonth)
         assertEquals(0, ca.newThisMonth)
         assertEquals(2, ca.messages)
+        val repeated = build(utterance("many", List(40) { "casa" }.joinToString(" "), now)).language("ca")!!
+        for (level in WordLevel.entries) {
+            val row = repeated.rows(level).single()
+            assertEquals(40, row.right)
+            assertEquals(30, row.recent.size)
+            assertEquals((0 until 30).map { it * 5 }, row.recent.map { it.start })
+        }
     }
 
     @Test

@@ -147,7 +147,7 @@ class LanguageGenericTest {
             override suspend fun forget(source: String) = Unit
         }
         val chatPrompt = ChatPrompt.load { File("src/main/assets/$it").readText() }
-        val partner = ChatPartner(settings, ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client, Prompt("x", "{}"))),
+        val partner = ChatPartner(settings, ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client)),
             { memory }) { chatPrompt }
         assertEquals("Bonjour ! Ça va ?", partner.open(french).reply)
         val body = http.body(0)

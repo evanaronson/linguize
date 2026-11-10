@@ -278,19 +278,19 @@ object FunctionWords {
     }
 
     /** Common nouns that are also verb forms; the lemmatizer keeps both. */
-    fun alsoNouns(language: String): Set<String> = when (language) {
-        "es" -> setOf("trabajo", "paso", "cuento", "vino", "cambio", "viaje", "regalo", "pago", "baile", "canto", "llamada", "ayuda", "cena", "duda", "visita", "vuelta", "compra", "espera", "lucha", "pregunta", "respuesta", "beso", "abrazo", "uso", "gasto", "sueño", "juego", "plan", "dato", "nota")
-        "ca" -> setOf("dona", "porta", "treball", "pas", "canvi", "viatge", "regal", "ajuda", "pregunta", "resposta", "visita", "compra", "joc", "somni", "petó", "abraçada", "nota", "sopar", "dinar", "esmorzar", "berenar", "deure", "ball", "cant", "pagament", "dubte")
-        else -> emptySet()
-    }
+    fun alsoNouns(language: String): Set<String> = ALSO_NOUNS[language].orEmpty()
 
     /** Words after which a verb form is read as a noun or adjective (articles, determiners, prepositions). */
-    fun nominalContext(language: String): Set<String> = when (language) {
-        "es" -> setOf("el", "un", "una", "unos", "unas", "mi", "mis", "tu", "tus", "su", "sus", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas", "aquel", "aquella", "nuestro", "nuestra", "vuestro", "vuestra", "del", "al", "de", "en", "con", "sin", "por", "para", "cada", "otro", "otra", "mucho", "mucha", "poco", "poca", "buen", "buena", "mal", "mala", "gran", "primer", "primera", "último", "última")
-        "ca" -> setOf("un", "una", "uns", "unes", "meu", "meva", "teu", "teva", "seu", "seva", "aquest", "aquesta", "aquests", "aquestes", "aquell", "aquella", "del", "al", "pel", "dels", "als", "pels", "de", "d", "amb", "sense", "per", "cada", "altre", "altra", "molt", "molta", "poc", "poca", "bon", "bona", "mal", "mala", "gran", "primer", "primera", "últim", "última")
-        else -> emptySet()
-    }
+    fun nominalContext(language: String): Set<String> = NOMINAL_CONTEXT[language].orEmpty()
 
+    private val ALSO_NOUNS = mapOf(
+        "es" to setOf("trabajo", "paso", "cuento", "vino", "cambio", "viaje", "regalo", "pago", "baile", "canto", "llamada", "ayuda", "cena", "duda", "visita", "vuelta", "compra", "espera", "lucha", "pregunta", "respuesta", "beso", "abrazo", "uso", "gasto", "sueño", "juego", "plan", "dato", "nota"),
+        "ca" to setOf("dona", "porta", "treball", "pas", "canvi", "viatge", "regal", "ajuda", "pregunta", "resposta", "visita", "compra", "joc", "somni", "petó", "abraçada", "nota", "sopar", "dinar", "esmorzar", "berenar", "deure", "ball", "cant", "pagament", "dubte"),
+    )
+    private val NOMINAL_CONTEXT = mapOf(
+        "es" to setOf("el", "un", "una", "unos", "unas", "mi", "mis", "tu", "tus", "su", "sus", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas", "aquel", "aquella", "nuestro", "nuestra", "vuestro", "vuestra", "del", "al", "de", "en", "con", "sin", "por", "para", "cada", "otro", "otra", "mucho", "mucha", "poco", "poca", "buen", "buena", "mal", "mala", "gran", "primer", "primera", "último", "última"),
+        "ca" to setOf("un", "una", "uns", "unes", "meu", "meva", "teu", "teva", "seu", "seva", "aquest", "aquesta", "aquests", "aquestes", "aquell", "aquella", "del", "al", "pel", "dels", "als", "pels", "de", "d", "amb", "sense", "per", "cada", "altre", "altra", "molt", "molta", "poc", "poca", "bon", "bona", "mal", "mala", "gran", "primer", "primera", "últim", "última"),
+    )
     private val SPANISH_NOT_VERBS = setOf(
         "como", "para", "entre", "sobre", "bajo", "solo", "nada", "casa", "cerca", "medio", "claro", "mientras", "cara",
         "pesar", "pena", "hola", "bueno", "mismo", "media", "río", "seguro", "cosa", "ojo", "hora", "fin", "alto",

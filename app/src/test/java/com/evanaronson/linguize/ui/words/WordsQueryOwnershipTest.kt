@@ -293,6 +293,46 @@ class WordsQueryOwnershipTest {
         assertEquals("bundled-ca", f.vm.state.value.coverage?.deck?.id)
     }
 
+    @Test fun enteringADetailPinsNullLanguageAndFormsBeforeRememberedSelectionArrives() = runTest(main.dispatcher) {
+        val io = HeldDispatcher(main.dispatcher)
+        io.hold()
+        val f = fixture(libraryIo = io)
+        f.store.saveSelection(VocabSelection("ca", "bundled-ca", VocabLevel.Lemma))
+        advanceUntilIdle()
+        assertTrue(io.hasPendingWork)
+
+        f.vm.enter(null, WordLevel.Forms)
+        runCurrent()
+        io.release()
+        advanceUntilIdle()
+
+        assertNull(f.vm.state.value.language)
+        assertEquals(WordLevel.Forms, f.vm.state.value.level)
+        assertEquals(WordLevel.Forms, f.vm.state.value.shownLevel)
+        assertFalse(f.vm.state.value.measuring)
+        assertTrue(f.vm.state.value.exportReady)
+    }
+
+    @Test fun enteringAScopedDetailPublishesOneMeasurementAndAutoListKeepsItsSelection() = runTest(main.dispatcher) {
+        val f = fixture()
+        advanceUntilIdle()
+        val reads = f.source.reads
+
+        f.vm.enter("ca", WordLevel.Lemmas)
+        advanceUntilIdle()
+        assertEquals(reads + 1, f.source.reads)
+        assertEquals("ca", f.vm.state.value.shownLanguage)
+        assertEquals(WordLevel.Lemmas, f.vm.state.value.shownLevel)
+        assertEquals(VocabSelection("ca", "bundled-ca", VocabLevel.Lemma), f.store.selection())
+
+        f.vm.enter(null)
+        advanceUntilIdle()
+        assertEquals(reads + 2, f.source.reads)
+        assertEquals("ca", f.vm.state.value.shownLanguage)
+        assertEquals(WordLevel.Lemmas, f.vm.state.value.shownLevel)
+        assertEquals(VocabSelection("ca", "bundled-ca", VocabLevel.Lemma), f.store.selection())
+    }
+
     @Test fun explicitDeckChosenWhileRestorationIsQueuedWinsOverRememberedDeck() = runTest(main.dispatcher) {
         val io = HeldDispatcher(main.dispatcher)
         io.hold()
@@ -337,10 +377,11 @@ class WordsQueryOwnershipTest {
     private class Source : CorpusSource {
         override val name = "check"
         var text = "casa"
-        override suspend fun utterances() = listOf(
-            Utterance("es", name, "es", text, at = 1),
-            Utterance("ca", name, "ca", "gat", at = 2),
-        )
+        var reads = 0
+        override suspend fun utterances(): List<Utterance> {
+            reads++
+            return listOf(Utterance("es", name, "es", text, at = 1), Utterance("ca", name, "ca", "gat", at = 2))
+        }
     }
 
     private data class Fixture(

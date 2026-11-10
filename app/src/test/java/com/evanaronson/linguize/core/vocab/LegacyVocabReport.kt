@@ -1,74 +1,37 @@
 package com.evanaronson.linguize.core.vocab
 
 import com.evanaronson.linguize.core.corpus.Lemmatizer
-import com.evanaronson.linguize.core.corpus.Pos
 import com.evanaronson.linguize.core.corpus.Utterance
-import kotlinx.serialization.Serializable
+import org.junit.Assert.assertEquals
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
 
-/** Where the writer used a word: characters `[start, end)` of an utterance. */
-@Serializable
 data class Example(val utterance: String, val start: Int, val end: Int, val at: Long)
 
-/**
- * How often the writer used one deck row, when last, and the latest few places.
- * [bySpelling] is true when some use was matched by spelling only, without a part of speech.
- */
-@Serializable
 data class WordUse(val count: Int, val lastAt: Long, val examples: List<Example>, val bySpelling: Boolean = false)
 
-/** Of the deck's [top] most frequent rows, how many the writer [used]. */
-@Serializable
-data class Milestone(val top: Int, val used: Int) {
-    val percent: Int get() = if (top == 0) 0 else used * 100 / top
-}
-
-/**
- * One calendar month ("2026-11"). [topUsed] counts the deck's top rows used by the end of
- * that month (all time so far); [distinct] and [rarer] count lemmas used in that month only.
- */
-@Serializable
 data class MonthPoint(val month: String, val topUsed: Int, val distinct: Int, val rarer: Int, val utterances: Int) {
     val rarerPercent: Int get() = if (distinct == 0) 0 else rarer * 100 / distinct
 }
 
-/**
- * Lab, Vocabulary gaps: which rows of one deck the writer has used, built only from their
- * own input ([Utterance]), skipping the spans an accepted fix replaced. Derived data: it names
- * the [fingerprint] of the evidence it came from and is rebuilt when that changes.
- */
-@Serializable
 data class VocabReport(
     val fingerprint: String,
     val deckId: String,
     val language: String,
     val level: VocabLevel = VocabLevel.Lexeme,
-    /** Utterances in the deck's language. */
     val utterances: Int,
-    /** Words counted, outside corrected spans. */
     val words: Int,
-    /** Words skipped because an accepted fix replaced them. */
     val tried: Int,
-    /** Words that reached the deck by spelling only: no part of speech was known for them. */
     val bySpelling: Int = 0,
-    /** [DeckEntry.key] to its use. Rows never used are absent. */
     val used: Map<String, WordUse>,
     val milestones: List<Milestone>,
-    /** Distinct lemmas used, in the deck or not. */
     val distinct: Int,
-    /** Of [distinct], those beyond rank [RARE_RANK] or not in the deck. */
     val rarer: Int,
-    /** The size of the top group the trend follows: the top 1,000, or the whole deck if smaller. */
     val trendTop: Int,
     val trend: List<MonthPoint>,
 ) {
-    /**
-     * The milestone to lead with: the largest group the writer has used at least half of,
-     * or the smallest one when they haven't reached half of any.
-     */
     val headline: Milestone?
         get() = milestones.lastOrNull { it.used * 2 >= it.top } ?: milestones.firstOrNull()
 
@@ -80,21 +43,13 @@ data class VocabReport(
     }
 }
 
-/**
- * Builds a [VocabReport]. Rules for one written word, in order:
- * 1. Lexemes [lemmatizer] knows, with their part of speech, count toward exactly those rows;
- *    the deck's own `forms` column maps a form to its row's exact lexeme.
- * 2. Otherwise the word is matched by spelling: the lemmas morphology gave (Identity gives the
- *    word itself) and a few irregular forms count toward every row with that lemma.
- * 3. Otherwise a small fallback folds plurals, gender and regular verb endings, and finally
- *    ignores missing accents, accepted only when the deck holds the result.
- * An ambiguous word counts toward every candidate it reaches at the first step that matches.
- */
+/** Pre-cleanup report oracle: retain every report assertion and check production membership on each fixture. */
 class VocabAnalyser(private val lemmatizer: Lemmatizer, private val zone: ZoneId = ZoneId.systemDefault()) {
 
     fun analyse(deck: VocabDeck, corpus: List<Utterance>): VocabReport {
         val utterances = corpus.filter { it.language == deck.language }.sortedBy { it.at }
         val index = DeckIndex(deck, lemmatizer)
+        val ranks = ReportRanks(deck)
         val uses = HashMap<String, MutableList<Example>>()
         val spelled = HashSet<String>()
         val monthKeys = LinkedHashMap<YearMonth, MutableSet<String>>()
@@ -151,7 +106,7 @@ class VocabAnalyser(private val lemmatizer: Lemmatizer, private val zone: ZoneId
             )
         }
         val trendTop = minOf(VocabReport.TREND_TOP, deck.size)
-        return VocabReport(
+        val report = VocabReport(
             fingerprint = fingerprint(deck, corpus, lemmatizer),
             deckId = deck.id,
             language = deck.language,
@@ -161,19 +116,21 @@ class VocabAnalyser(private val lemmatizer: Lemmatizer, private val zone: ZoneId
             tried = tried,
             bySpelling = bySpelling,
             used = used,
-            milestones = milestones(deck.size).map { top -> Milestone(top, deck.entries.take(top).count { it.key in used }) },
+            milestones = Milestone.tops(deck.size).map { top -> Milestone(top, deck.entries.take(top).count { it.key in used }) },
             distinct = allKeys.size,
-            rarer = allKeys.count { index.isRare(it) },
+            rarer = allKeys.count { ranks.isRare(it) },
             trendTop = trendTop,
-            trend = trend(monthKeys, monthDeck, monthUtterances, index, trendTop),
+            trend = trend(monthKeys, monthDeck, monthUtterances, ranks, trendTop),
         )
+        assertEquals("Legacy report and production Chat membership", report.used.keys, usedDeckKeys(deck, corpus, lemmatizer))
+        return report
     }
 
     private fun trend(
         monthKeys: Map<YearMonth, Set<String>>,
         monthDeck: Map<YearMonth, Set<String>>,
         monthUtterances: Map<YearMonth, Int>,
-        index: DeckIndex,
+        index: ReportRanks,
         trendTop: Int,
     ): List<MonthPoint> {
         val first = monthKeys.keys.minOrNull() ?: return emptyList()
@@ -191,19 +148,10 @@ class VocabAnalyser(private val lemmatizer: Lemmatizer, private val zone: ZoneId
     }
 
     companion object {
-        /** Bump when the counting rules change, so saved reports are rebuilt. */
         const val VERSION = 2
         private const val DECK = "d:"
         private const val OTHER = "x:"
 
-        /** 100, 500, 1,000, 2,000 and 5,000, each only when the deck is larger, then the whole deck. */
-        fun milestones(size: Int): List<Int> =
-            (listOf(100, 500, 1_000, 2_000, 5_000).filter { it < size } + size).filter { it > 0 }
-
-        /**
-         * Identifies the evidence a report is built from: the deck, the analyser and morphology,
-         * and every utterance in the deck's language as it is now. Any deletion or edit changes it.
-         */
         fun fingerprint(deck: VocabDeck, corpus: List<Utterance>, lemmatizer: Lemmatizer): String {
             val digest = MessageDigest.getInstance("SHA-256")
             fun add(value: String) {
@@ -227,62 +175,10 @@ class VocabAnalyser(private val lemmatizer: Lemmatizer, private val zone: ZoneId
     }
 }
 
-/** Fast lookup of a deck's rows, and the matching rules for one written word. */
-internal class DeckIndex(private val deck: VocabDeck, private val lemmatizer: Lemmatizer) {
-    /** The deck rows a word reached; [bySpelling] when no part of speech backed the match. */
-    data class Match(val entries: Set<DeckEntry>, val bySpelling: Boolean)
-
-    private val language = deck.language
-    private val words = deck.entries.filterNot { it.isPhrase }
-    private val byKey: Map<String, DeckEntry> = words.associateBy { it.key }
-    private val byLemma: Map<String, List<DeckEntry>> = words.groupBy { it.lemma }
-    private val byForm: Map<String, List<DeckEntry>> = HashMap<String, MutableList<DeckEntry>>().also { map ->
-        words.forEach { entry -> entry.forms.forEach { form -> map.getOrPut(form) { ArrayList() } += entry } }
-    }
-    private val byStripped: Map<String, List<DeckEntry>> = byLemma.keys
-        .groupBy { WordFolding.stripAccents(it) }
-        .filterValues { it.size == 1 }
-        .mapValues { byLemma.getValue(it.value.single()) }
-    val phrases: List<Pair<DeckEntry, Regex>> = deck.entries.filter { it.isPhrase }.map { entry ->
-        entry to Regex("(?<!\\p{L})" + entry.lemma.split(' ').joinToString("\\s+") { Regex.escape(it) } + "(?!\\p{L})",
-            setOf(RegexOption.IGNORE_CASE))
-    }
-    private val ranks: Map<String, Int> = deck.entries.associate { it.key to it.rank }
-    private val lemmaRanks: Map<String, Int> = deck.entries.groupBy { it.lemma }.mapValues { (_, rows) -> rows.minOf { it.rank } }
-
-    /** Spelling matches only matter where rows carry parts of speech. */
-    private val spellingCounts = deck.level == VocabLevel.Lexeme && deck.hasLexemes
-
+private class ReportRanks(deck: VocabDeck) {
+    private val ranks = deck.entries.associate { it.key to it.rank }
+    private val lemmaRanks = deck.entries.groupBy { it.lemma }.mapValues { (_, rows) -> rows.minOf { it.rank } }
     fun rank(key: String): Int = ranks[key] ?: Int.MAX_VALUE
-
-    /** A lemma key ("d:lemma" in the deck, "x:lemma" not) counts as rarer. */
     fun isRare(key: String): Boolean =
         !key.startsWith("d:") || (lemmaRanks[key.removePrefix("d:")] ?: Int.MAX_VALUE) > VocabReport.RARE_RANK
-
-    /** The deck rows [word] (lowercase) counts toward. */
-    fun match(word: String): Match {
-        val lexemes = lemmatizer.lexemes(word, language)
-        val exact = LinkedHashSet<DeckEntry>()
-        for (lexeme in lexemes) {
-            if (lexeme.pos == Pos.Unknown) continue
-            byKey["${lexeme.lemma}/${lexeme.pos.token}"]?.let(exact::add)
-            byLemma[lexeme.lemma]?.filterTo(exact) { it.pos == null }
-        }
-        byForm[word]?.let(exact::addAll)
-        if (exact.isNotEmpty()) return Match(exact, false)
-        if (deck.formsOnly) return Match(byLemma[word].orEmpty().toSet(), false)
-
-        val spelling = (lexemes.map { it.lemma } + word + WordFolding.irregular(word, language))
-            .flatMapTo(LinkedHashSet()) { byLemma[it].orEmpty() }
-        if (spelling.isNotEmpty()) return Match(spelling, spellingCounts)
-        val nominal = WordFolding.nominal(word, language)
-        nominal.firstNotNullOfOrNull { byLemma[it] }?.let { return Match(it.toSet(), spellingCounts) }
-        WordFolding.verbal(word, language).firstNotNullOfOrNull { candidate ->
-            byLemma[candidate]?.filter { it.pos == Pos.Verb.token || it.pos == null && candidate.length > 3 }?.takeIf { it.isNotEmpty() }
-        }?.let { return Match(it.toSet(), spellingCounts) }
-        // Accents left off ("aqui", "telefono"): only when exactly one deck lemma fits.
-        (listOf(word) + nominal).firstNotNullOfOrNull { byStripped[WordFolding.stripAccents(it)] }
-            ?.let { return Match(it.toSet(), spellingCounts) }
-        return Match(emptySet(), false)
-    }
 }

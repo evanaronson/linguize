@@ -101,12 +101,13 @@ class ChatStoreTest {
         store.create(first)
         store.add(opener)
         store.add(mine)
-        val removed = store.delete("c1")!!
-        assertEquals(first.copy(updatedAt = 30), removed.first)
-        assertEquals(listOf(opener, mine), removed.second)
+        val before = store.readThread("c1")!!
+        assertEquals(first.copy(updatedAt = 30), before.conversation)
+        assertEquals(listOf(opener, mine), before.messages)
+        assertTrue(store.delete("c1"))
         assertTrue(store.conversations().isEmpty())
         assertTrue(store.messages("c1").isEmpty())
-        assertNull(store.delete("c1"))
+        assertFalse(store.delete("c1"))
     }
 
     @Test fun notesEachMessagesSavedCheckAndGroupsThemByConversation() = runBlocking {

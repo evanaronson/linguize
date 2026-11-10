@@ -9,6 +9,7 @@ import com.evanaronson.linguize.core.morphology.Tense
 import com.evanaronson.linguize.core.vocab.DeckEntry
 import com.evanaronson.linguize.core.vocab.VocabAnalyser
 import com.evanaronson.linguize.core.vocab.VocabDeck
+import com.evanaronson.linguize.core.vocab.usedDeckKeys
 import com.evanaronson.linguize.core.words.DeckCoverage
 import com.evanaronson.linguize.core.words.WordIndex
 import com.evanaronson.linguize.testing.KnownBonanzaDefect
@@ -126,7 +127,7 @@ class WriterEvidenceContractTest {
 
         assertFalse(
             "A word explicitly left in a gap must not be counted as independently used by Chat's vocabulary analyser",
-            "casa/n" in VocabAnalyser(lemmatizer, utc).analyse(deck, evidence).used,
+            "casa/n" in usedDeckKeys(deck, evidence, lemmatizer),
         )
     }
 

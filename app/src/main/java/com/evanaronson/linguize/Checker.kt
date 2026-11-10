@@ -5,6 +5,7 @@ import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.core.interpret
 import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.data.ProviderKeys
@@ -14,6 +15,8 @@ import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
+import com.evanaronson.linguize.llm.generation
+import com.evanaronson.linguize.llm.read
 import com.evanaronson.linguize.llm.lab.CheckComposition
 import com.evanaronson.linguize.llm.lab.GapsInCheck
 import com.evanaronson.linguize.llm.lab.ReplyPrompt
@@ -92,29 +95,12 @@ class Checker(
         }
     }
 
-    private fun checked(text: String, language: Language?, answer: ModelAnswer, context: CheckContext): Checked {
-        val result = try {
-            prompt.validateSize(answer.verdict)
-            interpret(text, answer.verdict, context.judgments, expectedLanguage = language?.name).withLanding(answer.raw, text)
-        } catch (e: CheckFailure) {
-            throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = answer.raw, userMessage = e.userMessage)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: RuntimeException) {
-            throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, raw = answer.raw, userMessage = CheckFailure.Message.InvalidReply)
-        }
-        return Checked(result, answer.raw, context)
-    }
+    private fun checked(text: String, language: Language?, answer: ModelAnswer, context: CheckContext): Checked =
+        checked(text, language, answer.raw, context) { answer.verdict }
 
-    /**
-     * Shows an answer kept from an earlier check of the same [text] ([raw], as [Checked.raw])
-     * again, without asking the model. Throws [CheckFailure] when it can't be read.
-     */
-    suspend fun reuse(text: String, language: Language?, raw: String, context: CheckContext): Checked = failingAsCheckFailure {
-        try {
-            val result = interpret(text, prompt.parseVerdict(raw), context.judgments, expectedLanguage = language?.name)
-                .withLanding(raw, text)
-            Checked(result, raw, context)
+    private inline fun checked(text: String, language: Language?, raw: String, context: CheckContext, verdict: () -> Verdict): Checked {
+        val result = try {
+            interpret(text, verdict(), context.judgments, expectedLanguage = language?.name).withLanding(raw, text)
         } catch (e: CheckFailure) {
             throw CheckFailure(e.reason, e.detail, e.cause ?: e, raw = raw, userMessage = e.userMessage)
         } catch (e: CancellationException) {
@@ -122,12 +108,21 @@ class Checker(
         } catch (e: RuntimeException) {
             throw CheckFailure(CheckFailure.Reason.BadResponse, cause = e, raw = raw, userMessage = CheckFailure.Message.InvalidReply)
         }
+        return Checked(result, raw, context)
+    }
+
+    /**
+     * Shows an answer kept from an earlier check of the same [text] ([raw], as [Checked.raw])
+     * again, without asking the model. Throws [CheckFailure] when it can't be read.
+     */
+    suspend fun reuse(text: String, language: Language?, raw: String, context: CheckContext): Checked = failingAsCheckFailure {
+        checked(text, language, raw, context) { prompt.parseVerdict(raw) }
     }
 
     /** Runs a short check with [model]; returns how long it took in milliseconds. */
     suspend fun testModel(provider: Provider, model: String): Long = failingAsCheckFailure {
         val started = System.nanoTime()
-        clients.getValue(provider).check(key(provider), model, TEST_REQUEST)
+        prompt.read(clients.getValue(provider).generate(key(provider), model, prompt.generation(TEST_REQUEST)))
         (System.nanoTime() - started) / 1_000_000
     }
 

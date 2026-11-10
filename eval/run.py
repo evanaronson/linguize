@@ -218,19 +218,12 @@ PROVIDERS = {
     "openai": (check_openai, "gpt-6.1-sol", "OPENAI_API_KEY"),
 }
 
+PREPARED_PROVIDERS = {"gemini": generate_gemini, "openai": generate_openai}
+
 
 def check_prepared(provider, model, key, generation):
     """Send an exported request without rebuilding its prompt or settings."""
-    check = PROVIDERS[provider][0]
-    if check is check_gemini:
-        return generate_gemini(model, key, generation)
-    if check is check_openai:
-        return generate_openai(model, key, generation)
-    # Test adapters retain the historical signature; real transports consume every
-    # field above. Avoid silently dropping unsupported prepared transport options.
-    if generation["name"] != "check" or generation["max_tokens"] != MAX_OUTPUT_TOKENS:
-        raise ValueError("The evaluation adapter cannot send this prepared contract")
-    return check(model, key, generation["system"], generation["schema"], generation["user"])
+    return PREPARED_PROVIDERS[provider](model, key, generation)
 
 
 def summarize_answer(case, verdict, elapsed):

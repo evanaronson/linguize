@@ -5,9 +5,7 @@ import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.data.CheckPreferences
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -75,7 +73,6 @@ class CheckPreparationExportTest {
                     sent += request
                     return if (sent.size == 1) ANSWER.replace("\"more_natural\":false", "\"more_natural\":true") else ANSWER
                 }
-                override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("Prepared path required")
                 override suspend fun models(key: String): List<String> = error("No discovery")
             }
             val checker = Checker(preferences, { "fixture-key" }, Prompt.load(::read), mapOf(Provider.Gemini to transport),

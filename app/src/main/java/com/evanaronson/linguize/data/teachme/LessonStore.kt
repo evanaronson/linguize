@@ -3,6 +3,7 @@ package com.evanaronson.linguize.data.teachme
 import android.util.Log
 import com.evanaronson.linguize.core.teachme.Lesson
 import com.evanaronson.linguize.core.teachme.LessonTopic
+import com.evanaronson.linguize.data.writeAtomically
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -94,13 +95,7 @@ class LessonStore(private val file: File, private val capacity: Int = DEFAULT_CA
 
     private fun write(entries: List<Entry>) {
         try {
-            file.parentFile?.mkdirs()
-            val temp = File(file.parentFile, "${file.name}.tmp")
-            temp.writeText(json.encodeToString(Saved.serializer(), Saved(lessons = entries)))
-            if (!temp.renameTo(file)) {
-                file.delete()
-                if (!temp.renameTo(file)) Log.w(TAG, "Couldn't save lessons")
-            }
+            writeAtomically(file, json.encodeToString(Saved.serializer(), Saved(lessons = entries)))
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't save lessons", e)
         }

@@ -69,9 +69,7 @@ fun WordDetailScreen(
         // After the process was gone, the list is rebuilt on this row's language and level.
         // Record route intent even when the fresh model's defaults happen to match:
         // its later saved-selection read must not replace the route's language or level.
-        words.selectLanguage(language)
-        words.countBy(wanted)
-        words.refresh()
+        words.enter(language, wanted)
     }
     val shown = state.shown?.takeIf { it.language == language }
     val row = remember(shown, state.coverage, state.shownLevel) {

@@ -3,9 +3,7 @@ package com.evanaronson.linguize
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.lab.LandingOverall
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -43,10 +41,9 @@ class ToneInCheckCheckerTest {
         client.answers += answer(LANDING)
         val checked = checker.check(TEXT, null)
         val sent = client.generations.single()
-        assertTrue(client.checks.isEmpty())
-        val composed = CheckComposition.prompt(prompt, gaps, tone)
-        assertEquals(composed.system, sent.system)
-        assertEquals(composed.schema, sent.schema)
+        assertEquals(1, client.generations.size)
+        assertEquals(tone.system(gaps.system(prompt.system)), sent.system)
+        assertEquals(tone.schema(prompt.schema), sent.schema)
         assertEquals("check", sent.name)
         assertEquals(CheckComposition.hash(prompt, gaps, tone), checked.context.promptHash)
 
@@ -98,7 +95,7 @@ class ToneInCheckCheckerTest {
         val context = checker.context("¿Me lo mandas?")
         val checked = checker.check(TEXT, null, context = context, replyingTo = "¿Me lo mandas?")
         val sent = client.generations.single()
-        assertEquals(reply.system(CheckComposition.prompt(prompt, gaps, tone)), sent.system)
+        assertEquals(reply.system(tone.system(gaps.system(prompt.system))), sent.system)
         assertTrue(sent.system.indexOf(gaps.addendum.trim()) < sent.system.indexOf(tone.addendum.trim()))
         assertTrue(sent.system.indexOf(tone.addendum.trim()) < sent.system.indexOf(reply.addendum.trim()))
         assertTrue(sent.user.startsWith(ReplyPrompt.LINE_PREFIX))
@@ -125,14 +122,8 @@ class ToneInCheckCheckerTest {
     }
 
     private class RecordingClient : ProviderClient {
-        val checks: MutableList<CheckRequest> = Collections.synchronizedList(mutableListOf())
         val generations: MutableList<GenerationRequest> = Collections.synchronizedList(mutableListOf())
         val answers: MutableList<String> = Collections.synchronizedList(mutableListOf())
-
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
-            checks += request
-            return ModelAnswer(QUESTION_VERDICT, QUESTION_JSON)
-        }
 
         override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
             generations += request

@@ -13,10 +13,7 @@ import java.security.MessageDigest
  */
 class GapsInCheck(val addendum: String) {
     /** The shipped instructions, then the gap rules. */
-    fun system(base: Prompt): String = base.system.trimEnd() + "\n\n" + addendum.trim() + "\n"
-
-    /** [base] with the gap rules added: the same schema and user message. */
-    fun prompt(base: Prompt): Prompt = Prompt(system(base), base.schema.toString())
+    fun system(baseSystem: String): String = baseSystem.trimEnd() + "\n\n" + addendum.trim() + "\n"
 
     /**
      * The context's prompt hash: [baseHash] (the shipped hash, or a reply check's) with a

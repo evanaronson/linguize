@@ -69,6 +69,11 @@ class ExportsTest {
         assertTrue(blocked.exists())
         assertEquals("keep", unrelated.readText())
 
+        val newer = write(LocalDate.of(2026, 10, 10))
+        exports.clear() // Best-effort replacement/clear still succeed around an undeletable entry.
+        assertFalse(newer.exists())
+        assertTrue(blocked.exists())
+
         assertTrue(blocked.deleteRecursively())
         assertTrue(exports.clearAcknowledged())
         assertTrue(folder.listFiles()!!.isEmpty())
@@ -81,6 +86,8 @@ class ExportsTest {
 
         assertFalse(exports.clearAcknowledged())
         assertEquals("unexpected file obstructing the export directory", folder.readText())
+        exports.clear()
+        exports.prune()
 
         assertTrue(folder.delete())
         assertTrue(exports.clearAcknowledged())

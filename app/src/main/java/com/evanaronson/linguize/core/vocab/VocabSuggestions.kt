@@ -26,12 +26,9 @@ object VocabSuggestions {
     }
 
     /**
-     * A few words to bring into a conversation: the top unused verbs, nouns and adjectives,
+     * A few words to bring into a conversation: the top verbs, nouns and adjectives outside [used],
      * taken in turn so the set is varied, in deck order, each lemma once.
      */
-    fun targets(deck: VocabDeck, report: VocabReport, count: Int = 5): List<DeckEntry> = targets(deck, report.used.keys, count)
-
-    /** The same, for rows whose keys are in [used]. */
     fun targets(deck: VocabDeck, used: Set<String>, count: Int = 5): List<DeckEntry> {
         val unused = deck.entries.filter { it.key !in used && !it.isPhrase }.distinctBy { it.lemma }
         val content = unused.filter { it.pos in GROUPS }.ifEmpty { unused }

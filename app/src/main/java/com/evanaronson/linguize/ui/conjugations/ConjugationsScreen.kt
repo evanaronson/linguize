@@ -30,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -327,10 +326,4 @@ private fun Tried(report: ConjugationReport) {
         }
     }
     CardNote(stringResource(R.string.lab_conjugations_tried_note))
-}
-
-/** A heading-styled title, for the cell page. */
-@Composable
-internal fun CellTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 20.dp, top = 12.dp).semantics { heading() })
 }

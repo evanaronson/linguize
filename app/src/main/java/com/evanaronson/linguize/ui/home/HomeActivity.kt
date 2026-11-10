@@ -30,6 +30,7 @@ import com.evanaronson.linguize.ui.appvoice.appVoiceTitle
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.components.AppNavigation
 import com.evanaronson.linguize.ui.components.TopBar
+import com.evanaronson.linguize.ui.components.imeVisible
 import com.evanaronson.linguize.ui.history.HistoryViewModel
 import com.evanaronson.linguize.ui.history.HistoryScreen
 import com.evanaronson.linguize.ui.history.SessionScreen
@@ -279,10 +280,6 @@ class HomeActivity : ComponentActivity() {
         internal fun requestedTab(intent: Intent?): Screen? = Screen.restore(intent?.getStringExtra(OPEN_TAB))?.takeIf { it.isTab }
     }
 }
-
-/** The keyboard is showing. */
-@Composable
-private fun imeVisible(): Boolean = com.evanaronson.linguize.ui.components.imeVisible()
 
 /**
  * Lab, Consistency: the bar a screen gets. Every root tab has the same one (the wordmark, the

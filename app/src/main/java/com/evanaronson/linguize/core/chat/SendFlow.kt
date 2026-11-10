@@ -40,6 +40,10 @@ sealed interface SendState {
 
     /** The card is open for [draft]. */
     data class Reviewing(val draft: String) : SendState
+
+    /** The accepted message owns the draft until storage acknowledges it. */
+    data class Saving(val outgoing: Outgoing) : SendState
+    data class SaveFailed(val outgoing: Outgoing) : SendState
 }
 
 sealed interface SendEvent {
@@ -54,6 +58,10 @@ sealed interface SendEvent {
 
     /** The card's Send: [revision] holds what the writer accepted (possibly nothing). */
     data class SendReviewed(val revision: Revision) : SendEvent
+
+    data object Saved : SendEvent
+    data object SaveFailed : SendEvent
+    data object RetrySave : SendEvent
 
     /** Back to the draft (Keep editing, or Back). */
     data object Edit : SendEvent
@@ -77,7 +85,7 @@ fun SendState.on(event: SendEvent): Transition = when (event) {
     }
     is SendEvent.Checked -> when (this) {
         is SendState.Checking ->
-            if (Outgoings.nothingToReview(event.result)) Transition(SendState.Composing, Effect.Deliver(Outgoings.looksGood(draft)))
+            if (Outgoings.nothingToReview(event.result)) Outgoings.looksGood(draft).deliver()
             else Transition(SendState.Reviewing(draft))
         // A retry or clarification on the open card answers again: the card shows it.
         else -> Transition(this)
@@ -85,11 +93,18 @@ fun SendState.on(event: SendEvent): Transition = when (event) {
     SendEvent.CheckFailed -> if (this is SendState.Checking) Transition(SendState.Reviewing(draft)) else Transition(this)
     is SendEvent.SendReviewed -> when {
         this is SendState.Reviewing && event.revision.original == draft ->
-            Transition(SendState.Composing, Effect.Deliver(Outgoings.accepted(event.revision)))
+            Outgoings.accepted(event.revision).deliver()
+        this is SendState.SaveFailed && event.revision.original == outgoing.raw ->
+            Outgoings.accepted(event.revision).deliver()
         else -> Transition(this)
     }
+    SendEvent.Saved -> Transition(if (this is SendState.Saving) SendState.Composing else this)
+    SendEvent.SaveFailed -> Transition(if (this is SendState.Saving) SendState.SaveFailed(outgoing) else this)
+    SendEvent.RetrySave -> if (this is SendState.SaveFailed) outgoing.deliver() else Transition(this)
     SendEvent.Edit -> when (this) {
-        SendState.Composing -> Transition(this)
+        SendState.Composing, is SendState.Saving -> Transition(this)
         else -> Transition(SendState.Composing, Effect.CancelCheck)
     }
 }
+
+private fun Outgoing.deliver() = Transition(SendState.Saving(this), Effect.Deliver(this))

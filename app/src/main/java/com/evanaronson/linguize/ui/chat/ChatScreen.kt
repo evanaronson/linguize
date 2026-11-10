@@ -211,7 +211,7 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
             if (!creating) {
                 when (chat.send) {
                     SendState.Composing -> Composer(chat)
-                    is SendState.Checking, is SendState.Reviewing -> ReviewPanel(chat, check, reviewMax, onOpenSettings)
+                    else -> ReviewPanel(chat, check, reviewMax, onOpenSettings)
                 }
             }
         }

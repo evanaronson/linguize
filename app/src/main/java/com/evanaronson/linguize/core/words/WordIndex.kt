@@ -252,8 +252,9 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
             val month = YearMonth.from(Instant.ofEpochMilli(now).atZone(zone))
             fun inMonth(at: Long) = YearMonth.from(Instant.ofEpochMilli(at).atZone(zone)) == month
 
-            val entries = words.groupBy { it.token.form }.map { (form, uses) ->
-                val counts = counts(uses)
+            val byForm = words.groupBy({ it.token.form }) { it.use() }
+            val entries = byForm.map { (form, uses) ->
+                val counts = UseCounts.of(uses)
                 WordEntry(
                     form = form,
                     lexemes = lemmatizer.lexemes(form, language.orEmpty()).ifEmpty { setOf(Lexeme(form, Pos.Unknown)) },
@@ -263,11 +264,10 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
             }.sortedWith(compareByDescending<WordEntry> { it.uses }.thenBy { it.form })
 
             // An ambiguous form counts toward every candidate lexeme (and every candidate lemma once).
-            val byForm = words.groupBy { it.token.form }
             val formOrder = compareByDescending<WordEntry> { it.uses }.thenBy { it.form }
             val formsByLexeme = entries.flatMap { entry -> entry.lexemes.map { it to entry } }.groupBy({ it.first }, { it.second })
             val lexemes = formsByLexeme.map { (lexeme, forms) ->
-                val counts = counts(forms.flatMap { byForm[it.form].orEmpty() })
+                val counts = UseCounts.of(forms.flatMap { byForm[it.form].orEmpty() })
                 LexemeEntry(
                     lexeme = lexeme,
                     forms = forms.sortedWith(formOrder).map { it.form },
@@ -277,12 +277,13 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
                 )
             }.sortedWith(compareByDescending<LexemeEntry> { it.uses }.thenBy { it.key })
 
+            val lexemesByLemma = lexemes.groupBy({ it.lexeme.lemma }) { it.lexeme }
             val formsByLemma = entries.flatMap { entry -> entry.lemmas.map { it to entry } }.groupBy({ it.first }, { it.second })
             val lemmas = formsByLemma.map { (lemma, forms) ->
-                val counts = counts(forms.flatMap { byForm[it.form].orEmpty() })
+                val counts = UseCounts.of(forms.flatMap { byForm[it.form].orEmpty() })
                 LemmaEntry(
                     lemma = lemma,
-                    lexemes = lexemes.filter { it.lexeme.lemma == lemma }.map { it.lexeme },
+                    lexemes = lexemesByLemma[lemma].orEmpty(),
                     forms = forms.sortedWith(formOrder).map { it.form },
                     right = counts.right, tried = counts.tried, firstAt = counts.firstAt, lastAt = counts.lastAt,
                     firstRightAt = counts.firstRightAt, messages = counts.messages, recent = counts.recent,
@@ -314,27 +315,28 @@ data class WordIndex(val languages: List<LanguageWords>, val fingerprint: String
                 messages = words.map { it.utterance.id }.toSet().size,
                 growth = growth,
                 texts = utterances.associateBy { it.id },
-                uses = words.groupBy({ it.token.form }) { it.use() },
+                uses = byForm,
             )
         }
+    }
+}
 
-        private class Counts(
-            val right: Int, val tried: Int, val firstAt: Long, val lastAt: Long, val firstRightAt: Long?,
-            val messages: Int, val recent: List<WordUse>,
-        )
-
-        private fun counts(uses: List<Occurrence>): Counts {
+/** The same occurrence summary underlies forms, lexemes, lemmas and deck rows. */
+internal class UseCounts(
+    val right: Int, val tried: Int, val firstAt: Long, val lastAt: Long, val firstRightAt: Long?,
+    val messages: Int, val recent: List<WordUse>,
+) {
+    companion object {
+        fun of(uses: List<WordUse>): UseCounts {
             val right = uses.filter { !it.tried }
-            return Counts(
+            return UseCounts(
                 right = right.size,
                 tried = uses.size - right.size,
-                firstAt = uses.minOf { it.utterance.at },
-                lastAt = uses.maxOf { it.utterance.at },
-                firstRightAt = right.minOfOrNull { it.utterance.at },
-                messages = uses.map { it.utterance.id }.toSet().size,
-                recent = uses.sortedWith(compareByDescending<Occurrence> { it.utterance.at }.thenBy { it.token.start })
-                    .take(MAX_EXAMPLES)
-                    .map { it.use() },
+                firstAt = uses.minOf { it.at },
+                lastAt = uses.maxOf { it.at },
+                firstRightAt = right.minOfOrNull { it.at },
+                messages = uses.map { it.utteranceId }.toSet().size,
+                recent = uses.sortedWith(compareByDescending<WordUse> { it.at }.thenBy { it.start }).take(WordIndex.MAX_EXAMPLES),
             )
         }
     }

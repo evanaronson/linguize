@@ -6,9 +6,7 @@ import com.evanaronson.linguize.core.corpus.Pos
 import com.evanaronson.linguize.core.vocab.DeckEntry
 import com.evanaronson.linguize.core.vocab.DeckIndex
 import com.evanaronson.linguize.core.vocab.Milestone
-import com.evanaronson.linguize.core.vocab.VocabAnalyser
 import com.evanaronson.linguize.core.vocab.VocabDeck
-import com.evanaronson.linguize.core.vocab.VocabReport
 
 /**
  * The writer's use of one deck row: every use of every form that reached it ([forms]). A form
@@ -104,7 +102,12 @@ data class DeckCoverage(
             val entries = deck.entries.associateBy { it.key }
             val uses = rowUses.mapNotNull { (key, list) ->
                 val entry = entries[key] ?: return@mapNotNull null
-                key to tally(entry, rowForms[key].orEmpty().toList(), key in spelled, list)
+                val counts = UseCounts.of(list)
+                key to DeckUse(
+                    entry = entry, forms = rowForms[key].orEmpty().toList(), bySpelling = key in spelled,
+                    right = counts.right, tried = counts.tried, firstAt = counts.firstAt, lastAt = counts.lastAt,
+                    firstRightAt = counts.firstRightAt, messages = counts.messages, recent = counts.recent,
+                )
             }.toMap()
             val used = uses.filterValues { it.known }.keys
             return DeckCoverage(
@@ -112,24 +115,8 @@ data class DeckCoverage(
                 uses = uses,
                 formRows = formRows,
                 bySpelling = bySpelling,
-                milestones = VocabAnalyser.milestones(deck.size).map { top -> Milestone(top, deck.entries.take(top).count { it.key in used }) },
-                trendTop = minOf(VocabReport.TREND_TOP, deck.size),
-            )
-        }
-
-        private fun tally(entry: DeckEntry, forms: List<String>, bySpelling: Boolean, uses: List<WordUse>): DeckUse {
-            val right = uses.filter { !it.tried }
-            return DeckUse(
-                entry = entry,
-                forms = forms,
-                bySpelling = bySpelling,
-                right = right.size,
-                tried = uses.size - right.size,
-                firstAt = uses.minOf { it.at },
-                lastAt = uses.maxOf { it.at },
-                firstRightAt = right.minOfOrNull { it.at },
-                messages = uses.map { it.utteranceId }.toSet().size,
-                recent = uses.sortedWith(compareByDescending<WordUse> { it.at }.thenBy { it.start }).take(WordIndex.MAX_EXAMPLES),
+                milestones = Milestone.tops(deck.size).map { top -> Milestone(top, deck.entries.take(top).count { it.key in used }) },
+                trendTop = minOf(1_000, deck.size),
             )
         }
     }

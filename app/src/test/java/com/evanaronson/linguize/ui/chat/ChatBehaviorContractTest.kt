@@ -16,6 +16,7 @@ import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.chat.ChatChange
 import com.evanaronson.linguize.core.chat.ChatMessage
 import com.evanaronson.linguize.core.chat.Conversation
+import com.evanaronson.linguize.core.chat.Outgoings
 import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.chat.SentCheck
 import com.evanaronson.linguize.core.memory.MemoryMessage
@@ -25,9 +26,7 @@ import com.evanaronson.linguize.data.ProviderKeys
 import com.evanaronson.linguize.data.chat.ChatPreferences
 import com.evanaronson.linguize.data.chat.ChatStore
 import com.evanaronson.linguize.llm.CheckFailure
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.chat.ChatPrompt
@@ -103,7 +102,6 @@ class ChatBehaviorContractTest {
                 requests += request
                 return answer()
             }
-            override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("unused")
             override suspend fun models(key: String): List<String> = emptyList()
         }
         val partner = ChatPartner(
@@ -262,9 +260,17 @@ class ChatBehaviorContractTest {
             assertTrue("The check must not finish as sent before the chat write succeeds", card.finished.isEmpty())
             assertTrue("The partner must not answer an unsaved message", requests.isEmpty())
             assertTrue(chat.sendSaveFailed)
-            assertEquals(SendState.Reviewing("Do not lose this draft"), chat.send)
+            assertEquals(SendState.SaveFailed(Outgoings.looksGood("Do not lose this draft")), chat.send)
             assertEquals(1, readFresh(name).size)
 
+            chat.showList()
+            runCurrent()
+            chat.retrySend() // A stale callback from the old page cannot retire its failed draft.
+            runCurrent()
+            assertTrue(chat.sendSaveFailed)
+            assertEquals("Do not lose this draft", chat.draft.text)
+            chat.open("thread")
+            runCurrent()
             chat.retrySend()
             runCurrent()
             assertTrue(card.finished.isEmpty())

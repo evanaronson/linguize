@@ -213,7 +213,7 @@ class MeaningClarificationTest {
         activity.setContent {
             MaterialTheme {
                 Column {
-                    MeaningSection("", settled.value,
+                    MeaningSection(settled.value,
                         onClarify = { answers += it },
                         onRemoveClarification = { settled.value = emptyList() },
                         linkText = activity.getString(R.string.clarify_what_you_mean))

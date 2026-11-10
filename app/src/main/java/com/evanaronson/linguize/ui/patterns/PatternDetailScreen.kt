@@ -43,10 +43,7 @@ import com.evanaronson.linguize.ui.components.uiLocale
 @Composable
 fun PatternDetailScreen(patterns: PatternsViewModel, kind: PatternKind, language: String?, onOpenCheck: (String) -> Unit) {
     val state by patterns.state.collectAsState()
-    LaunchedEffect(patterns, language) {
-        patterns.setLanguage(language)
-        patterns.refresh()
-    }
+    LaunchedEffect(patterns, language) { patterns.enter(language) }
     val report = state.snapshot?.report
     ScreenColumn {
         when {

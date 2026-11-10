@@ -26,7 +26,8 @@ class ToneInCheckTest {
         // The shipped prompt and schema are what eval/ runs; Lab features compose onto them instead.
         assertEquals("affe4ca3901fea5218d215a17a990e76106d3b390471fc506d29605e3320924b", sha256("check_prompt.md"))
         assertEquals("e6a80b86811a88caf677f5592c06d56f3d71abf6aa1995315b580e3dd0fe9e89", sha256("check_schema.json"))
-        tone.prompt(base)
+        tone.schema(base.schema)
+        tone.system(base.system)
         assertEquals(File("src/main/assets/check_prompt.md").readText(), base.system)
         assertTrue("landing" !in (base.schema["properties"] as JsonObject))
     }
@@ -53,9 +54,9 @@ class ToneInCheckTest {
 
     @Test
     fun theRulesFollowTheShippedInstructionsAndTheHashMarksThem() {
-        val prompt = tone.prompt(base)
-        assertTrue(prompt.system.startsWith(base.system.trimEnd()))
-        assertTrue(prompt.system.trimEnd().endsWith(tone.addendum.trim()))
+        val system = tone.system(base.system)
+        assertTrue(system.startsWith(base.system.trimEnd()))
+        assertTrue(system.trimEnd().endsWith(tone.addendum.trim()))
         listOf("`landing`", "`corrected`", "`Native:`", "`natural_changes`", "lands_well", "Casual is not wrong", "`why`").forEach {
             assertTrue("missing $it", it in tone.addendum)
         }

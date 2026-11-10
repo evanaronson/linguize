@@ -107,10 +107,7 @@ import java.util.Locale
 fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, language: String?, onOpenWord: (language: String?, key: String, level: WordLevel) -> Unit) {
     val state by words.state.collectAsState()
     val context = LocalContext.current
-    LaunchedEffect(words, language) {
-        language?.let(words::selectLanguage)
-        words.refresh()
-    }
+    LaunchedEffect(words, language) { words.enter(language) }
     WordsExportEffect(words)
     val defaultName = stringResource(R.string.lab_vocab_gaps_default_name)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->

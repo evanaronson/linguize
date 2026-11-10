@@ -5,7 +5,6 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -36,9 +35,9 @@ class GapsInCheckCheckerTest {
     @Test
     fun everyCheckSendsTheShippedPromptWithTheGapRulesAndTheShippedUserMessage() = runBlocking<Unit> {
         val checked = checker.check(TEXT, null)
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         val sent = client.generations.single()
-        assertEquals(gaps.system(prompt), sent.system)
+        assertEquals(gaps.system(prompt.system), sent.system)
         assertTrue(sent.system.startsWith(File("src/main/assets/check_prompt.md").readText().trimEnd()))
         val request = CheckRequest(TEXT, null, preferences.punctuation, preferences.judgments, native = "English",
             writingProfiles = preferences.writingProfiles.distinctBy { it.language }.sortedBy { it.language })
@@ -79,7 +78,7 @@ class GapsInCheckCheckerTest {
         val context = checker.context("¿A qué hora?")
         checker.check(TEXT, null, context = context, replyingTo = "¿A qué hora?")
         val sent = client.generations.single()
-        assertEquals(reply.system(gaps.prompt(prompt)), sent.system)
+        assertEquals(reply.system(gaps.system(prompt.system)), sent.system)
         assertTrue(sent.system.indexOf(gaps.addendum.trim()) < sent.system.indexOf(reply.addendum.trim()))
         assertTrue(sent.user.startsWith(ReplyPrompt.LINE_PREFIX))
         assertEquals(gaps.hash(reply.hash(prompt, "¿A qué hora?")), context.promptHash)
@@ -89,7 +88,7 @@ class GapsInCheckCheckerTest {
     fun withoutTheRulesTheShippedCheckRunsAsBefore() = runBlocking<Unit> {
         val plain = Checker(preferences, { "key" }, prompt, Provider.entries.associateWith { client })
         plain.check(TEXT, null)
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         val sent = client.generations.single()
         assertEquals(prompt.system, sent.system)
         assertEquals(prompt.schema, sent.schema)
@@ -113,14 +112,8 @@ class GapsInCheckCheckerTest {
     }
 
     private class RecordingClient : ProviderClient {
-        val checks: MutableList<CheckRequest> = Collections.synchronizedList(mutableListOf())
         val generations: MutableList<GenerationRequest> = Collections.synchronizedList(mutableListOf())
         val answers: MutableList<String> = Collections.synchronizedList(mutableListOf())
-
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
-            checks += request
-            return ModelAnswer(QUESTION_VERDICT, QUESTION_JSON)
-        }
 
         override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
             generations += request

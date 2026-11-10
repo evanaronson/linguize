@@ -19,13 +19,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
  * The Gemini Developer API over plain REST. The official SDKs pull in Firebase
  * or Ktor plus Google auth; two endpoints don't need them.
  */
-class GeminiClient(http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
+class GeminiClient(http: OkHttpClient) : ProviderClient {
     private val http = http.forProviderRequests()
     /** Minimal thinking; models that reject it get their default instead. */
     private val minimal = DroppableOption(refusal = "thinking")
-
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-        prompt.read(generate(key, model, prompt.generation(request)))
 
     override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
         // One time limit for the whole check, the retry without minimal thinking included.

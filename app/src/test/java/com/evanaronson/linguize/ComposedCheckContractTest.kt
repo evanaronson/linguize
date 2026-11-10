@@ -10,9 +10,7 @@ import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.WritingRegister
 import com.evanaronson.linguize.data.CheckPreferences
 import com.evanaronson.linguize.llm.CheckFailure
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -159,8 +157,6 @@ class ComposedCheckContractTest {
             calls += Call(key, model, request)
             return answer(calls.size)
         }
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-            error("Bonanza must send the composed request through generate")
         override suspend fun models(key: String): List<String> = error("No model discovery in a check")
     }
 

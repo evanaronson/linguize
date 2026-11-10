@@ -7,7 +7,7 @@ import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.corpus.Utterance
 import com.evanaronson.linguize.core.morphology.Morphology
 import com.evanaronson.linguize.core.morphology.Person
-import com.evanaronson.linguize.core.vocab.VocabAnalyser
+import com.evanaronson.linguize.core.vocab.usedDeckKeys
 import com.evanaronson.linguize.core.vocab.VocabDeck
 import com.evanaronson.linguize.core.vocab.VocabSuggestions
 import java.security.MessageDigest
@@ -102,7 +102,7 @@ object PracticeTargetsBuilder {
             rareCells(ConjugationMap.build(base, language, morphology))
         } else emptyList()
         val words = deck?.takeIf { it.language == language }?.let { d ->
-            VocabSuggestions.targets(d, VocabAnalyser(lemmatizer).analyse(d, base), MAX_WORDS).map { TargetWord(it.lemma, it.gloss) }
+            VocabSuggestions.targets(d, usedDeckKeys(d, base, lemmatizer), MAX_WORDS).map { TargetWord(it.lemma, it.gloss) }
         }.orEmpty()
         return PracticeTargets(language, cells, words, registerGaps(base, language), fromReal)
     }

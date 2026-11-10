@@ -9,8 +9,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.Checker
 import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.QUESTION
-import com.evanaronson.linguize.QUESTION_JSON
-import com.evanaronson.linguize.QUESTION_VERDICT
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.history.CheckHistory
@@ -24,9 +22,7 @@ import com.evanaronson.linguize.history.SessionDetailResult
 import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.history.SessionSummary
 import com.evanaronson.linguize.history.SuggestionRecord
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
@@ -85,7 +81,7 @@ class ReplyContextCheckTest {
     fun withoutAMessageTheShippedCheckRuns() {
         check.check(QUESTION, null, Origin.Tester)
         done()
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         assertEquals(prompt.system, client.generations.single().system)
         assertFalse(client.generations.single().user.startsWith(ReplyPrompt.LINE_PREFIX))
     }
@@ -94,7 +90,7 @@ class ReplyContextCheckTest {
     fun aMessageGoesWithTheCheckAsContext() {
         check.check(QUESTION, null, Origin.Chat, replyingTo = "  ¿Vienes?  ")
         done()
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         assertTrue(client.generations.single().user.startsWith("Replying to: {\"message\":\"¿Vienes?\"}\n"))
     }
 
@@ -118,7 +114,7 @@ class ReplyContextCheckTest {
     fun aBlankMessageIsNoContext() {
         check.check(QUESTION, null, Origin.Chat, replyingTo = "   ")
         done()
-        assertTrue(client.checks.isEmpty())
+        assertEquals(1, client.generations.size)
         assertFalse(client.generations.single().user.startsWith(ReplyPrompt.LINE_PREFIX))
     }
 
@@ -182,13 +178,7 @@ class ReplyContextCheckTest {
     }
 
     private class Client : ProviderClient {
-        val checks: MutableList<CheckRequest> = Collections.synchronizedList(mutableListOf())
         val generations: MutableList<GenerationRequest> = Collections.synchronizedList(mutableListOf())
-
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
-            checks += request
-            return ModelAnswer(QUESTION_VERDICT.copy(fixes = FIXED.fixes, language = "Catalan"), FIXED_JSON)
-        }
 
         override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
             generations += request

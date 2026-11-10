@@ -1,5 +1,8 @@
 package com.evanaronson.linguize.llm.lab
 
+import com.evanaronson.linguize.core.Judgments
+import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.Prompt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -15,7 +18,7 @@ class GapsInCheckTest {
     @Test
     fun theShippedPromptIsUnchangedAndComesFirst() {
         assertEquals(File("src/main/assets/check_prompt.md").readText(), base.system)
-        val composed = gaps.system(base)
+        val composed = gaps.system(base.system)
         assertTrue(composed.startsWith(base.system.trimEnd()))
         assertTrue(composed.trimEnd().endsWith(gaps.addendum.trim()))
         // Loading the gap rules doesn't touch the shipped prompt object.
@@ -32,9 +35,10 @@ class GapsInCheckTest {
 
     @Test
     fun theComposedPromptKeepsTheShippedSchemaAndUserMessage() {
-        val composed = gaps.prompt(base)
+        val composed = CheckComposition.prepare(base, gaps, null,
+            CheckRequest("Hola", null, Punctuation.Moderate, Judgments.Both)).generation
         assertEquals(base.schema, composed.schema)
-        assertEquals(gaps.system(base), composed.system)
+        assertEquals(gaps.system(base.system), composed.system)
     }
 
     @Test

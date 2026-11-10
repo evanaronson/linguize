@@ -108,7 +108,8 @@ DUPLICATE), so its 5,000 rows are 5,000 lexemes and 5,000 lemmas. Without morpho
 `DeckIndex.match` once, sums the uses per row (uses inside corrected spans count as tried,
 not used), finds multi-word rows in the writer's texts, and computes the milestones. It's
 kept in memory under the word index fingerprint, the deck and the level; nothing is saved.
-`VocabAnalyser` and `VocabReport` remain for Chat's practice targets.
+Chat's practice targets compute only used deck keys with their existing tokenizer
+and matching rules. The former full report remains a test-only differential oracle.
 
 **Storage** (Lab-local, `filesDir/lab_vocab_gaps/`): `decks/index.json` and one CSV per
 imported deck, and `selection.json` (last language, deck and level). Reports saved by
@@ -125,7 +126,7 @@ durable orphan-cleanup queue.
 ## Code
 
 - `core/vocab/`: `VocabDeck` (rows, lexeme or lemma level, grouping forms), `DeckParser`,
-  `WordFolding`, `DeckIndex` (in `VocabAnalyser.kt`), `VocabSuggestions`.
+  `WordFolding`, `DeckIndex` and `usedDeckKeys` (in `DeckUsage.kt`), `VocabSuggestions`.
 - `data/vocabgaps/VocabGapsStore.kt`: imported decks, selection, and `BundledDecks`.
 - `DeckLibrary.kt` (root): the decks for a language, read once per lemmatizer, import,
   delete and selection.

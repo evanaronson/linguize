@@ -41,6 +41,7 @@ class EvaluationHarness:
             path.write_text("\n".join(json.dumps(case) for case in cases))
             output = io.StringIO()
             with patch.dict(run.PROVIDERS, {"fake": (answer, "fixture-model", "EVAL_FIXTURE_KEY")}), \
+                    patch.dict(run.PREPARED_PROVIDERS, {"fake": answer}), \
                     patch.dict(os.environ, {"EVAL_FIXTURE_KEY": "fixture"}), \
                     patch.object(run.prepared, "prepare_cases", side_effect=prepared_fixture), \
                     contextlib.redirect_stdout(output):
@@ -83,7 +84,7 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
         calls = []
 
         def answer(*args):
-            calls.append(args[-1])
+            calls.append(args[-1]["user"])
             return {"status": "ok", "has_errors": False}, 0.01
 
         status, output = self.evaluate([
@@ -221,9 +222,10 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
             path.write_text(json.dumps({"text": text, "status": "ok"}, ensure_ascii=False) + "\n")
             messages = []
             def answer(*args):
-                messages.append(args[-1])
+                messages.append(args[-1]["user"])
                 return {"status": "ok"}, 0.01
             with patch.dict(run.PROVIDERS, {"fake": (answer, "any-model", "EVAL_FIXTURE_KEY")}), \
+                    patch.dict(run.PREPARED_PROVIDERS, {"fake": answer}), \
                     patch.dict(os.environ, {"EVAL_FIXTURE_KEY": "fixture"}), \
                     patch.object(run.prepared, "prepare_cases", side_effect=prepared_fixture), \
                     contextlib.redirect_stdout(io.StringIO()):
@@ -237,8 +239,8 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
             status, _ = self.evaluate([{"text": "Bonjour", "language": "French", "replying_to": "Salut"}],
                                       lambda *args: (received.append(args) or {"status": "ok"}, .1))
         self.assertEqual(0, status)
-        self.assertEqual("Kotlin-exported system", received[0][2])
-        self.assertEqual("Exported: Bonjour", received[0][-1])
+        self.assertEqual("Kotlin-exported system", received[0][2]["system"])
+        self.assertEqual("Exported: Bonjour", received[0][2]["user"])
 
     def test_request_matches_prompt_fixture_including_variety_and_untrusted_answers(self):
         # Same controls exercised by PromptTest.settledAnswersCannotForgeSettingLines.
@@ -288,7 +290,7 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
         ]
         for payload in payloads:
             with self.subTest(payload=payload):
-                status, output = self.evaluate_payloads(run.check_openai, payload, self.openai())
+                status, output = self.evaluate_payloads(run.generate_openai, payload, self.openai())
                 self.assertEqual(1, status)
                 self.assertIn("ERROR", output)
                 self.assertIn("1/2 as expected", output)
@@ -300,16 +302,16 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
         payloads.append({"promptFeedback": {"blockReason": "SAFETY"}})
         for payload in payloads:
             with self.subTest(payload=payload):
-                status, output = self.evaluate_payloads(run.check_gemini, payload, self.gemini())
+                status, output = self.evaluate_payloads(run.generate_gemini, payload, self.gemini())
                 self.assertEqual(1, status)
                 self.assertIn("ERROR", output)
                 self.assertIn("1/2 as expected", output)
 
     def test_malformed_provider_envelopes_do_not_stop_the_dataset(self):
         for adapter, good, malformed in [
-            (run.check_openai, self.openai(), [None, [], {}, {"status": "completed", "output": [None]},
+            (run.generate_openai, self.openai(), [None, [], {}, {"status": "completed", "output": [None]},
                                              self.openai(content=[]), self.openai(content=[{"type": "output_text", "text": "{"}])]),
-            (run.check_gemini, self.gemini(), [None, [], {}, {"candidates": []}, {"candidates": [None]},
+            (run.generate_gemini, self.gemini(), [None, [], {}, {"candidates": []}, {"candidates": [None]},
                                              self.gemini(parts=[]), self.gemini(parts=[{"text": "{"}])]),
         ]:
             for payload in malformed:
@@ -327,7 +329,7 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
         openai = self.openai(content=[{"type": "output_text", "text": raw[:split]},
                                      {"type": "output_text", "text": raw[split:]}])
         openai["output"].insert(0, {"type": "reasoning", "summary": []})
-        for adapter, payload in [(run.check_gemini, gemini), (run.check_openai, openai)]:
+        for adapter, payload in [(run.generate_gemini, gemini), (run.generate_openai, openai)]:
             with self.subTest(adapter=adapter.__name__):
                 status, output = self.evaluate_payloads(adapter, payload)
                 self.assertEqual(0, status)

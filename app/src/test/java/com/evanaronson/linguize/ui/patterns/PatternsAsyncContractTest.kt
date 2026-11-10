@@ -14,9 +14,7 @@ import com.evanaronson.linguize.history.patterns.FakePatternHistory
 import com.evanaronson.linguize.history.patterns.PatternFixtures.check
 import com.evanaronson.linguize.history.patterns.PatternFixtures.fix
 import com.evanaronson.linguize.llm.CheckFailure
-import com.evanaronson.linguize.llm.CheckRequest
 import com.evanaronson.linguize.llm.GenerationRequest
-import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
@@ -24,6 +22,9 @@ import com.evanaronson.linguize.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -61,15 +62,47 @@ class PatternsAsyncContractTest {
 
     @After fun clearViewModels() = owners.forEach { it.clear() }
 
-    private fun patterns(): PatternsViewModel {
+    private fun patterns(revisions: Flow<Long> = history.revisions(), language: String? = "es"): PatternsViewModel {
         val lab = PatternsLab(
             history, notes, FakePreferences(), { "test-key" }, mapOf(Provider.Gemini to client),
             { PatternsPrompt("Explain recurring patterns") }, now = { 42L }, io = main.dispatcher,
         )
         val owner = ViewModelStore().also { owners += it }
         return ViewModelProvider(owner, viewModelFactory {
-            initializer { PatternsViewModel(lab, history.revisions()) }
-        })[PatternsViewModel::class.java].also { it.setLanguage("es") }
+            initializer { PatternsViewModel(lab, revisions) }
+        })[PatternsViewModel::class.java].also { it.setLanguage(language) }
+    }
+
+    @Test fun initialReadDoesNotDependOnARevisionEmission() = runTest(main.dispatcher) {
+        val patterns = patterns(revisions = emptyFlow(), language = null)
+        runCurrent()
+        assertTrue(patterns.state.value.loading)
+        assertTrue(history.detailReads.isEmpty())
+        advanceTimeBy(PatternsViewModel.REBUILD_DELAY_MS - 1)
+        runCurrent()
+        assertTrue(history.detailReads.isEmpty())
+        advanceUntilIdle()
+
+        assertFalse(patterns.state.value.loading)
+        assertEquals(spanishSources + catalanSources, patterns.state.value.snapshot?.report?.evidenceSessions)
+        assertEquals(4, history.detailReads.size)
+    }
+
+    @Test fun enteringAnotherScopeInvalidatesNowAndReadsOnceAfterTheDelay() = runTest(main.dispatcher) {
+        val patterns = patterns()
+        advanceUntilIdle()
+        history.detailReads.clear()
+
+        patterns.enter("ca")
+        assertEquals("ca", patterns.state.value.language)
+        assertNull(patterns.state.value.snapshot)
+        assertTrue(patterns.state.value.loading)
+        runCurrent()
+        assertTrue(history.detailReads.isEmpty())
+        advanceUntilIdle()
+
+        assertEquals(catalanSources, patterns.state.value.snapshot?.report?.evidenceSessions)
+        assertEquals(4, history.detailReads.size)
     }
 
     @Test fun delayedExplanationKeepsItsScopeAndSavesOnlyThatScopesSources() = runTest(main.dispatcher) {
@@ -309,7 +342,6 @@ class PatternsAsyncContractTest {
             val pending = answer
             return if (ignoreCancellation) withContext(NonCancellable) { pending.await() } else pending.await()
         }
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer = error("Unused")
         override suspend fun models(key: String): List<String> = emptyList()
     }
 

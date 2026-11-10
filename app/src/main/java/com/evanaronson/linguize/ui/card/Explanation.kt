@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,10 +73,6 @@ internal fun ExplanationPanel(
     onSettle: ((String, String) -> Unit)? = null,
     /** For spacing changes: the words around an otherwise invisible change. */
     context: String? = null,
-    /** Collapsed spacing panels show only the change until opened. */
-    expanded: Boolean = true,
-    onToggle: (() -> Unit)? = null,
-    onToggleLabel: String? = null,
     /** Lab: the decision "Teach me" explains; null offers no lesson. */
     lesson: LessonTopic? = null,
     /** Lab Phrasebook: the phrase this change offers, saved with the star; null shows none. */
@@ -98,7 +93,6 @@ internal fun ExplanationPanel(
                 val width = 2.dp.toPx()
                 drawLine(accent, Offset(width / 2, 0f), Offset(width / 2, size.height), width)
             }
-            .then(if (onToggle != null) Modifier.clickable(onClickLabel = onToggleLabel, onClick = onToggle) else Modifier)
             // Read out as it opens, which matters when a screen reader's "Why" action opened it.
             .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(start = 14.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
@@ -109,15 +103,13 @@ internal fun ExplanationPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (expanded) {
-            why?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
-            }
+        why?.takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
         }
-        val skip = onSkip?.takeIf { onAccept != null && expanded }
-        if ((phrase != null || skip != null) && expanded) {
+        val skip = onSkip?.takeIf { onAccept != null }
+        if (phrase != null || skip != null) {
             Row(Modifier.align(Alignment.End).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 phrase?.let { SavePhraseButton(it) }
                 // Lab, Review flow: Skip moves on, leaving this change underlined.
@@ -134,9 +126,9 @@ internal fun ExplanationPanel(
                 modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
             )
         }
-        if (expanded) WeightMeters(assessment, Modifier.padding(top = 8.dp))
-        if (expanded) TeachMe(lesson)
-        if (expanded && (assumptions.isNotEmpty() || answers.isNotEmpty())) {
+        WeightMeters(assessment, Modifier.padding(top = 8.dp))
+        TeachMe(lesson)
+        if (assumptions.isNotEmpty() || answers.isNotEmpty()) {
             HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             Column(Modifier.padding(top = 4.dp)) {
                 assumptions.forEach { assumption ->

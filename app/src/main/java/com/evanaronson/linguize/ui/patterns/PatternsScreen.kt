@@ -75,10 +75,7 @@ fun PatternsScreen(
     onOpenSettings: () -> Unit,
 ) {
     val state by patterns.state.collectAsState()
-    LaunchedEffect(patterns, language) {
-        patterns.setLanguage(language)
-        patterns.refresh()
-    }
+    LaunchedEffect(patterns, language) { patterns.enter(language) }
     val report = state.snapshot?.report
     ScreenColumn {
         when {

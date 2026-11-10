@@ -57,7 +57,7 @@ class ChatDeletionsTest {
         seed()
         database { it.execSQL("CREATE TRIGGER reject_cleanup BEFORE INSERT ON pending_deletions BEGIN SELECT RAISE(ABORT, 'blocked cleanup'); END") }
 
-        assertNull(store.delete("conversation"))
+        assertFalse(store.delete("conversation"))
 
         assertNotNull(store.conversation("conversation"))
         assertEquals(listOf("s1", "s2"), store.messages("conversation").map { it.sessionId })
@@ -67,7 +67,7 @@ class ChatDeletionsTest {
     @Test fun deletedConversationKeepsItsCleanupAcrossRestartAndHistoryFailure() = runTest(main.dispatcher) {
         seed()
         seed("other", listOf("untouched"))
-        assertNotNull(store.delete("conversation"))
+        assertTrue(store.delete("conversation"))
         store.close()
         store = openStore()
         assertNull(store.conversation("conversation"))
@@ -99,7 +99,7 @@ class ChatDeletionsTest {
         database { it.execSQL("UPDATE messages SET changes = 'not JSON'") }
         assertTrue(store.messages("conversation").isEmpty())
 
-        assertNotNull(store.delete("conversation"))
+        assertTrue(store.delete("conversation"))
 
         assertEquals(listOf("linked-to-unreadable-row"), store.pendingDeletions().entries.single().sessionIds)
         val history = mutableListOf<String>()
@@ -115,15 +115,15 @@ class ChatDeletionsTest {
 
         assertEquals(listOf("s1", "s2"), store.messages("conversation").map { it.sessionId })
         assertTrue(store.pendingDeletions().entries.isEmpty())
-        assertNotNull(store.delete("conversation"))
+        assertTrue(store.delete("conversation"))
         assertEquals(listOf("s1", "s2"), store.pendingDeletions().entries.single().sessionIds)
     }
 
     @Test fun malformedPendingWorkSurvivesRestartWithoutBlockingValidCleanup() = runTest(main.dispatcher) {
         seed("malformed", listOf("unreadable-session"))
         seed("valid", listOf("valid-session"))
-        assertNotNull(store.delete("malformed"))
-        assertNotNull(store.delete("valid"))
+        assertTrue(store.delete("malformed"))
+        assertTrue(store.delete("valid"))
         database { it.execSQL("UPDATE pending_deletions SET session_ids = 'not JSON' WHERE conversation = 'malformed'") }
         val memory = mutableListOf<String>()
         val history = mutableListOf<String>()

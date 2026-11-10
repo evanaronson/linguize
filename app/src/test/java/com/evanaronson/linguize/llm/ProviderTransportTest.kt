@@ -42,11 +42,11 @@ class ProviderTransportTest {
                 try {
                     val prompt = Prompt("", "{}")
                     val client = when (provider) {
-                        Provider.Gemini -> GeminiClient(http, prompt)
-                        Provider.OpenAI -> OpenAIClient(http, prompt)
+                        Provider.Gemini -> GeminiClient(http)
+                        Provider.OpenAI -> OpenAIClient(http)
                     }
                     assertThrows(CheckFailure::class.java) {
-                        runBlocking { client.check("private-key", "model", CheckRequest("private text", null, Punctuation.Moderate, Judgments.Both)) }
+                        runBlocking { prompt.read(client.generate("private-key", "model", prompt.generation(CheckRequest("private text", null, Punctuation.Moderate, Judgments.Both)))) }
                     }
                     assertEquals(listOf("POST /redirect HTTP/1.1"), server.requests.toList())
                 } finally {

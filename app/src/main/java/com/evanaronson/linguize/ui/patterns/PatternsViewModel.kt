@@ -11,14 +11,13 @@ import com.evanaronson.linguize.PatternsSnapshot
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -46,7 +45,6 @@ data class PatternsState(
  * rebuilt from History after every History write (so a deleted check leaves it at once)
  * and whenever the screen asks, never stored.
  */
-@OptIn(FlowPreview::class)
 class PatternsViewModel internal constructor(
     private val lab: PatternsLab,
     revisions: Flow<Long>,
@@ -56,38 +54,36 @@ class PatternsViewModel internal constructor(
 
     /** One evidence read and its selected language, captured together before any suspension. */
     private data class Query(val generation: Long, val language: String?)
-    private val query = MutableStateFlow(Query(0, null))
+    private var query = Query(0, null)
     private var rebuildJob: Job? = null
     private var explainJob: Job? = null
     private var explanationGeneration = 0L
 
     init {
+        requestRebuild(null)
         viewModelScope.launch {
-            revisions.collect { requestRebuild(query.value.language) }
-        }
-        viewModelScope.launch {
-            query.debounce(REBUILD_DELAY_MS).collect { captured ->
-                if (query.value != captured) return@collect
-                rebuildJob?.cancel()
-                rebuildJob = viewModelScope.launch { rebuild(captured) }
-            }
+            revisions.collect { requestRebuild(query.language) }
         }
     }
 
     /** Reads History again, and whether a key is saved now (it may have been added in Settings). */
     fun refresh() {
-        requestRebuild(query.value.language)
+        requestRebuild(query.language)
     }
+
+    /** Applies the page's scope and refreshes it with one request. */
+    fun enter(language: String?) = requestRebuild(language)
 
     /** Lab, Language scope: groups only [language]'s fixes. */
     fun setLanguage(language: String?) {
-        if (query.value.language == language) return
+        if (query.language == language) return
         requestRebuild(language)
     }
 
     private fun requestRebuild(language: String?) {
-        val previous = query.value
-        query.value = Query(previous.generation + 1, language)
+        val previous = query
+        val captured = Query(previous.generation + 1, language)
+        query = captured
         // Invalidate immediately, before the debounce can let an old result finish.
         rebuildJob?.cancel()
         cancelExplanation()
@@ -96,6 +92,10 @@ class PatternsViewModel internal constructor(
                 snapshot = it.snapshot.takeIf { previous.language == language },
                 loading = true, failed = false, language = language,
             )
+        }
+        rebuildJob = viewModelScope.launch {
+            delay(REBUILD_DELAY_MS)
+            if (query == captured) rebuild(captured)
         }
     }
 
@@ -115,7 +115,7 @@ class PatternsViewModel internal constructor(
         } catch (_: Exception) {
             null
         }
-        if (query.value != captured) return
+        if (query != captured) return
         _state.update {
             it.copy(
                 loading = false,
@@ -132,9 +132,9 @@ class PatternsViewModel internal constructor(
         if (_state.value.loading || _state.value.failed) return
         val report = _state.value.snapshot?.report ?: return
         if (explainJob?.isActive == true) return
-        val captured = query.value
+        val captured = query
         val generation = ++explanationGeneration
-        fun current() = query.value == captured && explanationGeneration == generation
+        fun current() = query == captured && explanationGeneration == generation
         _state.update { it.copy(explaining = true, explainFailure = null) }
         explainJob = viewModelScope.launch {
             try {
@@ -152,12 +152,12 @@ class PatternsViewModel internal constructor(
     }
 
     fun deleteExplanation() {
-        requestRebuild(query.value.language)
-        val captured = query.value
+        requestRebuild(query.language)
+        val captured = query
         val generation = explanationGeneration
         viewModelScope.launch {
             lab.deleteExplanation()
-            if (query.value == captured && explanationGeneration == generation) {
+            if (query == captured && explanationGeneration == generation) {
                 _state.update { it.copy(snapshot = it.snapshot?.copy(explanation = null, status = null), explainFailure = null) }
             }
         }

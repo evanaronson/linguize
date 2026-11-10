@@ -55,6 +55,12 @@ class VocabAnalyserTest {
         assertNull(report.used["hablar/v"])
         assertEquals(1, report.tried)
         assertTrue("casa/n" in report.used)
+        val phrases = deck.copy(entries = deck.entries + entry(9, "a menudo", Pos.Adverb))
+        val repeated = "Casa [casa] a menudo a menudo"
+        val correctedPhrase = repeated.indexOf("a menudo")
+        val matched = analyse(utterance("phrases", repeated, corrected = listOf(Span(correctedPhrase, correctedPhrase + 1))), on = phrases)
+        assertEquals(setOf("casa/n", "a menudo/adv"), matched.used.keys)
+        assertEquals(1, matched.used.getValue("a menudo/adv").count)
     }
 
     @Test
@@ -99,9 +105,9 @@ class VocabAnalyserTest {
 
     @Test
     fun milestonesAndHeadline() {
-        assertEquals(listOf(100, 500, 1000, 2000, 5000), VocabAnalyser.milestones(5000))
-        assertEquals(listOf(100, 500, 1000, 1500), VocabAnalyser.milestones(1500))
-        assertEquals(listOf(8), VocabAnalyser.milestones(8))
+        assertEquals(listOf(100, 500, 1000, 2000, 5000), Milestone.tops(5000))
+        assertEquals(listOf(100, 500, 1000, 1500), Milestone.tops(1500))
+        assertEquals(listOf(8), Milestone.tops(8))
         val report = analyse(utterance("1", "Soy de casa"))
         assertEquals(listOf(Milestone(8, 2)), report.milestones)
         assertEquals(Milestone(8, 2), report.headline)

@@ -37,7 +37,6 @@ import com.evanaronson.linguize.ui.components.Chevron
 import com.evanaronson.linguize.ui.components.InsetShape
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListRow
-import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /** Back arrow and title, inside a card that has a page of its own (the clipboard job's). */
@@ -56,13 +55,11 @@ internal fun PageHeader(title: String, onBack: () -> Unit) {
 }
 
 /**
- * An unclear result's way to take the writer's intent: the reading, then [linkText] before a
- * clarification exists. A reviewed check has the Meaning section instead ([MeaningLandsSection]). The saved clarification itself
- * opens the same prefilled [ClarifyBlock] when it can still be edited.
+ * An unclear result's clarification. Reviewed checks use [MeaningLandsSection].
+ * The saved clarification opens the same prefilled [ClarifyBlock] for editing.
  */
 @Composable
 internal fun MeaningSection(
-    meaning: String,
     settled: List<Settled>,
     onClarify: ((String) -> Unit)?,
     onRemoveClarification: (() -> Unit)?,
@@ -72,18 +69,8 @@ internal fun MeaningSection(
     submitKind: ButtonKind = ButtonKind.Filled,
 ) {
     val clarification = settled.firstOrNull { it.isMeaning }
-    if (meaning.isBlank() && clarification == null && onClarify == null) return
-    if (meaning.isNotBlank()) {
-        Text(
-            stringResource(R.string.meaning_subtitle),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        TextBlock(meaning)
-        if (clarification != null || onClarify != null) Spacer(Modifier.height(8.dp))
-    }
-    key(meaning) {
+    if (clarification == null && onClarify == null) return
+    key("") {
         Clarification(clarification, onClarify, onRemoveClarification, linkText, editorTitle, submitKind)
     }
 }

@@ -250,9 +250,6 @@ class FuzzReplayTest {
             }
         }
 
-        override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-            error("Fresh replay must use the prepared generation contract")
-
         override suspend fun models(key: String): List<String> = error("Replay never lists provider models")
     }
 

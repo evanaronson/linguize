@@ -9,6 +9,7 @@ import android.util.Log
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.chat.ChatChange
 import com.evanaronson.linguize.core.chat.ChatMessage
+import com.evanaronson.linguize.core.chat.ChatSnapshot
 import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
@@ -27,9 +28,6 @@ data class PendingChatDeletion(val conversationId: String, val sessionIds: List<
 
 /** Malformed work stays in the database without preventing independent valid cleanup. */
 data class PendingChatDeletions(val entries: List<PendingChatDeletion>, val hasUnreadableEntries: Boolean)
-
-/** A single acknowledged database view, including messages committed by earlier operations. */
-data class ChatSnapshot(val conversation: Conversation, val messages: List<ChatMessage>)
 
 sealed interface PartnerAppend {
     data class Saved(val snapshot: ChatSnapshot) : PartnerAppend
@@ -193,26 +191,25 @@ class ChatStore(
 
     /**
      * Deletes [id] and its messages and durably queues their History/memory cleanup in the same
-     * transaction. Returns the deleted record, or null if none was removed (including failure).
+     * transaction. True only when a conversation was removed and cleanup was queued.
      */
-    suspend fun delete(id: String, permitted: () -> Boolean = { true }): Pair<Conversation, List<ChatMessage>>? = io("delete a conversation", null) { db ->
+    suspend fun delete(id: String, permitted: () -> Boolean = { true }): Boolean = io("delete a conversation", false) { db ->
         db.transaction {
-            val conversation = db.rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id))
-                .use { if (it.moveToFirst()) it.conversation() else null } ?: return@transaction null
+            val exists = db.rawQuery("SELECT id FROM conversations WHERE id = ?", arrayOf(id)).use { it.moveToFirst() }
+            if (!exists) return@transaction false
             // Read links directly: an unreadable message must not lose its History cleanup ID.
             val sessions = db.rawQuery(
                 "SELECT DISTINCT session_id FROM messages WHERE conversation = ? AND session_id IS NOT NULL ORDER BY session_id",
                 arrayOf(id),
             ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
-            val messages = db.messages(id)
-            if (!permitted()) return@transaction null
+            if (!permitted()) return@transaction false
             db.delete(MESSAGES, "conversation = ?", arrayOf(id))
             db.delete(CONVERSATIONS, "id = ?", arrayOf(id))
             db.insertOrThrow(DELETIONS, null, ContentValues().apply {
                 put("conversation", id)
                 put("session_ids", json.encodeToString(sessionList, sessions))
             })
-            conversation to messages
+            true
         }
     }
 

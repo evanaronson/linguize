@@ -189,15 +189,25 @@ class HomeActivity : ComponentActivity() {
                                     },
                                     onOpenSettings = openSettings,
                                 )
-                                Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(conjugations) { language, cell ->
-                                    navigation = navigation.open(Screen.ConjugationCell(language, cell.token))
-                                }
+                                Screen.Conjugations -> com.evanaronson.linguize.ui.conjugations.ConjugationsScreen(
+                                    conjugations,
+                                    onOpenCell = { language, cell -> navigation = navigation.open(Screen.ConjugationCell(language, cell.token)) },
+                                    onOpenVerbs = { language, cell -> navigation = navigation.open(conjugationVerbsScreen(language, cell)) },
+                                    onOpenVerb = { language, lemma -> navigation = navigation.open(conjugationVerbWordScreen(language, lemma)) },
+                                )
                                 is Screen.ConjugationCell -> com.evanaronson.linguize.core.conjugations.Cell.read(current.cell)?.let {
-                                    com.evanaronson.linguize.ui.conjugations.ConjugationCellScreen(conjugations, current.language, it)
+                                    com.evanaronson.linguize.ui.conjugations.ConjugationCellScreen(
+                                        conjugations, current.language, it,
+                                        onOpenVerbs = { language, cell -> navigation = navigation.open(conjugationVerbsScreen(language, cell)) },
+                                        onOpenVerb = { language, lemma -> navigation = navigation.open(conjugationVerbWordScreen(language, lemma)) },
+                                    )
                                 }
                                 Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, language)
                                 Screen.Languages -> com.evanaronson.linguize.ui.language.LanguagesScreen(appLanguage)
                                 Screen.Notices -> com.evanaronson.linguize.ui.settings.OpenSourceNoticesScreen()
+                                is Screen.ConjugationVerbs -> com.evanaronson.linguize.ui.conjugations.ConjugationVerbsScreen(
+                                    conjugations, current.language, current.cell?.let(com.evanaronson.linguize.core.conjugations.Cell::read),
+                                ) { language, lemma -> navigation = navigation.open(conjugationVerbWordScreen(language, lemma)) }
                             }
                         }
                     }
@@ -340,4 +350,7 @@ private fun Screen.title(): String = when (this) {
     is Screen.ChatThread -> stringResource(R.string.lab_chat_title)
     Screen.Languages -> stringResource(R.string.lab_lang_selector_title)
     Screen.Notices -> stringResource(R.string.lab_lang_selector_notices)
+    is Screen.ConjugationVerbs -> com.evanaronson.linguize.ui.conjugations.conjugationVerbsTitle(
+        language, cell?.let(com.evanaronson.linguize.core.conjugations.Cell::read),
+    )
 }

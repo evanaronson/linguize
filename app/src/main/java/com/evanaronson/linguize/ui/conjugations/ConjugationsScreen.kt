@@ -20,9 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +40,7 @@ import com.evanaronson.linguize.core.conjugations.CellStats
 import com.evanaronson.linguize.core.conjugations.ConjugationMap
 import com.evanaronson.linguize.core.conjugations.ConjugationReport
 import com.evanaronson.linguize.core.conjugations.MonthPoint
+import com.evanaronson.linguize.core.conjugations.VerbList
 import com.evanaronson.linguize.core.morphology.Person
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.CardNote
@@ -65,16 +63,27 @@ import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 
-private const val VERBS_SHOWN = 12
+/** The tense column's share of a grid row; each person column is 1. */
+private const val LABEL_WEIGHT = 1.9f
+/** Three Other forms cells span the six person columns. */
+private const val OTHER_CELL_WEIGHT = 2f
 private const val TRIED_SHOWN = 10
 private const val TREND_MONTHS = 6
 
 /**
- * Your conjugations: a grid of tenses and persons the writer has used, counted from their own
- * text; the verbs they use; forms per month; and forms they tried that a fix replaced.
+ * Your conjugations: a summary and forms per month, then a grid of tenses and persons the
+ * writer has used, counted from their own text; the verbs they use; and forms they tried that
+ * a fix replaced.
  */
 @Composable
-fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: String, cell: Cell) -> Unit) {
+fun ConjugationsScreen(
+    model: ConjugationsViewModel,
+    onOpenCell: (language: String, cell: Cell) -> Unit,
+    /** "Show all N verbs": the full list, or a cell's ([cell] non-null). */
+    onOpenVerbs: (language: String, cell: Cell?) -> Unit = { _, _ -> },
+    /** A verb's page in Words, for its counts and sentences. */
+    onOpenVerb: (language: String, lemma: String) -> Unit = { _, _ -> },
+) {
     val state by model.state.collectAsState()
     LaunchedEffect(model) { model.refresh() }
     ScreenColumn {
@@ -90,47 +99,103 @@ fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: Stri
                 LinguizeButton(stringResource(R.string.lab_conjugations_retry), model::refresh, ButtonKind.Text, Modifier.padding(start = 8.dp, top = 8.dp))
             }
             report.isEmpty -> EmptyCard(stringResource(R.string.lab_ia_progress_conjugations_empty), stringResource(R.string.lab_conjugations_empty_hint))
-            else -> Report(report) { onOpenCell(report.language, it) }
+            else -> Report(
+                report,
+                onOpenCell = { onOpenCell(report.language, it) },
+                onOpenVerbs = { onOpenVerbs(report.language, null) },
+                onOpenVerb = { onOpenVerb(report.language, it) },
+            )
         }
         HowItsCounted(listOf(stringResource(R.string.lab_conjugations_how_body)))
     }
 }
 
+/** The page's sections below its language, in order. */
+internal enum class ConjugationSection { Summary, Trend, Grid, Verbs, Tried }
+
+/**
+ * Lab, Conjugations page: the summary, then the trend (a summary over time, as Words puts
+ * its chart right under its totals), then the detail: the grid with its Other forms row, the
+ * verbs, and what was tried. Sections with nothing to show are left out.
+ */
+internal fun conjugationSections(report: ConjugationReport): List<ConjugationSection> = buildList {
+    add(ConjugationSection.Summary)
+    if (report.trend.isNotEmpty()) add(ConjugationSection.Trend)
+    add(ConjugationSection.Grid)
+    if (report.verbs.isNotEmpty()) add(ConjugationSection.Verbs)
+    if (report.tried.isNotEmpty()) add(ConjugationSection.Tried)
+}
+
 @Composable
-private fun Report(report: ConjugationReport, onOpenCell: (Cell) -> Unit) {
-    val total = report.gridCells.size
-    val used = report.usedGridCells
+private fun Report(report: ConjugationReport, onOpenCell: (Cell) -> Unit, onOpenVerbs: () -> Unit, onOpenVerb: (String) -> Unit) {
+    conjugationSections(report).forEach { section ->
+        when (section) {
+            ConjugationSection.Summary -> Summary(report)
+            ConjugationSection.Trend -> Trend(report.trend.takeLast(TREND_MONTHS))
+            ConjugationSection.Grid -> {
+                SectionHeader(stringResource(R.string.lab_conjugations_grid))
+                SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
+                    Grid(report, onOpenCell)
+                    Spacer(Modifier.height(12.dp))
+                    OtherForms(report, onOpenCell)
+                }
+                CardNote(stringResource(R.string.lab_conjugations_grid_note))
+            }
+            ConjugationSection.Verbs -> {
+                SectionHeader(stringResource(R.string.lab_conjugations_verbs))
+                VerbPreviewCard(VerbList.preview(VerbList.rows(report)), report.language, cell = null, onOpenVerb = onOpenVerb, onShowAll = onOpenVerbs)
+            }
+            ConjugationSection.Tried -> Tried(report)
+        }
+    }
+}
+
+@Composable
+private fun Summary(report: ConjugationReport) {
     SectionCard(contentPadding = ProgressCardPadding) {
         StatRow(
-            stringResource(R.string.lab_ia_progress_stat_of, used, total) to stringResource(R.string.lab_ia_progress_stat_forms),
+            stringResource(R.string.lab_ia_progress_stat_of, report.usedGridCells, report.gridCells.size) to stringResource(R.string.lab_ia_progress_stat_forms),
             report.verbs.size.toString() to stringResource(R.string.lab_ia_progress_stat_verbs),
         )
         Quiet(stringResource(R.string.lab_conjugations_intro), Modifier.padding(top = 12.dp))
     }
-    SectionHeader(stringResource(R.string.lab_conjugations_grid))
-    SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
-        Grid(report, onOpenCell)
-    }
-    CardNote(stringResource(R.string.lab_conjugations_grid_note))
+}
 
-    SectionHeader(stringResource(R.string.lab_conjugations_other_forms))
-    SectionCard {
-        ConjugationMap.NON_FINITE.forEachIndexed { index, tense ->
-            if (index > 0) RowDivider()
-            val cell = Cell(tense, null)
-            val stats = report.stats(cell)
-            ListRow(
-                title = stringResource(tense.labelResource(report.language)),
-                summary = usesSummary(stats),
-                onClick = { onOpenCell(cell) },
-                onClickLabel = stringResource(R.string.lab_conjugations_cell_examples),
+/**
+ * The infinitive, gerund and participle as one more row of the grid, under its own short
+ * headers ("Inf.", "Ger.", "Part."), with the same cells. Screen readers hear the full names.
+ */
+@Composable
+private fun OtherForms(report: ConjugationReport, onOpenCell: (Cell) -> Unit) {
+    val language = report.language
+    val cells = otherFormCells()
+    Row(Modifier.fillMaxWidth().clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.weight(LABEL_WEIGHT))
+        cells.forEach { cell ->
+            Text(
+                stringResource(cell.tense.abbreviationResource()),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.weight(OTHER_CELL_WEIGHT),
             )
         }
     }
-
-    if (report.verbs.isNotEmpty()) Verbs(report)
-    if (report.trend.isNotEmpty()) Trend(report.trend.takeLast(TREND_MONTHS))
-    if (report.tried.isNotEmpty()) Tried(report)
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.lab_conjugations_other_forms),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(LABEL_WEIGHT).padding(start = 8.dp, end = 4.dp).clearAndSetSemantics { },
+        )
+        cells.forEach { cell ->
+            Box(Modifier.weight(OTHER_CELL_WEIGHT).padding(2.dp)) {
+                val stats = report.stats(cell)
+                val description = stringResource(R.string.lab_conjugations_page_other_cell, stringResource(cell.tense.labelResource(language)), usesSummary(stats))
+                GridCell(cell, stats, description, onOpenCell)
+            }
+        }
+    }
 }
 
 @Composable
@@ -141,7 +206,7 @@ private fun Grid(report: ConjugationReport, onOpenCell: (Cell) -> Unit) {
             stringResource(R.string.lab_conjugations_tense_column),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1.9f).padding(start = 8.dp),
+            modifier = Modifier.weight(LABEL_WEIGHT).padding(start = 8.dp),
         )
         Person.entries.forEach { person ->
             Text(
@@ -159,12 +224,18 @@ private fun Grid(report: ConjugationReport, onOpenCell: (Cell) -> Unit) {
             Text(
                 stringResource(tense.labelResource(language)),
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1.9f).padding(start = 8.dp, end = 4.dp).clearAndSetSemantics { },
+                modifier = Modifier.weight(LABEL_WEIGHT).padding(start = 8.dp, end = 4.dp).clearAndSetSemantics { },
             )
             Person.entries.forEach { person ->
                 Box(Modifier.weight(1f).padding(2.dp)) {
                     if (ConjugationMap.applies(tense, person)) {
-                        GridCell(language, Cell(tense, person), report.stats(Cell(tense, person)), onOpenCell)
+                        val cell = Cell(tense, person)
+                        val stats = report.stats(cell)
+                        val description = stringResource(
+                            R.string.lab_conjugations_cell_description,
+                            stringResource(tense.labelResource(language)), stringResource(person.labelResource), usesSummary(stats),
+                        )
+                        GridCell(cell, stats, description, onOpenCell)
                     } else {
                         val none = stringResource(R.string.lab_conjugations_not_a_form)
                         Box(Modifier.fillMaxWidth().height(44.dp).semantics { contentDescription = none })
@@ -176,12 +247,8 @@ private fun Grid(report: ConjugationReport, onOpenCell: (Cell) -> Unit) {
 }
 
 @Composable
-private fun GridCell(language: String, cell: Cell, stats: CellStats?, onOpenCell: (Cell) -> Unit) {
+private fun GridCell(cell: Cell, stats: CellStats?, description: String, onOpenCell: (Cell) -> Unit) {
     val locale = LocalResources.current.uiLocale
-    val tense = stringResource(cell.tense.labelResource(language))
-    val person = stringResource(cell.person!!.labelResource)
-    val summary = usesSummary(stats)
-    val description = stringResource(R.string.lab_conjugations_cell_description, tense, person, summary)
     val shape = RoundedCornerShape(8.dp)
     val colors = MaterialTheme.colorScheme
     val base = Modifier
@@ -208,32 +275,12 @@ private fun GridCell(language: String, cell: Cell, stats: CellStats?, onOpenCell
 }
 
 @Composable
-private fun usesSummary(stats: CellStats?): String {
+internal fun usesSummary(stats: CellStats?): String {
     if (stats == null) return stringResource(R.string.lab_conjugations_never_used)
     val locale = LocalResources.current.uiLocale
     val uses = pluralStringResource(R.plurals.lab_conjugations_uses, usesQuantity(stats.weight), formatUses(stats.weight, locale))
     val verbs = pluralStringResource(R.plurals.lab_conjugations_verb_count, stats.verbs.size, stats.verbs.size)
     return stringResource(R.string.lab_conjugations_cell_summary, uses, verbs)
-}
-
-@Composable
-private fun Verbs(report: ConjugationReport) {
-    var all by rememberSaveable(report.language) { mutableStateOf(false) }
-    val locale = LocalResources.current.uiLocale
-    val shown = if (all) report.verbs else report.verbs.take(VERBS_SHOWN)
-    SectionHeader(stringResource(R.string.lab_conjugations_verbs))
-    SectionCard {
-        shown.forEachIndexed { index, verb ->
-            if (index > 0) RowDivider()
-            val uses = pluralStringResource(R.plurals.lab_conjugations_uses, usesQuantity(verb.weight), formatUses(verb.weight, locale))
-            val order = ConjugationMap.rows(report.language) + ConjugationMap.NON_FINITE
-            val tenses = verb.tenses.sortedBy { order.indexOf(it) }.map { stringResource(it.labelResource(report.language)) }
-            ListRow(title = verb.lemma, summary = stringResource(R.string.lab_conjugations_verb_tenses, uses, tenses.joinToString(", ")))
-        }
-    }
-    if (!all && report.verbs.size > VERBS_SHOWN) {
-        LinguizeButton(stringResource(R.string.lab_conjugations_show_all_verbs), { all = true }, ButtonKind.Text, Modifier.padding(start = 8.dp, top = 4.dp))
-    }
 }
 
 @Composable

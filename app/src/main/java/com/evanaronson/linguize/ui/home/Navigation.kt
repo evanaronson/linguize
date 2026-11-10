@@ -75,6 +75,9 @@ internal sealed interface Screen {
     /** Lab, lang-selector: Settings › About › Open-source notices. */
     data object Notices : Screen
 
+    /** Lab, Conjugations page: every verb used in [language], or those of one [cell] token. */
+    data class ConjugationVerbs(val language: String, val cell: String?) : Screen
+
     /** A bottom-bar destination: opening one replaces the path above the start destination. */
     val isTab: Boolean get() = this in tabs
 
@@ -103,6 +106,7 @@ internal sealed interface Screen {
             is ChatThread -> if (id == null) CHAT_THREAD else "$CHAT_THREAD:$id"
             Languages -> "lab_lang_selector"
             Notices -> "lab_lang_selector_notices"
+            is ConjugationVerbs -> "conjugation_verbs:$language:${cell.orEmpty()}"
         }
 
     companion object {
@@ -149,6 +153,8 @@ internal sealed interface Screen {
             saved.startsWith("$CHAT_THREAD:") && saved.length > CHAT_THREAD.length + 1 -> ChatThread(saved.removePrefix("$CHAT_THREAD:"))
             saved == "lab_lang_selector" -> Languages
             saved == "lab_lang_selector_notices" -> Notices
+            saved.startsWith("conjugation_verbs:") -> saved.removePrefix("conjugation_verbs:").split(':', limit = 2)
+                .takeIf { it.size == 2 && it[0].isNotEmpty() }?.let { ConjugationVerbs(it[0], it[1].ifEmpty { null }) }
             else -> null
         }
     }

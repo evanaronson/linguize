@@ -17,9 +17,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.conjugations.Cell
+import com.evanaronson.linguize.core.conjugations.VerbList
 import com.evanaronson.linguize.ui.components.CardNote
-import com.evanaronson.linguize.ui.components.ListRow
-import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
@@ -36,7 +35,13 @@ fun conjugationCellTitle(language: String, cell: Cell): String {
 
 /** One cell of the grid: how often, which verbs, and the writer's own sentences. */
 @Composable
-fun ConjugationCellScreen(model: ConjugationsViewModel, language: String, cell: Cell) {
+fun ConjugationCellScreen(
+    model: ConjugationsViewModel,
+    language: String,
+    cell: Cell,
+    onOpenVerbs: (language: String, cell: Cell) -> Unit = { _, _ -> },
+    onOpenVerb: (language: String, lemma: String) -> Unit = { _, _ -> },
+) {
     val state by model.state.collectAsState()
     LaunchedEffect(model) { if (state.reports.isEmpty()) model.refresh() }
     val report = state.reports[language]
@@ -64,13 +69,12 @@ fun ConjugationCellScreen(model: ConjugationsViewModel, language: String, cell: 
         if (stats.sure < Math.round(stats.weight)) CardNote(stringResource(R.string.lab_conjugations_cell_shared))
 
         SectionHeader(stringResource(R.string.lab_conjugations_cell_verbs))
-        SectionCard {
-            stats.verbs.entries.sortedWith(compareByDescending<Map.Entry<String, Double>> { it.value }.thenBy { it.key })
-                .forEachIndexed { index, (lemma, weight) ->
-                    if (index > 0) RowDivider()
-                    ListRow(lemma, pluralStringResource(R.plurals.lab_conjugations_uses, usesQuantity(weight), formatUses(weight, locale)))
-                }
-        }
+        // Lab, Conjugations page: the most used few, then "Show all N verbs"; each opens Words.
+        VerbPreviewCard(
+            VerbList.preview(VerbList.rows(report ?: return@ScreenColumn, cell)), language, cell,
+            onOpenVerb = { onOpenVerb(language, it) },
+            onShowAll = { onOpenVerbs(language, cell) },
+        )
 
         SectionHeader(stringResource(R.string.lab_conjugations_cell_examples))
         SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {

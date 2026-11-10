@@ -24,17 +24,47 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
 - **Language**: the app's, chosen in the top bar of the tabs; under Linguize, the Catalan
   or Spanish block's row opens it in that language ([Language scope](language-scope.md)).
   For a language other than Spanish and Catalan the page says what it covers.
+- **The page, in order**: the language; the summary ("N of M" forms used, verbs); **Forms
+  used each month**; **Tenses and persons** with its Other forms row; **Verbs you use**;
+  **Tried, then fixed**; **How it's counted**.
 - **Tenses and persons**: rows are tenses and moods, columns are persons (yo, tú, él/usted,
   nosotros, vosotros, ellos/ustedes; jo, tu, ell/vostè…). A filled cell shows how many
-  times the form was used. An outlined empty cell is a form not used yet. "N of M forms
-  used" sits above. Screen readers read each cell as "Present, First person singular: Used
-  3 times, 2 verbs".
-- **A cell's page**: uses, last used, the verbs with their counts, and up to 3 of the
-  writer's own sentences with the form and date.
-- **Other forms**: infinitive, gerund and participle.
-- **Verbs you use**: each verb with its uses and the tenses it appeared in.
+  times the form was used. An outlined empty cell is a form not used yet. Screen readers
+  read each cell as "Present, First person singular: Used 3 times, 2 verbs".
+- **Other forms**: one more row in the same card, under its own headers "Inf.", "Ger.",
+  "Part.", with the same cells (each spans two person columns). Screen readers hear the
+  full name: "Gerund: Used 3 times, 2 verbs". A cell opens the same cell page.
+- **A cell's page**: uses, last used, the 5 verbs most used in that form with their uses
+  there, "Show all N verbs", and up to 3 of the writer's own sentences.
+- **Verbs you use**: the 5 most used verbs, each with how many forms and which tenses it
+  was used in ("4 forms: Present, Preterite, Gerund"), then "Show all N verbs".
+- **All verbs** (from "Show all"): every verb, or a cell's, with search (accent-insensitive)
+  and a sort (Most used, Most forms, A–Z; a cell's list has Most used and A–Z).
+- **A verb** opens its page in Words (the verb lexeme, "hablar/v"): counts, forms and
+  sentences.
 - **Forms used each month**: distinct tense and person cells used per month, last 6 months.
 - **Tried, then fixed**: verb forms inside a span an accepted fix replaced.
+
+### Decisions (owner feedback, Conjugations page)
+
+- **Other forms is a table row, not a list.** Same cell component, same tap, same cell
+  page as the grid; only its short headers differ. One pattern for every verb form.
+- **The trend goes under the summary.** It's a summary over time, not detail. Words puts
+  its chart right under its totals; Conjugations now does too, before the grid. Not inside
+  "How it's counted", which explains numbers rather than showing them. Time spent still
+  draws its weeks last; moving it under its totals would match (left to Time's owner).
+- **Lists are capped.** Every verb list shows the 5 most used, then "Show all N verbs"
+  opens a full page with search and a sort (`FilterDropdown`, `LinguizeTextField` and the
+  lazy card rows Words uses). It scales to hundreds of verbs; the page itself stays short.
+- **No duplication with Words.** Words already lists every verb as a lexeme with its uses,
+  first and last use, forms and sentences. Conjugations shows only what Words can't: which
+  forms and tenses a verb was used in, and a verb's uses within one cell (uses there are
+  shared between readings, so they aren't Words' counts). The verb rows here no longer
+  show total uses; a verb opens its Words page for those. Words needed no change: the link
+  uses its existing `Screen.WordDetail(language, "lemma/v", "x")`. Considered and rejected:
+  a "Verbs" filter in Words with tense info. It would add a second meaning to Words'
+  filters and its rows, and the other agent is reworking them; the tenses belong with the
+  grid.
 
 ## How it works
 
@@ -47,7 +77,9 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
 | Function words (articles, pronouns…) | `core/morphology/ClosedClass.kt` | core |
 | Analyser, clitics, guessing, `MorphologyLemmatizer` | `core/morphology/Morphology.kt` | core |
 | Tokenizer, compounds, counting, trend | `core/conjugations/ConjugationMap.kt` | core |
+| Verb lists: rows, preview, search, sorts | `core/conjugations/VerbList.kt` | core |
 | Screens, view model | `ui/conjugations/` | ui |
+| Links (all verbs, a verb in Words) | `ui/home/ConjugationsLinks.kt` | ui |
 
 Everything is pure Kotlin and offline. Nothing is stored: the grid is rebuilt from
 `App.corpus` each time the screen opens, so deleting a check or chat removes its text from
@@ -172,4 +204,9 @@ four genders and numbers.
 - `core/conjugations/ConjugationMapTest`: counting, shares, corrected spans, compound tenses,
   the periphrastic past, nominal context, enclitic imperatives, language filter, examples,
   trend, grid shape, sentence cuts.
-- `ui/conjugations/ConjugationLabelsTest`, `ui/home/ConjugationsNavigationTest`.
+- `ui/conjugations/ConjugationLabelsTest`, `ui/home/ConjugationsNavigationTest` (also the
+  verb list and the link into Words).
+- `core/conjugations/VerbListTest`: the capped preview over 300 verbs, forms and tenses in
+  grid order, a cell's verbs, search and sorts.
+- `ui/conjugations/ConjugationPageTest`: the Other forms row, its headers, section order
+  (trend under the summary).

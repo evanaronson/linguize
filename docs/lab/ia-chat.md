@@ -124,3 +124,13 @@ long the card is.
 `core/chat/ChatLabelsTest` and `ui/chat/ConversationListTest`. The second checks the
 store's last speaker, the "You:" line, what a screen reader hears for a row, and the no-key
 strip on the list.
+
+## Later changes
+
+- **Corrections and the review's way back** ([Chat](chat.md#the-review-step-why-edit-message-and-not-keep-editing)).
+  The check line moved into the bubble's bottom end, and a tap on a corrected bubble opens
+  History's own Before and Suggestions under it, like a reply's translation flip. The
+  chat's own "Corrected, N changes ▾" chip and Changes panel are gone. Keep editing, a
+  peer of Send under the card, became **← Edit message** above it, with system Back doing
+  the same and the keyboard coming back. This supersedes "Card placement, Keep editing,
+  Send as written: unchanged" above: the card's placement and Send as written stay.

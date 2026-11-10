@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, Chat corrections (docs/lab/chat.md). -->
+    <!-- Screen reader action on a corrected message bubble: opens History's rows for its changes under it. -->
+    <string name="lab_chat_corrections_show">Show corrections</string>
+    <string name="lab_chat_corrections_hide">Hide corrections</string>
+    <!-- Above the check card, with a back arrow: closes the review and returns to the draft. -->
+    <string name="lab_chat_corrections_edit_message">Edit message</string>
+</resources>

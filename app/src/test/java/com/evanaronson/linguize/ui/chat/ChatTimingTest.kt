@@ -105,7 +105,7 @@ class ChatTimingTest {
         chat.onCardState(CardState.Failed(CheckFailure.Reason.Offline, null))
         now += 30_000
         card.reviewSoFar = 8_000
-        chat.keepEditing()
+        chat.editDraft()
         now += 2_000
         type("Hola, ¿qué tal?")
         chat.send()
@@ -120,6 +120,26 @@ class ChatTimingTest {
         // The card's own review (3 s) is added by the card; the earlier opening is carried here.
         assertEquals(8_000L, timing.earlierReviewMs)
         assertEquals(chat.thread!!.messages.last().id, timing.messageId)
+    }
+
+    /** Lab, Chat corrections: Edit message (and system Back) is a way back, not a way to lose the draft. */
+    @Test fun editMessageReturnsToTheDraftAsItWasWithTheKeyboard() {
+        openConversation()
+        type("Hola qué tal")
+        chat.send()
+        chat.onCardState(CardState.Failed(CheckFailure.Reason.Offline, null))
+        assertEquals(SendState.Reviewing("Hola qué tal"), chat.send)
+        val stopsBefore = card.stops
+        chat.editDraft()
+        assertEquals(SendState.Composing, chat.send)
+        assertEquals("Hola qué tal", chat.draft.text)
+        assertEquals(stopsBefore + 1, card.stops)
+        assertEquals(true, chat.focusDraft)
+        chat.draftFocused()
+        assertEquals(false, chat.focusDraft)
+        // Nothing to go back from: a second Back does nothing here.
+        chat.editDraft()
+        assertEquals(false, chat.focusDraft)
     }
 
     @Test fun timeOffScreenIsntWriting() {

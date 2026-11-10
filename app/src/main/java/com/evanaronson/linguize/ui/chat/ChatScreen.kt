@@ -118,7 +118,7 @@ fun ChatThreadScreen(
         }
     }
 
-    com.evanaronson.linguize.ui.components.NavigationBackHandler(enabled = chat.send != SendState.Composing) { chat.keepEditing() }
+    // System Back while the review shows is the review's own Edit message (BackToDraft in ChatMessages.kt).
 
     // Until the requested conversation is open, show nothing of another one.
     val thread = chat.thread?.takeIf { id == null || it.conversation.id == id }
@@ -179,10 +179,11 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
                     MessageBubble(
                         message,
                         expanded = chat.expanded == message.id,
-                        onToggle = { chat.toggleChanges(message.id) },
+                        onToggle = { chat.toggleCorrections(message.id) },
                         flipped = chat.flippedView(message),
                         onFlip = { chat.flip(message) },
                         hint = chat.translateHint && message.id == lastReply,
+                        language = thread?.conversation?.language,
                     )
                 }
             }

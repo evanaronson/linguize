@@ -127,8 +127,12 @@ class ChatViewModel(
     var needsKey by mutableStateOf(false)
         private set
 
-    /** The id of the message whose changes are shown, if any. */
+    /** The id of the writer message whose corrections are open under it, if any: one at a time. */
     var expanded by mutableStateOf<String?>(null)
+        private set
+
+    /** Back from the review: the composer takes focus and brings the keyboard up once. */
+    var focusDraft by mutableStateOf(false)
         private set
 
     /** People memory knows the writer writes to, suggested in the new-conversation sheet. */
@@ -246,6 +250,7 @@ class ChatViewModel(
         replying = false
         replyFailure = null
         expanded = null
+        focusDraft = false
         draft = TextFieldValue()
         draftCheck?.stop()
         drafting.reset()
@@ -298,7 +303,8 @@ class ChatViewModel(
         }
     }
 
-    fun toggleChanges(messageId: String) {
+    /** A tap on a corrected writer bubble: opens its corrections (closing any other), or closes them. */
+    fun toggleCorrections(messageId: String) {
         expanded = if (expanded == messageId) null else messageId
     }
 
@@ -354,10 +360,20 @@ class ChatViewModel(
     /** The card's Send: the text with whatever the writer accepted in [revision], as Apply would put it back. */
     fun sendReviewed(revision: Revision) = handle(SendEvent.SendReviewed(revision))
 
-    /** Closes the card and goes back to the draft. */
-    fun keepEditing() {
-        if (send != SendState.Composing) drafting.keptEditing(draftCheck?.reviewMs() ?: 0L)
+    /**
+     * Edit message, or system Back, on the review: closes the card and goes back to the draft,
+     * as it was, with the keyboard.
+     */
+    fun editDraft() {
+        if (send == SendState.Composing) return
+        drafting.keptEditing(draftCheck?.reviewMs() ?: 0L)
         handle(SendEvent.Edit)
+        focusDraft = true
+    }
+
+    /** The composer took focus after [editDraft]. */
+    fun draftFocused() {
+        focusDraft = false
     }
 
     private fun handle(event: SendEvent) {

@@ -115,7 +115,7 @@ fun ResultCard(
                 CheckResult.Unclear -> {
                     Outcome(
                         stringResource(R.string.ai_could_not_understand),
-                        stringResource(R.string.check_full_sentence),
+                        stringResource(if (actions.onClarify != null) R.string.unclear_hint else R.string.unclear_hint_read_only),
                     )
                     state.sourceText?.let { text ->
                         Spacer(Modifier.height(16.dp))
@@ -126,7 +126,6 @@ fun ResultCard(
                     if (actions.onClarify != null || state.settled.any { it.isMeaning }) {
                         Spacer(Modifier.height(8.dp))
                         MeaningSection("", state.settled, actions.onClarify, actions.onRemoveClarification,
-                            linkText = stringResource(R.string.say_what_you_meant),
                             editorTitle = stringResource(R.string.meaning),
                             submitKind = if (state.retainedRevision?.canUndo == true && actions.review != null)
                                 ButtonKind.Tonal else ButtonKind.Filled)

@@ -216,13 +216,12 @@ class MeaningClarificationTest {
                     MeaningSection("", settled.value,
                         onClarify = { answers += it },
                         onRemoveClarification = { settled.value = emptyList() },
-                        linkText = activity.getString(R.string.say_what_you_meant))
+                        linkText = activity.getString(R.string.clarify_what_you_mean))
                 }
             }
         }
         settle()
-        assertFalse(hasText(activity.getString(R.string.say_what_you_meant)))
-        assertFalse(hasText(activity.getString(R.string.not_what_you_mean)))
+        assertFalse(hasText(activity.getString(R.string.clarify_what_you_mean)))
         val edit = button(activity.getString(R.string.your_clarification))
         assertTrue("The answer and its label are one edit target", containsText(edit, original))
         val remove = button(activity.getString(R.string.remove_clarification))
@@ -241,7 +240,7 @@ class MeaningClarificationTest {
         clickText("Cancel")
         clickText(activity.getString(R.string.remove_clarification))
         assertFalse(hasText(original))
-        assertTrue(hasText(activity.getString(R.string.say_what_you_meant)))
+        assertTrue(hasText(activity.getString(R.string.clarify_what_you_mean)))
     }
 
     @Test fun savedAssumptionUsesTheSamePrefilledEditorAndRemovalKeepsTheMeaningClarification() {

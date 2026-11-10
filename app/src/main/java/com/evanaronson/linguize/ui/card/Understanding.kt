@@ -66,7 +66,7 @@ internal fun MeaningSection(
     settled: List<Settled>,
     onClarify: ((String) -> Unit)?,
     onRemoveClarification: (() -> Unit)?,
-    linkText: String = stringResource(R.string.not_what_you_mean),
+    linkText: String = stringResource(R.string.clarify_what_you_mean),
     /** An unclear result titles the editor, since there is no meaning above it. */
     editorTitle: String? = null,
     submitKind: ButtonKind = ButtonKind.Filled,
@@ -94,7 +94,7 @@ internal fun Clarification(
     clarification: Settled?,
     onClarify: ((String) -> Unit)?,
     onRemove: (() -> Unit)?,
-    linkText: String = stringResource(R.string.not_what_you_mean),
+    linkText: String = stringResource(R.string.clarify_what_you_mean),
     editorTitle: String? = null,
     submitKind: ButtonKind = ButtonKind.Filled,
 ) {

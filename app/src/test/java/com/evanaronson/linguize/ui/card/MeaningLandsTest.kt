@@ -126,7 +126,7 @@ class MeaningLandsTest {
         assertEquals(activity.getString(R.string.lab_expand_pattern_collapsed), header.config[SemanticsProperties.StateDescription])
         assertEquals(activity.getString(R.string.lab_meaning_lands_show), header.config[SemanticsActions.OnClick].label)
         assertTrue(header.config.contains(SemanticsActions.Expand))
-        assertFalse(hasText(activity.getString(R.string.not_what_you_mean)))
+        assertFalse(hasText(activity.getString(R.string.clarify_what_you_mean)))
         assertFalse(hasText(activity.getString(R.string.lab_tone_check_title)))
         assertFalse("No separate Meaning page entry", hasText(activity.getString(R.string.meaning_subtitle)))
     }
@@ -144,7 +144,7 @@ class MeaningLandsTest {
         val order = listOf(
             activity.getString(R.string.meaning),
             "I want you to send me the contract.",
-            activity.getString(R.string.not_what_you_mean),
+            activity.getString(R.string.clarify_what_you_mean),
             activity.getString(R.string.assumptions),
             "Who sends it?",
             activity.getString(R.string.lab_tone_check_title),
@@ -161,7 +161,7 @@ class MeaningLandsTest {
             it.config.getOrNull(SemanticsProperties.Text)?.any { t -> t.text == activity.getString(R.string.lab_tone_check_title) } == true })
 
         click(header())
-        assertFalse(hasText(activity.getString(R.string.not_what_you_mean)))
+        assertFalse(hasText(activity.getString(R.string.clarify_what_you_mean)))
         assertTrue(hasText(landingLine()))
     }
 
@@ -213,7 +213,7 @@ class MeaningLandsTest {
         assertEquals(listOf(activity.getString(R.string.meaning), activity.getString(R.string.meaning_subtitle)),
             header().config[SemanticsProperties.Text].map { it.text })
         click(header())
-        assertTrue(hasText(activity.getString(R.string.not_what_you_mean)))
+        assertTrue(hasText(activity.getString(R.string.clarify_what_you_mean)))
     }
 
     @Test fun aReadOnlyCardWithNothingToShowHasNoSection() {

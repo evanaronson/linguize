@@ -47,7 +47,7 @@ import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
- * The one way to say what you meant, wherever a reading can be clarified: under a
+ * The one way to clarify what you mean, wherever a reading can be clarified: under a
  * change's explanation, on an assumption in Meaning, for the whole message on Meaning,
  * and when the AI couldn't tell what the text means.
  *

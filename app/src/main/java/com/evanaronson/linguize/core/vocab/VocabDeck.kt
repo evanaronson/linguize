@@ -46,6 +46,11 @@ data class VocabDeck(
      */
     val formsOnly: Boolean = false,
     val level: VocabLevel = VocabLevel.Lexeme,
+    /**
+     * Rows ranked below [entries] that are not shown or counted. They are kept only so that
+     * [byLemma] can still fill the same number of rows when lexemes merge ([top]).
+     */
+    val reserve: List<DeckEntry> = emptyList(),
 ) {
     val size: Int get() = entries.size
 
@@ -53,24 +58,40 @@ data class VocabDeck(
     val hasLexemes: Boolean get() = entries.any { it.pos != null }
 
     /**
+     * The same deck cut to its first [count] rows, renumbered 1..n; the rows after them move to
+     * [reserve]. A deck with [count] rows or fewer is returned as it is.
+     */
+    fun top(count: Int): VocabDeck {
+        if (entries.size <= count) return this
+        return copy(entries = entries.take(count).mapIndexed { index, row -> row.copy(rank = index + 1) }, reserve = entries.drop(count) + reserve)
+    }
+
+    /**
      * The same deck by lemma: lexemes that share a lemma ("como"/conj, "como"/adv) become one
-     * row, ranked where its first lexeme was, with their forms and counts combined.
+     * row with their forms and counts combined. When every row has a count, rows are ranked by
+     * the summed count (ties keep deck order); otherwise each sits where its first lexeme was.
+     * A deck cut with [top] merges its [reserve] too and keeps the same number of rows, so the
+     * top 5,000 lexemes give the top 5,000 lemmas rather than fewer.
      */
     fun byLemma(): VocabDeck {
         if (level == VocabLevel.Lemma) return this
+        val rows = entries + reserve
         val groups = LinkedHashMap<String, MutableList<DeckEntry>>()
-        entries.forEach { groups.getOrPut(it.lemma) { ArrayList() } += it }
-        val merged = groups.values.mapIndexed { index, rows ->
+        rows.forEach { groups.getOrPut(it.lemma) { ArrayList() } += it }
+        val counted = rows.all { it.count != null }
+        val merged = groups.values.map { group ->
             DeckEntry(
-                rank = index + 1,
-                lemma = rows.first().lemma,
+                rank = 0,
+                lemma = group.first().lemma,
                 pos = null,
-                gloss = rows.mapNotNull { it.gloss }.distinct().joinToString("; ").ifEmpty { null },
-                forms = rows.flatMap { it.forms }.distinct(),
-                count = rows.mapNotNull { it.count }.takeIf { it.isNotEmpty() }?.sum(),
+                gloss = group.mapNotNull { it.gloss }.distinct().joinToString("; ").ifEmpty { null },
+                forms = group.flatMap { it.forms }.distinct(),
+                count = group.mapNotNull { it.count }.takeIf { it.isNotEmpty() }?.sum(),
             )
-        }
-        return copy(entries = merged, level = VocabLevel.Lemma)
+        }.let { if (counted) it.sortedByDescending { row -> row.count } else it }
+            .mapIndexed { index, row -> row.copy(rank = index + 1) }
+        val shown = if (reserve.isEmpty()) merged.size else entries.size
+        return copy(entries = merged.take(shown), level = VocabLevel.Lemma, reserve = merged.drop(shown))
     }
 
     companion object {

@@ -32,7 +32,8 @@ of Progress; under Linguize each language in use has its own Words row
   deck is larger, then the whole deck). It's a count of words used, not a level. Then the
   writer's totals: words, plus lexemes and lemmas when morphology is known, words written,
   this month, and "N new words this month".
-- **Deck.** Spanish and Catalan lists are bundled. Imported decks appear beside them, and a
+- **Deck.** Spanish and Catalan lists are bundled, each the top 5,000 at the level shown
+  ([Frequency decks](vocab-gaps.md)). Imported decks appear beside them, and a
   dropdown ("Deck: … ▾") shows when there is more than one.
 - **Words over time.** One chart with two lines on one axis: all the writer's distinct
   words at the level shown, and how many of the deck's top 1,000 (or the whole deck, if

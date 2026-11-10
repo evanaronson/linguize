@@ -38,14 +38,17 @@ class DeckParserTest {
     }
 
     @Test
-    fun catalanAssetIsFiveThousandUniqueFormsWithContiguousRanks() {
+    fun catalanAssetIsFifteenThousandUniqueFormsWithContiguousRanks() {
+        // 15,000 forms, so that grouping them into lexemes still leaves the top 5,000 lexemes
+        // and lemmas (BundledDecksTest); within DeckParser.MAX_ENTRIES.
         val raw = File("src/main/assets/lab_vocab_ca.csv").readLines()
         assertEquals("rank,form,count", raw.first())
-        assertEquals(5000, raw.size - 1)
+        assertEquals(15_000, raw.size - 1)
         val deck = parsed(File("src/main/assets/lab_vocab_ca.csv").readText(), "ca")
-        assertEquals(5000, deck.entries.size)
+        assertEquals(15_000, deck.entries.size)
+        assertTrue(deck.entries.size <= DeckParser.MAX_ENTRIES)
         assertContiguous(deck.entries)
-        assertEquals(5000, deck.entries.map { it.lemma }.toSet().size)
+        assertEquals(15_000, deck.entries.map { it.lemma }.toSet().size)
         assertEquals("que", deck.entries.first().lemma)
         assertEquals(100257L, deck.entries.first().count)
         assertTrue(deck.entries.all { it.pos == null })

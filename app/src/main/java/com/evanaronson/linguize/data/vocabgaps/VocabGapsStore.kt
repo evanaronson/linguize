@@ -124,7 +124,8 @@ class VocabGapsStore(private val dir: File) {
 /**
  * The decks that ship with Lab, read from assets on first use: Spanish lexemes with their
  * forms, and Catalan word forms grouped into lexemes by the lemmatizer it is given (each form
- * stays its own row until real morphology is available). Attribution: lab_vocab_SOURCES.md.
+ * stays its own row until real morphology is available), each cut to its top [SIZE] rows.
+ * Attribution: lab_vocab_SOURCES.md.
  */
 class BundledDecks(private val load: (String) -> String) {
     private val parsed = HashMap<String, List<DeckEntry>?>()
@@ -141,12 +142,19 @@ class BundledDecks(private val load: (String) -> String) {
                 VocabDeck.fromForms(idFor(language), "", language, entries, bundled = true) { lemmatizer.lexemes(it, language) }
             } else {
                 VocabDeck(idFor(language), "", language, entries, bundled = true)
-            }
+            }.top(SIZE)
         }
 
     companion object {
         val ASSETS = mapOf("es" to "lab_vocab_es.csv", "ca" to "lab_vocab_ca.csv")
         const val SOURCES = "lab_vocab_SOURCES.md"
+
+        /**
+         * Rows a bundled deck shows, at the lexeme and at the lemma level. The Catalan asset
+         * ships more word forms than this (scripts/build_vocab_decks.py) so that grouping them
+         * still leaves this many lexemes and lemmas; the rest stay in [VocabDeck.reserve].
+         */
+        const val SIZE = 5_000
 
         /** Lists of word forms rather than lemmas. */
         private val FORM_LISTS = setOf("ca")

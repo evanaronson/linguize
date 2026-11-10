@@ -67,8 +67,9 @@ class ChatListNavigationTest {
     }
 
     @Test fun shortcutsAndSettingsDontOpenAConversation() {
-        assertEquals(listOf("lab_chat", "notes"), startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Notes).saved)
+        // The Notes shortcut opens a note, not a conversation.
+        assertEquals(listOf("lab_chat", "notes", "lab_notes_note"), startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Notes).saved)
         assertEquals(listOf("lab_chat", "settings"), startNavigation(StartTab.Chat, openSettings = true).saved)
-        assertEquals(Navigation(), startNavigation(StartTab.Notes, openSettings = false))
+        assertEquals(listOf("notes", "lab_notes_note"), startNavigation(StartTab.Notes, openSettings = false).saved)
     }
 }

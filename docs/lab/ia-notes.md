@@ -8,9 +8,9 @@ changes placement, grouping and a few captions. It doesn't change what Notes doe
 
 1. **Check this message, then take it elsewhere.** Type or paste, Check, accept changes,
    Copy or Share. The reason to open the tab.
-2. **Come back to something I was writing.** The open note is there when the tab opens;
-   older ones are in Other notes.
-3. **Start another message without losing this one.** New note.
+2. **Come back to something I was writing.** The tab is the list of notes; with Notes as
+   the start, the app opens straight into the current note.
+3. **Start another message without losing this one.** New note, on the list.
 4. **First run: see what the app does, and get it working.** The sample message and the
    add-key strip.
 5. **Know where my text goes.** Notes stay on the phone; checks here aren't in History.
@@ -32,8 +32,8 @@ Top to bottom, with prominence:
 | 8 | Caption: three sentences (phone storage, History, the selection-menu tip) | Under the buttons, in the editor card | Low, but long |
 | 9 | Other notes: header, "Note deleted, Undo", rows (first line, date, delete) | Below the editor card, only when there are others | Medium |
 
-No child pages: a note opens in the editor, and the card's own pages (how the text was
-read) are the card's.
+No child pages: a note opened in the editor, and the card's own pages (how the text was
+read) are the card's. (Since then a note has its own page; see "Two levels" below.)
 
 ## Problems
 
@@ -49,20 +49,40 @@ read) are the card's.
 - **The sample isn't labelled.** On a fresh install the box holds a Catalan sentence and
   nothing says it's a sample to try.
 
-## Target hierarchy
+## Two levels: the list, and a note's page
+
+The hierarchy below was first a single tab: the editor on top and Other notes under it,
+with New note in the editor's header. New note swapped the editor's content in place, which
+felt like drilling down with no way to drill back. Notes is now a collection, as Chat is
+(see [Notes](notes.md#a-list-of-notes-each-on-its-own-page) for the decision):
+
+**The Notes tab (the list).**
+
+1. "Note deleted" with **Undo**, after a delete.
+2. **The notes**, newest first: first line (or a Writing pad title), date, delete.
+3. With none: "No notes yet" and "Write a message here, check it, then copy or share it.
+   Notes stay on this phone."
+4. **New note**, the main button, at the bottom right over the list (as New conversation).
+
+The order is `notesListParts(listed, hasNotes, justDeleted)`.
+
+**A note's page** (Back, "Note", and the language selector at the right of the bar):
+the hierarchy below, minus New note and Other notes. The order is `noteParts(needsKey,
+checking)`: `AddKey`, `Editor`, `CheckCard`, `Footer`.
+
+## Target hierarchy (of the note)
 
 Primary: the editor and Check. Secondary: the check card, and Copy and Share, which take the
 result out. Tertiary: New note, Other notes, the captions.
 
 1. **Add-key strip** (until there is a key). Nothing works without it.
-2. **Write and check**, with **New note** at the header's end: the header names the
-   note-level area, and the note-level action sits with it.
+2. **Write and check**: the header names what to do in the box. (New note sat at its end
+   until it moved to the list.)
 3. **Editor card**: the editor (with "A sample to try. Check it, or write your own." under
    it while the untouched sample shows), then one action row: **Check** (filled), **Copy**,
    **Share** (text). Everything that acts on this text, together, above the result.
 4. **The check card**, directly under the editor card, at full width, no second frame.
-5. **Other notes** (when there are others): Undo row, then the list. Unchanged.
-6. **Captions**, last: "Notes stay on this phone. Checks here aren't saved in History." and
+5. **Captions**, last: "Notes stay on this phone. Checks here aren't saved in History." and
    "In other apps, select text and choose Linguize in the menu."
 
 The order is `notesParts` in `ui/notes/NotesLayout.kt`, and `NotesScreen` draws it.
@@ -86,8 +106,9 @@ The order is `notesParts` in `ui/notes/NotesLayout.kt`, and `NotesScreen` draws 
 
 - **Check, Copy, Share and New note in one row.** Four buttons wrap at phone width, and it
   keeps the note-level action among the text actions.
-- **Other notes as a child page or a dropdown.** There are usually a few; a page is a tap
-  more for no gain, and a dropdown would be a filter-shaped control for an action.
+- **Other notes as a child page or a dropdown.** A dropdown would be a filter-shaped
+  control for an action. (Later the whole model changed instead: the list is the tab and the
+  note is the child page, as in Chat; see "Two levels".)
 - **Hiding Copy and Share while the card is open.** They still work then: they take the
   accepted changes into the note first, as before.
 - **A snackbar for "Note deleted".** A new pattern for one row; the inline Undo is already
@@ -104,9 +125,11 @@ uses; the card and its content; strings other than the caption and the new sampl
 
 ## How it works
 
-- `ui/notes/NotesLayout.kt`: `notesParts(needsKey, checking, hasOthers)` lists the tab's
-  parts in order (`AddKey`, `Editor`, `CheckCard`, `OtherNotes`, `Footer`).
-- `ui/home/NotesScreen.kt` draws them. `NoteEditor` is the header, the editor and its action
-  row; `NoteCheckCard` is the card, outside the editor card.
+- `ui/notes/NotesLayout.kt`: `noteParts(needsKey, checking)` lists a note's page in order
+  (`AddKey`, `Editor`, `CheckCard`, `Footer`); `notesListParts(listed, hasNotes,
+  justDeleted)` lists the tab's (`Undo`, `Notes` or `Empty`).
+- `ui/home/NotesScreen.kt` draws them: `NotesScreen` the list with New note, `NotePage` a
+  note. `NoteEditor` is the header, the editor and its action row; `NoteCheckCard` is the
+  card, outside the editor card.
 - `NotesViewModel.showingSample` is true while the editor holds the untouched sample, the
   same rule that keeps the sample from being saved.

@@ -16,7 +16,7 @@ import com.evanaronson.linguize.ui.settings.SettingsPage
  * and History. Everything else opens above one of them.
  */
 internal sealed interface Screen {
-    /** Notes: the editor with its notes, checked with the card. Saved as "notes"; "home" (its first name, then Write) still restores. */
+    /** Notes: the list of notes, with New note. Saved as "notes"; "home" (its first name, then Write) still restores. */
     data object Notes : Screen
     data object History : Screen
     data object Settings : Screen
@@ -77,6 +77,11 @@ internal sealed interface Screen {
 
     /** Lab, Conjugations page: every verb used in [language], or those of one [cell] token. */
     data class ConjugationVerbs(val language: String, val cell: String?) : Screen
+    /**
+     * Lab, Notes navigation: one note's page, above the Notes list. [id] null is "the current
+     * note", what the app opens to when Notes is the start; it's resolved when shown.
+     */
+    data class Note(val id: String?) : Screen
 
     /** A bottom-bar destination: opening one replaces the path above the start destination. */
     val isTab: Boolean get() = this in tabs
@@ -107,11 +112,13 @@ internal sealed interface Screen {
             Languages -> "lab_lang_selector"
             Notices -> "lab_lang_selector_notices"
             is ConjugationVerbs -> "conjugation_verbs:$language:${cell.orEmpty()}"
+            is Note -> if (id == null) NOTE else "$NOTE:$id"
         }
 
     companion object {
         private const val CHAT_THREAD = "lab_chat_thread"
         private const val NOTES = "notes"
+        private const val NOTE = "lab_notes_note"
 
         /** The bottom bar, in order. */
         val tabs: List<Screen> get() = listOf(Chat, Notes, Progress, History)
@@ -155,6 +162,8 @@ internal sealed interface Screen {
             saved == "lab_lang_selector_notices" -> Notices
             saved.startsWith("conjugation_verbs:") -> saved.removePrefix("conjugation_verbs:").split(':', limit = 2)
                 .takeIf { it.size == 2 && it[0].isNotEmpty() }?.let { ConjugationVerbs(it[0], it[1].ifEmpty { null }) }
+            saved == NOTE -> Note(null)
+            saved.startsWith("$NOTE:") && saved.length > NOTE.length + 1 -> Note(saved.removePrefix("$NOTE:"))
             else -> null
         }
     }
@@ -184,6 +193,8 @@ internal data class Navigation private constructor(private val screens: List<Scr
         screen == current -> this
         // One conversation at a time: another replaces the open one, so Back still leads to the list.
         screen is Screen.ChatThread && current is Screen.ChatThread -> replace(screen)
+        // Likewise one note at a time, so Back leads to the Notes list.
+        screen is Screen.Note && current is Screen.Note -> replace(screen)
         else -> Navigation(screens + screen)
     }
 

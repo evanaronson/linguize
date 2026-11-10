@@ -46,10 +46,10 @@ import org.robolectric.annotation.Config
 import java.io.File
 import java.time.Duration
 
-/** Write's editor: drafts that survive leaving, and the check through the shared card out to Copy and Share. */
+/** Notes: the list, a note's page that never loses text, and the check through the shared card out to Copy and Share. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
-class WriteViewModelTest {
+class NotesViewModelTest {
     @get:Rule val folder = TemporaryFolder()
 
     private val sample = "Bon dia! Com estas amb la pluja?"
@@ -83,27 +83,45 @@ class WriteViewModelTest {
     private fun settle() = shadowOf(Looper.getMainLooper()).idle()
     private fun advance(millis: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
 
-    @Test fun aFreshInstallShowsTheSampleWithoutSavingIt() {
+    /** This view model with note [id] (null: the current note) open on its page. */
+    private fun NotesViewModel.opened(id: String? = null): NotesViewModel = also { open(id); settle() }
+
+    @Test fun aFreshInstallOpensOnTheSampleWithoutSavingIt() {
         val write = write()
+        assertTrue(write.listed)
+        assertTrue(write.notes.isEmpty())
+        var resolved: String? = "unset"
+        assertTrue(write.open(null) { resolved = it })
+        settle()
         assertEquals(sample, write.text)
         assertTrue(write.showingSample)
+        // Not saved, so "the current note" stays unresolved.
+        assertNull(resolved)
         write.flush()
         settle()
         assertTrue(store().load().drafts.isEmpty())
-        assertTrue(write.drafts.isEmpty())
+        assertTrue(write.notes.isEmpty())
     }
 
     @Test fun theSampleHintGoesOnceTheTextChanges() {
-        val write = write()
+        val write = write().opened()
         write.edit("Hola")
         assertFalse(write.showingSample)
-        write.newDraft()
-        settle()
+        write.opened(write.newNoteId())
         assertFalse(write.showingSample)
     }
 
-    @Test fun typingIsSavedAfterAPauseAndOpensAgainNextTime() {
+    @Test fun nothingIsEditableUntilANoteIsOpen() {
         val write = write()
+        write.edit("Hola")
+        assertEquals("", write.text)
+        write.flush()
+        settle()
+        assertTrue(store().load().drafts.isEmpty())
+    }
+
+    @Test fun typingIsSavedAfterAPauseAndOpensAgainNextTime() {
+        val write = write().opened()
         write.edit("Hola, ")
         advance(100)
         assertTrue(store().load().drafts.isEmpty())
@@ -113,14 +131,19 @@ class WriteViewModelTest {
         val saved = store().load().current
         assertEquals("Hola, veí", saved?.text)
         assertEquals("ca", saved?.language)
+        assertEquals(listOf("Hola, veí"), write.notes.map { it.text })
 
         val again = write()
+        var resolved: String? = null
+        again.open(null) { resolved = it }
+        settle()
         assertEquals("Hola, veí", again.text)
         assertEquals("ca", again.language)
+        assertEquals(saved?.id, resolved)
     }
 
     @Test fun leavingSavesAtOnce() {
-        val write = write()
+        val write = write().opened()
         write.edit("Benvolguda Sra. Puig,")
         write.flush()
         settle()
@@ -130,71 +153,130 @@ class WriteViewModelTest {
         assertEquals(1, store().load().drafts.size)
     }
 
-    @Test fun newDraftKeepsTheLastInTheListAndOpeningItBringsItBack() {
-        val write = write()
+    @Test fun aNewNoteKeepsTheLastInTheListAndOpeningItBringsItBack() {
+        val write = write().opened()
         write.edit("Primer missatge")
-        write.newDraft()
+        val id = write.newNoteId()
+        assertTrue(write.open(id))
         settle()
         assertEquals("", write.text)
-        assertEquals(listOf("Primer missatge"), write.drafts.map { it.text })
+        assertEquals(id, write.openId)
+        assertEquals(listOf("Primer missatge"), write.notes.map { it.text })
 
         write.edit("Segon missatge")
-        write.open(write.drafts.single().id)
+        write.flush()
         settle()
+        // Every note is in the list, newest first.
+        assertEquals(listOf("Segon missatge", "Primer missatge"), write.notes.map { it.text })
+        assertEquals(id, store().load().drafts.first().id)
+
+        write.opened(write.notes.last().id)
         assertEquals("Primer missatge", write.text)
-        assertEquals(listOf("Segon missatge"), write.drafts.map { it.text })
-        assertEquals("Primer missatge", write().text)
+        // The last note opened is the one the app opens to next time.
+        assertEquals("Primer missatge", write().opened().text)
     }
 
-    @Test fun anEmptiedDraftIsNotKept() {
-        val write = write()
+    @Test fun aNewNoteLeftBlankIsNotKept() {
+        val write = write().opened()
+        write.edit("Un")
+        write.opened(write.newNoteId())
+        write.flush()
+        settle()
+        assertEquals(listOf("Un"), store().load().drafts.map { it.text })
+        // With no current note, the app opens to the newest.
+        assertEquals("Un", write().opened().text)
+    }
+
+    @Test fun aNewNotesIdOpensItBlankAgainUntilSomethingIsWritten() {
+        // As after the app was closed on a new note's page: its id, nothing stored.
+        val write = write().opened("n1")
+        assertEquals("", write.text)
+        assertFalse(write.showingSample)
         write.edit("Hola")
         write.flush()
         settle()
+        assertEquals("n1", store().load().current?.id)
+        assertEquals("Hola", write().opened("n1").text)
+    }
+
+    @Test fun reopeningTheOpenNoteChangesNothing() {
+        val write = write().opened()
+        write.edit("Hola")
+        write.flush()
+        settle()
+        val id = write.openId!!
+        var resolved: String? = null
+        assertFalse(write.open(id))
+        assertFalse(write.open(null) { resolved = it })
+        assertEquals(id, resolved)
+        assertEquals("Hola", write.text)
+    }
+
+    @Test fun anEmptiedNoteIsNotKept() {
+        val write = write().opened()
+        write.edit("Hola")
+        write.flush()
+        settle()
+        val id = write.openId
         write.edit("  ")
         write.flush()
         settle()
         assertTrue(store().load().drafts.isEmpty())
-        // Writing again starts a new draft.
+        assertTrue(write.notes.isEmpty())
+        // Writing again keeps it, in place.
         write.edit("Adéu")
         write.flush()
         settle()
         assertEquals(listOf("Adéu"), store().load().drafts.map { it.text })
+        assertEquals(id, store().load().drafts.single().id)
     }
 
     @Test fun deletingFromTheListCanBeUndone() {
-        val write = write()
+        val write = write().opened()
         write.edit("Un")
-        write.newDraft()
-        settle()
-        val id = write.drafts.single().id
+        write.opened(write.newNoteId())
+        val id = write.notes.single().id
         write.delete(id)
         settle()
-        assertTrue(write.drafts.isEmpty())
+        assertTrue(write.notes.isEmpty())
         assertEquals("Un", write.deleted?.text)
         assertTrue(store().load().drafts.isEmpty())
 
         write.undoDelete()
         settle()
         assertNull(write.deleted)
-        assertEquals(listOf("Un"), write.drafts.map { it.text })
+        assertEquals(listOf("Un"), write.notes.map { it.text })
         assertEquals(listOf("Un"), store().load().drafts.map { it.text })
     }
 
-    @Test fun writingPadDraftsOpenInWrite() {
+    @Test fun deletingTheLastOpenNoteKeepsItDeleted() {
+        val write = write().opened()
+        write.edit("Un")
+        write.flush()
+        settle()
+        // Back on the list, the note just written is deleted, then another note is opened.
+        write.delete(write.notes.single().id)
+        write.opened(write.newNoteId())
+        write.flush()
+        settle()
+        assertTrue(store().load().drafts.isEmpty())
+        assertTrue(write.notes.isEmpty())
+    }
+
+    @Test fun writingPadDraftsOpenInNotes() {
         File(folder.root, WriteDraftStore.PAD_FILE_NAME).writeText(
             """{"version":1,"drafts":[{"id":"p1","title":"Escola","text":"Bon dia,","language":"ca","createdAt":1,"updatedAt":5},""" +
                 """{"id":"p2","title":"","text":"Hola","createdAt":1,"updatedAt":2}]}""",
         )
         val write = write()
+        assertEquals(listOf("Escola", "Hola"), write.notes.map { it.label() })
+        write.opened()
         assertEquals("Bon dia,", write.text)
         assertEquals("ca", write.language)
-        assertEquals(listOf("Hola"), write.drafts.map { it.text })
-        // Editing keeps the draft's title for the list.
+        // Editing keeps the note's title for the list.
         write.edit("Bon dia, Sra. Puig")
-        write.newDraft()
-        settle()
-        assertEquals(setOf("Escola", "Hola"), write.drafts.map { it.label() }.toSet())
+        write.opened(write.newNoteId())
+        assertEquals(listOf("Escola", "Hola"), write.notes.map { it.label() })
     }
 
     @Test fun theCardsAcceptedChangesGoIntoTheDraftAndOutThroughCopyAndShare() {
@@ -212,7 +294,7 @@ class WriteViewModelTest {
         val check = ViewModelProvider(owner, viewModelFactory {
             initializer { CheckViewModel(checker = { checker }, history = history) }
         })[CheckViewModel::class.java]
-        val write = write()
+        val write = write().opened()
         write.edit("  $QUESTION\n")
 
         check.check(write.text.trim(), null, Origin.Tester)

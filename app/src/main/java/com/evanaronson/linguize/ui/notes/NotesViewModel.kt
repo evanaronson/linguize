@@ -23,10 +23,14 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Notes' editor (once Write): the open note's text and language, and the other notes. Each note is kept as a draft in the store (`data/write`, `lab_write.json`, names kept so nothing moves). Text is saved
- * [saveMillis] after typing stops and at once on [flush] (leaving the tab or the app). A blank
- * draft, or the untouched sample a fresh install starts with, is never kept. [sample] picks it
- * (read off the main thread): a sentence in one of the writer's languages, see [NoteSamples].
+ * Notes: the list of notes, and the one open on a note's page (see docs/lab/notes.md). Each
+ * note is kept as a draft in the store (`data/write`, `lab_write.json`, names kept so nothing
+ * moves). [open] puts a note in the editor: one by id (a new note's id, from [newNoteId], until
+ * something is written in it), or with null the current one (the last opened, else the newest,
+ * else a new note holding the sample on a fresh install). Text is saved [saveMillis] after
+ * typing stops and at once on [flush] (leaving the page or the app). A blank note, or the
+ * untouched sample, is never kept. [sample] picks it (read off the main thread): a sentence in
+ * one of the writer's languages, see [NoteSamples].
  */
 class NotesViewModel(
     private val store: WriteDraftStore,
@@ -36,20 +40,32 @@ class NotesViewModel(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : ViewModel() {
+    /** The open note's text. */
     var text by mutableStateOf("")
         private set
 
-    /** A language code, or null for auto-detect. */
+    /** The open note's language code (kept from the Writing pad's drafts), or null for auto-detect. */
     var language by mutableStateOf<String?>(null)
         private set
 
-    /** The other drafts, newest first: the Drafts list. */
-    var drafts by mutableStateOf<List<WriteDraft>>(emptyList())
+    /** Every saved note, newest first: the Notes list. */
+    var notes by mutableStateOf<List<WriteDraft>>(emptyList())
         private set
 
-    /** The draft just deleted from the list, until Undo or the next change. */
+    /** The notes have been read, so an empty [notes] means there are none. */
+    var listed by mutableStateOf(false)
+        private set
+
+    /** The note just deleted from the list, until Undo or the next change. */
     var deleted by mutableStateOf<WriteDraft?>(null)
         private set
+
+    /** The note asked for by [open] is still being read; edits wait for it. */
+    var loading by mutableStateOf(false)
+        private set
+
+    /** The id of the note in the editor; null before [open]. */
+    val openId: String? get() = id
 
     /** The editor holds the untouched sample a fresh install starts with, which is never saved. */
     val showingSample: Boolean get() = sampleText != null && text == sampleText
@@ -59,110 +75,134 @@ class NotesViewModel(
     private val lock = Mutex()
     private var id: String? = null
     private var title = ""
-    private var touched = false
+
+    /** A note is in the editor (it may be new, and not saved yet). */
+    private var opened = false
+
+    /** The open note is in the store, so every change to it is kept (even back to the sample's text). */
+    private var saved = false
     private var saving: Job? = null
 
-    init {
-        viewModelScope.launch {
-            val stored = stored { it.load() }
-            sampleText = withContext(io) { sample() }
-            // Typing before the drafts were read wins over what was stored.
-            if (!touched) {
-                val current = stored.current
-                show(current)
-                if (current == null && stored.drafts.isEmpty()) text = sampleText.orEmpty()
-            }
-            drafts = stored.others
+    private val ready: Job = viewModelScope.launch {
+        val stored = stored { it.load() }
+        sampleText = withContext(io) { sample() }
+        notes = stored.drafts
+        listed = true
+    }
+
+    /** An id for a new note: open it with [open]; nothing is kept until something is written. */
+    fun newNoteId(): String = newId()
+
+    /**
+     * Puts note [noteId] in the editor, or with null the current note. The open note is saved
+     * first. Returns false when that note is already open: nothing changes, so a card on it
+     * stays. [onResolved] gets the open note's id once it's read, or null when it isn't saved
+     * (a new note, or the sample).
+     */
+    fun open(noteId: String?, onResolved: (String?) -> Unit = {}): Boolean {
+        if (opened && (noteId == null || noteId == id)) {
+            if (!loading) onResolved(id.takeIf { saved })
+            return false
         }
+        saving?.cancel()
+        val snapshot = if (opened) snapshot() else null
+        opened = true
+        saved = false
+        loading = true
+        id = noteId
+        title = ""
+        text = ""
+        deleted = null
+        viewModelScope.launch {
+            ready.join()
+            snapshot?.let { persist(it) }
+            val stored = stored { it.load() }
+            val draft = if (noteId != null) stored.drafts.firstOrNull { it.id == noteId }
+            else stored.current ?: stored.drafts.firstOrNull()
+            if (draft != null) {
+                show(draft)
+                saved = true
+            } else {
+                id = noteId ?: newId()
+                language = null
+                // A fresh install starts on the sample, which isn't kept until it's changed.
+                if (noteId == null && stored.drafts.isEmpty()) text = sampleText.orEmpty()
+            }
+            loading = false
+            notes = stored { it.setCurrent(draft?.id); it.load().drafts }
+            onResolved(draft?.id)
+        }
+        return true
     }
 
     fun edit(value: String) {
-        if (value == text) return
+        if (value == text || loading || !opened) return
         text = value
-        touched = true
         scheduleSave(saveMillis)
     }
 
     fun selectLanguage(code: String?) {
-        if (code == language) return
+        if (code == language || loading || !opened) return
         language = code
-        touched = true
         scheduleSave(0)
     }
 
-    /** Saves the open draft now. */
+    /** Saves the open note now. */
     fun flush() {
+        if (!opened || loading) return
         saving?.cancel()
         saving = null
         val snapshot = snapshot()
         viewModelScope.launch { persist(snapshot) }
     }
 
-    /** Keeps the open draft in the list and starts a blank one. */
-    fun newDraft() {
-        saving?.cancel()
-        val snapshot = snapshot()
-        show(null)
-        touched = true
-        viewModelScope.launch {
-            persist(snapshot)
-            drafts = stored { it.setCurrent(null); it.load().others }
-        }
-    }
-
-    /** Opens draft [draftId] from the list; the open one goes into the list. */
-    fun open(draftId: String) {
-        saving?.cancel()
-        val snapshot = snapshot()
-        deleted = null
-        viewModelScope.launch {
-            persist(snapshot)
-            val stored = stored { it.setCurrent(draftId); it.load() }
-            stored.current?.let { show(it); touched = true }
-            drafts = stored.others
-        }
-    }
-
-    /** Deletes draft [draftId] from the list; [undoDelete] puts it back. */
-    fun delete(draftId: String) {
-        val draft = drafts.firstOrNull { it.id == draftId } ?: return
+    /** Deletes note [noteId] from the list; [undoDelete] puts it back. */
+    fun delete(noteId: String) {
+        val draft = notes.firstOrNull { it.id == noteId } ?: return
         deleted = draft
-        drafts = drafts - draft
-        viewModelScope.launch { stored { it.delete(draftId) } }
+        notes = notes - draft
+        if (noteId == id) {
+            // No longer the open note: nothing saves it again, and opening it reads it afresh.
+            saving?.cancel()
+            opened = false
+            saved = false
+            id = null
+            text = ""
+        }
+        viewModelScope.launch { stored { it.delete(noteId) } }
     }
 
     fun undoDelete() {
         val draft = deleted ?: return
         deleted = null
-        viewModelScope.launch { drafts = stored { it.restore(draft); it.load().others } }
+        viewModelScope.launch { notes = stored { it.restore(draft); it.load().drafts } }
     }
 
-    private fun show(draft: WriteDraft?) {
-        id = draft?.id
-        title = draft?.title.orEmpty()
-        text = draft?.text.orEmpty()
-        if (draft != null) language = draft.language
+    private fun show(draft: WriteDraft) {
+        id = draft.id
+        title = draft.title
+        text = draft.text
+        language = draft.language
     }
 
-    private class Snapshot(val id: String?, val text: String, val language: String?, val title: String)
+    private class Snapshot(val id: String?, val text: String, val language: String?, val title: String, val keep: Boolean)
 
-    /** What to save of the open draft; a new draft gets its id here, so a later save updates it. */
-    private fun snapshot(): Snapshot {
-        if (id == null && keeps(text)) id = newId()
-        return Snapshot(id, text, language, title)
-    }
+    private fun snapshot() = Snapshot(id, text, language, title, keep = saved || keeps(text))
 
     private fun keeps(value: String) = value.isNotBlank() && value != sampleText
 
     private suspend fun persist(snapshot: Snapshot) {
-        val draftId = snapshot.id ?: return
+        val noteId = snapshot.id ?: return
         if (snapshot.text.isBlank()) {
-            // Emptied: nothing to keep. It gets a new id if writing starts again.
-            if (id == draftId) id = null
-            stored { it.delete(draftId) }
+            // Emptied: nothing to keep. The note keeps its id, so writing again saves it in place.
+            if (id == noteId) saved = false
+            notes = stored { it.delete(noteId); it.load().drafts }
             return
         }
-        stored { it.saveCurrent(WriteDraft(draftId, snapshot.text, snapshot.language, snapshot.title, clock())) }
+        if (!snapshot.keep) return
+        val draft = WriteDraft(noteId, snapshot.text, snapshot.language, snapshot.title, clock())
+        notes = stored { it.saveCurrent(draft); it.load().drafts }
+        if (id == noteId) saved = true
     }
 
     private fun scheduleSave(after: Long) {

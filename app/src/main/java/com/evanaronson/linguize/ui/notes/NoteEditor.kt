@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.notes
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,12 +16,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -57,10 +62,10 @@ internal fun rememberNotesViewModel(): NotesViewModel =
     viewModel(factory = NotesViewModel.factory(App.of(LocalContext.current)))
 
 /**
- * Notes' editor: "Write and check" with New note at its end, then the open note and its
- * actions (Check, Copy, Share) in one card. Checks are in the app's language (Linguize
+ * A note's page: "Write and check", then the open note and its actions (Check, Copy, Share)
+ * in one card. A new, blank note gets the cursor. Checks are in the app's language (Linguize
  * detects); the card is drawn below by [NoteCheckCard]. Copy and Share take the text out,
- * accepted changes included. Drafts save as you type, and when you leave the tab or the app.
+ * accepted changes included. Notes save as you type, and when you leave the page or the app.
  */
 @Composable
 internal fun NoteEditor(
@@ -95,16 +100,15 @@ internal fun NoteEditor(
     }
 
     val hasText = write.text.isNotBlank()
-    // New note changes which note is open, so it sits with the header, not with this text's actions.
-    SectionHeader(stringResource(R.string.lab_notes_header)) {
-        LinguizeButton(stringResource(R.string.lab_notes_new), {
-            check.dismiss(applied = false)
-            blank = false
-            write.newDraft()
-        }, ButtonKind.Text, enabled = hasText)
-    }
+    // A new note is for writing: the cursor goes in, and the keyboard comes up (Back closes it first).
+    val focus = remember { FocusRequester() }
+    val newNote = !write.loading && write.openId != null && write.text.isEmpty()
+    LaunchedEffect(write.openId, newNote) { if (newNote) runCatching { focus.requestFocus() } }
+    // New note is on the Notes list, which this page is opened from: here everything acts on this note.
+    SectionHeader(stringResource(R.string.lab_notes_header))
     SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
         LinguizeTextField(
+            fieldModifier = Modifier.focusRequester(focus),
             value = write.text,
             onValueChange = { replace(it) },
             placeholder = stringResource(R.string.lab_notes_placeholder),
@@ -163,33 +167,42 @@ internal fun NotesFooter() {
     Quiet(stringResource(R.string.lab_notes_other_apps), Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
 }
 
-/** The other notes, under the editor: tap one to open it; delete with Undo. Nothing when there are none. */
+/** "Note deleted" with Undo, at the top of the list after a delete. */
 @Composable
-internal fun NoteList(write: NotesViewModel, onOpened: () -> Unit) {
-    val drafts = write.drafts
-    val deleted = write.deleted
-    if (drafts.isEmpty() && deleted == null) return
-    val resources = LocalContext.current.resources
-    SectionHeader(stringResource(R.string.lab_notes_others))
-    if (deleted != null) {
-        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(R.string.lab_notes_deleted),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            LinguizeButton(stringResource(R.string.undo), write::undoDelete, ButtonKind.Text)
-        }
+internal fun NoteDeletedRow(write: NotesViewModel) {
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.lab_notes_deleted),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        LinguizeButton(stringResource(R.string.undo), write::undoDelete, ButtonKind.Text)
     }
-    if (drafts.isEmpty()) return
+}
+
+/** No notes yet: what the tab is for. New note is the button under it. */
+@Composable
+internal fun NotesEmpty() {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 32.dp)) {
+        Text(stringResource(R.string.lab_notes_nav_empty), style = MaterialTheme.typography.titleMedium)
+        Quiet(stringResource(R.string.lab_notes_nav_empty_hint), Modifier.padding(top = 4.dp))
+    }
+}
+
+/** Every note, newest first: tap one to open its page ([onOpen]); delete with Undo. */
+@Composable
+internal fun NoteList(write: NotesViewModel, onOpen: (String) -> Unit) {
+    val notes = write.notes
+    if (notes.isEmpty()) return
+    val resources = LocalContext.current.resources
     ListCard(
-        *drafts.map { draft ->
+        *notes.map { draft ->
             @Composable {
                 ListRow(
                     draft.label(),
                     shortDate(draft.updatedAt, locale = resources.uiLocale),
-                    onClick = { write.open(draft.id); onOpened() },
+                    onClick = { onOpen(draft.id) },
                     onClickLabel = stringResource(R.string.lab_notes_open),
                     trailing = {
                         IconButton(onClick = { write.delete(draft.id) }) {
@@ -203,10 +216,11 @@ internal fun NoteList(write: NotesViewModel, onOpened: () -> Unit) {
                 )
             }
         }.toTypedArray(),
+        modifier = Modifier.padding(top = 8.dp),
     )
 }
 
-/** Saves the open note when the tab goes away or the app goes to the background. */
+/** Saves the open note when its page goes away or the app goes to the background. */
 @Composable
 private fun SaveWhenLeaving(write: NotesViewModel) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle

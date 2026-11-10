@@ -30,12 +30,17 @@ import com.evanaronson.linguize.ui.theme.Linguize
  */
 sealed interface TopBar {
     data object Root : TopBar
-    data class Page(val title: String, val subtitle: String? = null) : TopBar
+    /**
+     * [languageSelector]: the page keeps the language selector on its right (a note, whose
+     * checks follow the app's language; Lab, Notes navigation). No other page has it.
+     */
+    data class Page(val title: String, val subtitle: String? = null, val languageSelector: Boolean = false) : TopBar
 }
 
 /**
  * The full app's navigation bar for [bar]. The activity owns the destination and back
- * action. [languageSelector] and [onOpenSettings] are drawn only on a [TopBar.Root]; Back
+ * action. [languageSelector] and [onOpenSettings] are drawn only on a [TopBar.Root] (a note's
+ * page keeps the selector, see [TopBar.Page.languageSelector]); Back
  * ([onBack], said as "Back to [backLabel]") only on a [TopBar.Page]. Cards keep their own
  * local drill-down navigation, including Meaning inside a popup.
  */
@@ -78,6 +83,8 @@ internal fun AppNavigation(
                 IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
                 }
+            } else if (bar is TopBar.Page && bar.languageSelector) {
+                languageSelector()
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

@@ -24,13 +24,11 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
@@ -146,7 +144,7 @@ class CardNavigationTest {
         assertEquals(states.size, returned)
     }
 
-    @Test fun systemBackReturnsFromMeaningBeforeTheHostCanCloseOrApplyTheCheck() {
+    @Test fun meaningOpensInPlaceSoSystemBackGoesStraightToTheHost() {
         var hostBack = 0
         activity.onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { hostBack++ }
@@ -156,14 +154,12 @@ class CardNavigationTest {
         }
         settle()
         clickText(R.string.meaning)
-        activity.onBackPressedDispatcher.onBackPressed()
-        settle()
-        assertEquals(0, hostBack)
+        // Open in place: the suggestions are still there, and there is no page to go back from.
+        assertTrue(nodes().any { containsText(it, activity.resources.getQuantityString(R.plurals.fix_count, 1, 1)) })
         assertTrue(backButtons().isEmpty())
-        assertTrue(nodes().any { it.config.getOrNull(SemanticsActions.OnClick) != null &&
-            containsText(it, activity.getString(R.string.meaning)) })
+        assertTrue(nodes().any { containsText(it, "The writer greets everyone.") })
         activity.onBackPressedDispatcher.onBackPressed()
-        assertEquals("Only Back from the suggestions reaches the host", 1, hostBack)
+        assertEquals("The card has no Back level of its own", 1, hostBack)
     }
 
     @Test fun systemBackReturnsToARetainedCheckButClosesAStandaloneClipboardJob() {
@@ -218,70 +214,63 @@ class CardNavigationTest {
         assertEquals(2, applied)
     }
 
-    @Test fun meaningNavigationRevealsTheHeaderInTheFloatingCard() = verifyNavigation(parentScrolls = false)
+    @Test fun meaningOpensBelowTheFinalActionInTheFloatingCard() = verifyFinalAction(parentScrolls = false)
 
-    @Test fun meaningNavigationRevealsTheHeaderInTheHomeScrollContainer() = verifyNavigation(parentScrolls = true)
+    @Test fun meaningOpensBelowTheFinalActionInTheHomeScrollContainer() = verifyFinalAction(parentScrolls = true)
 
-    private fun verifyNavigation(parentScrolls: Boolean) {
+    /**
+     * Lab, Meaning: the section sits below "1 change accepted, Undo, Replace", so opening it
+     * never pushes Replace out of reach, and Replace stays tappable with the section open.
+     */
+    private fun verifyFinalAction(parentScrolls: Boolean) {
         val result = reviewed()
-        var viewportSize = IntSize.Zero
+        var applied = 0
+        val revision = result.revision.acceptAll(EditKind.Fix)
+        val review = ReviewActions(onAccept = {}, onAcceptAll = {}, onUndo = {}, onApply = { applied++ })
+        val withReview = CardActions(onCopy = { _, _ -> }, review = review, onRetry = {},
+            onOpenSettings = null, onSettle = { _, _ -> })
         var viewportBounds = Rect.Zero
-        var expectedSize = 0
         root.setContent {
             MaterialTheme {
-                expectedSize = with(LocalDensity.current) { 320.dp.roundToPx() }
-                // The root is exactly screen-sized. Box clears its minimum constraints so
-                // this fixture really has a 320dp viewport, as a constrained popup does.
                 Box(Modifier.fillMaxSize()) {
                     val viewport = Modifier.width(320.dp).height(320.dp).onGloballyPositioned {
-                        viewportSize = it.size
                         viewportBounds = it.boundsInRoot()
                     }
+                    val card = CardState.Done(result.copy(revision = revision))
                     if (parentScrolls) {
                         Column(viewport.verticalScroll(rememberScrollState())) {
                             Spacer(Modifier.height(600.dp))
-                            ResultCard(CardState.Done(result), actions, scrollable = false)
+                            ResultCard(card, withReview, scrollable = false)
                             Spacer(Modifier.height(100.dp))
                         }
                     } else {
-                        ResultCard(CardState.Done(result), actions, viewport)
+                        ResultCard(card, withReview, viewport)
                     }
                 }
             }
         }
-        fun diagnostic(stage: String) =
-            "$stage: parentScrolls=$parentScrolls viewport=$viewportSize bounds=$viewportBounds " +
-                "root=${root.width}x${root.height} scroll=${scrollOffset()}/${scrollRange().maxValue()}"
-        fun assertVisible(node: SemanticsNode, stage: String) {
-            val bounds = node.boundsInRoot
-            assertTrue("${diagnostic(stage)} node=$bounds position=${node.positionInRoot}",
-                bounds.width > 0f && bounds.height > 0f &&
-                    bounds.top >= viewportBounds.top && bounds.bottom <= viewportBounds.bottom)
+        fun visible(node: SemanticsNode) = node.boundsInRoot.let {
+            it.height > 0f && it.top >= viewportBounds.top && it.bottom <= viewportBounds.bottom
         }
+        fun replace() = nodes().first { it.config.getOrNull(SemanticsActions.OnClick) != null &&
+            containsText(it, activity.getString(R.string.apply)) }
+        fun meaning() = nodes().first { it.config.getOrNull(SemanticsActions.OnClick) != null &&
+            containsText(it, activity.getString(R.string.meaning)) }
         settle()
-        assertEquals("The navigation fixture must constrain its viewport", IntSize(expectedSize, expectedSize), viewportSize)
-        assertTrue(diagnostic("Content must overflow"), scrollRange().maxValue() > 0f)
         scrollToBottom()
-        assertTrue(diagnostic("Before opening Meaning"), scrollOffset() > 0f)
-        val meaning = nodes().first { it.config.getOrNull(SemanticsActions.OnClick) != null &&
-            containsText(it, activity.getString(R.string.meaning)) }
-        assertVisible(meaning, "Meaning footer must be reachable")
-        clickText(R.string.meaning)
-        val heading = nodes().first { it.config.contains(SemanticsProperties.Heading) &&
-            containsText(it, activity.getString(R.string.meaning)) }
-        assertVisible(heading, "Meaning page title")
-        assertVisible(backButtons().single(), "Meaning back control")
-        if (!parentScrolls) assertEquals(diagnostic("Meaning starts at the top"), 0f, scrollOffset(), 1f)
+        assertTrue("Replace is reachable at the end of the walk", visible(replace()))
+        assertTrue("Meaning is reachable", visible(meaning()))
+        assertTrue("Meaning comes after the final action", meaning().positionInRoot.y > replace().positionInRoot.y + replace().size.height)
+        val replaceTop = replace().positionInRoot.y
 
-        scrollToBottom()
-        assertTrue(diagnostic("Before returning"), scrollOffset() > 0f)
-        // System Back is available even after the long Meaning page has been scrolled.
-        activity.onBackPressedDispatcher.onBackPressed()
+        assertTrue(meaning().config[SemanticsActions.OnClick].action!!.invoke())
         settle()
-        val count = activity.resources.getQuantityString(R.plurals.fix_count, 1, 1)
-        val firstLine = nodes().first { containsText(it, count) && it.config.getOrNull(SemanticsProperties.Text) != null }
-        assertVisible(firstLine, "Returning reveals the first suggestion section")
-        if (!parentScrolls) assertEquals(diagnostic("Suggestions start at the top"), 0f, scrollOffset(), 1f)
+        assertTrue(backButtons().isEmpty())
+        assertTrue("The open section is shown", nodes().any { containsText(it, result.meaning.trim()) })
+        assertTrue("Opening it never moves Replace down", replace().positionInRoot.y <= replaceTop + 1f)
+        assertTrue(meaning().positionInRoot.y > replace().positionInRoot.y + replace().size.height)
+        assertTrue(replace().config[SemanticsActions.OnClick].action!!.invoke())
+        assertEquals(1, applied)
     }
 
     private fun reviewed(lines: Int = 50): CheckResult.Reviewed {

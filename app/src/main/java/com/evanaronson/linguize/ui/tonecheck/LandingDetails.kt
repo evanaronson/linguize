@@ -1,12 +1,6 @@
 package com.evanaronson.linguize.ui.tonecheck
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,78 +11,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.lab.Landing
 import com.evanaronson.linguize.core.lab.LandingOverall
-import com.evanaronson.linguize.ui.components.Chevron
 import com.evanaronson.linguize.ui.theme.Linguize
 
-/**
- * Lab, How it lands: the check card's footer row under Meaning, from the same answer as the
- * fixes. It reads "Lands well · friendly, a bit direct"; tapping it opens the details in
- * place (the judged text with the words that shape it highlighted, three scales, notes) and
- * tapping again closes them. No page, no request of its own.
+/*
+ * Lab, How it lands: the details of a check's `landing`, drawn as the last part of the card's
+ * Meaning section (`ui/card/MeaningLands.kt`), live and on a saved check. No row, page or
+ * request of its own.
  */
-@Composable
-fun LandingFooter(landing: Landing) {
-    var expanded by rememberSaveable(landing) { mutableStateOf(false) }
-    val title = stringResource(R.string.lab_tone_check_title)
-    val subtitle = stringResource(R.string.lab_tone_check_row_subtitle, stringResource(overallTitle(landing.overall)), landing.summary)
-    val toggleLabel = stringResource(if (expanded) R.string.lab_tone_check_hide else R.string.lab_tone_check_show)
-    val state = stringResource(if (expanded) R.string.lab_tone_check_expanded else R.string.lab_tone_check_collapsed)
-    Column {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClickLabel = toggleLabel) { expanded = !expanded }
-                .semantics { stateDescription = state }
-                .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.labelLarge)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp))
-            }
-            // The end-pointing chevron turned to point down (closed) or up (open), in either direction.
-            val turn = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
-            Chevron(Modifier.rotate(turn * if (expanded) -90f else 90f))
-        }
-        AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            LandingDetails(landing, Modifier.padding(start = 20.dp, end = 20.dp, bottom = 18.dp))
-        }
-    }
-}
 
 /** The details: what it was read as, the scales and the notes. Read-only. */
 @Composable

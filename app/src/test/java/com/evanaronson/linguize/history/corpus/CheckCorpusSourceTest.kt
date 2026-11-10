@@ -156,7 +156,7 @@ class CheckCorpusSourceTest {
     fun theSourceReadsHistoryAndADeletedCheckLeavesTheIndex() = runBlocking {
         val text = "Avui plou molt"
         val history = FakePatternHistory(listOf(
-            detail(session("a", text, startedAt = 1), change(text, "plou", "plou,", Decision.Accepted)),
+            detail(session("a", text, startedAt = 1), change(text, "plou", "plovia", Decision.Accepted)),
             detail(session("b", "Demà farà sol", startedAt = 2)),
         ))
         val corpus = Corpus(listOf(CheckCorpusSource(history)))

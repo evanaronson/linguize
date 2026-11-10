@@ -89,8 +89,9 @@ object CheckUtterances {
     }
 
     /**
-     * Where the writer's words were wrong: each fix they accepted, and each fix a rewording
-     * they accepted took over ([Decision.Retired]). An accepted rewording alone corrects
+     * Where the writer's words were wrong: the words changed by each fix they accepted, and by
+     * each fix a rewording they accepted took over ([Decision.Retired]). Words a fix kept as
+     * written, around an added comma or a missing word, were right ([changedWords]). An accepted rewording alone corrects
      * nothing, since the original was right, only less natural, unless it filled a gap the
      * writer left (a check asked only for rewordings lists fills there): its source has a
      * bracketed gap or English words. A filled gap, fix or rewording, is not evidence the
@@ -107,12 +108,18 @@ object CheckUtterances {
         val filled = rows.filter { it.kind == EditKind.Natural && it.decision == Decision.Accepted && fillsGap(it.fromText, language) }
             .mapNotNull { span(it, text) }
         return rows.filter { it.kind == EditKind.Fix }
-            .mapNotNull { fix ->
-                val span = span(fix, text) ?: return@mapNotNull null
-                when (fix.decision) {
-                    Decision.Accepted -> span
-                    Decision.Retired -> span.takeIf { rewordings.any { it.overlaps(span.start, span.end) } }
-                    else -> null
+            .flatMap { fix ->
+                val span = span(fix, text) ?: return@flatMap emptyList()
+                val counts = when (fix.decision) {
+                    Decision.Accepted -> true
+                    Decision.Retired -> rewordings.any { it.overlaps(span.start, span.end) }
+                    else -> false
+                }
+                when {
+                    !counts -> emptyList()
+                    // A filled gap is not the writer's words at all: the whole span stays marked.
+                    fillsGap(fix.fromText, language) -> listOf(span)
+                    else -> changedWords(text, span, fix.toText)
                 }
             }
             .plus(filled)
@@ -126,6 +133,44 @@ object CheckUtterances {
         WORD.findAll(from).any { WriterGaps.isEnglishGap(it.value.lowercase(), language) }
 
     private val WORD = Regex("""[\p{L}']+""")
+
+    /**
+     * A word inside a fix: letters and marks, joined by hyphens and the Catalan l·l. An elision
+     * keeps its apostrophe and stands alone, so "l'home" is "l'" and "home".
+     */
+    private val FIX_WORD = Regex("""[\p{L}\p{M}\p{N}]+(?:[·.\-][\p{L}\p{M}\p{N}]+)*['’]?""")
+
+    /**
+     * The words of the fix at [span] that the fix changed: those of its source that aren't kept,
+     * as written, in [to] (a word-level longest common subsequence). A fix that only adds a
+     * comma ("plou" to "plou,") or a missing word around the writer's words changes none of
+     * them, so it marks nothing wrong. A change of case or accent changes the word.
+     */
+    private fun changedWords(text: String, span: Span, to: String): List<Span> {
+        val from = FIX_WORD.findAll(text.substring(span.start, span.end)).toList()
+        if (from.isEmpty()) return emptyList()
+        val kept = FIX_WORD.findAll(to).map { it.value }.toList()
+        val n = from.size
+        val m = kept.size
+        val table = Array(n + 1) { IntArray(m + 1) }
+        for (i in n - 1 downTo 0) {
+            for (j in m - 1 downTo 0) {
+                table[i][j] = if (from[i].value == kept[j]) table[i + 1][j + 1] + 1 else maxOf(table[i + 1][j], table[i][j + 1])
+            }
+        }
+        val changed = mutableListOf<Span>()
+        var i = 0
+        var j = 0
+        while (i < n) {
+            when {
+                j < m && from[i].value == kept[j] -> { i++; j++ }
+                j < m && table[i][j + 1] >= table[i + 1][j] -> j++
+                else -> { changed += Span(span.start + from[i].range.first, span.start + from[i].range.last + 1); i++ }
+            }
+        }
+        // Every word changed: the fix's own span, as before.
+        return if (changed.size == n) listOf(span) else changed
+    }
 
     /** The suggestion's place in [text]; found by its words when the stored position is off. */
     private fun span(row: SuggestionRecord, text: String): Span? {

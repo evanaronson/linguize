@@ -1,11 +1,13 @@
 package com.evanaronson.linguize.ui.words
 
+import android.content.res.Resources
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.corpus.Lexeme
 import com.evanaronson.linguize.core.corpus.Pos
+import com.evanaronson.linguize.core.words.WordCounts
 import com.evanaronson.linguize.core.words.WordLevel
 
 /** The short, localized part-of-speech label: noun, verb, adj, art… */
@@ -41,3 +43,16 @@ internal fun levelLabel(level: WordLevel): String = stringResource(
         WordLevel.Lemmas -> R.string.lab_words_by_lemma
     },
 )
+
+/**
+ * A list row's use, in two lines: "12 right, 3 wrong" and "80% right, last Nov 3"; "Not yet"
+ * and no second line for a deck row never reached. Right and wrong never overlap, so either
+ * can be the larger, and the share right says which way it leans.
+ */
+internal fun rowUse(resources: Resources, counts: WordCounts?, day: (Long) -> String): Pair<String, String?> {
+    if (counts == null) return resources.getString(R.string.lab_vocab_gaps_not_yet) to null
+    val status = resources.getString(R.string.lab_words_row_right_wrong, counts.right, counts.wrong)
+    val last = counts.accuracy?.let { resources.getString(R.string.lab_words_row_accuracy_last, it, day(counts.lastAt)) }
+        ?: resources.getString(R.string.lab_vocab_gaps_last_used, day(counts.lastAt))
+    return status to last
+}

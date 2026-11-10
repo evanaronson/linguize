@@ -16,7 +16,7 @@ enum class WordFilter(val token: String) {
     Used("used"),
     /** Deck rows not yet used right (tried ones included). */
     NotYet("not_yet"),
-    /** Tried inside a fix, never yet used right. */
+    /** Used wrong at least once: a fix replaced it. Shown as "Used wrong"; the token is older. */
     Tried("tried"),
     ;
 
@@ -29,6 +29,12 @@ enum class WordFilter(val token: String) {
 enum class WordSort(val token: String) {
     Rank("rank"),
     MostUsed("most_used"),
+    /**
+     * Most used wrong first, then the lower share right, then the most recently used. A word
+     * fixed 5 times comes before one fixed once, even at a higher share right: it's the bigger
+     * habit. Words never used wrong follow.
+     */
+    MostMisused("most_misused"),
     Newest("newest"),
     Alphabetical("az"),
     ;
@@ -57,7 +63,10 @@ data class WordRow(
     val deckEntry: DeckEntry? = null,
 ) {
     val used: Boolean get() = counts?.known == true
+    /** Only ever used wrong: a fix replaced it every time. */
     val tried: Boolean get() = counts != null && counts.tried > 0 && !counts.known
+    /** Used wrong at least once. */
+    val wrong: Boolean get() = (counts?.wrong ?: 0) > 0
 }
 
 /** The distinct words used by a day, and how many of them are in the deck's top group. */
@@ -81,7 +90,8 @@ object WordList {
         return when (level) {
             WordLevel.Forms -> {
                 val forms = words.words.map { own(it, coverage.rankOfForm(it.form), notInList = it.form !in coverage.formRows) }
-                forms + deckRows.filter { it.counts == null }
+                // Deck rows no form reached: unused ones, and phrases ("a menudo") found only in the texts.
+                forms + deckRows.filter { (it.counts as? DeckUse)?.forms.isNullOrEmpty() }
             }
             WordLevel.Lexemes -> deckRows + words.lexemes.filter { entry -> entry.forms.none { it in coverage.formRows } }
                 .map { own(it, null, notInList = true) }
@@ -112,7 +122,7 @@ object WordList {
         WordFilter.All -> true
         WordFilter.Used -> row.used
         WordFilter.NotYet -> !row.used && row.deckEntry != null
-        WordFilter.Tried -> row.tried
+        WordFilter.Tried -> row.wrong
     }
 
     fun counts(rows: List<WordRow>): Map<WordFilter, Int> = WordFilter.entries.associateWith { filter -> rows.count { matches(it, filter) } }
@@ -129,6 +139,9 @@ object WordList {
             WordSort.Rank -> matching.sortedWith(compareBy<WordRow> { it.rank ?: Int.MAX_VALUE }
                 .thenByDescending { it.counts?.uses ?: 0 }.then(byLabel))
             WordSort.MostUsed -> matching.sortedWith(compareByDescending<WordRow> { it.counts?.uses ?: 0 }
+                .thenByDescending { it.counts?.lastAt ?: Long.MIN_VALUE }.thenBy { it.rank ?: Int.MAX_VALUE }.then(byLabel))
+            WordSort.MostMisused -> matching.sortedWith(compareByDescending<WordRow> { it.counts?.wrong ?: 0 }
+                .thenBy { it.counts?.accuracy ?: Int.MAX_VALUE }
                 .thenByDescending { it.counts?.lastAt ?: Long.MIN_VALUE }.thenBy { it.rank ?: Int.MAX_VALUE }.then(byLabel))
             WordSort.Newest -> matching.sortedWith(compareByDescending<WordRow> { it.counts?.firstAt ?: Long.MIN_VALUE }
                 .thenBy { it.rank ?: Int.MAX_VALUE }.then(byLabel))

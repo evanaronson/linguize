@@ -104,7 +104,9 @@ fun WordDetailScreen(
                 return@SectionCard
             }
             Fact(stringResource(R.string.lab_words_detail_right), entry.right.toString())
-            if (entry.tried > 0) { RowDivider(); Fact(stringResource(R.string.lab_words_detail_tried), entry.tried.toString()) }
+            // Right and wrong never overlap: together they are every use, so either can be larger.
+            RowDivider(); Fact(stringResource(R.string.lab_words_detail_tried), entry.wrong.toString())
+            entry.accuracy?.let { RowDivider(); Fact(stringResource(R.string.lab_words_detail_accuracy), stringResource(R.string.lab_words_percent, it)) }
             RowDivider(); Fact(stringResource(R.string.lab_words_detail_messages), entry.messages.toString())
             RowDivider(); Fact(stringResource(R.string.lab_words_detail_first), date(entry.firstAt))
             RowDivider(); Fact(stringResource(R.string.lab_words_detail_last), date(entry.lastAt))

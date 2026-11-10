@@ -98,8 +98,9 @@ import java.util.Locale
 /**
  * Words: in one language, every word of a frequency deck and every word the writer typed, in
  * one list. The header shows coverage of the deck and the writer's totals, with one chart of
- * both over time. Filters: All, Used, Not yet (topped by Words to try next) and Tried. Tap a
- * word you've used for the sentences you used it in.
+ * both over time. Filters: All, Used, Not yet (topped by Words to try next) and Used wrong.
+ * Each row says how often the word was used right and wrong, and the share right. Tap a word
+ * you've used for the sentences you used it in.
  */
 @Composable
 fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, onOpenWord: (language: String?, key: String, level: WordLevel) -> Unit) {
@@ -417,6 +418,7 @@ private fun sortLabel(sort: WordSort): String = stringResource(
     when (sort) {
         WordSort.Rank -> R.string.lab_words_sort_rank
         WordSort.MostUsed -> R.string.lab_words_sort_most_used
+        WordSort.MostMisused -> R.string.lab_words_sort_most_misused
         WordSort.Newest -> R.string.lab_words_sort_newest
         WordSort.Alphabetical -> R.string.lab_words_sort_az
     },
@@ -476,12 +478,8 @@ private fun WordRowItem(row: WordRow, hasDeck: Boolean, morphology: Boolean, onO
         }
         if (row.notInList) add(stringResource(R.string.lab_words_not_in_list))
     }.joinToString(", ")
-    val status = when {
-        counts == null -> stringResource(R.string.lab_vocab_gaps_not_yet)
-        !counts.known -> pluralStringResource(R.plurals.lab_words_row_tried, counts.tried, counts.tried)
-        else -> pluralStringResource(R.plurals.lab_vocab_gaps_used_times, counts.uses, counts.uses)
-    }
-    val last = counts?.takeIf { it.known }?.let { stringResource(R.string.lab_vocab_gaps_last_used, shortDate(it.lastAt, locale = locale)) }
+    val resources = LocalResources.current
+    val (status, last) = remember(counts, resources, locale) { rowUse(resources, counts) { shortDate(it, locale = locale) } }
     val openLabel = stringResource(R.string.lab_words_open_word)
     Row(
         Modifier.fillMaxWidth()
@@ -530,6 +528,7 @@ private fun HowItWorks(morphology: Boolean) {
         listOfNotNull(
             stringResource(R.string.lab_words_how),
             stringResource(R.string.lab_words_how_tried),
+            stringResource(R.string.lab_words_how_accuracy),
             stringResource(R.string.lab_vocab_gaps_how_text),
             if (morphology) stringResource(R.string.lab_words_how_levels) else null,
             stringResource(R.string.lab_words_how_ambiguous),

@@ -55,7 +55,9 @@ object WordViews {
     }
 
     /**
-     * CSV of every form: word, lemma, lexeme_pos, deck_rank, count, tried, first, last. A form that could be
+     * CSV of every form: word, lemma, lexeme_pos, deck_rank, right, wrong, accuracy, first, last.
+     * right and wrong never overlap (uses outside and inside corrected spans); accuracy is the
+     * whole percent used right ([WordAccuracy]). A form that could be
      * more than one lexeme has one row per lexeme, each with the form's full counts (an
      * ambiguous form counts toward every candidate). lexeme_pos is the part-of-speech token
      * ("v", "art"), empty when unknown. deck_rank is that lexeme's rank in [coverage]'s deck (its
@@ -63,7 +65,7 @@ object WordViews {
      * Dates are local, yyyy-mm-dd.
      */
     fun csv(words: LanguageWords, coverage: DeckCoverage? = null, zone: ZoneId = ZoneId.systemDefault()): String = buildString {
-        append("word,lemma,lexeme_pos,deck_rank,count,tried,first,last\r\n")
+        append("word,lemma,lexeme_pos,deck_rank,right,wrong,accuracy,first,last\r\n")
         for (entry in words.words.sortedWith(compareByDescending<WordEntry> { it.uses }.thenBy { it.form })) {
             for (lexeme in entry.lexemes.sortedWith(compareBy({ it.lemma }, { it.pos.ordinal }))) {
                 val fields = listOf(
@@ -72,7 +74,8 @@ object WordViews {
                     lexeme.pos.takeIf { it != Pos.Unknown }?.token.orEmpty(),
                     (coverage?.rankOf(lexeme) ?: coverage?.rankOfForm(entry.form))?.toString().orEmpty(),
                     entry.right.toString(),
-                    entry.tried.toString(),
+                    entry.wrong.toString(),
+                    entry.accuracy?.toString().orEmpty(),
                     day(entry.firstAt, zone),
                     day(entry.lastAt, zone),
                 )

@@ -18,7 +18,7 @@ data class WordUse(
     val at: Long,
     val start: Int,
     val end: Int,
-    /** Inside a span a fix replaced: tried, not yet right. */
+    /** Inside a span a fix replaced: a wrong use. The name is kept for the APIs that read it. */
     val tried: Boolean,
 )
 
@@ -43,9 +43,12 @@ interface WordCounts {
     val key: String
     /** What the row shows, searched and sorted by: the form or the lemma. */
     val label: String get() = key
-    /** Uses outside corrected spans. */
+    /** Uses outside corrected spans: used right. */
     val right: Int
-    /** Uses inside corrected spans. */
+    /**
+     * Uses inside corrected spans: used wrong, a fix replaced it. Not attempts: [right] and
+     * [tried] never overlap, so a word used right 12 times and wrong 3 times was used 15 times.
+     */
     val tried: Int
     val firstAt: Long
     val lastAt: Long
@@ -57,6 +60,10 @@ interface WordCounts {
     val recent: List<WordUse>
     val uses: Int get() = right + tried
     val known: Boolean get() = right > 0
+    /** The same count as [tried], under the name the page shows: used wrong. */
+    val wrong: Int get() = tried
+    /** Percent of uses that were right; null with no uses ([WordAccuracy]). */
+    val accuracy: Int? get() = WordAccuracy.percent(right, tried)
 }
 
 /** One word form as written (lowercase): "vaig", "anem". */

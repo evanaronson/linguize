@@ -1,27 +1,18 @@
 package com.evanaronson.linguize.ui.history
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
@@ -33,10 +24,12 @@ import com.evanaronson.linguize.history.SuggestionRecord
 import com.evanaronson.linguize.ui.card.ExplanationPanel
 import com.evanaronson.linguize.ui.card.linkedAssumptions
 import com.evanaronson.linguize.ui.card.visibleValue
+import com.evanaronson.linguize.ui.components.Disclosure
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
+import com.evanaronson.linguize.ui.components.rememberDisclosureState
 import com.evanaronson.linguize.ui.theme.Linguize
 import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.teachme.savedLessonTopic
@@ -103,19 +96,14 @@ private fun SavedSuggestion(
     hasFinalText: Boolean,
     assumptions: List<Assumption>,
 ) {
-    var expanded by rememberSaveable(sessionId, row.id) { mutableStateOf(false) }
-    val action = stringResource(if (expanded) R.string.history_hide_explanation else R.string.history_show_explanation)
-    val expansion = stringResource(if (expanded) R.string.history_expanded else R.string.history_collapsed)
-    Column {
-        Row(
-            Modifier.fillMaxWidth()
-                .semantics { stateDescription = expansion }
-                .clickable(onClickLabel = action) { expanded = !expanded }
-                .heightIn(min = 56.dp)
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
+    var expanded by rememberDisclosureState(sessionId, row.id)
+    Disclosure(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        expandLabel = stringResource(R.string.history_show_explanation),
+        collapseLabel = stringResource(R.string.history_hide_explanation),
+        header = {
+            Column {
                 // Use literal saved strings, never slice source text using historical spans.
                 val from = row.fromText.visibleValue()
                 val to = row.toText.visibleValue()
@@ -138,20 +126,18 @@ private fun SavedSuggestion(
                 Text(stringResource(savedSuggestionState(row.decision, hasFinalText)),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(if (expanded) "▴" else "▾", modifier = Modifier.padding(start = 12.dp).clearAndSetSemantics {})
-        }
-        if (expanded) {
-            ExplanationPanel(
-                from = "", to = "", description = null,
-                why = row.why?.takeIf { it.isNotBlank() } ?: stringResource(R.string.history_no_explanation),
-                assessment = row.assessment,
-                assumptions = assumptions,
-                answers = emptyList(),
-                accent = Linguize.colors.proof,
-                modifier = Modifier.padding(bottom = 12.dp),
-                lesson = savedLessonTopic(row, LocalLessonSource.current),
-                phrase = phraseCandidate(row.fromText, row.toText, row.why, row.kind, LocalPhraseOrigin.current),
-            )
-        }
+        },
+    ) {
+        ExplanationPanel(
+            from = "", to = "", description = null,
+            why = row.why?.takeIf { it.isNotBlank() } ?: stringResource(R.string.history_no_explanation),
+            assessment = row.assessment,
+            assumptions = assumptions,
+            answers = emptyList(),
+            accent = Linguize.colors.proof,
+            modifier = Modifier.padding(bottom = 12.dp),
+            lesson = savedLessonTopic(row, LocalLessonSource.current),
+            phrase = phraseCandidate(row.fromText, row.toText, row.why, row.kind, LocalPhraseOrigin.current),
+        )
     }
 }

@@ -16,11 +16,18 @@ class ChatStartNavigationTest {
         assertNull(start.back().parent)
     }
 
-    @Test fun everyOtherChoiceStartsOnItsTabAlone() {
-        assertEquals(Navigation(), startNavigation(StartTab.Notes, openSettings = false))
+    @Test fun notesStartsInTheCurrentNoteWithNothingBehindTheList() {
+        val start = startNavigation(StartTab.Notes, openSettings = false)
+        assertEquals(Screen.Note(null), start.current)
+        assertEquals(Screen.Notes, start.parent)
+        assertEquals(Screen.Notes, start.tab)
+        assertEquals(Navigation(), start.back())
+    }
+
+    @Test fun progressAndHistoryStartOnTheirTabAlone() {
         assertEquals(Navigation(Screen.Progress), startNavigation(StartTab.Progress, openSettings = false))
         assertEquals(Navigation(Screen.History), startNavigation(StartTab.History, openSettings = false))
-        StartTab.entries.filter { it != StartTab.Chat }.forEach { tab ->
+        listOf(StartTab.Progress, StartTab.History).forEach { tab ->
             val start = startNavigation(tab, openSettings = false)
             assertEquals(tab.screen, start.current)
             assertEquals(tab.screen, start.tab)
@@ -105,11 +112,11 @@ class ChatStartNavigationTest {
         assertEquals(Navigation(Screen.Chat).open(Screen.History), Navigation.restore(listOf("lab_chat", "home", "history")))
     }
 
-    @Test fun theNotesShortcutOpensNotesAboveAnyStart() {
+    @Test fun theNotesShortcutOpensTheCurrentNoteAboveAnyStart() {
         val fromChat = startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Notes)
-        assertEquals(listOf("lab_chat", "notes"), fromChat.saved)
-        assertEquals(Navigation(), startNavigation(StartTab.Notes, openSettings = false, tab = Screen.Notes))
-        assertEquals(listOf("history", "notes"), startNavigation(StartTab.History, openSettings = false, tab = Screen.Notes).saved)
+        assertEquals(listOf("lab_chat", "notes", "lab_notes_note"), fromChat.saved)
+        assertEquals(startNavigation(StartTab.Notes, openSettings = false), startNavigation(StartTab.Notes, openSettings = false, tab = Screen.Notes))
+        assertEquals(listOf("history", "notes", "lab_notes_note"), startNavigation(StartTab.History, openSettings = false, tab = Screen.Notes).saved)
         // Only tabs can be asked for.
         assertEquals(startNavigation(StartTab.Chat, openSettings = false),
             startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Practice))

@@ -26,8 +26,10 @@ what a person comes to do. It doesn't add features.
 9. **One top bar, two shapes.** Every root tab has the same bar: the wordmark on the left;
    on the right, the language selector then the Settings gear, at the same place and size
    on all four. Every page opened from a tab has Back and that page's title (a
-   conversation: its title, and who the partner plays). A tab never repeats its own name:
-   the bottom bar already says it. Nothing else draws a top bar.
+   conversation: its title, and who the partner plays). A note's page also keeps the
+   language selector on its right, because its checks follow the app's language (see
+   [Notes](notes.md)). A tab never repeats its own name: the bottom bar already says it.
+   Nothing else draws a top bar.
 8. **Filters are not buttons.** Anything that chooses what a page shows is a quiet
    dropdown ("Sort: Newest ▾"); buttons are only for actions (see
    [Copy style](../copy-style.md)).
@@ -63,13 +65,14 @@ what a person comes to do. It doesn't add features.
 | Chat, Notes, Progress, History (the root tabs) | The wordmark | The language selector (icon and "▾"), then the Settings gear |
 | Any page opened from a tab: a conversation, Words, a saved check, Settings and its pages, … | Back, then the page's title (a conversation: its title, who the partner plays under it) | Nothing |
 
-Pages opened from a tab don't show the selector. A conversation's language is fixed once
+Pages opened from a tab don't show the selector, except a note's: its checks follow the
+app's language, and switching changes only the next check. A conversation's language is fixed once
 created, so switching there would mean nothing. A page Progress opens (Words, Your
 conjugations, …) shows the language it was opened in. Switching it in place would change
 the page under the reader, so the language is changed on the tab, one Back away.
 
-**Bottom bar: Chat, Notes, Progress, History.** Shown on these four pages and in a
-conversation (the app opens there), hidden on the other pages they open and while the
+**Bottom bar: Chat, Notes, Progress, History.** Shown on these four pages, in a
+conversation and on a note's page (the app can open there), hidden on the other pages they open and while the
 keyboard is up. The app starts on the tab **Start on** names (Settings › App): Chat by
 default, or Notes, Progress or History. That tab is the root: Back from any other tab
 returns to it.
@@ -79,10 +82,13 @@ returns to it.
   conversation** at the bottom. A conversation opens above the list with Back to it and its
   title. The app opens
   straight into the current conversation, the list one Back away.
-- **Notes**: the add-key strip until there is a key; **Write and check**: one editor
-  that keeps notes, checked with the same card as everywhere in the app's language, with
-  Check, Copy and Share under the editor, New note by the header, the card below (see
-  [Notes](notes.md) and [its hierarchy](ia-notes.md)); **Other notes** when there are others.
+- **Notes**: the list of notes, newest first (first line, date, delete with Undo), with
+  **New note** at the bottom, as Chat has New conversation. A note opens above the list with
+  Back to it: the add-key strip until there is a key; **Write and check**, the editor checked
+  with the same card as everywhere in the app's language, Check, Copy and Share under it, the
+  card below. Its bar keeps the language selector. With Notes as the start, the app opens
+  straight into the current note, the list one Back away (see [Notes](notes.md) and
+  [its hierarchy](ia-notes.md)).
 - **Progress**, in the current language (see [Progress](ia-progress.md)): **This week**, the
   headline (time spent writing and reviewing, with the last 8 weeks; it opens Time spent);
   **Practice** ("4 due" with Start practice, or when the next one is); **Your writing**: Words
@@ -155,7 +161,12 @@ conversation replaces the open one; the Chat tab from a conversation returns to 
 History's Open conversation is `open(Chat).open(ChatThread(id))`. A language switch is
 `afterLanguageSwitch()`: Back to the list if a conversation is open (no conversation shows
 the selector now, so this only guards the rule). The Notes shortcut and a popup's Open
-settings don't open a conversation. A saved `[lab_chat]` restores as the list. Notes is
+settings don't open a conversation. A saved `[lab_chat]` restores as the list.
+`Screen.Note(id)` is one note above the Notes list (`lab_notes_note:<id>`), the same way:
+with Notes as the start, the app starts at `[Notes, Note(null)]` ("the current note",
+replaced by its id once it's read; a fresh install's sample has none). The Notes shortcut
+opens `Notes` then `Note(null)` above the start. Another note replaces the open one, and the
+Notes tab from a note returns to the list. Notes is
 saved as `notes`; `home` (its token as Home, then Write) still restores as Notes, so a saved
 path or a pinned shortcut from before works. An old `[lab_chat, home, history]` restores as
 `[lab_chat, history]`. The tokens of removed pages above Notes (`lab_gap_filler`,

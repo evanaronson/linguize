@@ -9,15 +9,20 @@ import com.evanaronson.linguize.data.chat.StartTab
  * destination, the root of every path, so Back from any other tab returns to it. With Chat,
  * the app opens straight into the current conversation above its list ([Screen.ChatThread]
  * with no id: resolved when shown, and closed to the list when there is none), so the list is
- * one Back away. [tab] (the Notes shortcut) opens one tab above the start, and [openSettings]
- * (a popup's "Open settings") puts Settings on top; neither opens a conversation.
+ * one Back away. Notes likewise opens straight into the current note ([Screen.Note] with no
+ * id), the list one Back away. [tab] (the Notes shortcut) opens one tab above the start, Notes
+ * into its current note; [openSettings] (a popup's "Open settings") puts Settings on top and
+ * opens no conversation or note.
  */
 internal fun startNavigation(start: StartTab, openSettings: Boolean, tab: Screen? = null): Navigation {
     val root = Navigation(start.screen)
     val requested = tab?.takeIf { it.isTab }
     val opened = when {
+        requested == Screen.Notes -> root.open(Screen.Notes).open(Screen.Note(null))
         requested != null -> root.open(requested)
-        start == StartTab.Chat && !openSettings -> root.open(Screen.ChatThread(null))
+        openSettings -> root
+        start == StartTab.Chat -> root.open(Screen.ChatThread(null))
+        start == StartTab.Notes -> root.open(Screen.Note(null))
         else -> root
     }
     return if (openSettings) opened.open(Screen.Settings) else opened

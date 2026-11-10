@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notes navigation (Linguize Lab): the Notes tab lists the notes; each opens on its own page. -->
+    <string name="lab_notes_nav_title">Note</string>
+    <string name="lab_notes_nav_empty">No notes yet</string>
+    <string name="lab_notes_nav_empty_hint">Write a message here, check it, then copy or share it. Notes stay on this phone.</string>
+</resources>

@@ -18,7 +18,7 @@ Settings behind the gear.
 | Before sending | [How it lands](tone-check.md): part of every check; how the message will come across, with tone fixes as ordinary rewordings | Card row, everywhere |
 | Before sending | [Replying to](reply-context.md): every chat check reads the draft as a reply to the partner's last message | Chat (automatic) |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
-| Writing a message | [Notes](notes.md) (once Write): one editor with its notes, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Notes |
+| Writing a message | [Notes](notes.md) (once Write): a list of notes, each on its own page, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Notes |
 | Anywhere | [Share text](share-text.md): share text in from another app to check it or understand it | Share sheet |
 | Anywhere | [Quick tile](quick-tile.md): Quick Settings tile and launcher shortcuts for copied text | System; the Notes shortcut opens Notes |
 | Learning over time | [Teach me](teach-me.md): a one-minute lesson and quiz for any change | Change explanation |

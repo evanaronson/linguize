@@ -32,6 +32,9 @@ class TopBarConsistencyTest {
         )
         pages.forEach { assertEquals(TopBar.Page("Title"), it.topBar("Title")) }
         assertEquals(TopBar.Page("Weekend plans", "Talking to Marta"), Screen.ChatThread("c1").topBar("Weekend plans", "Talking to Marta"))
+        // A note is a page too, and keeps the selector: its checks follow the app's language.
+        assertEquals(TopBar.Page("Note", languageSelector = true), Screen.Note("n1").topBar("Note"))
+        assertEquals(TopBar.Page("Note", languageSelector = true), Screen.Note(null).topBar("Note"))
     }
 
     @Test fun theBarDrawsTheSelectorAndSettingsOnlyOnARoot() {

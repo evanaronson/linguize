@@ -118,18 +118,13 @@ class HomeActivity : ComponentActivity() {
                     bottomBar = {
                         // Typing (the Notes editor, the chat composer) gets the room while the keyboard is up.
                         // The app opens into a conversation, so the other tabs stay one tap away there too.
-                        if ((current.isTab || current is Screen.ChatThread) && !imeVisible()) AppTabs(navigation.tab) { navigation = navigation.open(it) }
+                        if ((current.isTab || current is Screen.ChatThread || current is Screen.Note) && !imeVisible()) AppTabs(navigation.tab) { navigation = navigation.open(it) }
                     },
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                         saved.SaveableStateProvider(current.saved) {
                             when (current) {
-                                Screen.Notes -> NotesScreen(
-                                    check,
-                                    language = language,
-                                    needsKey = settings.state?.hasKey == false,
-                                    onOpenSettings = openSettings,
-                                )
+                                Screen.Notes -> NotesScreen { navigation = navigation.open(Screen.Note(it)) }
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
                                     practice, patterns, words, conjugations, language, appLanguage.options,
                                 ) { view, block ->
@@ -198,6 +193,16 @@ class HomeActivity : ComponentActivity() {
                                 Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, language)
                                 Screen.Languages -> com.evanaronson.linguize.ui.language.LanguagesScreen(appLanguage)
                                 Screen.Notices -> com.evanaronson.linguize.ui.settings.OpenSourceNoticesScreen()
+                                is Screen.Note -> NotePage(
+                                    current.id, check,
+                                    needsKey = settings.state?.hasKey == false,
+                                    onOpenSettings = openSettings,
+                                    onResolved = { id ->
+                                        // Only while the app is still on "the current note".
+                                        if (id != null && navigation.current == Screen.Note(null)) navigation = navigation.replace(Screen.Note(id))
+                                    },
+                                    language = language,
+                                )
                             }
                         }
                     }
@@ -283,7 +288,7 @@ class HomeActivity : ComponentActivity() {
         fun homeIntent(context: Context) = Intent(context, HomeActivity::class.java)
         fun settingsIntent(context: Context) = homeIntent(context).putExtra(OPEN_SETTINGS, true)
 
-        /** Opens Notes and its editor (the Notes launcher shortcut), above whichever tab the app starts on. */
+        /** Opens Notes and its current note (the Notes launcher shortcut), above whichever tab the app starts on. */
         fun notesIntent(context: Context) = homeIntent(context).putExtra(OPEN_TAB, Screen.Notes.saved)
 
         /** The bottom-bar destination an intent asks for, if any. */
@@ -311,7 +316,7 @@ private val ProgressView.screen: Screen
  * language selector, Settings); every other page has Back and its [title].
  */
 internal fun Screen.topBar(title: String, subtitle: String? = null): TopBar =
-    if (isTab) TopBar.Root else TopBar.Page(title, subtitle)
+    if (isTab) TopBar.Root else TopBar.Page(title, subtitle, languageSelector = this is Screen.Note)
 
 /** A page's title in the navigation bar, and in "Back to …"; a tab's name (its bar shows the wordmark). */
 @Composable
@@ -340,4 +345,5 @@ private fun Screen.title(): String = when (this) {
     is Screen.ChatThread -> stringResource(R.string.lab_chat_title)
     Screen.Languages -> stringResource(R.string.lab_lang_selector_title)
     Screen.Notices -> stringResource(R.string.lab_lang_selector_notices)
+    is Screen.Note -> stringResource(R.string.lab_notes_nav_title)
 }

@@ -18,7 +18,7 @@ data class WordUse(
     val at: Long,
     val start: Int,
     val end: Int,
-    /** Inside a span a fix replaced: a wrong use. The name is kept for the APIs that read it. */
+    /** Inside a span Linguize flagged as wrong. The name is kept for the APIs that read it. */
     val tried: Boolean,
 )
 
@@ -46,7 +46,7 @@ interface WordCounts {
     /** Uses outside corrected spans: used right. */
     val right: Int
     /**
-     * Uses inside corrected spans: used wrong, a fix replaced it. Not attempts: [right] and
+     * Uses inside corrected spans: Linguize flagged them as wrong. Not attempts: [right] and
      * [tried] never overlap, so a word used right 12 times and wrong 3 times was used 15 times.
      */
     val tried: Int

@@ -3,7 +3,6 @@ package com.evanaronson.linguize.ui.progress
 import com.evanaronson.linguize.PatternsLab
 import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
-import com.evanaronson.linguize.core.practice.PracticeItem
 import com.evanaronson.linguize.core.time.TimeRecord
 import com.evanaronson.linguize.core.time.TimeReport
 import com.evanaronson.linguize.data.CheckPreferences
@@ -18,7 +17,6 @@ import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
 import com.evanaronson.linguize.ui.conjugations.ConjugationsState
 import com.evanaronson.linguize.ui.phrasebook.inLanguage
-import com.evanaronson.linguize.ui.practice.PracticeState
 import com.evanaronson.linguize.ui.words.WordsState
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -28,19 +26,6 @@ import java.time.ZoneOffset
 
 /** Lab, Language scope: every Progress section shows only the app's current language. Fake data in Catalan and Spanish. */
 class ProgressScopeTest {
-    private fun item(id: String, language: String?) =
-        PracticeItem(id, "check-$id", 1, language, "Nos vemos despues.", 10, 17, "después")
-
-    @Test fun practiceCountsAndRunsOnlyTheCurrentLanguagesItems() {
-        val items = listOf(item("a", "es"), item("b", "es"), item("c", "ca"), item("d", null))
-        val all = PracticeState(items = items, now = 10, today = 0)
-        assertEquals(4, all.due)
-        assertEquals(2, all.copy(language = "es").due)
-        assertEquals(1, all.copy(language = "ca").due)
-        assertEquals(listOf("c"), all.copy(language = "ca").scoped!!.map { it.id })
-        assertEquals(0, all.copy(language = "en").due)
-    }
-
     private class Notes : ExplanationStore {
         var saved: SavedExplanation? = null
         override fun read() = saved

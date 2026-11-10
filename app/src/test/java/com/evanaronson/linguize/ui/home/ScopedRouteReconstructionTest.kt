@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.ui.home
 
 import android.app.Application
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import com.evanaronson.linguize.DeckLibrary
@@ -18,7 +17,6 @@ import com.evanaronson.linguize.core.vocab.VocabLevel
 import com.evanaronson.linguize.core.words.WordLevel
 import com.evanaronson.linguize.data.lab.ExplanationStore
 import com.evanaronson.linguize.data.lab.SavedExplanation
-import com.evanaronson.linguize.data.practice.PracticeStore
 import com.evanaronson.linguize.data.vocabgaps.BundledDecks
 import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
 import com.evanaronson.linguize.data.vocabgaps.VocabSelection
@@ -29,7 +27,6 @@ import com.evanaronson.linguize.llm.lab.PatternsPrompt
 import com.evanaronson.linguize.testing.MainDispatcherRule
 import com.evanaronson.linguize.ui.conjugations.ConjugationsViewModel
 import com.evanaronson.linguize.ui.patterns.PatternsViewModel
-import com.evanaronson.linguize.ui.practice.PracticeViewModel
 import com.evanaronson.linguize.ui.progress.ProgressView
 import com.evanaronson.linguize.ui.words.WordsViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -97,25 +94,6 @@ class ScopedRouteReconstructionTest {
         advanceUntilIdle()
         assertEquals("ca", fresh.state.value.language)
         assertEquals(catalanSources, fresh.state.value.snapshot?.report?.evidenceSessions)
-    }
-
-    @Test fun autoCatalanPracticeRestoresItsDueDeckIntoAFreshModel() = runTest(main.dispatcher) {
-        val path = block(ProgressView.Practice)
-        val first = practice()
-        first.model.setLanguage(path.current.effectiveLanguage(null))
-        advanceUntilIdle()
-        assertEquals(2, first.model.state.value.due)
-        first.owner.clear()
-
-        val restored = Navigation.restore(path.saved)
-        val fresh = practice().model
-        fresh.setLanguage(restored.current.effectiveLanguage(null))
-        advanceUntilIdle()
-        assertEquals(catalanSources, fresh.state.value.scoped?.map { it.sessionId }?.toSet())
-        fresh.start()
-        assertNotNull(fresh.state.value.run?.current)
-        assertEquals(setOf("ca"), fresh.state.value.run?.queue?.map { it.language }?.toSet())
-        assertEquals(2, fresh.state.value.run?.size)
     }
 
     @Test fun autoCatalanWordsRestoresItsRouteDespiteADifferentRememberedSelection() = runTest(main.dispatcher) {
@@ -217,7 +195,7 @@ class ScopedRouteReconstructionTest {
     }
 
     @Test fun legacyFeatureTokensStillFollowTheCurrentExplicitAppLanguage() = runTest(main.dispatcher) {
-        val legacy = listOf("patterns", "practice", "words", "vocab_gaps", "conjugations")
+        val legacy = listOf("patterns", "words", "vocab_gaps", "conjugations")
         for (token in legacy) {
             val route = Navigation.restore(listOf("progress", token)).current
             assertEquals(RouteScope.FollowApp, route.scope)
@@ -228,12 +206,6 @@ class ScopedRouteReconstructionTest {
                     model.setLanguage(route.effectiveLanguage("ca"))
                     advanceUntilIdle()
                     assertEquals(catalanSources, model.state.value.snapshot?.report?.evidenceSessions)
-                }
-                Screen.Practice -> {
-                    val model = practice().model
-                    model.setLanguage(route.effectiveLanguage("ca"))
-                    advanceUntilIdle()
-                    assertEquals(catalanSources, model.state.value.scoped?.map { it.sessionId }?.toSet())
                 }
                 Screen.Words -> {
                     vocab().saveSelection(VocabSelection("es", "bundled-es"))
@@ -255,13 +227,10 @@ class ScopedRouteReconstructionTest {
         }
     }
 
-    @Test fun legacyAutoUsesAllLanguagesForPatternsAndPracticeAndExistingSingleLanguageDefaults() = runTest(main.dispatcher) {
+    @Test fun legacyAutoUsesAllLanguagesForPatternsAndExistingSingleLanguageDefaults() = runTest(main.dispatcher) {
         val patternRoute = requireNotNull(Screen.restore("patterns"))
         val patterns = patterns().model
         patterns.setLanguage(patternRoute.effectiveLanguage(null))
-        val practiceRoute = requireNotNull(Screen.restore("practice"))
-        val practice = practice().model
-        practice.setLanguage(practiceRoute.effectiveLanguage(null))
         vocab().saveSelection(VocabSelection("es", "bundled-es"))
         val words = words().model
         requireNotNull(Screen.restore("vocab_gaps")).effectiveLanguage(null)?.let(words::selectLanguage)
@@ -271,13 +240,12 @@ class ScopedRouteReconstructionTest {
         advanceUntilIdle()
 
         assertEquals(spanishSources + catalanSources, patterns.state.value.snapshot?.report?.evidenceSessions)
-        assertEquals(5, practice.state.value.due)
         assertEquals("es", words.state.value.shownLanguage)
         assertEquals("es", conjugations.state.value.shown)
     }
 
     @Test fun openingAProgressBlockUnderAnExplicitAppLanguageFollowsThatSelector() {
-        for (view in listOf(ProgressView.Patterns, ProgressView.Practice, ProgressView.Words, ProgressView.Conjugations)) {
+        for (view in listOf(ProgressView.Patterns, ProgressView.Words, ProgressView.Conjugations)) {
             val route = progressDestination(view, "es", "ca")
             assertEquals(RouteScope.FollowApp, route.scope)
             assertEquals("es", route.effectiveLanguage("es"))
@@ -306,10 +274,6 @@ class ScopedRouteReconstructionTest {
             { PatternsPrompt("unused") }, io = main.dispatcher)
         return own(PatternsViewModel(lab, history.revisions()))
     }
-
-    private fun practice() = own(PracticeViewModel(history,
-        PracticeStore(File(folder.root, "practice.json"), main.dispatcher),
-        clock = { 1_000_000_000_000L }, zone = { ZoneOffset.UTC }, savedState = SavedStateHandle()))
 
     private fun vocab() = VocabGapsStore(File(folder.root, "vocab"))
 

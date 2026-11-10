@@ -54,8 +54,6 @@ internal sealed interface Screen {
 
     /** Lab: one group of recurring fixes, by its stable token. */
     data class PatternDetail(val kind: String) : Screen
-    /** Lab: practice drills from applied fixes. */
-    data object Practice : Screen
     /** Lab: what Linguize remembers about the writer. */
     data object Memory : Screen
     /** Lab: Words, every word of a frequency deck and every word the writer typed. */
@@ -72,7 +70,7 @@ internal sealed interface Screen {
     data object Conjugations : Screen
     /** Lab: one cell of the conjugation grid, by language and cell token. */
     data class ConjugationCell(val language: String, val cell: String) : Screen
-    /** Progress: Practice and every view learned from History, in one place. */
+    /** Progress: views learned from History, in one place. */
     data object Progress : Screen
     /** Lab: Time spent writing and reviewing. */
     data object TimeSpent : Screen
@@ -116,7 +114,6 @@ internal sealed interface Screen {
             is AppVoice -> if (app == null) "appvoice" else "appvoice:$app"
             Patterns -> "patterns"
             is PatternDetail -> "pattern:$kind"
-            Practice -> "practice"
             Memory -> "lab_memory"
             Words -> "words"
             is WordDetail -> "word:$level:${language.orEmpty()}:$key"
@@ -150,7 +147,9 @@ internal sealed interface Screen {
             saved.startsWith("scoped:") -> saved.split(':', limit = 3).takeIf {
                 it.size == 3 && LanguageScope.isCode(it[1])
             }?.let { parts ->
-                restore(parts[2])?.takeIf { it.acceptsScope }?.inScope(RouteScope.Block(parts[1]))
+                // Retired drills return to their parent tab, without retaining a block scope.
+                if (parts[2] == "practice") Progress
+                else restore(parts[2])?.takeIf { it.acceptsScope }?.inScope(RouteScope.Block(parts[1]))
             }
             saved == NOTES || saved == "home" -> Notes
             saved == "history" -> History
@@ -169,7 +168,7 @@ internal sealed interface Screen {
             saved == "lab_gap_filler" || saved == "lab_reply" || saved == "photo" -> Notes
             saved == "patterns" -> Patterns
             saved.startsWith("pattern:") && saved.length > "pattern:".length -> PatternDetail(saved.removePrefix("pattern:"))
-            saved == "practice" -> Practice
+            saved == "practice" -> Progress
             saved == "lab_memory" -> Memory
             saved == "words" -> Words
             saved.startsWith("word:") -> saved.split(':', limit = 4)
@@ -199,17 +198,16 @@ internal sealed interface Screen {
 }
 
 private val Screen.acceptsScope: Boolean
-    get() = this in listOf(Screen.Patterns, Screen.Practice, Screen.Words, Screen.Conjugations, Screen.Phrasebook, Screen.TimeSpent) ||
+    get() = this in listOf(Screen.Patterns, Screen.Words, Screen.Conjugations, Screen.Phrasebook, Screen.TimeSpent) ||
         this is Screen.PatternDetail
 
 /** The view to draw; its scope remains part of the route's saved identity. */
 internal val Screen.destination: Screen get() = if (this is Screen.Scoped) page else this
 internal val Screen.scope: RouteScope get() = if (this is Screen.Scoped) block else RouteScope.FollowApp
 
-/** Live work retains its content identity when only scope or a current-note placeholder resolves. */
+/** A current-note placeholder retains its editor identity when the saved note resolves. */
 internal val Screen.saveableKey: String
     get() = when {
-        destination == Screen.Practice -> Screen.Practice.saved
         this is Screen.Note && openedAsCurrent -> Screen.Note(null).saved
         else -> saved
     }
@@ -231,7 +229,6 @@ internal fun Screen.effectiveLanguage(appLanguage: String?): String? = when (thi
 /** A block is captured only under Auto; unscoped/legacy routes continue to follow the app. */
 internal fun progressDestination(view: ProgressView, appLanguage: String?, block: String?): Screen {
     val page = when (view) {
-        ProgressView.Practice -> Screen.Practice
         ProgressView.Words -> Screen.Words
         ProgressView.Conjugations -> Screen.Conjugations
         ProgressView.Patterns -> Screen.Patterns

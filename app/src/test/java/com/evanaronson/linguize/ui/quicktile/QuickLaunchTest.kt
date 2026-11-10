@@ -71,6 +71,22 @@ class QuickLaunchTest {
     }
 
     @Test
+    fun tabIntentsKeepNotesAliasesButDoNotLaunchRetiredPracticeOrScopedPages() {
+        for (tab in Screen.tabs) {
+            val intent = HomeActivity.homeIntent(context).putExtra("openTab", tab.saved)
+            assertEquals(tab, HomeActivity.requestedTab(intent))
+        }
+        for (token in listOf("home", "lab_gap_filler", "lab_reply", "photo")) {
+            val intent = HomeActivity.homeIntent(context).putExtra("openTab", token)
+            assertEquals(Screen.Notes, HomeActivity.requestedTab(intent))
+        }
+        for (token in listOf("practice", "scoped:ca:practice", "words", "scoped:ca:words", "unknown")) {
+            val intent = HomeActivity.homeIntent(context).putExtra("openTab", token)
+            assertNull(HomeActivity.requestedTab(intent))
+        }
+    }
+
+    @Test
     fun publishingAddsOurShortcutsAndKeepsOthers() {
         val manager = context.getSystemService(ShortcutManager::class.java)
         val other = android.content.pm.ShortcutInfo.Builder(context, "other_feature")

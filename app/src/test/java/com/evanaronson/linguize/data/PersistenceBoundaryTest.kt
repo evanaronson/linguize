@@ -1,17 +1,13 @@
 package com.evanaronson.linguize.data
 
 import android.app.Application
-import com.evanaronson.linguize.core.practice.Grade
-import com.evanaronson.linguize.core.practice.Schedule
 import com.evanaronson.linguize.core.vocab.DeckEntry
 import com.evanaronson.linguize.data.phrasebook.PhraseDraft
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
-import com.evanaronson.linguize.data.practice.PracticeStore
 import com.evanaronson.linguize.data.vocabgaps.VocabGapsStore
 import com.evanaronson.linguize.data.vocabgaps.VocabSelection
 import com.evanaronson.linguize.data.write.WriteDraft
 import com.evanaronson.linguize.data.write.WriteDraftStore
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -65,15 +61,6 @@ class PersistenceBoundaryTest {
         assertEquals(null, VocabGapsStore(dir).importedDeck(imported.id))
     }
 
-    @Test fun practiceUpdateReturnsTheScheduleThatWasSaved() = runBlocking {
-        val file = File(folder.root, PracticeStore.FILE)
-        val state = Schedule.review(null, Grade.Good, 1_000)
-        val saved = PracticeStore(file).update { it.copy(states = mapOf("item" to state)) }
-
-        assertEquals(state, saved.states["item"])
-        assertEquals(saved, PracticeStore(file).read())
-    }
-
     @Test
     fun failedPhraseSaveMustNotPublishAnUndurablePhrase() {
         val file = File(folder.root, PhrasebookStore.FILE_NAME)
@@ -86,24 +73,6 @@ class PersistenceBoundaryTest {
 
         assertEquals(listOf(saved), PhrasebookStore(file).load())
         assertEquals("Cache must describe the durable phrasebook after a failed save", listOf(saved), store.phrases.value)
-    }
-
-    @Test
-    fun failedPracticeUpdateMustNotAcknowledgeAnUnsavedGrade() = runBlocking {
-        val file = File(folder.root, PracticeStore.FILE)
-        val store = PracticeStore(file)
-        val first = Schedule.review(null, Grade.Good, 1_000)
-        val before = store.update { it.copy(states = mapOf("item" to first)) }
-        blockTemporaryFile(file)
-
-        val attempt = runCatching {
-            store.update { it.copy(states = mapOf("item" to Schedule.review(first, Grade.Good, 2_000))) }
-        }
-
-        val durable = PracticeStore(file).read()
-        assertEquals(before, durable)
-        assertTrue("A returned schedule must be durable, or the write must report failure",
-            attempt.isFailure || attempt.getOrThrow() == durable)
     }
 
     @Test

@@ -48,7 +48,7 @@ data class CellStats(
 /** One verb the writer used, the tenses it appeared in, and how often. */
 data class VerbStats(val lemma: String, val weight: Double, val tenses: Set<Tense>, val cells: Set<Cell>, val lastUsed: Long)
 
-/** A verb form inside a span an accepted fix replaced: tried, but not counted as known. */
+/** A verb form Linguize flagged as wrong: tried, but not counted as known. */
 data class Tried(val form: String, val readings: List<Reading>, val example: Example)
 
 /** One candidate reading of a use: the verb and the cell. */

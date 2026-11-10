@@ -81,7 +81,7 @@ Found by searching Kotlin, resources, the manifest and the Lab prompt assets (no
   edit, like the Catalan and Spanish defaults always were. Removing a language keeps its
   stored profile, which returns as it was when the language is added again. The check
   request sends every profile, sorted by code.
-- **Data scopes by code.** Chat, History, Practice, Phrasebook and Time already filtered by
+- **Data scopes by code.** Chat, History, Phrasebook and Time already filtered by
   code; for a language with no activity they show their usual empty states. Under Linguize,
   Progress shows a block per language with data (the writer's first, in their order), or the
   writer's languages when there is no data at all.

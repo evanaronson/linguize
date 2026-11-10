@@ -71,21 +71,24 @@ class CheckCorpusSourceTest {
     }
 
     @Test
-    fun anAcceptedRewordingIsNotAMistake() {
+    fun aRewordingIsNotAMistakeWhateverTheWriterDecides() {
         val text = "Em fa molta il·lusió anar-hi"
-        val u = CheckUtterances.of(detail(session("s", text),
-            change(text, "Em fa molta il·lusió", "Tinc moltes ganes", Decision.Accepted, EditKind.Natural)))
-        assertTrue(u.corrected.isEmpty())
+        for (decision in Decision.entries) {
+            val u = CheckUtterances.of(detail(session("s", text),
+                change(text, "Em fa molta il·lusió", "Tinc moltes ganes", decision, EditKind.Natural)))
+            assertTrue(decision.name, u.corrected.isEmpty())
+        }
     }
 
     @Test
-    fun undoneIgnoredAndCopiedFixesKeepTheWritersWords() {
+    fun undoneIgnoredAndCopiedFixesStillMarkTheFlaggedWordsWrong() {
         val text = "Ens veiem dema a les cinc o despres"
         val u = CheckUtterances.of(detail(session("s", text),
             change(text, "dema", "demà", Decision.Undone),
             change(text, "cinc", "5", Decision.Ignored),
             change(text, "despres", "després", Decision.Copied)))
-        assertTrue(u.corrected.isEmpty())
+        assertEquals(text, u.text)
+        assertEquals(listOf("dema", "cinc", "despres"), u.corrected.map { it.of(text) })
     }
 
     @Test
@@ -98,12 +101,12 @@ class CheckCorpusSourceTest {
     }
 
     @Test
-    fun aRetiredFixWithoutAnAcceptedRewordingIsNotCorrected() {
+    fun aRetiredFixStillRepresentsTheCheckersJudgmentWithoutAnAcceptedRewording() {
         val text = "Te molt raó"
         val u = CheckUtterances.of(detail(session("s", text),
             change(text, "Te", "Té", Decision.Retired),
             change(text, "Te molt raó", "Tens raó", Decision.Copied, EditKind.Natural)))
-        assertTrue(u.corrected.isEmpty())
+        assertEquals(listOf("Te"), u.corrected.map { it.of(text) })
     }
 
     @Test
@@ -111,8 +114,35 @@ class CheckCorpusSourceTest {
         val text = "Hola com estas"
         val attempts = listOf(ok, ok.copy(at = 2))
         val u = CheckUtterances.of(detail(session("s", text, attempts = attempts),
-            change(text, "Hola", "Hola,", Decision.Superseded, attempt = 0),
+            change(text, "Hola", "Bon dia", Decision.Superseded, attempt = 0),
             change(text, "estas", "estàs", Decision.Accepted, attempt = 1)))
+        assertEquals(listOf("estas"), u.corrected.map { it.of(text) })
+    }
+
+    @Test
+    fun aCleanRecheckReplacesAnEarlierFlagAfterClarification() {
+        val text = "Ahir plovia molt"
+        val u = CheckUtterances.of(detail(session("s", text, attempts = listOf(ok, ok.copy(at = 2))),
+            change(text, "plovia", "va ploure", Decision.Superseded, attempt = 0)))
+        assertTrue(u.corrected.isEmpty())
+    }
+
+    @Test
+    fun onlyTheEndingAttemptFlagsWordsWhenEarlierRowsWereNotSuperseded() {
+        val text = "Hola com estas"
+        val u = CheckUtterances.of(detail(session("s", text, attempts = listOf(ok, ok.copy(at = 2))),
+            change(text, "Hola", "Bon dia", Decision.Ignored, attempt = 0),
+            change(text, "estas", "estàs", Decision.Ignored, attempt = 1)))
+        assertEquals(listOf("estas"), u.corrected.map { it.of(text) })
+    }
+
+    @Test
+    fun legacySuggestionsWithoutRawAttemptsStillKeepTheirJudgments() {
+        val text = "Hola com estas"
+        val legacy = session("s", text, attempts = listOf(Attempt(at = 1))).copy(schema = 3)
+        val u = CheckUtterances.of(detail(legacy,
+            change(text, "Hola", "Bon dia", Decision.Superseded),
+            change(text, "estas", "estàs", Decision.Ignored)))
         assertEquals(listOf("estas"), u.corrected.map { it.of(text) })
     }
 

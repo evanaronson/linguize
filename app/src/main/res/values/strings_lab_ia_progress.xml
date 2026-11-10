@@ -12,15 +12,6 @@
     <!-- Screen readers: the headline card as one sentence. -->
     <string name="lab_ia_progress_time_description">%1$s this week. %2$s</string>
 
-    <!-- Practice: the thing to do. -->
-    <string name="lab_ia_progress_practice_none">No fixes yet</string>
-    <string name="lab_ia_progress_practice_none_hint">Fixes you accept come back here to practise</string>
-    <string name="lab_ia_progress_practice_start_in">Start practice in %1$s</string>
-    <plurals name="lab_ia_progress_practice_due_in">
-        <item quantity="one">%1$d due, about a minute</item>
-        <item quantity="other">%1$d due, about a minute</item>
-    </plurals>
-
     <!-- Words row: what changed lately, not which language (the selector or the block says that). -->
     <plurals name="lab_ia_progress_words">
         <item quantity="one">%1$d word you\'ve written</item>
@@ -54,8 +45,4 @@
     <string name="lab_ia_progress_phrasebook_empty">No phrases yet</string>
     <string name="lab_ia_progress_phrasebook_empty_hint">Tap the star on a fix or rewording to save it.</string>
 
-    <!-- Practice's explanation, under a run's end and when nothing is due. -->
-    <string name="lab_ia_progress_practice_how_items">Each item is a fix you accepted, in the sentence you wrote it in. Rewordings aren\'t practised.</string>
-    <string name="lab_ia_progress_practice_how_schedule">Get one right and it comes back in a day, then in 3 days, then less often. Miss one and it comes back in 10 minutes.</string>
-    <string name="lab_ia_progress_practice_how_delete">Deleting a check deletes its items. Nothing is sent anywhere.</string>
 </resources>

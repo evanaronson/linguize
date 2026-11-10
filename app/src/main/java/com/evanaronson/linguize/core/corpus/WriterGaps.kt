@@ -6,7 +6,7 @@ package com.evanaronson.linguize.core.corpus
  * learning features read from a text skips them:
  *
  * - a bracketed gap, `[pick me up]`, brackets and all, whatever happened to its fill;
- * - inside a corrected span (an accepted fix, which is what a filled gap is), a common English
+ * - inside a corrected span (a proposed fix or gap fill), a common English
  *   word that is not also a Spanish or Catalan word: most likely an unbracketed gap.
  */
 object WriterGaps {

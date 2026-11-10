@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -31,8 +30,6 @@ import com.evanaronson.linguize.core.language.LanguageScope
 import com.evanaronson.linguize.core.words.LanguageWords
 import com.evanaronson.linguize.data.phrasebook.Phrase
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
-import com.evanaronson.linguize.ui.components.ButtonKind
-import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListCard
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.ScreenColumn
@@ -47,9 +44,6 @@ import com.evanaronson.linguize.ui.patterns.PatternsViewModel
 import com.evanaronson.linguize.ui.patterns.Sparkline
 import com.evanaronson.linguize.ui.patterns.patternsSummary
 import com.evanaronson.linguize.ui.phrasebook.inLanguage
-import com.evanaronson.linguize.ui.practice.PracticeState
-import com.evanaronson.linguize.ui.practice.PracticeViewModel
-import com.evanaronson.linguize.ui.practice.nextPracticeLine
 import com.evanaronson.linguize.ui.time.TimeHeadline
 import com.evanaronson.linguize.ui.words.WordsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -57,7 +51,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
 /** A page Progress opens. Each shows the app's current language, or the block's language under Linguize. */
-enum class ProgressView { Practice, Words, Conjugations, Patterns, Phrasebook, Time }
+enum class ProgressView { Words, Conjugations, Patterns, Phrasebook, Time }
 
 /**
  * Lab, Consistency: the languages Progress shows a block for. With a language chosen, just
@@ -69,16 +63,13 @@ internal fun progressLanguages(current: String?, found: Collection<String?>, min
 
 /**
  * Lab, Progress IA: the tab's sections, top to bottom. One headline for the whole tab (this
- * week's time), then the one thing to do (Practice, a row per language), then the views of
+ * week's time), then the views of
  * the writer's own writing (a card per language, headed by its brand name under Linguize),
  * then what the writer kept (the Phrasebook, which is a collection, not a view).
  */
 internal sealed interface ProgressSection {
     /** This week's time and the last weeks: how the writer is doing, at a glance. */
     data object Headline : ProgressSection
-
-    /** Practice, one row per language; under Linguize each row names its language. */
-    data class Practice(val languages: List<String>, val labelled: Boolean) : ProgressSection
 
     /** A language's views of the writer's writing; [labelled] under Linguize. */
     data class Views(val language: String, val labelled: Boolean, val views: List<ProgressView>) : ProgressSection
@@ -104,7 +95,6 @@ internal fun progressLayout(
     val labelled = current == null
     return buildList {
         add(ProgressSection.Headline)
-        add(ProgressSection.Practice(blocks, labelled))
         blocks.forEach { add(ProgressSection.Views(it, labelled, progressViews(it))) }
         add(ProgressSection.Saved)
     }
@@ -115,14 +105,13 @@ internal fun progressLayout(
  * Nothing here asks a model. See [progressLayout] for the order.
  *
  * With a language chosen at the top ([language]), every section, and every page it opens,
- * shows only that language. Under Linguize (Auto, null) Practice has a row per language in
- * use and the views a card per language, each headed by its brand name and icon, and [onOpen]
+ * shows only that language. Under Linguize (Auto, null) the views have a card per language,
+ * each headed by its brand name and icon, and [onOpen]
  * gets that language so its page opens in it. Time and the Phrasebook cover every language
  * once; their pages break them down.
  */
 @Composable
 fun ProgressScreen(
-    practice: PracticeViewModel,
     patterns: PatternsViewModel,
     words: WordsViewModel,
     conjugations: ConjugationsViewModel,
@@ -132,23 +121,16 @@ fun ProgressScreen(
     /** Opens a page; the language is a block's or row's under Linguize, else null (the app's language applies). */
     onOpen: (ProgressView, String?) -> Unit,
 ) {
-    val practiceState by practice.state.collectAsState()
     val patternsState by patterns.state.collectAsState()
     val wordsState by words.state.collectAsState()
     val conjugationsState by conjugations.state.collectAsState()
     val options by languageOptions.collectAsState()
-    // Time passes while Progress is away; due items are counted against the clock.
-    LaunchedEffect(practice, language) {
-        practice.setLanguage(language)
-        practice.tick()
-    }
     LaunchedEffect(conjugations) { conjugations.refresh() }
     LaunchedEffect(patterns, language) { patterns.setLanguage(language) }
 
     val wordsByLanguage = wordsState.index?.languages.orEmpty().associateBy { it.language }
     val phrases = rememberPhrases()
-    val found = practiceState.items.orEmpty().map { it.language } +
-        wordsByLanguage.filterValues { it.distinctWords > 0 }.keys +
+    val found = wordsByLanguage.filterValues { it.totalWords > 0 }.keys +
         phrases.orEmpty().map { it.language } +
         conjugationsState.reports.filterValues { !it.isEmpty }.keys
     val pattern = if (language == null || patternsState.language != language) null
@@ -164,16 +146,6 @@ fun ProgressScreen(
         progressLayout(language, found, options.map { it.code }).forEach { section ->
             when (section) {
                 ProgressSection.Headline -> TimeHeadline(language) { onOpen(ProgressView.Time, null) }
-                is ProgressSection.Practice -> {
-                    SectionHeader(stringResource(R.string.lab_practice_title))
-                    ListCard(*section.languages.map { block ->
-                        @Composable {
-                            PracticeRow(practiceState, block, section.labelled) {
-                                onOpen(ProgressView.Practice, if (section.labelled) block else null)
-                            }
-                        }
-                    }.toTypedArray())
-                }
                 is ProgressSection.Views -> {
                     if (section.labelled) BlockHeading(options.firstOrNull { it.code == section.language } ?: LanguageOption(section.language))
                     else SectionHeader(stringResource(R.string.lab_home_ia_your_writing))
@@ -200,44 +172,6 @@ fun ProgressScreen(
                         )
                     })
                 }
-            }
-        }
-    }
-}
-
-/**
- * Practice: what's due and the one button that starts it. With nothing due there is nothing
- * to open, so the row says when the next practice is instead. Under Linguize ([labelled]) the
- * row is the language and the count is its summary.
- */
-@Composable
-private fun PracticeRow(state: PracticeState, language: String, labelled: Boolean, onStart: () -> Unit) {
-    val items = state.items
-    val due = if (labelled) state.dueIn(language) else state.due
-    val any = if (labelled) items.orEmpty().any { it.language == language } else !state.scoped.isNullOrEmpty()
-    val next = nextPracticeLine(if (labelled) state.nextDueIn(language) else state.nextDue, state.today)
-    val title = when {
-        labelled -> scopeLanguageName(language)
-        items == null -> stringResource(R.string.lab_practice_title)
-        due > 0 -> pluralStringResource(R.plurals.lab_practice_due, due, due)
-        !any -> stringResource(R.string.lab_ia_progress_practice_none)
-        else -> stringResource(R.string.lab_practice_nothing_due)
-    }
-    val summary = when {
-        items == null -> null
-        labelled && due > 0 -> pluralStringResource(R.plurals.lab_ia_progress_practice_due_in, due, due)
-        due > 0 -> stringResource(R.string.lab_practice_due_summary)
-        labelled && !any -> stringResource(R.string.lab_ia_progress_practice_none)
-        !any -> stringResource(R.string.lab_ia_progress_practice_none_hint)
-        labelled -> next ?: stringResource(R.string.lab_practice_nothing_due)
-        else -> next ?: stringResource(R.string.lab_practice_nothing_due_hint)
-    }
-    ListRow(title, summary) {
-        if (due > 0) {
-            val label = if (labelled) stringResource(R.string.lab_ia_progress_practice_start_in, scopeLanguageName(language))
-            else stringResource(R.string.lab_practice_open)
-            LinguizeButton(onStart, ButtonKind.Filled, Modifier.semantics { contentDescription = label }) {
-                Text(stringResource(R.string.lab_practice_open), Modifier.clearAndSetSemantics { })
             }
         }
     }

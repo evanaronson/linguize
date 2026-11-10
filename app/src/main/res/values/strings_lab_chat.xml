@@ -35,11 +35,9 @@
     <string name="lab_chat_delete_title">Delete conversation?</string>
     <string name="lab_chat_delete_body">Its messages, their checks in History and what was learned from it are deleted.</string>
     <string name="lab_chat_more">Rename or delete %1$s</string>
-    <!-- Where a saved check came from, on Patterns and Practice examples. -->
+    <!-- Where a saved check came from, on Patterns examples. -->
     <string name="lab_chat_origin_chat">Chat</string>
     <string name="lab_chat_origin_app">Another app</string>
-    <string name="lab_chat_you_wrote_in_chat">You wrote in a chat</string>
-    <string name="lab_chat_you_wrote_in_app">You wrote in another app</string>
     <string name="lab_chat_open_conversation">Open conversation</string>
     <!-- v3: one new-conversation sheet, translations with every reply. -->
     <string name="lab_chat_who_label">Who are you talking to?</string>

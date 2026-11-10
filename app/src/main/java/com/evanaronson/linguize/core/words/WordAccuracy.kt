@@ -3,9 +3,9 @@ package com.evanaronson.linguize.core.words
 /**
  * How often a word was used right: right uses over all uses, as a whole percent.
  *
- * A use is right outside every corrected span and wrong inside one (a fix the writer accepted
- * replaced it). The two never overlap, so right + wrong is every use, and either can be the
- * larger: "12 right, 3 wrong" is 80% right.
+ * A use is right outside every corrected span and wrong inside one (Linguize flagged it,
+ * whether or not the writer accepted the fix). The two never overlap, so right + wrong is
+ * every use, and either can be the larger: "12 right, 3 wrong" is 80% right.
  */
 object WordAccuracy {
     /**

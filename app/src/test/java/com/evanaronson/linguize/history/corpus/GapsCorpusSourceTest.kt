@@ -10,10 +10,9 @@ import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.history.SessionRecording
 import com.evanaronson.linguize.history.SuggestionRecord
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Lab: a gap the check filled is an accepted change, so its span is corrected: not evidence the writer knew the words. */
+/** Lab: a proposed gap fill never credits the source words as known, regardless of acceptance. */
 class GapsCorpusSourceTest {
     private val text = "¿Puedes [pick me up] a las 8? Tengo que drop off las llaves"
 
@@ -56,8 +55,9 @@ class GapsCorpusSourceTest {
     }
 
     @Test
-    fun aFillTheWriterDidNotAcceptLeavesTheirWords() {
-        // The tokenizer still skips the brackets; the unbracketed words are the writer's to count.
-        assertTrue(corrected(change("drop off", "dejar", Decision.Ignored)).isEmpty())
+    fun aFillTheWriterDidNotAcceptStillMarksTheGapAsUnknown() {
+        for (kind in EditKind.entries) {
+            assertEquals(listOf("drop off"), corrected(change("drop off", "dejar", Decision.Ignored, kind)))
+        }
     }
 }

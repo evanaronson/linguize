@@ -33,7 +33,7 @@ import com.evanaronson.linguize.ui.language.scopeLanguageName
 
 /*
  * Lab, Progress IA: the pieces every page Progress opens is built from, so Words, Your
- * conjugations, Your patterns, Practice and Time spent read as one area. A page starts with
+ * conjugations, Your patterns and Time spent read as one area. A page starts with
  * its language ([ScopeHeader]) and a summary card of [StatTile]s, then its detail, and ends
  * with [HowItsCounted]. Nothing yet is an [EmptyCard]; reading is [PageLoading].
  */

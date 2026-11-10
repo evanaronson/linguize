@@ -26,7 +26,6 @@ import com.evanaronson.linguize.llm.chat.ChatPrompt
 import com.evanaronson.linguize.ui.conjugations.CONJUGATION_LANGUAGES
 import com.evanaronson.linguize.ui.conjugations.ConjugationsState
 import com.evanaronson.linguize.ui.language.AppLanguage
-import com.evanaronson.linguize.ui.practice.PracticeState
 import com.evanaronson.linguize.ui.progress.progressLanguages
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -162,8 +161,7 @@ class LanguageGenericTest {
         assertEquals(listOf("es"), progressLanguages(null, listOf("es"), listOf("fr", "es")))
         assertEquals(listOf("fr", "es"), progressLanguages(null, listOf("es", "fr"), listOf("fr", "es")))
         assertEquals(listOf("fr"), progressLanguages("fr", listOf("es"), listOf("ca", "es")))
-        // Practice: nothing due; Chat: no conversations; History and phrases: nothing kept.
-        assertEquals(0, PracticeState(items = emptyList(), language = "fr").due)
+        // Chat: no conversations; History and phrases: nothing kept.
         val spanish = ConversationSummary(Conversation("1", "Hola", "es", 0, 0), "Hola", 1)
         assertTrue(ChatStart.inLanguage(listOf(spanish), "fr").isEmpty())
         assertFalse(LanguageScope.keeps("es", "fr"))

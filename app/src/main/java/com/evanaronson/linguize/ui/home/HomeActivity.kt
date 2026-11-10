@@ -43,8 +43,6 @@ import com.evanaronson.linguize.ui.patterns.PatternDetailScreen
 import com.evanaronson.linguize.ui.patterns.PatternsScreen
 import com.evanaronson.linguize.ui.patterns.PatternsViewModel
 import com.evanaronson.linguize.ui.patterns.labelResource
-import com.evanaronson.linguize.ui.practice.PracticeScreen
-import com.evanaronson.linguize.ui.practice.PracticeViewModel
 import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
@@ -61,7 +59,6 @@ class HomeActivity : ComponentActivity() {
     private val phrasebook: PhrasebookViewModel by viewModels { PhrasebookViewModel.factory(PhrasebookStore.of(this)) }
     private val appVoice: AppVoiceSettingsViewModel by viewModels { AppVoiceSettingsViewModel.factory(App.of(this)) }
     private val patterns: PatternsViewModel by viewModels { PatternsViewModel.factory(App.of(this)) }
-    private val practice: PracticeViewModel by viewModels { PracticeViewModel.factory(App.of(this)) }
     private val memory: com.evanaronson.linguize.ui.memory.MemoryViewModel by viewModels {
         com.evanaronson.linguize.ui.memory.MemoryViewModel.factory(App.of(this).memoryStore)
     }
@@ -135,7 +132,7 @@ class HomeActivity : ComponentActivity() {
                             when (current) {
                                 Screen.Notes -> NotesScreen { navigation = navigation.open(Screen.Note(it)) }
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
-                                    practice, patterns, words, conjugations, language, appLanguage.options,
+                                    patterns, words, conjugations, language, appLanguage.options,
                                 ) { view, block ->
                                     navigation = navigation.open(progressDestination(view, language, block))
                                 }
@@ -169,7 +166,6 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.PatternDetail -> PatternDetailScreen(
                                     patterns, PatternKind.read(current.kind) ?: PatternKind.Other, scopedLanguage, onOpenCheck = ::open,
                                 )
-                                Screen.Practice -> PracticeScreen(practice, scopedLanguage, onDone = ::back)
                                 Screen.Memory -> com.evanaronson.linguize.ui.memory.MemoryScreen(memory)
                                 Screen.Words -> com.evanaronson.linguize.ui.words.WordsScreen(words, settings.state?.historyEnabled, scopedLanguage) { language, key, level ->
                                     navigation = navigation.open(Screen.WordDetail(language, key, level.token))
@@ -277,7 +273,11 @@ class HomeActivity : ComponentActivity() {
         fun notesIntent(context: Context) = homeIntent(context).putExtra(OPEN_TAB, Screen.Notes.saved)
 
         /** The bottom-bar destination an intent asks for, if any. */
-        internal fun requestedTab(intent: Intent?): Screen? = Screen.restore(intent?.getStringExtra(OPEN_TAB))?.takeIf { it.isTab }
+        internal fun requestedTab(intent: Intent?): Screen? {
+            val token = intent?.getStringExtra(OPEN_TAB)
+            if (token == "practice" || token?.startsWith("scoped:") == true) return null
+            return Screen.restore(token)?.takeIf { it.isTab }
+        }
     }
 }
 
@@ -303,7 +303,6 @@ private fun Screen.title(): String = when (this) {
     is Screen.AppVoice -> appVoiceTitle(app)
     Screen.Patterns -> stringResource(R.string.lab_patterns_title)
     is Screen.PatternDetail -> stringResource((PatternKind.read(kind) ?: PatternKind.Other).labelResource)
-    Screen.Practice -> stringResource(R.string.lab_practice_title)
     Screen.Memory -> stringResource(R.string.lab_memory_title)
     Screen.Words -> stringResource(R.string.lab_words_title)
     is Screen.WordDetail -> com.evanaronson.linguize.ui.words.wordTitle(key)

@@ -12,12 +12,10 @@ import com.evanaronson.linguize.core.interpret
 import com.evanaronson.linguize.history.corpus.CheckCorpusSource
 import com.evanaronson.linguize.history.patterns.PatternAnalyser
 import com.evanaronson.linguize.history.patterns.patternEvidence
-import com.evanaronson.linguize.history.practice.PracticeItems
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,7 +25,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Lab Chat: a chat message is a History record (Origin.Chat), saved through the same path as a
- * check put back in another app, and read by the corpus, Patterns and Practice like one.
+ * check put back in another app, and read by the corpus and Patterns like one.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -138,16 +136,12 @@ class ChatHistoryTest {
         assertTrue(utterances.all { it.source == "check" })
     }
 
-    @Test fun patternsAndPracticePickUpChatMistakesAndSayWhereTheyCameFrom() = runBlocking<Unit> {
+    @Test fun patternsPickUpChatMistakesAndSayWhereTheyCameFrom() = runBlocking<Unit> {
         val result = interpret(wrong, verdict)
         send(wrong, Origin.Chat, result, accept = setOf(EditKind.Fix))
         val details = store.patternEvidence()!!
         val examples = PatternAnalyser.analyse(details).let { report -> report.patterns.flatMap { it.examples } + report.unpatterned }
         assertTrue(examples.any { it.from == "fue" && it.origin == "chat" })
-        val items = PracticeItems.from(details)
-        assertTrue("fue" in items.single().wrong)
-        assertEquals("chat", items.single().origin)
-        assertFalse(items.single().sentence.isBlank())
     }
 
     companion object {

@@ -14,8 +14,9 @@ it is a bounded evidence window, not a complete inventory of everything ever wri
   replies, translations, glosses or suggestions. A word the writer only ever saw in a
   correction is not a word they know.
 - **Wrong attempts don't count as knowledge.** `Utterance.corrected` marks the spans of the
-  writer's text that an accepted fix replaced. Analysers skip words in those spans when
-  counting what the writer knows (they may show them separately as "tried").
+  writer's text that Linguize flagged as wrong in the ending check, whether or not the
+  writer accepted the fix. Analysers skip those words when counting what the writer knows
+  (they may show them separately as "tried"). Superseded checks do not override a later judgment.
 - **Derived from the owning source.** `Corpus` asks each `CorpusSource` for its utterances.
   There is no separate durable corpus table. The shared History reader caches a bounded
   snapshot in memory; deleting a check excludes it from subsequent successful reads.
@@ -27,7 +28,7 @@ it is a bounded evidence window, not a complete inventory of everything ever wri
 
 Sources today: `check` (History: original text in its requested saved-check window). Lab Chat
 messages are History records (origin `chat`), so `check` covers them too: each message
-as typed, with its accepted fixes as `corrected`; partner replies never enter. There is
+as typed, with its flagged words as `corrected`; partner replies never enter. There is
 no separate `chat` source, so nothing is counted twice. `Utterance.origin` carries
 History's origin (`menu`, `button`, `chat`), so analyses can compare writing to people
 with chat practice. A chat message is never skipped as a re-check of put-back text: it
@@ -36,7 +37,7 @@ is always newly typed.
 ## Shared reads and explicit completeness
 
 `App.historyEvidence` owns one `HistoryEvidenceReader` for the application's History
-store. Patterns requests 400 checks, Practice 500, and `CheckCorpusSource` 3,000 for
+store. Patterns requests 400 checks and `CheckCorpusSource` 3,000 for
 Words, Conjugations and Chat targets. SQLite reads a window's sessions and suggestions
 in one transaction. Its commit revision identifies that snapshot within the process;
 it is neither a persisted data version nor an analyser fingerprint.
@@ -79,7 +80,7 @@ request can retry. A timeout leaves the shared build running, while cancellation
 the source itself propagates. Target priority, morphology, vocabulary analysis and
 the evidence window are unchanged.
 
-History, Chat, Notes, saved phrases, memory and Practice schedules retain separate
+History, Chat, Notes, saved phrases and memory retain separate
 ownership and retention policies. History-off Chat still stores its own messages but
 adds no recorded checks to this corpus. A successful bounded read is not proof that
 an absent source ID was deleted, and sharing its payload does not authorize one

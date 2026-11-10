@@ -23,7 +23,7 @@ Short answer: the accordion isn't out of place. The app already opens things in 
 | History: saved check | One saved suggestion's explanation | `SavedSuggestion` row with a `▾` text glyph, no animation | Accordion per row, saveable | n/a | Click label, state "Expanded"/"Collapsed" |
 | Phrasebook / Memory rows | Row actions (Open check, Delete, Edit) | Whole row toggles a `FlowRow` of buttons | In place | n/a | Click label "Show/Hide actions". Also custom actions |
 | Conjugations: verbs | The full list | "Show all verbs" text button | One-way "show more" | n/a | Button |
-| Progress | Words, Patterns, Practice, Conjugations, Phrasebook, Time | `ListRow` → child pages in `Navigation.kt` | Drill-down to a screen | Top-bar back. Scroll position kept by the saveable state holder | Page titles |
+| Progress | Words, Patterns, Conjugations, Phrasebook, Time | `ListRow` → child pages in `Navigation.kt` | Drill-down to a screen | Top-bar back. Scroll position kept by the saveable state holder | Page titles |
 | Settings | Each choice | `ListRow` → `ChoicePage` | Drill-down to a screen | Top-bar back | Radio/checkbox semantics |
 | Words / Patterns | One word, one pattern | List → `WordDetailScreen` / `PatternDetailScreen` | Drill-down | Top-bar back | Page titles |
 

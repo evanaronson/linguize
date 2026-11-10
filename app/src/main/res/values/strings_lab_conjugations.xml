@@ -5,7 +5,7 @@
     <string name="lab_conjugations_home_summary">Which verb tenses you use in Spanish and Catalan</string>
     <string name="lab_conjugations_open">Open your conjugations</string>
     <string name="lab_conjugations_loading">Counting your verbs</string>
-    <string name="lab_conjugations_intro">Counted from what you typed yourself. Words a fix replaced don\'t count.</string>
+    <string name="lab_conjugations_intro">Counted from what you typed yourself. Words Linguize flags as wrong don\'t count.</string>
     <string name="lab_conjugations_empty_hint">Text you write in Spanish or Catalan in checks and chats appears here.</string>
     <plurals name="lab_conjugations_cells_used">
         <item quantity="one">%1$d of %2$d forms used</item>
@@ -20,8 +20,8 @@
     <string name="lab_conjugations_trend">Forms used each month</string>
     <string name="lab_conjugations_trend_note">How many different tense and person forms you used each month.</string>
     <string name="lab_conjugations_trend_bar">%1$s: %2$d forms, %3$d in total so far</string>
-    <string name="lab_conjugations_tried">Tried, then fixed</string>
-    <string name="lab_conjugations_tried_note">Forms a fix replaced. They aren\'t counted above.</string>
+    <string name="lab_conjugations_tried">Flagged as wrong</string>
+    <string name="lab_conjugations_tried_note">Forms Linguize proposed fixing, whether or not you accepted. They aren\'t counted above.</string>
     <string name="lab_conjugations_how_body">Linguize reads the text you typed in checks and chats, before any fix, and recognises verb forms on this phone. Nothing is sent anywhere. He comido and vaig menjar count once, as their own tense. A form that could be two things, like cante, counts half for each. The reading can be wrong, especially for verbs it doesn\'t know.</string>
 
     <!-- A cell, for screen readers and the cell page. -->

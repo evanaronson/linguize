@@ -10,7 +10,7 @@ The chat is a stand-in for real conversations when real life doesn't produce eno
 writing. There are no separate worlds: everything you write and commit to, to a person or
 to the chat partner, is the same kind of evidence. So a chat message is saved in History
 exactly like a check put back in another app, and everything that learns from History
-(Words, Your conjugations, Your patterns, Practice) learns from the
+(Words, Your conjugations, Your patterns) learns from the
 chat too. History is "everything you wrote, with how it was corrected".
 
 The chat is the same as checking a real message. The only difference is that its entry
@@ -137,9 +137,9 @@ point forces the check, because there is no selection menu to choose it from.
   startup and when Chat is used, retiring the work only after acknowledgement.
   History doesn't group rows by conversation, and its schema is unchanged.
 - **Corpus.** There is no separate chat source any more: the History-based `check` source
-  covers chat messages (raw text, accepted fixes as `corrected`, rewordings not), with
+  covers chat messages (raw text, flagged fixes as `corrected` regardless of acceptance, rewordings not), with
   `Utterance.origin = "chat"`. The "re-check of put-back text" rule doesn't apply to chat.
-  Partner replies and translations never enter. Patterns and Practice pick up chat fixes
+  Partner replies and translations never enter. Patterns picks up accepted chat changes
   and label each example "Chat" or "Another app".
 - **Partner** (`ChatPartner.kt`, `llm/chat/ChatPrompt.kt`, `assets/lab_chat_prompt.md`
   and `lab_chat_schema.json`): the provider clients' `generate` path with its own

@@ -15,9 +15,8 @@ what a person comes to do. It doesn't add features.
 3. **One clear home per thing.** Where two entries led to the same page, keep the one that
    matches the job. Context entries stay where the person already is: the card rows act on
    the text in front of them, so they stay.
-4. **Stats are one place.** Patterns, Practice, Words and Your conjugations all read the
-   same History. They're one area, Progress, with Practice as
-   the thing to do and the rest as views.
+4. **Stats are one place.** Patterns, Words and Your conjugations all read the
+   same History. They're one area, Progress, alongside Time spent and the Phrasebook.
 7. **The language is context, not a filter.** The writer's current language is set once,
    in the top bar, and Chat, Notes, Progress and History all follow it (see
    [Language scope](language-scope.md)). There is one language selector in the app: no
@@ -33,7 +32,7 @@ what a person comes to do. It doesn't add features.
 8. **Filters are not buttons.** Anything that chooses what a page shows is a quiet
    dropdown ("Sort: Newest ▾"); buttons are only for actions (see
    [Copy style](../copy-style.md)).
-5. **Nothing becomes unreachable.** Every experiment still has a path. Rarely used tools
+5. **Every supported feature has a home.** Rarely used tools
    are a tap lower, not gone.
 6. **Back is predictable.** The start destination is the root. Every other tab sits right
    above it, so Back from any tab returns to the start, and Back from the start leaves.
@@ -51,7 +50,7 @@ what a person comes to do. It doesn't add features.
 | Talk and practise | Daily, the main reason to open the app | Chat (conversations, Practise with…) |
 | Write or check one specific thing | Several times a week | Notes (one editor that keeps notes; every check fills [gaps](gaps-in-check.md) and says how it lands); card row: How it lands |
 | Understand something someone sent | Weekly | Understand copied text; share sheet |
-| See how I'm doing | Weekly | Practice, Your patterns, Words, Your conjugations, Phrasebook |
+| See how I'm doing | Weekly | Your patterns, Words, Your conjugations, Phrasebook |
 | Look back at what I wrote | Weekly | History (one row per message, any source) |
 | Set up | Once, then rarely | Keys and model, languages, selection menu, accessibility button, popup, per-app voice, What Linguize knows, Start on, History switch |
 | In another app, before sending | Many times a day, outside this app | Selection menu, accessibility button, Quick tile, launcher shortcuts, share |
@@ -91,11 +90,11 @@ returns to it.
   [its hierarchy](ia-notes.md)).
 - **Progress**, in the current language (see [Progress](ia-progress.md)): **This week**, the
   headline (time spent writing and reviewing, with the last 8 weeks; it opens Time spent);
-  **Practice** ("4 due" with Start practice, or when the next one is); **Your writing**: Words
+  **Your writing**: Words
   ("312 words you've written, 18 new this month"), Your conjugations ("12 of 40 forms used",
   Spanish and Catalan), Your patterns (top groups and a sparkline once there's enough);
   **Saved by you**: Phrasebook (count). Under Linguize the headline and the Phrasebook cover
-  every language once, Practice has a row per language in use, and Your writing is one card
+  every language once, and Your writing is one card
   per language, headed by its brand name and icon.
 - **History**: the list in the current language (every language under Linguize), with a
   source dropdown above it when there is more than one source (see
@@ -122,7 +121,6 @@ returns to it.
 | Fill the gaps | Home row; card row when text has gaps | Removed; every check fills [gaps](gaps-in-check.md); its saved page opens Notes | Part of the core check, everywhere |
 | Help me reply | Home, own section; Understand card | Removed; saved pages open Notes | Interpretation, not part of the writing loop; another app does it |
 | Understand a photo | Home, own section; share sheet | Removed, with the image share target; saved pages open Notes | Same: send the photo to a general assistant |
-| Practice | Home, only while due | Progress, under the headline, always (Start practice, or when the next one is) | Pull, not push: visiting Progress is asking |
 | Your patterns | Home card once worth showing; row above History | Progress | One place for stats |
 | Your words | Home card; row above History | Progress › Words, in the current language | Merged with Vocabulary gaps: the words you know are a subset of all the words |
 | Your conjugations | Home, own section | Progress, in the current language | |
@@ -135,7 +133,6 @@ returns to it.
 | Settings | Gear on Home; gear in the chat bar | Gear on all four tabs, at the same place; not on pages opened from them | |
 | Start on (once Open to chat) | Settings › Chat: a switch, Chat or Home | Settings › App › Start on: Chat, Notes, Progress or History, on its own page | Any tab can be where you start; the old switch carries over (on: Chat, off: Notes) and its stored value is kept |
 | Try it launcher shortcut (then "Write", now "Notes") | Opened the start page (the chat, by default) | Opens Notes above the start | It promised the editor |
-| Practice's last button | Back to Home | Back to Progress | Where Back goes |
 | What Linguize knows, Per-app voice | Settings | Settings | Set up, edited rarely |
 | Card rows (Meaning, How it lands, voice chip, Teach me, star) | Card | Card | They act on the text in front of you |
 | Selection menu, accessibility button, Quick tile, Check and Understand shortcuts, share text, popup's app button | System | System | Unchanged; the app button and "Open settings" still open the app and Settings |
@@ -159,8 +156,9 @@ still restore as pages following the app selector. The visible page derives its 
 from the restored route, so a fresh view model gets the same scope. Actual app-language
 changes clear block overrides across the live path; initial restoration does not.
 Word and Conjugation detail routes keep their explicit language and identifiers.
-Practice keeps one saveable page key while its run remains open, so changing the app
-scope preserves its entry identity and typed answer; popping the page removes that state.
+Old saved `practice` and `scoped:<language>:practice` pages restore to Progress. The
+standalone drills and scheduling have been removed; external tab intents still accept
+only supported tabs, not retired page names.
 
 `Screen.Chat` is the list of conversations; `Screen.ChatThread(id)` is one conversation
 above it (`lab_chat_thread:<id>`). With Chat as the start, the app starts at

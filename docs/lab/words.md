@@ -4,7 +4,7 @@ Words is one page per language that holds both halves of the writer's vocabulary
 word of a frequency list, and every word the writer has typed. The words they know are a
 subset of all the words, so it's one list. The page shows how much of the common words they
 already use, how that grew, which common words they haven't used yet, and, for any word
-they used, how often they used it right, how often they used it wrong (a fix replaced it),
+they used, how often they used it right, how often Linguize flagged it as wrong,
 the share right, and the sentences they used it in.
 
 It replaces two earlier pages, Your words and Vocabulary gaps. The deck and import details
@@ -49,7 +49,7 @@ of Progress; under Linguize each language in use has its own Words row
   With `Lemmatizer.Identity` (every word unknown) only word forms show.
 - **The list.** One list over the deck and the writer's own words. Filters: **All**,
   **Used** (used right at least once), **Not yet** (deck words not yet used right) and
-  **Used wrong** (a fix replaced it at least once), each with its count. Each row shows the
+  **Used wrong** (Linguize flagged it at least once), each with its count. Each row shows the
   deck rank, the word with its part of speech (short labels: noun, verb, adj…) and gloss
   when the deck has one, and its use: "12 right, 3 wrong" over "80% right, last Nov 3", or
   "Not yet". Words of the writer's that the deck doesn't have appear under All and Used with
@@ -63,16 +63,17 @@ of Progress; under Linguize each language in use has its own Words row
   Used wrong, Right (the share right, "80%"), messages, first and last used; for a form, the lexemes it could be; for a lexeme,
   its forms and which are ambiguous; for a lemma, its lexemes and forms; for a deck row,
   the forms that reached it. Then the newest 30 sentences it appears in, the word underlined
-  (struck through in the proof colour where a fix replaced it). A sentence from a saved
+  (struck through in the proof colour where Linguize flagged it). A sentence from a saved
   check opens that check.
 - **Under the list.** Names left out; **Export CSV** (`word,lemma,lexeme_pos,deck_rank,
   right,wrong,accuracy,first,last` through the share sheet); **Your decks** (import, delete); **How
   it's counted**; **About these lists** (the CC BY-SA attribution).
 
 **Right, wrong and the share right.** Every use of a word is either right (outside every
-corrected span) or wrong (inside one: a fix the writer accepted replaced it), never both.
+corrected span) or wrong (inside one: Linguize proposed fixing it), never both.
+Accepting, ignoring, copying or undoing the fix does not change that judgment.
 So right and wrong add up to the uses, and either can be the larger: a word used 15 times
-and fixed 3 times is "12 right, 3 wrong", 80% right. The share is
+and flagged 3 times is "12 right, 3 wrong", 80% right. The share is
 `WordAccuracy.percent(right, wrong)`: right over all uses, rounded, never 100% while any use
 was wrong and never 0% while any was right; with no uses there is no percent (a deck row
 not reached shows "Not yet"). The page used to say "Used right 12" and "Tried 3", which read
@@ -81,7 +82,7 @@ still `WordCounts.tried` (and `WordUse.tried`), with `wrong` and `accuracy` besi
 APIs other features read are unchanged.
 
 **Most misused** orders by the number of wrong uses, most first, then by the lower share
-right, then by the most recent use. The count comes first on purpose: a word fixed 5 times
+right, then by the most recent use. The count comes first on purpose: a word flagged 5 times
 out of 20 is a bigger habit than one fixed once out of once, even at 75% against 0%. Words
 never used wrong follow, most recently used first. **Used wrong** shows the same words: any
 with at least one wrong use (it used to show only words never yet right; its token is still
@@ -131,9 +132,9 @@ they are not a persistent queue and do not resume after process death.
 
 **Only input counts.** The `check` source gives each visible saved check's *original*
 text, exactly as typed, never the text that was put back. `Utterance.corrected` holds the
-spans of fixes the writer accepted, plus fixes a rewording they accepted took over
-(`retired`). Accepted rewordings are not marked: the original was right, only less
-natural. Undone, ignored and copied fixes are not marked either. Only the words a fix changed are
+words flagged by fixes from the ending check, including ignored, undone, copied and retired
+fixes. Superseded checks do not override a later judgment. Ordinary rewordings are not
+marked: the original was right, only less natural. Only words a fix proposes changing are
 marked: a word-level comparison of the fix's source and its replacement leaves out the words
 it kept as written, so "plou" to "plou," (a comma) or "vaig platja" to "vaig a la platja" (a
 missing word) marks nothing, "el home" to "l'home" marks "el", and a change of accent or case
@@ -144,7 +145,7 @@ was outside a corrected span.
 - A check that reused another saved check's answer: the same text, counted once.
 - A check whose text is exactly what an earlier check put back: Linguize's words.
 - Gaps the writer left for the check to fill ([Gaps in every check](gaps-in-check.md)):
-  bracketed gaps are skipped, an accepted fill is a corrected span, and common English words
+  bracketed gaps are skipped, a proposed fill is a corrected span, and common English words
   in a corrected span are left out.
 - Shared text can't be put back, so it never reaches visible History; Understand and
   checks on Notes are never saved.

@@ -119,6 +119,6 @@ class ChatStartNavigationTest {
         assertEquals(listOf("history", "notes", "lab_notes_note"), startNavigation(StartTab.History, openSettings = false, tab = Screen.Notes).saved)
         // Only tabs can be asked for.
         assertEquals(startNavigation(StartTab.Chat, openSettings = false),
-            startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Practice))
+            startNavigation(StartTab.Chat, openSettings = false, tab = Screen.Words))
     }
 }

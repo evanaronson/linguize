@@ -47,7 +47,7 @@ object LanguageScope {
         found.filter(::isCode).map { it!! }.distinct() - mine.toSet()
 
     /**
-     * Under Auto, the languages that views which are inherently per-language (Practice, Words,
+     * Under Auto, the languages that views which are inherently per-language (Words,
      * conjugations, patterns, phrases) show a block for: the writer's languages ([mine]) that
      * have data, then any other language with data, alphabetically. With no data yet, the
      * writer's languages, so every view stays one tap away.

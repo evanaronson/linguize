@@ -5,7 +5,7 @@ import com.evanaronson.linguize.core.corpus.Pos
 import com.evanaronson.linguize.core.corpus.Utterance
 
 /**
- * Deck rows used outside accepted corrections. Chat needs only membership, not counts,
+ * Deck rows used outside words Linguize flagged as wrong. Chat needs only membership, not counts,
  * examples or monthly trends. Keep this tokenizer and phrase policy separate from Words:
  * names that match a deck count here, as do the existing bracketed-gap matches.
  */

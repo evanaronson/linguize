@@ -10,8 +10,8 @@ import java.io.IOException
  *
  * Only the writer's own input is evidence of what they know. Model output (corrections,
  * rewordings, replies, translations) never enters the corpus. Within [text], [corrected] marks
- * the character ranges the writer later accepted a fix for: they tried those words, but got
- * them wrong, so analysers must not count them as known.
+ * the character ranges Linguize flagged as wrong, whether or not the writer accepted its
+ * fixes, so analysers must not count those uses as known.
  */
 data class Utterance(
     /** Unique across sources, stable across rebuilds: "<source>:<source's own id>". */
@@ -22,7 +22,7 @@ data class Utterance(
     val language: String?,
     /** Exactly what the writer typed. */
     val text: String,
-    /** Character spans of [text] that an accepted fix replaced. */
+    /** Character spans of [text] flagged as wrong or identified as gaps by the ending check. */
     val corrected: List<Span> = emptyList(),
     /** When it was written, epoch milliseconds. */
     val at: Long,

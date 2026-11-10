@@ -34,7 +34,7 @@ class App : Application() {
     /** Eligible recorded checks and their outcomes. Opens its database off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
 
-    /** Shared bounded History evidence; consumers keep their own 400/500/3000-row windows. */
+    /** Shared bounded History evidence; consumers keep their own 400/3000-row windows. */
     val historyEvidence by lazy { HistoryEvidenceReader(history) }
 
     /** One owner serializes exports from Settings and saved checks. */

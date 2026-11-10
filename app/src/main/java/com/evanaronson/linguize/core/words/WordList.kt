@@ -16,7 +16,7 @@ enum class WordFilter(val token: String) {
     Used("used"),
     /** Deck rows not yet used right (tried ones included). */
     NotYet("not_yet"),
-    /** Used wrong at least once: a fix replaced it. Shown as "Used wrong"; the token is older. */
+    /** Flagged as wrong at least once. Shown as "Used wrong"; the token is older. */
     Tried("tried"),
     ;
 
@@ -63,7 +63,7 @@ data class WordRow(
     val deckEntry: DeckEntry? = null,
 ) {
     val used: Boolean get() = counts?.known == true
-    /** Only ever used wrong: a fix replaced it every time. */
+    /** Every recorded use was flagged as wrong. */
     val tried: Boolean get() = counts != null && counts.tried > 0 && !counts.known
     /** Used wrong at least once. */
     val wrong: Boolean get() = (counts?.wrong ?: 0) > 0

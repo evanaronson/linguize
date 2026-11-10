@@ -1,14 +1,9 @@
 package com.evanaronson.linguize.data
 
 import android.app.Application
-import com.evanaronson.linguize.core.practice.Grade
-import com.evanaronson.linguize.core.practice.Schedule
 import com.evanaronson.linguize.data.phrasebook.PhraseDraft
 import com.evanaronson.linguize.data.phrasebook.PhrasebookStore
-import com.evanaronson.linguize.data.practice.PracticeStore
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -23,7 +18,7 @@ import java.io.IOException
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
-class PhrasebookPracticeDurabilityTest {
+class PhrasebookDurabilityTest {
     @get:Rule val folder = TemporaryFolder()
 
     @Test fun failedPhraseSaveCanBeRetriedWithoutPublishingOrLosingThePreviousPhrase() {
@@ -71,36 +66,6 @@ class PhrasebookPracticeDurabilityTest {
         assertNull(store.phrases.value)
         assertEquals("{bad json", file.readText())
         assertEquals("earlier backup", backup.readText())
-    }
-
-    @Test fun unreadablePracticeProgressCannotBeOverwrittenByAnUpdate() = runBlocking {
-        val file = File(folder.root, "practice.json")
-        file.writeText("{bad json")
-        val store = PracticeStore(file)
-        var changed = false
-        assertThrows(IOException::class.java) { runBlocking { store.read() } }
-        assertThrows(IOException::class.java) {
-            runBlocking { store.update { changed = true; it.copy(newToday = 1) } }
-        }
-        assertFalse(changed)
-        assertEquals("{bad json", file.readText())
-    }
-
-    @Test fun failedPracticeGradeLeavesThePreviousScheduleAndRetriesOnce() = runBlocking {
-        val file = File(folder.root, "practice.json")
-        val store = PracticeStore(file)
-        val initial = Schedule.review(null, Grade.Good, 1_000)
-        val before = store.update { it.copy(states = mapOf("item" to initial)) }
-        val blocked = blockTemp(file)
-        assertThrows(IOException::class.java) {
-            runBlocking { store.update { it.copy(states = mapOf("item" to Schedule.review(initial, Grade.Good, 2_000))) } }
-        }
-        assertEquals(before, PracticeStore(file).read())
-
-        assertTrue(blocked.deleteRecursively())
-        val after = store.update { it.copy(states = mapOf("item" to Schedule.review(initial, Grade.Good, 2_000))) }
-        assertEquals(2, after.states.getValue("item").reviews)
-        assertEquals(after, PracticeStore(file).read())
     }
 
     private fun blockTemp(file: File) = File(file.parentFile, file.name + ".tmp").also {

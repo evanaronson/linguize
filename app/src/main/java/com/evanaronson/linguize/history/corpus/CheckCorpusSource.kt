@@ -82,7 +82,7 @@ object CheckUtterances {
         return out
     }
 
-    /** A saved check's original text, with the spans of the fixes the writer accepted. */
+    /** A saved check's original text, with the words its ending check flagged as wrong. */
     fun of(detail: SessionDetail): Utterance {
         val session = detail.session
         val decided = detail.decidedAttempt()
@@ -100,34 +100,24 @@ object CheckUtterances {
     }
 
     /**
-     * Where the writer's words were wrong: the words changed by each fix they accepted, and by
-     * each fix a rewording they accepted took over ([Decision.Retired]). Words a fix kept as
-     * written, around an added comma or a missing word, were right ([changedWords]). An accepted rewording alone corrects
-     * nothing, since the original was right, only less natural, unless it filled a gap the
-     * writer left (a check asked only for rewordings lists fills there): its source has a
-     * bracketed gap or English words. A filled gap, fix or rewording, is not evidence the
-     * writer knew the words. Fixes undone, ignored or only copied don't count: the writer
-     * kept their own words.
+     * The ending check's judgment, independent of whether the writer accepted its fixes.
+     * Only words a fix proposes changing count as wrong ([changedWords]); surrounding words
+     * kept around an added comma or missing word stay right. Ordinary rewordings are not
+     * errors. A proposed gap fill, even when listed as a rewording, is not evidence the writer
+     * knew its source words. Superseded attempts never override the ending judgment.
      */
     fun corrected(detail: SessionDetail, attempt: Int? = detail.decidedAttempt()): List<Span> {
         val text = detail.session.text
         val rows = detail.suggestions.filter { it.decision != Decision.Superseded && (attempt == null || it.attempt == attempt) }
-        val rewordings = rows.filter { it.kind == EditKind.Natural && it.decision == Decision.Accepted }.mapNotNull { span(it, text) }
         val session = detail.session
         val language = attempt?.let { session.attempts.getOrNull(it) }?.let { it.detectedLanguage ?: it.targetLanguage }
             ?: session.detectedLanguage ?: session.targetLanguage
-        val filled = rows.filter { it.kind == EditKind.Natural && it.decision == Decision.Accepted && fillsGap(it.fromText, language) }
+        val filled = rows.filter { it.kind == EditKind.Natural && fillsGap(it.fromText, language) }
             .mapNotNull { span(it, text) }
         return rows.filter { it.kind == EditKind.Fix }
             .flatMap { fix ->
                 val span = span(fix, text) ?: return@flatMap emptyList()
-                val counts = when (fix.decision) {
-                    Decision.Accepted -> true
-                    Decision.Retired -> rewordings.any { it.overlaps(span.start, span.end) }
-                    else -> false
-                }
                 when {
-                    !counts -> emptyList()
                     // A filled gap is not the writer's words at all: the whole span stays marked.
                     fillsGap(fix.fromText, language) -> listOf(span)
                     else -> changedWords(text, span, fix.toText)

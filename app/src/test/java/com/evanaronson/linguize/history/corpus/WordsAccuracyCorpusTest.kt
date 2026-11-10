@@ -79,15 +79,28 @@ class WordsAccuracyCorpusTest {
     }
 
     @Test
-    fun undoneFixesAndReusedAnswersDontCountTwice() {
+    fun anUndoneFixStillCountsWrongAndAReusedAnswerDoesNotCountTwice() {
         val text = "Bon dia a tothom"
         val first = detail(session("a", text, 1), fix(text, "tothom", "tots", Decision.Undone))
         val reused = detail(session("b", text, 2, attempts = listOf(ok.copy(reusedFrom = "a"))))
         val words = index(first, reused)
-        // One check's words, once: the reuse is the same text, and the undone fix kept the writer's word.
-        assertEquals(1, words.word("tothom")!!.right)
-        assertEquals(0, words.word("tothom")!!.wrong)
+        // One check's words, once: undo changes the sent text, not Linguize's judgment.
+        assertEquals(0, words.word("tothom")!!.right)
+        assertEquals(1, words.word("tothom")!!.wrong)
         assertEquals(4, words.totalWords)
+    }
+
+    @Test
+    fun aChatMessageSentAsWrittenCountsItsFlaggedWordWrongWithoutCreditingTheReplacement() {
+        val text = "Com estas avui"
+        val sent = session("chat", text, 1).copy(origin = Origin.Chat, finalText = text)
+        val words = index(detail(sent, fix(text, "estas", "estàs", Decision.Ignored)))
+        assertEquals(0, words.word("estas")!!.right)
+        assertEquals(1, words.word("estas")!!.wrong)
+        assertEquals(0, words.word("estas")!!.accuracy)
+        assertNull(words.word("estàs"))
+        assertEquals(1, words.word("avui")!!.right)
+        assertEquals(3, words.totalWords)
     }
 
     @Test

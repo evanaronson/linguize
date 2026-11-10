@@ -9,9 +9,6 @@ import com.evanaronson.linguize.core.corpus.Span
 import com.evanaronson.linguize.history.corpus.CheckCorpusSource
 import com.evanaronson.linguize.history.corpus.CheckUtterances
 import com.evanaronson.linguize.history.patterns.PatternAnalyser
-import com.evanaronson.linguize.history.practice.PracticeItems
-import com.evanaronson.linguize.history.practice.PracticeEvidenceResult
-import com.evanaronson.linguize.history.practice.PracticeSource
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
@@ -37,14 +34,14 @@ class HistoryAnalysisScaleTest {
         val rows: Int, val visible: Int, val legacyPages: Int, val legacyDetails: Int,
     )
 
-    @Test fun sharedReadsPreserveAllThreePipelinesAtOneHundredToTenThousandStoredSessions() = runBlocking {
+    @Test fun sharedReadsPreserveCorpusAndPatternsAtOneHundredToTenThousandStoredSessions() = runBlocking {
         // Six deliberately visible records per ten retained records. Hidden rows do not
-        // consume a window, but corpus exclusions and Practice deduplication do.
+        // consume a window, but corpus exclusions do.
         val scales = listOf(
-            Scale(100, 60, 5, 180),
-            Scale(1_000, 600, 24, 1_500),
-            Scale(3_000, 1_800, 36, 2_700),
-            Scale(10_000, 6_000, 48, 3_900),
+            Scale(100, 60, 3, 120),
+            Scale(1_000, 600, 14, 1_000),
+            Scale(3_000, 1_800, 26, 2_200),
+            Scale(10_000, 6_000, 38, 3_400),
         )
         for (scale in scales) {
             val fixtures = (0 until scale.rows).map(::fixture)
@@ -58,11 +55,9 @@ class HistoryAnalysisScaleTest {
             selects.start()
             val oldCorpusDetails = legacyRead(old, 3_000, 100)
             val oldPatternDetails = legacyRead(old, 400, 50)
-            val oldPracticeDetails = legacyRead(old, 500, 50)
             val legacySelects = selects.stop()
             val oldCorpus = CheckUtterances.from(oldCorpusDetails)
             val oldPatterns = PatternAnalyser.analyse(oldPatternDetails)
-            val oldPractice = PracticeItems.from(oldPracticeDetails)
             assertEquals(scale.legacyPages, old.pages)
             assertEquals(scale.legacyDetails, old.details)
             assertEquals(0, old.batches)
@@ -74,11 +69,9 @@ class HistoryAnalysisScaleTest {
             val corpus = CheckCorpusSource(counted, evidence = reader).utterances()
             val patternsWindow = (reader.read(400) as HistoryEvidenceResult.Ready).snapshot
             val patterns = PatternAnalyser.analyse(patternsWindow.details)
-            val practice = PracticeSource(reader).load()!!
 
             assertEquals(oldCorpus, corpus)
             assertEquals(oldPatterns, patterns)
-            assertEquals(oldPractice, practice)
             assertEquals(visible.take(3_000).asReversed().map { "check:${it.detail.session.id}" }, corpus.map { it.id })
             assertEquals(visible.take(400).map { it.detail.session.id }, patternsWindow.selectedIds)
             assertEquals(minOf(scale.visible, 400), patterns.checksRead)
@@ -93,21 +86,13 @@ class HistoryAnalysisScaleTest {
                 val row = expectedCorpus.getValue(utterance.id)
                 assertEquals(row.detail.session.text, utterance.text)
                 val expectedSpans = when (row.index % 10) {
-                    0 -> listOf(Span(0, "mot${row.index}".length))
+                    0, 1, 2, 7 -> listOf(Span(0, "mot${row.index}".length))
                     9 -> listOf(Span(0, 4))
                     else -> emptyList()
                 }
                 assertEquals(utterance.id, expectedSpans, utterance.corrected)
             }
 
-            val practiceWindow = visible.take(500)
-            val distinctFixes = practiceWindow.filter { it.index % 10 == 0 } +
-                practiceWindow.filter { it.index % 10 == 9 }.minByOrNull { it.index }.let { listOfNotNull(it) }
-            val expectedPractice = distinctFixes.sortedWith(
-                compareByDescending<Fixture> { it.detail.session.startedAt }.thenBy { it.detail.suggestions.single().id },
-            )
-            assertEquals(expectedPractice.map { it.detail.suggestions.single().id }, practice.map { it.id })
-            assertEquals(expectedPractice.map { it.detail.session.id }, practice.map { it.sessionId })
             assertEquals(1, counted.batches)
             assertEquals(0, counted.pages)
             assertEquals(0, counted.details)
@@ -115,7 +100,6 @@ class HistoryAnalysisScaleTest {
 
             // Repeat consumers and language-specific projection reuse the same revision.
             assertEquals(corpus, CheckCorpusSource(counted, evidence = reader).utterances())
-            assertEquals(practice, PracticeSource(reader).load())
             val repeated = (reader.read(400) as HistoryEvidenceResult.Ready).snapshot
             assertEquals(patterns, PatternAnalyser.analyse(repeated.details))
             assertEquals(
@@ -141,13 +125,13 @@ class HistoryAnalysisScaleTest {
             val growing = CountedHistory(store)
             val growingReader = HistoryEvidenceReader(growing)
             selects.start()
-            for (limit in listOf(400, 500, 3_000)) {
+            for (limit in listOf(400, 3_000)) {
                 val snapshot = (growingReader.read(limit) as HistoryEvidenceResult.Ready).snapshot
                 assertEquals(visible.take(limit).map { it.detail.session.id }, snapshot.selectedIds)
                 assertEquals(scale.visible > limit, snapshot.window.hasMore)
             }
             val growingSelects = selects.stop()
-            val expectedGrowingBatches = if (scale.visible <= 400) 1 else 3
+            val expectedGrowingBatches = if (scale.visible <= 400) 1 else 2
             assertEquals(expectedGrowingBatches, growing.batches)
             assertEquals(expectedGrowingBatches * 2, growingSelects)
             println("HISTORY_READ_COUNTS stored=${scale.rows} visible=${scale.visible} " +
@@ -156,21 +140,6 @@ class HistoryAnalysisScaleTest {
                 "sharedSelects=$sharedSelects growingBatches=${growing.batches} growingSelects=$growingSelects " +
                 "retained=${retained.size} retainedTextUtf8Bytes=$retainedTextBytes")
         }
-    }
-
-    @Test fun aCustomPracticeLimitKeepsTheExistingWholePageWindow() = runBlocking {
-        val fixtures = (0 until 1_000).map(::fixture)
-        val store = seed("analysis-practice-rounding.db", fixtures)
-        val counted = CountedHistory(store)
-        val reader = HistoryEvidenceReader(counted)
-        val result = PracticeSource(reader).read(maxChecks = 51) as PracticeEvidenceResult.Ready
-
-        assertEquals(HistoryEvidenceWindow(100, true), result.window)
-        assertEquals(PracticeItems.from(legacyRead(store, 100, 50)), result.items)
-        assertEquals(listOf(100), counted.limits)
-        val selected = (reader.read(100) as HistoryEvidenceResult.Ready).snapshot.selectedIds
-        assertEquals(fixtures.filter { it.visible }.asReversed().take(100).map { it.detail.session.id }, selected)
-        assertEquals(1, counted.batches)
     }
 
     @Test fun sharedWindowsKeepTheDifferentReuseDecisionOriginAndTieRulesOfTheirConsumers() = runBlocking {
@@ -202,7 +171,7 @@ class HistoryAnalysisScaleTest {
         val corpus = corpusSource.utterances()
         assertEquals(listOf("check:old", "check:chat", "check:decisions", "check:tie-a", "check:tie-z"), corpus.map { it.id })
         assertEquals(listOf(original, corrected, decisions.detail.session.text, "Com estas?", "Com estas?"), corpus.map { it.text })
-        assertEquals(listOf(listOf(Span(10, 16)), emptyList(), listOf(Span(18, 20)), listOf(Span(4, 9)), listOf(Span(4, 9))),
+        assertEquals(listOf(listOf(Span(10, 16)), emptyList(), listOf(Span(0, 4), Span(5, 9), Span(10, 17), Span(18, 20)), listOf(Span(4, 9)), listOf(Span(4, 9))),
             corpus.map { it.corrected })
         assertEquals(listOf("menu", "chat", "menu", "menu", "menu"), corpus.map { it.origin })
 
@@ -214,15 +183,12 @@ class HistoryAnalysisScaleTest {
         assertEquals(1, patterns.reused)
         assertEquals(2, patterns.repeats)
         assertEquals(listOf("tie-a", "blank", "tester", "decisions", "chat", "old"), patterns.sources.map { it.sessionId })
-        val practice = PracticeSource(reader).load(preferred = setOf("reuse-s0", "tie-z-s0"))!!
-        assertEquals(listOf("tie-z-s0", "tester-s0", "recheck-s0", "reuse-s0"), practice.map { it.id })
-        assertEquals(listOf("estàs", "demà", "plovia", "perquè"), practice.map { it.right })
         assertEquals(1, counted.batches)
         assertEquals(0, counted.pages)
         assertEquals(0, counted.details)
 
         // Corpus reuse depends on whether its original is inside the visible window;
-        // Patterns always excludes a reused answer. Practice uses the surviving source.
+        // Patterns always excludes a reused answer.
         assertTrue(store.delete("old"))
         val after = corpusSource.utterances()
         assertEquals(listOf("check:reuse", "check:chat", "check:decisions", "check:tie-a", "check:tie-z"), after.map { it.id })
@@ -230,7 +196,6 @@ class HistoryAnalysisScaleTest {
         assertEquals(5, changed.checksCounted)
         assertEquals(1, changed.reused)
         assertFalse(changed.sources.any { it.sessionId in setOf("old", "reuse") })
-        assertEquals(listOf("tie-a-s0", "tester-s0", "recheck-s0", "reuse-s0"), PracticeSource(reader).load()!!.map { it.id })
         assertEquals(2, counted.batches)
     }
 

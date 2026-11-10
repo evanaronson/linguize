@@ -27,7 +27,7 @@ class TopBarConsistencyTest {
     @Test fun everyOtherPageHasBackAndItsTitle() {
         val pages = listOf(
             Screen.Settings, Screen.AccessibilitySetup, Screen.Detail("s1"),
-            Screen.Phrasebook, Screen.AppVoice(), Screen.Patterns, Screen.Practice, Screen.Memory, Screen.Words,
+            Screen.Phrasebook, Screen.AppVoice(), Screen.Patterns, Screen.Memory, Screen.Words,
             Screen.Conjugations, Screen.TimeSpent, Screen.ChatThread("c1"),
         )
         pages.forEach { assertEquals(TopBar.Page("Title"), it.topBar("Title")) }

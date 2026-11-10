@@ -1,5 +1,10 @@
 # Bonanza behavior contracts
 
+This is the historical audit record. The standalone Practice feature and its tests
+were subsequently removed at the product owner's request; the Practice sections below
+describe that retired implementation. Shared and unrelated regression coverage remains.
+Word evidence now follows fixes flagged by the final check, regardless of acceptance.
+
 These tests establish a baseline before cleaning up `feature/bonanza`, starting at
 `d5d92cc13f083411ff60735c59a743ac20780704`. They preserve successful behavior and
 make confirmed failures reproducible. Step 3 repairs persistence acknowledgements

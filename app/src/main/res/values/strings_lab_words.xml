@@ -38,7 +38,7 @@
     <string name="lab_words_by_lexeme">Lexemes</string>
     <string name="lab_words_by_lemma">Lemmas</string>
     <string name="lab_words_no_match">No words match</string>
-    <!-- A row's use: "12 right, 3 wrong". Wrong is a use a fix you accepted replaced. -->
+    <!-- A row's use: "12 right, 3 wrong". Wrong is a use Linguize flagged as wrong. -->
     <string name="lab_words_row_right_wrong">%1$d right, %2$d wrong</string>
     <!-- "80% right, last Nov 3" -->
     <string name="lab_words_row_accuracy_last">%1$d%% right, last %2$s</string>
@@ -54,7 +54,7 @@
     <string name="lab_words_empty_title">No words yet</string>
     <string name="lab_words_empty">Words from the checks you put back show up here.</string>
     <string name="lab_words_how">Only words you typed yourself count, from your saved checks. Words Linguize suggested never count.</string>
-    <string name="lab_words_how_tried">A word a fix you accepted replaced counts as used wrong. Words a fix kept, and rewordings, don\'t count against you.</string>
+    <string name="lab_words_how_tried">A word Linguize flags as wrong counts as used wrong, whether or not you accept the fix. Words a fix keeps, and rewordings, don\'t count against you.</string>
     <string name="lab_words_how_accuracy">Right and wrong add up to every use. The percent is the share used right.</string>
     <string name="lab_words_how_delete">Delete a check and its words leave this list.</string>
 

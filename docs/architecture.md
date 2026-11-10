@@ -35,7 +35,7 @@ composition root.
 | Package | Responsibility | Other app layers it may import |
 |---|---|---|
 | `codec` | Stable enum tokens and serialization | None |
-| `core` | Check/edit rules, corpus and language analysis, chat send state, memory facts, and practice scheduling | `codec` |
+| `core` | Check/edit rules, corpus and language analysis, chat send state and memory facts | `codec` |
 | `llm` | Prepared check requests, prompt formatting/parsing, provider APIs, transport, and check failures | `core`, `codec` |
 | `history` | Recorded evidence, recording rules, storage, answer reuse, and replay | `core`, `codec` |
 | `data` | Preferences, credentials, feature stores, imported decks, selection-menu configuration, and exports | `llm`, `core`, `codec`, resources |
@@ -85,7 +85,7 @@ mapping stay beside that feature. The edit engine does not know recording exists
 `data` owns the app's other persistence. Chat keeps conversations, raw/sent text,
 accepted changes, translations, and optional History links in its own SQLite
 database. It remains usable with History disabled; History-only deletion does not
-delete the conversation. Notes, saved phrases, memory facts, practice schedules,
+delete the conversation. Notes, saved phrases, memory facts,
 imported decks, lessons, pattern explanations, and measured time have separate
 stores. These stores have different retention rules: a deliberately saved phrase,
 for example, survives deletion of its source check. See the feature documents in
@@ -127,20 +127,13 @@ Asynchronous results carry the identity of the work that requested them:
 |---|---|
 | Chat | Selection, editor input and partner requests have separate ownership. Store-side checks protect delayed reply appends and title changes; an acknowledged writer append returns the current stored thread. |
 | Notes | Each requested editor buffers its own input while loading. Ordered commands and shared-store selection, input and deletion revisions protect saves, opening and Undo across hosts. Accepted commands outlive a page, but not the process. |
-| Practice | Saved instance state holds run/item identities, small answer decisions and numeric schedule baselines. History rebuilds the text; the durable schedule determines whether restored work is still current. |
 | Words | Evidence, language, deck and level form one published result; superseded analysis cannot supply its coverage or export. Storage mutations run separately from replaceable query work. |
 | Patterns | A request captures language and evidence generation before work starts. Explanation save/delete and evidence reconciliation share the service's storage lock; provider calls run outside it. |
 | Time and Conjugations | Refresh replaces older work. Time checks cancellation before sweeping measurements and labels its report with its captured language; Conjugations builds both language reports from one read and preserves the current display selection. |
 
 Cancellation releases obsolete work; ownership checks also protect publication
 and storage when a dependency finishes late. These guards do not themselves
-reconstruct pending requests after process death. Practice has a separate compact
-checkpoint: it rebuilds its queue from live History and reconciles saved decisions
-against the durable schedule before resuming. An advanced schedule can supersede
-ambiguous stale work; restoration does not invent a grade or replay an acknowledged
-one. The checkpoint copies no History text and adds no schedule-file schema. See
-[Practice](lab/practice.md#returning-to-a-run) for its reconstruction limits. The
-evidence windows below remain unchanged.
+reconstruct pending requests after process death.
 
 Keep Android resources in their native form. `strings.xml`, `strings_lifecycle.xml`,
 and `strings_platform.xml` form one catalog; file boundaries do not affect resource
@@ -193,10 +186,9 @@ features. Its raw model answers and final decisions are observations, with the
 
 | Consumer | Current evidence path | Derived state |
 |---|---|---|
-| Words and Conjugations | `App.corpus` → `CheckCorpusSource` → `App.historyEvidence`, up to 3,000 saved checks | Word index/deck coverage and morphology reports, rebuilt from original writer text and changed-word spans |
+| Words and Conjugations | `App.corpus` → `CheckCorpusSource` → `App.historyEvidence`, up to 3,000 saved checks | Word index/deck coverage and morphology reports, rebuilt from original writer text and spans flagged by the final check |
 | Chat practice targets | The same 3,000-check corpus → `PracticeTargetsBuilder` | Per-language target blocks; vocabulary uses `usedDeckKeys` and `WordFolding`, while Words uses `WordIndex`/`DeckCoverage` |
 | Patterns | `App.historyEvidence`, up to 400 checks | Deterministic report plus an optional saved model explanation with source IDs and fingerprint |
-| Practice | `PracticeSource` → `App.historyEvidence`, up to 500 checks | Rebuilt items plus separately stored review schedules; the existing policy prunes schedules outside the successfully loaded set |
 | User memory | Chat exchanges → `LabUserMemory`, independently of the corpus | Model-proposed facts and writer-owned notes in `MemoryStore`; `ChatPartner` includes enabled memory in its prompt |
 
 `App.historyEvidence` is one `HistoryEvidenceReader` bound to one History store.
@@ -220,7 +212,7 @@ process cache, with no new database table or migration.
 History records, including recorded Chat messages, rather than scanning Chat's
 independent store. A conversation with History disabled therefore remains visible
 in Chat but does not contribute new corpus evidence. `CheckUtterances` preserves
-original text, source/session identity, language, changed-word spans, filled gaps,
+original text, source/session identity, language, flagged-word spans, filled gaps,
 and the existing reuse and rechecked-output exclusions.
 
 `Corpus.read` reports `Complete`, `Partial` or `Failed`, with per-source coverage:
@@ -245,7 +237,7 @@ explicitly absent decks remain valid configurations.
 These boundaries leave the linguistic algorithms, target ordering and evidence
 windows unchanged. Reports and persisted derived state still have independent
 retention rules. Patterns reconciles explanations against its bounded report;
-Practice keeps its existing schedule policy; saved phrases, memory, Notes and Chat
+saved phrases, memory, Notes and Chat
 records do not become owned by the shared reader. History deletion removes records
 from subsequent successful evidence reads. Chat deletion's queued cleanup can
 reach History later, and an older window is not an inventory of all surviving

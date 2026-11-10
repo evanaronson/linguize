@@ -8,7 +8,7 @@ follow it. It offers the product's own names: **Linguize** (Auto, the default),
 ## The problem
 
 Progress had its own Catalan/Spanish switch, but only Words and Your conjugations followed
-it. Practice, Your patterns, the Phrasebook and Time spent counted every language, so the
+it. Your patterns, the Phrasebook and Time spent counted every language, so the
 top of the page said "Catalan" and the bottom didn't. The chat had a third language button
 of its own, and History had none. The information hierarchy was wrong: a person writing in
 Catalan this week is in Catalan everywhere, not on one card.
@@ -47,7 +47,7 @@ What each choice means:
 | **Chat** | The list shows every conversation, each with its language's flag. The app opens to the latest conversation, whatever its language. New conversation starts in the chat's start language: the one you last used in the chat, else the only language your selection menu names, else the one you check most, else Spanish (`ChatStart.language`). Nothing is asked. | The list shows only that language's conversations; the app opens to its latest; New conversation starts in it. |
 | **A conversation** | Its own language. Opening one doesn't change the selector. | Its own language. Opening one in another language (from History) makes that the current language, so Back shows its list. |
 | **Notes** | Checks detect the language. | Checks are in that language. A text in another language gets the card's "This isn't Catalan", with "Choose Linguize at the top to detect the language." |
-| **Progress** | The per-language sections (Practice, Words, Your conjugations, Your patterns, Phrasebook) are stacked once per language in use, each block headed by its brand name and icon; a row opens its page in that block's language. Time spent is one total for every language; its page breaks it down by language. | Every section, and the page it opens, shows only that language. |
+| **Progress** | Words, Your conjugations and Your patterns are grouped once per language in use, each block headed by its brand name and icon; a row opens its page in that block's language. Time spent and the Phrasebook cover every language; their pages break it down by language. | Every section, and the page it opens, shows only that language. |
 | **History** | Every message, any language, including ones with no known language. | Only that language's messages. |
 
 Not scoped: checks from other apps (selection menu, accessibility button, Quick tile,
@@ -59,8 +59,7 @@ Catalanize or Castilianize selection-menu entry, and the popup card keeps its ow
 
 A check with no reliable detection, a phrase saved without a language, or a time record of
 an unknown language belongs to no language. Scoped views leave it out rather than guess;
-Linguize shows it (History, Practice and the Phrasebook pages). Practice items take the
-language of their History attempt, so they are the same.
+Linguize shows it (History and the Phrasebook pages).
 
 ## How it works
 
@@ -85,8 +84,8 @@ language of their History attempt, so they are the same.
   survives rotation and a fresh process under Auto. Pattern detail inherits that scope;
   Word and Conjugation detail routes already carry their own language.
 - `HomeActivity` resolves the visible route and passes its language to the feature's
-  entry effect before loading or entering Practice. It does not broadcast scope to
-  unrelated view models. Auto still means all languages for Patterns, Practice and the
+  entry effect before loading. It does not broadcast scope to
+  unrelated view models. Auto still means all languages for Patterns and the
   Phrasebook; an unscoped Words or Conjugations page keeps its last/default language.
 - An actual change of the app language clears block overrides across the live path,
   including ancestors behind a saved check; the initial Flow emission does not.
@@ -94,8 +93,7 @@ language of their History attempt, so they are the same.
   reviving an old Catalan block. Intrinsic Word/Conjugation details keep their language.
   Chat's language-follow action clears overrides without closing that conversation;
   the selector's explicit switch retains its existing close-to-list rule.
-- View models: `PracticeState.language` (due and runs from `scoped`) and `dueIn(language)`
-  (a block's count under Linguize), `PatternsLab.load(language)`, `WordsState.shownLanguage`,
+- View models: `PatternsLab.load(language)`, `WordsState.shownLanguage`,
   `ConjugationsState.shown`, `PhrasebookViewModel.setLanguage` and `inLanguage`,
   `TimeReport.of(…, language)`, `historyRows(rows, filter, language)`,
   `noteCheckLanguage`, and `progressLanguages(current, found)`.

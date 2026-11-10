@@ -24,7 +24,6 @@ Settings behind the gear.
 | Learning over time | [Teach me](teach-me.md): a one-minute lesson and quiz for any change | Change explanation |
 | Learning over time | [Phrasebook](phrasebook.md): star natural phrasings and keep them | Change explanation; Progress |
 | Learning over time | [Your patterns](patterns.md): recurring fixes grouped from History, with sources | Progress |
-| Learning over time | [Practice](practice.md): spaced-repetition drills from your own applied fixes | Progress |
 | Learning over time | [What Linguize knows](memory.md): short notes about you, learned from chats or added, all editable | Settings, About you |
 | Learning over time | [Words](words.md): a frequency list and every word you typed, in one list: used, not yet, tried; coverage over time ([decks](vocab-gaps.md)) | Progress |
 | Every day | [Chat](chat.md): the app opens to a conversation (Settings › Start on can pick another tab); each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |

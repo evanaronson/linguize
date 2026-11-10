@@ -4,11 +4,22 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsOwner
+import androidx.compose.ui.semantics.getOrNull
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.PatternsLab
+import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.corpus.Lemmatizer
+import com.evanaronson.linguize.core.corpus.Span
+import com.evanaronson.linguize.core.corpus.Utterance
+import com.evanaronson.linguize.core.words.WordIndex
 import com.evanaronson.linguize.history.HistoryEvidenceReader
 import com.evanaronson.linguize.data.lab.ExplanationStore
 import com.evanaronson.linguize.data.lab.SavedExplanation
@@ -18,15 +29,18 @@ import com.evanaronson.linguize.history.patterns.PatternFixtures.fix
 import com.evanaronson.linguize.llm.lab.PatternsPrompt
 import com.evanaronson.linguize.ui.language.AppLanguage
 import com.evanaronson.linguize.ui.patterns.PatternsViewModel
-import com.evanaronson.linguize.ui.practice.PracticeViewModel
 import com.evanaronson.linguize.ui.progress.ProgressView
+import com.evanaronson.linguize.ui.words.WordsState
+import com.evanaronson.linguize.ui.words.WordsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -109,20 +123,39 @@ class HomeScopeLifecycleTest {
         assertFalse(switched.getStringArrayList("navigation")!!.any { it.startsWith("scoped:") })
     }
 
-    @Test fun savedPracticeRouteScopesAFreshHomeOwnedModelBeforeEntry() {
-        val route = progressDestination(ProgressView.Practice, appLanguage = null, block = "ca")
-        val original = open(savedPath(route))
-        val first = ViewModelProvider(original.get())[PracticeViewModel::class.java]
-        assertEquals("ca", first.state.value.language)
+    @Test fun autoProgressKeepsWordsReachableWhenEveryOccurrenceWasFlagged() {
+        val controller = open(savedPath())
+        val words = ViewModelProvider(controller.get())[WordsViewModel::class.java]
+        words.viewModelScope.cancel()
+        val index = WordIndex.build(
+            listOf(Utterance("fr-1", "check", "fr", "ete", corrected = listOf(Span(0, 3)), at = 1)),
+            Lemmatizer.Identity,
+        )
+        assertEquals(0, index.languages.single().distinctWords)
+        assertEquals(1, index.languages.single().totalWords)
+        // Supply finished evidence; exercise the dashboard's real discovery, rendering and route.
+        ReflectionHelpers.getField<MutableStateFlow<WordsState>>(words, "_state").value = WordsState(index = index)
+        settle(controller)
+        val label = app.getString(R.string.lab_consistency_progress_open_in, app.getString(R.string.lab_words_open), "French")
+        val action = nodes(controller.get().window.decorView).mapNotNull { it.config.getOrNull(SemanticsActions.OnClick) }
+            .single { it.label == label }
+        assertTrue(requireNotNull(action.action).invoke())
+        settle(controller)
         val saved = Bundle()
-        original.saveInstanceState(saved)
-        destroy(original)
+        controller.saveInstanceState(saved)
+        assertEquals("scoped:fr:words", saved.getStringArrayList("navigation")!!.last())
+    }
 
-        val restored = open(saved)
-        val fresh = ViewModelProvider(restored.get())[PracticeViewModel::class.java]
-        assertNotSame(first, fresh)
-        assertEquals("ca", fresh.state.value.language)
-        assertEquals(route.saved, saved.getStringArrayList("navigation")!!.last())
+    @Test fun retiredPracticeRouteRestoresToProgressWithoutDuplicatingTheTab() {
+        for (token in listOf("practice", "scoped:ca:practice")) {
+            val restored = open(Bundle().apply {
+                putStringArrayList("navigation", arrayListOf("lab_chat", "progress", token))
+            })
+            val saved = Bundle()
+            restored.saveInstanceState(saved)
+            assertEquals(listOf("lab_chat", "progress"), saved.getStringArrayList("navigation"))
+            destroy(restored)
+        }
     }
 
     private fun savedPath(vararg pages: Screen) = Bundle().apply {
@@ -145,6 +178,17 @@ class HomeScopeLifecycleTest {
     private fun destroy(controller: ActivityController<HomeActivity>) {
         controllers.remove(controller)
         controller.pause().stop().destroy()
+    }
+
+    private fun nodes(root: View): List<SemanticsNode> {
+        fun owner(view: View): SemanticsOwner? {
+            val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
+            if (method != null) return method.invoke(view) as SemanticsOwner
+            if (view is ViewGroup) for (index in 0 until view.childCount) owner(view.getChildAt(index))?.let { return it }
+            return null
+        }
+        fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
+        return flatten(requireNotNull(owner(root)).rootSemanticsNode)
     }
 
     private fun settle(controller: ActivityController<HomeActivity>) {

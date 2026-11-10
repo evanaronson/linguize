@@ -15,7 +15,7 @@ class TabNavigationTest {
         assertEquals(listOf(Screen.Chat, Screen.Notes, Screen.Progress, Screen.History), Screen.tabs)
         assertTrue(Screen.tabs.all { it.isTab })
         assertFalse(Screen.Settings.isTab)
-        assertFalse(Screen.Practice.isTab)
+        assertFalse(Screen.Words.isTab)
         assertFalse(Screen.Detail("a").isTab)
     }
 
@@ -54,7 +54,7 @@ class TabNavigationTest {
 
     @Test fun progressAndItsViewsRestore() {
         for (start in starts) {
-            listOf(Screen.Practice, Screen.Words, Screen.Conjugations, Screen.Patterns, Screen.Phrasebook).forEach { view ->
+            listOf(Screen.Words, Screen.Conjugations, Screen.Patterns, Screen.Phrasebook).forEach { view ->
                 val path = start.open(Screen.Progress).open(view)
                 assertEquals(path, Navigation.restore(path.saved))
                 assertEquals(Screen.Progress, path.back().current)
@@ -63,6 +63,25 @@ class TabNavigationTest {
         }
         assertEquals("progress", Screen.Progress.saved)
         assertEquals(Screen.Progress, Screen.restore("progress"))
+    }
+
+    @Test fun retiredPracticeRoutesRestoreToProgressAndPreserveBackBehavior() {
+        for (token in listOf("practice", "scoped:ca:practice")) {
+            assertEquals(Screen.Progress, Screen.restore(token))
+            for (start in Screen.tabs) {
+                val restored = Navigation.restore(listOf(start.saved, "progress", token))
+                assertEquals(Navigation(start).open(Screen.Progress), restored)
+                assertEquals(Screen.Progress, restored.current)
+                assertEquals(RouteScope.FollowApp, restored.current.scope)
+                if (start == Screen.Progress) assertNull(restored.parent)
+                else assertEquals(start, restored.back().current)
+            }
+            assertEquals(listOf("notes", "progress"), Navigation.restore(listOf("notes", token)).saved)
+        }
+        // Compatibility does not make malformed scopes or scoped tabs valid destinations.
+        for (token in listOf("scoped::practice", "scoped:not-a-language:practice", "scoped:ca:", "scoped:ca:progress")) {
+            assertNull(Screen.restore(token))
+        }
     }
 
     @Test fun writeToolsAndSettingsPagesRestore() {

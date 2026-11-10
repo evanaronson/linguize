@@ -3,7 +3,7 @@
 Your conjugations shows which verb forms the writer actually uses, currently in Spanish and Catalan:
 a grid of tenses by person, counted only from text they typed themselves. Empty cells are
 forms they haven't used yet. Each cell opens the verbs and the writer's own sentences behind
-it. Forms a fix replaced are listed apart as "tried, then fixed".
+it. Forms Linguize proposed fixing are listed apart as "flagged as wrong", whether or not the fix was accepted.
 
 The same work gives the app its morphology: `App.lemmatizer` now turns word forms into
 lexemes (lemma and part of speech) for Spanish and Catalan, which the word index and
@@ -26,7 +26,7 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
   For a language other than Spanish and Catalan the page says what it covers.
 - **The page, in order**: the language; the summary ("N of M" forms used, verbs); **Forms
   used each month**; **Tenses and persons** with its Other forms row; **Verbs you use**;
-  **Tried, then fixed**; **How it's counted**.
+  **Flagged as wrong**; **How it's counted**.
 - **Tenses and persons**: rows are tenses and moods, columns are persons (yo, tú, él/usted,
   nosotros, vosotros, ellos/ustedes; jo, tu, ell/vostè…). A filled cell shows how many
   times the form was used. An outlined empty cell is a form not used yet. Screen readers
@@ -43,7 +43,7 @@ they wrote and kept. It serves the *slowly needing the check less* moment in the
 - **A verb** opens its page in Words (the verb lexeme, "hablar/v"): counts, forms and
   sentences.
 - **Forms used each month**: distinct tense and person cells used per month, last 6 months.
-- **Tried, then fixed**: verb forms inside a span an accepted fix replaced.
+- **Flagged as wrong**: verb forms Linguize proposed fixing in the final check, whether or not the fix was accepted.
 
 ### Decisions (owner feedback, Conjugations page)
 
@@ -155,7 +155,7 @@ four genders and numbers.
 
 - Only utterances whose language is the one shown are read. Text with no language is
   skipped.
-- A word inside an `Utterance.corrected` span is not counted. It goes to "tried, then fixed".
+- A word inside an `Utterance.corrected` span is not counted. It goes to "flagged as wrong".
 - **Compound tenses**: a finite form of haber (Spanish) or haver (Catalan), optionally
   followed by one adverb (ya, siempre, ja, encara…), then a participle, counts once for the
   participle's verb, in the tense the auxiliary gives (present → perfect, imperfect or
@@ -165,7 +165,7 @@ four genders and numbers.
 - **Catalan periphrastic past**: vaig, vas/vares, va, vam/vàrem, vau/vàreu, van/varen
   followed by an infinitive (pronouns attached are fine: vaig dir-li) counts once as the past
   of the infinitive's verb. "Vaig a casa" is anar's present.
-- If either word of a pair is corrected, the pair is tried, not counted.
+- If either word of a pair is flagged as wrong, the pair is tried, not counted.
 - After an article, determiner or preposition ("el trabajo", "de paso") only an infinitive
   reading is kept. Spanish la/las/lo/los and Catalan el/la/els/les/l'/en are left out of this
   rule because they are also pronouns before verbs ("la tengo", "la vaig veure").

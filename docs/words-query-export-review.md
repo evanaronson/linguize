@@ -162,6 +162,97 @@ contain 15 query-ownership, 4 persistence, 5 evidence-failure, 18 export, and
 5 Words navigation tests, all passing without skips. They do not prove every
 possible interleaving or the Android share sheet in another app.
 
-Step 2 should turn the candidates into a mechanism-to-behavior comparison and
-challenge the smallest proposed implementation. No line-saving target or rollback
-is justified by this review alone.
+## Step 2: challenged implementation decision
+
+The comparison below was completed at `cd51e50`. Experiments used a separate,
+detached checkout of that commit; the feature branch's app and tests were not
+modified. Historical claims about `5b5ecd9` remain source comparisons, not claims
+that today's tests were run against that older version.
+
+**Proceed with two local changes in the implementation step:** broaden coverage
+cache equivalence only when the actual deck calculation is unchanged, and remove
+the ViewModel's selection-write mutex. Keep the shared store lock, ownership
+predicate, current-result/error checks, and existing operation boundaries.
+
+### Mechanism-to-behavior decision
+
+| Mechanism | Observable contract and evidence | Decision |
+|---|---|---|
+| Query identity, cancellation, immediate invalidation | The existing non-cooperative language/deck/level tests finish cancelled work and require the latest result and durable selection to survive. The revision test checks invalidation before the debounce expires. | Keep the ownership boundary. These tests establish that cancellation alone is insufficient; they do not prove every individual intermediate check indispensable. |
+| Evidence rebuild/retirement state and index cache | Retirement-without-revision tests require a new evidence read before export; fingerprint tests require changed evidence to rebuild. | Keep. A source revision, content fingerprint, and file-retirement generation answer different questions. Defer flag consolidation. |
+| Explicit selection/restoration flags | Existing queued-restoration and scoped-route tests require explicit null/Forms and a newly chosen deck to beat remembered preferences. | Keep this distinction. Replacing explicit intent with nullable-value fallback would change behavior. |
+| Coverage cache's full-level comparison | Two new prospective reuse tests fail on current code and pass with the candidate; a real Lemma transition still rebuilds and changes ranks and saved selection. | Simplify comparison only. Preserve the full requested level for selection and route/display semantics. |
+| ViewModel selection mutex | Two real-store tests exercise old-authorized/new-queued and new-committed/old-late ordering across separate store instances without any ViewModel mutex. All focused existing tests also pass after its removal. | Remove this outer mutex in the proposed patch. The store already serializes the entire check/read/write operation. |
+| Store lock and current-query predicate | Existing queued-IO and new late-old-caller tests reject stale writes. Removing both predicate checks as a negative control makes both tests fail. | Keep the lock and predicate. A stale write already authorized before a query changes may finish; a successful newer write still follows it. |
+| Retained display, cache, current export snapshot and flags | Failure tests retain prior index/coverage while rejecting export; a scope change projects retained all-language evidence into the new selection. | Defer broad representation changes. The contracts are established; a smaller replacement has not yet been demonstrated. |
+| Picker, import scope, accepted mutation lifetime | Existing tests reject old/cancelled picker results and preserve a committed import without stealing a newer selection. | Keep those distinct behaviors. Tests exercising multiple guards together do not independently justify every guard. |
+| `importVersion` | Source inspection shows live import reentrancy is already blocked by `importing`; the separate version also suppresses finalizer publication after disposal. No isolated disposal test establishes its necessity. | Defer. It is another candidate, not a proven live-import ordering requirement. |
+| Exact failed-deletion IDs and delete serialization | Existing tests retain an earlier cleanup failure after a later successful deletion and reconcile committed membership independently of evidence failure. | Keep. Store serialization alone does not order ViewModel refresh/error publication. |
+| Export action identity, shared request order, retirement and exact file | Existing tests cover obsolete scope, invalidation without a History revision, out-of-order hosts, partial-file cancellation, and stale cleanup. | Keep. Defer local-action token consolidation until same-query repeated exports and late errors are isolated. |
+| Repeated inventory reads | Three normal reads are confirmed in source; they are not one transaction with later deck-content reads. | Defer from this patch. A replacement must remove the old read paths and preserve mutation/failure semantics without adding a parallel repository/cache API. |
+
+### Independent challenge changed the proposed shape
+
+The reviewer identified three constraints that rule out a naive normalized key:
+
+1. `CoverageKey` also feeds saved selection. A no-POS deck is measured by lemma
+   even when the user chose Lexemes; persisting the normalized mode would change
+   the next restored choice.
+2. The existing code has a same-key cache-reuse path even when a deck resolves to
+   null. Moving all reuse inside `deck?.let` changes that behavior. Fixing the
+   missing-deck policy is a separate decision, not part of this equivalence change.
+3. `byLemma()` can merge and rerank bare-lemma rows even without POS. Reusing its
+   prior result is valid; skipping the transformation is not equivalent.
+
+The tested candidate therefore keeps the full key and existing memo storage.
+It preserves exact-key reuse, and adds cross-level reuse only for a resolved deck,
+equal fingerprint/language/deck ID, and the same actual lemma-versus-original
+variant. It does not change `byLemma`, `saveSelection`, cache capacity, or export
+eligibility. The normal app has stable morphology and immutable imported-deck
+UUIDs; editing content under the same ID would need a separate cache contract.
+
+The other change deletes only `selectionWrites` and its `withLock` wrapper.
+The shared store monitor covers predicate checks, reading, equality detection,
+atomic replacement, and return. If an old writer enters first, a newer writer
+cannot commit until it exits; if the newer writer enters first, the stale older
+writer fails the predicate. The candidate retains the store boundary and every
+current-query success/failure check. `deleteWrites` remains.
+
+The independent reviewer inspected this exact production diff and found no
+blocker under those contracts. The diff changes one production file, adds no
+type or field, removes one mutex owner, and is **one production line smaller**.
+This is a bounded removal of coordination and repeated calculation, not a
+material reduction of the cumulative +2,119 production lines.
+
+### Executed evidence
+
+| Experiment | Result |
+|---|---|
+| Current implementation plus five prospective tests | 142 tests: 140 pass, exactly two new reuse assertions fail. The first Forms/Lexemes switch reports 2 builds where 1 is expected; the no-POS switch adds a third total build where 2 are expected. No errors or skips. |
+| Candidate coverage comparison and removal of outer mutex | The same 142 test identities all pass, with no failures, errors, or skips. This includes all 137 existing selected tests and five additions. |
+| Negative control: remove both store current-query checks | Both selected stale-write tests fail with assertion failures: the existing queued-IO test and the new late-old-caller test. This mutation is discarded. |
+| Restored candidate | Exact candidate source/test hashes restored; Gradle revalidation succeeds using the cached successful 142-case result. |
+
+The five additions check coverage reuse on POS and no-POS decks, the genuine
+Lemma transition with changed CSV ranks and persisted level, two-store ordering
+for an already-authorized older call, and rejection of a late stale call. CSV
+text and selection assertions accompany the reuse assertions. Every pre-existing
+test method/assertion remains; the prospective tests add 158 test lines in the
+isolated patch. They are not installed on the feature branch during this step.
+
+The ordering fixture holds the older call inside its last predicate, under the
+store monitor and before the synchronous write. It observes the second thread
+blocked on that monitor, then verifies the older commit precedes the newer one.
+It does not suspend inside filesystem byte writes or establish a global
+latest-user-gesture ordering across independent ViewModels.
+
+The 142-test selection covers Words UI models, export storage, vocabulary stores,
+DeckLibrary, pure Words algorithms, deck behavior, Words navigation and scoped
+route reconstruction. This is focused JVM/Robolectric evidence, not a full release
+build, a device/share-sheet test, or a latency/heap benchmark. Full required checks
+remain part of applying the patch in the implementation step.
+
+The experiment, candidate diff and results are retained in the task workspace as
+`words-step2-checkout`, `words-step2-candidate.patch`, the three
+`words-step2-*-results.json` files, and baseline/candidate/negative-control/final
+logs. The branch receives this decision record only.

@@ -51,8 +51,10 @@
     <string name="what_did_you_mean">What did you mean?</string>
     <string name="show_understanding">Show how Linguize read it</string>
     <string name="ai_could_not_understand">Linguize couldn\'t tell what this means</string>
-    <string name="check_full_sentence">Check a full sentence</string>
-    <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
+    <!-- Under "Linguize couldn't tell what this means": what to do. The first offers Clarify what you mean below it. -->
+    <string name="unclear_hint">Try writing it as a full sentence, or clarify what you mean.</string>
+    <string name="unclear_hint_read_only">Try writing it as a full sentence.</string>
+    <string name="choose_auto_language">Choose Auto Detect to check it in any language.</string>
     <string name="your_text">Your text</string>
     <string name="no_text_to_check">No text to check.</string>
     <string name="recent">History</string>
@@ -94,14 +96,14 @@
     <string name="open_accessibility">Open Accessibility</string>
     <string name="open_app_info">Open App info</string>
     <string name="wrong_language">This isn\'t %1$s</string>
-    <string name="wrong_language_detected">It looks like %1$s. Choose Auto Detect to detect the language.</string>
+    <string name="wrong_language_detected">It looks like %1$s. Choose Auto Detect to check it in that language.</string>
     <string name="quoted_text">“%1$s”</string>
     <string name="model_recommended">%1$s (recommended)</string>
     <string name="model_test_works">Works · %1$.1f s</string>
     <string name="model_test_failed">Didn\'t work: %1$s</string>
     <string name="provider_api_key">%1$s API key</string>
     <string name="key_privacy">Saved only on this phone, and sent only to %1$s.</string>
-    <string name="check_failed_reason">Couldn\'t check · %1$s</string>
+    <string name="check_failed_reason">Couldn\'t check: %1$s</string>
     <string name="close_card">Close card</string>
     <string name="language_accessibility">Language: %1$s, %2$s</string>
     <string name="detect_language">Detects the language</string>
@@ -148,8 +150,8 @@
     <string name="failure_bad_key">API key rejected</string>
     <string name="failure_bad_model">Model not available</string>
     <string name="failure_offline">No connection</string>
-    <string name="failure_timeout">The response took too long</string>
-    <string name="failure_rate_limited">Usage limit reached</string>
+    <string name="failure_timeout">Took too long</string>
+    <string name="failure_rate_limited">Service usage limit reached</string>
     <string name="failure_server">Service unavailable</string>
     <string name="failure_bad_response">No usable result</string>
     <string name="failure_too_long">Text too long</string>
@@ -158,15 +160,17 @@
     <string name="hint_bad_key">Add a working key in settings</string>
     <string name="hint_bad_model">Pick another model in settings</string>
     <string name="hint_offline">Connect to the internet, then retry</string>
+    <!-- Took too long, or the service is unavailable: usually passes. -->
+    <string name="hint_wait_moment">Wait a moment, then retry</string>
     <string name="hint_rate_limited">Wait a minute, then retry</string>
-    <string name="hint_too_long">Select a shorter part, then check again</string>
+    <string name="hint_too_long">Check a shorter part</string>
     <string name="hint_too_many">Wait a minute, then select the text again</string>
     <string name="list_separator">", "</string>
     <string name="status_separator">", "</string>
     <!-- Card and Meaning -->
     <string name="meaning_subtitle">How your message was read</string>
-    <string name="not_what_you_mean">Not what you mean</string>
-    <string name="say_what_you_meant">Say what you meant</string>
+    <!-- The row that opens the clarify editor, on Meaning and on an unclear result. -->
+    <string name="clarify_what_you_mean">Clarify what you mean</string>
     <string name="assumptions_description_past">The suggestions relied on this reading of your text.</string>
     <!-- UI framing before a standalone reading; preserve the reading's capitalization and tense. -->
     <string name="assumes">Assumed you meant: %1$s</string>
@@ -248,12 +252,12 @@
     </plurals>
     <string name="message_input_too_long">Linguize checks up to %1$,d characters at a time.</string>
     <string name="message_invalid_key">The saved key contains invalid characters. Paste the key again in settings.</string>
-    <string name="message_empty_reply">The result was empty. Try again.</string>
-    <string name="message_reply_too_large">The result was too long to use. Try a shorter selection.</string>
-    <string name="message_invalid_reply">The result couldn\'t be used. Try again.</string>
-    <string name="message_truncated_reply">The result was cut off. Try again.</string>
-    <string name="message_incomplete_reply">The result was incomplete. Try again.</string>
-    <string name="message_declined">Linguize couldn\'t help with this text.</string>
+    <string name="message_empty_reply">The result came back empty.</string>
+    <string name="message_reply_too_large">The result was too long to use. Check a shorter part.</string>
+    <string name="message_invalid_reply">The result came back in a form Linguize couldn\'t read.</string>
+    <string name="message_truncated_reply">The result was cut off before the end.</string>
+    <string name="message_incomplete_reply">The result was missing parts.</string>
+    <string name="message_declined">Linguize couldn\'t help with this text. Change it, then check again.</string>
     <string name="popup">Popup</string>
     <string name="popup_position">Position</string>
     <string name="popup_position_bottom">Bottom</string>

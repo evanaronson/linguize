@@ -60,7 +60,7 @@ fun Chevron(modifier: Modifier = Modifier, size: Int = 22) {
     )
 }
 
-/** A full-width drill-down row: a reading the writer can clarify ("Not what you mean ›"). */
+/** A full-width drill-down row: a reading the writer can clarify ("Clarify what you mean ›"). */
 @Composable
 fun ClarifyLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, onClickLabel: String? = null) {
     Row(

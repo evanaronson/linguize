@@ -6,7 +6,7 @@ Slug `meaning-lands`. Code: `ui/card/MeaningLands.kt`. Tests: `ui/card/MeaningLa
 ## The problem
 
 The card had two ways to look at the same text. **Meaning** was a drill-down page (the
-translation, "Not what you mean", the assumptions). **How it lands** was a footer row that
+translation, "Not what you mean" (now "Clarify what you mean"), the assumptions). **How it lands** was a footer row that
 opened in place (the reading, scales, driving words, notes). They feed each other: how a
 message lands depends on what it means, and a clarified meaning changes how it lands. The
 owner asked for one section. [The expand pattern](expand-pattern.md) had already decided that
@@ -17,14 +17,14 @@ nothing inside the card drills down, so the section is a `Disclosure`.
 | Content | Before | Now |
 |---|---|---|
 | Translation (`meaning`, in the writer's language; empty when the text already is) | Meaning page, on a grey inset under "How your message was read" | First line(s) of the header; full and selectable when open |
-| "Not what you mean" / the writer's clarification, edit and Remove | Meaning page | Open section, right under the meaning it corrects |
+| "Clarify what you mean" / the writer's clarification, edit and Remove | Meaning page | Open section, right under the meaning it corrects |
 | Assumptions ("The suggestions rely on this reading…"), each with its alternatives, Clarify, answered ones with edit and Remove | Meaning page | Open section, after the clarification. Open ones are counted on the header |
 | Assumptions under a change's explanation ("Assumes…", "You said…") | Explanation panel | Unchanged: they belong to that change |
 | How it lands: overall + summary | Its own footer row | Header line, and the first line of the How it lands part |
 | Driving words, warmth/directness/formality scales, notes, caveat | Under the How it lands row | Last part of the open section |
 | Footer row subtitle "How your message was read" | Always, as the row's subtitle | Only when nothing else can be summarised (text already in your language, no reading, no assumptions) |
 | Back arrow, page title, `NavigationBackHandler` level, page slide, scroll-to-top reveal | Meaning page | Gone |
-| Unclear result: "Say what you meant" editor | Card body | Unchanged: it is the card's main task there, not secondary detail |
+| Unclear result: "Clarify what you mean" editor | Card body | Unchanged: it is the card's main task there, not secondary detail |
 | History: Meaning block (inset, "Assumptions, 2 ›" link to a page, clarification row) and a separate How it lands block | Two blocks after Suggestions | One read-only Meaning section in the same place, readings inline |
 
 ## The hierarchy
@@ -46,7 +46,7 @@ Could land differently · polite but cold
 ```
 Meaning                                       ⌃
 [ full translation, selectable ]
-Not what you mean ›            or  Your clarification ›  Remove
+Clarify what you mean ›        or  Your clarification ›  Remove
 Assumptions
   The suggestions rely on this reading. If it isn't what you meant…
   [answered readings]  [open readings ›]
@@ -68,7 +68,7 @@ version. The title stays put.
 section with one state.
 
 **Separate:** only what belongs to one change (a change's "Assumes…" and "You said…" lines
-and their inline clarify), and the unclear card's "Say what you meant", which is the card's
+and their inline clarify), and the unclear card's "Clarify what you mean", which is the card's
 main content there.
 
 **Dropped:** the Meaning page with its back arrow and Back level, the separate How it lands row

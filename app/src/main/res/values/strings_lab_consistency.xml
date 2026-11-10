@@ -20,8 +20,8 @@
     <string name="lab_consistency_progress_open_in">%1$s in %2$s</string>
 
     <!-- The card in the app, when the text is in another language than the one chosen. -->
-    <string name="lab_consistency_wrong_language_app">It looks like %1$s. Choose Linguize at the top to detect the language.</string>
-    <string name="lab_consistency_choose_auto_app">Choose Linguize at the top to detect the language.</string>
-    <string name="lab_consistency_wrong_language_chat">It looks like %1$s.</string>
-    <string name="lab_consistency_conversation_language">This conversation is in one language.</string>
+    <string name="lab_consistency_wrong_language_app">It looks like %1$s. Choose Linguize at the top to check it in that language.</string>
+    <string name="lab_consistency_choose_auto_app">Choose Linguize at the top to check it in any language.</string>
+    <string name="lab_consistency_wrong_language_chat">It looks like %1$s. Write in this conversation\'s language, or start a new conversation.</string>
+    <string name="lab_consistency_conversation_language">Write in this conversation\'s language, or start a new conversation.</string>
 </resources>

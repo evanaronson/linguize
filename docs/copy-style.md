@@ -46,7 +46,13 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 
 ## Patterns
 
-**Failures.** Title = the state, in a few words ("No connection", "API key rejected"). Hint = what to do, starting with a verb ("Pick another model in settings"). Leave the hint out only when the button below says it all ("Retry"). A failure with no button always has a hint. Titles must also read correctly on a past check in History, so no instructions in titles ("No API key", not "Add an API key").
+**Card messages.** Everything the check card says instead of suggestions (a failure, an unclear text, the wrong language, a limit) has the same three parts, in this order, and [card messages](lab/card-messages.md) lists them all.
+
+1. **Title: what happened**, as a state in a few words ("No connection", "API key rejected", "Linguize couldn't tell what this means"). Titles also show on a past check in History ("Couldn't check: No connection") and in Settings' model test ("Didn't work: Took too long"), so no instructions in titles ("No API key", not "Add an API key").
+2. **Hint: what to do**, starting with a verb ("Pick another model in settings", "Wait a moment, then retry"). It names the next step in the host the card is in, or one that is true in all of them ("Check a shorter part", not "Select a shorter part"). Leave it out only when the button says it all and a detail line says why.
+3. **Detail, when there is one: why**, one sentence, in quieter type ("Linguize checks up to 3,000 characters at a time", "The result was cut off before the end"). It doesn't repeat the button: no "Try again" above Retry. It gives a step only when the step differs from the button ("Paste the key again in settings").
+
+Then **one action**: Retry, Open settings, or Clarify what you mean. No button when there is nothing to do here (a limit), and then the hint carries the step. A bare instruction is never the whole message: "Check a full sentence" read as an error code, so the unclear card says what happened first.
 
 **Buttons.** A verb, plus an object when the verb alone is unclear. Three words at most: "Accept all", "Copy with fixes", "Open settings", "Delete key".
 
@@ -77,7 +83,11 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 
 | Before | After | Why |
 |---|---|---|
-| Can't tell what this means | Linguize couldn't tell what this means / Check a full sentence | Own the limitation and give a next step. |
+| Can't tell what this means | Linguize couldn't tell what this means / Try writing it as a full sentence, or clarify what you mean. | Own the limitation, and say what to do. A bare "Check a full sentence" read as an error code. |
+| Say what you meant, Not what you mean › | Clarify what you mean › | One name for the one action, matching its Clarify button. |
+| The response took too long (no hint) | Took too long / Wait a moment, then retry | Every failure says what to do. |
+| The result couldn't be used. Try again. (above Retry) | The result came back in a form Linguize couldn't read. | The detail says why. The button already says Retry. |
+| Couldn't check · No connection | Couldn't check: No connection | No middle dots. |
 | 2 changes applied | 2 changes accepted | Nothing is put back until Replace. |
 | 1 way to sound more natural | 1 rewording | Same name as in Settings and History. |
 | Add an API key | No API key / Add one in settings | A title is a state, and History shows it too. |
@@ -94,7 +104,7 @@ Linguize owns its help and its failures. Avoid “AI” in user-facing copy. Nam
 
 ## Visual language
 
-Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. A full-width row with a chevron opens clarification ("Not what you mean ›", "Assumed you meant: The meeting is tomorrow ›"). Readings use upright text; the chevron and tap target distinguish interactive rows from read-only information. A colon separates UI framing from the model's reading, preserving its capitalization and tense in live results and History. Proofmark red also identifies destructive actions: the swipe-to-delete background and every Delete or Remove action, including confirmation buttons. The swipe background uses the theme's contrasting foreground.
+Copy and type work together on the card. An underline is always a change you can accept: solid in proof vermilion for a fix, dotted grey for a rewording. A full-width row with a chevron opens clarification ("Clarify what you mean ›", "Assumed you meant: The meeting is tomorrow ›"). Readings use upright text; the chevron and tap target distinguish interactive rows from read-only information. A colon separates UI framing from the model's reading, preserving its capitalization and tense in live results and History. Proofmark red also identifies destructive actions: the swipe-to-delete background and every Delete or Remove action, including confirmation buttons. The swipe background uses the theme's contrasting foreground.
 
 A checkmark with text identifies a completed review: "Sounds natural" or "All changes accepted". Accepted changes are still waiting for Replace (Send in the chat); the checkmark does not imply they were put back in the source app. Clarification updates the result directly without a separate confirmation banner.
 

@@ -80,7 +80,7 @@ class SessionAssumptionsScreenTest {
         assertTrue(hasText("Person"))
         assertTrue(hasText("Catalan speakers"))
         assertTrue(hasText("Tomorrow"))
-        assertFalse("A past check offers no clarify", hasText(activity.getString(R.string.not_what_you_mean)))
+        assertFalse("A past check offers no clarify", hasText(activity.getString(R.string.clarify_what_you_mean)))
         assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label?.startsWith("Clarify") == true })
         assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.SetText) != null })
         assertFalse("The readings are here, not behind a link", hasText(activity.getString(R.string.assumptions_count, 2)))

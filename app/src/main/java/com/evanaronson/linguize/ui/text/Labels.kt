@@ -120,6 +120,7 @@ val CheckFailure.Reason.hintResource: Int?
         CheckFailure.Reason.BadKey -> R.string.hint_bad_key
         CheckFailure.Reason.BadModel -> R.string.hint_bad_model
         CheckFailure.Reason.Offline -> R.string.hint_offline
+        CheckFailure.Reason.Timeout, CheckFailure.Reason.Server -> R.string.hint_wait_moment
         CheckFailure.Reason.RateLimited -> R.string.hint_rate_limited
         CheckFailure.Reason.TooLong -> R.string.hint_too_long
         CheckFailure.Reason.TooMany -> R.string.hint_too_many

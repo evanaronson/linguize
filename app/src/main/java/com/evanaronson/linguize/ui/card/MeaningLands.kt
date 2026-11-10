@@ -42,7 +42,7 @@ import com.evanaronson.linguize.ui.tonecheck.overallTitle
  *
  * Collapsed: Meaning, the meaning in up to two lines, "Lands well · friendly", and how many
  * readings are still assumed. Expanded, top to bottom: the full meaning, the writer's
- * clarification (or "Not what you mean"), the assumptions it rests on, then how it lands.
+ * clarification (or "Clarify what you mean"), the assumptions it rests on, then how it lands.
  */
 
 /** The parts of the open section, in the order they are drawn and read. */

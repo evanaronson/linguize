@@ -136,6 +136,18 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpen
         }
     }
 
+    // Lab, IA History: what you wrote, what was put back and what changed come first, together;
+    // the readings of it (Meaning, How it lands) follow as context.
+    SectionHeader(stringResource(R.string.history_after))
+    SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
+
+    CompositionLocalProvider(LocalLessonSource provides LessonSource(session.targetLanguage ?: session.detectedLanguage, session.text)) {
+        ProvidePhraseOrigin(PhraseOrigin.of(session)) {
+            SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+                reviewed = reviewed, settled = settled)
+        }
+    }
+
     if (reviewed != null && (reviewed.meaning.isNotBlank() || reviewed.assumptions.isNotEmpty() || settled.isNotEmpty())) {
         SectionHeader(stringResource(R.string.meaning))
         SectionCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)) {
@@ -156,16 +168,6 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit, onOpen
     }
 
     com.evanaronson.linguize.ui.tonecheck.SavedLandingSection(reviewed?.landing)
-
-    SectionHeader(stringResource(R.string.history_after))
-    SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
-
-    CompositionLocalProvider(LocalLessonSource provides LessonSource(session.targetLanguage ?: session.detectedLanguage, session.text)) {
-        ProvidePhraseOrigin(PhraseOrigin.of(session)) {
-            SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-                reviewed = reviewed, settled = settled)
-        }
-    }
 }
 
 /** The readings a past check's suggestions rested on, and the writer's answers, read-only. */

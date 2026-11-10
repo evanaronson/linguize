@@ -33,6 +33,8 @@ as it is scannable, so days get headers and sources get a filter.
   language. The choice survives rotation and coming back to the
   tab. A filter with nothing left says so ("No messages from WhatsApp yet.", "No chat
   messages yet.", "No messages in Catalan yet.").
+- The order of the tab and of the saved check is set out in
+  [History tab: information hierarchy](ia-history.md).
 
 ## How it works
 

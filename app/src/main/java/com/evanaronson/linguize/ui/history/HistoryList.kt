@@ -84,6 +84,26 @@ internal fun filterChoices(rows: List<RecentRow>, selected: HistoryFilter = Hist
 internal fun historyRows(rows: List<RecentRow>, filter: HistoryFilter, language: String?): List<RecentRow> =
     rows.filter { filter.keeps(it) && LanguageScope.keeps(it.summary.targetLanguage, language) }
 
+/**
+ * Lab, IA History: the sources to offer in [language] (null is every language): only those
+ * with messages in it, plus [selected], so the dropdown never offers an app with nothing to show.
+ */
+internal fun filterChoices(rows: List<RecentRow>, selected: HistoryFilter, language: String?): List<HistoryFilter> =
+    filterChoices(historyRows(rows, HistoryFilter.All, language), selected)
+
+/**
+ * Lab, IA History: what an empty filter says, naming the language when the list is in one
+ * ("No messages from WhatsApp in Catalan yet."). Its arguments are the app's name (for an app),
+ * then the language's. Null for All sources under Linguize: an empty History has its own page.
+ */
+internal fun emptyFilterResource(filter: HistoryFilter, language: String?): Int? = when (filter) {
+    is HistoryFilter.App ->
+        if (language == null) R.string.lab_history_flat_no_app_messages else R.string.lab_ia_history_no_app_messages_in
+    HistoryFilter.Chat ->
+        if (language == null) R.string.lab_history_flat_no_chat_messages else R.string.lab_ia_history_no_chat_messages_in
+    HistoryFilter.All -> language?.let { R.string.lab_language_scope_history_empty }
+}
+
 /** An app chip's name: the app's label from any of its rows, else its package name. */
 internal fun appName(rows: List<RecentRow>, filter: HistoryFilter.App): String =
     rows.firstOrNull { it.summary.hostApp == filter.packageName && it.appLabel != null }?.appLabel ?: filter.packageName

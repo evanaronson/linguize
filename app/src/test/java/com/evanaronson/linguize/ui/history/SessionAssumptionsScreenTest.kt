@@ -60,6 +60,21 @@ class SessionAssumptionsScreenTest {
     }
 
     @Test
+    fun beforeAfterAndChangesComeFirstThenTheReadings() = withScreen(showAssumptions = false) {
+        load(SessionDetailResult.Found(detail))
+
+        val order = listOf(R.string.history_before, R.string.history_after, R.string.history_suggestions,
+            R.string.meaning, R.string.delete_this_check).map { activity.getString(it) }
+        // The page is one column, so the semantics tree lists its parts top to bottom.
+        val all = nodes()
+        val positions = order.map { text ->
+            all.indexOfFirst { it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text.startsWith(text) } == true }
+        }
+        assertTrue("$order at $positions", positions.all { it >= 0 })
+        assertEquals(positions.sorted(), positions)
+    }
+
+    @Test
     fun savedClarificationsKeepTheirTopicAndRemainReadOnly() = withScreen {
         load(SessionDetailResult.Found(detail))
 

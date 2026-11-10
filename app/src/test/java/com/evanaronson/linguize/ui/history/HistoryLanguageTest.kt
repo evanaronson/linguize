@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.history
 
+import com.evanaronson.linguize.R
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionSummary
@@ -33,5 +34,25 @@ class HistoryLanguageTest {
         assertEquals(listOf("3"), historyRows(rows, HistoryFilter.Chat, "ca").map { it.summary.id })
         assertEquals(listOf("1"), historyRows(rows, HistoryFilter.App("com.whatsapp"), "ca").map { it.summary.id })
         assertEquals(listOf("1", "2", "4"), historyRows(rows, HistoryFilter.App("com.whatsapp"), null).map { it.summary.id })
+    }
+
+    @Test fun theSourceDropdownOffersOnlySourcesInTheLanguage() {
+        val whatsapp = HistoryFilter.App("com.whatsapp")
+        assertEquals(listOf(HistoryFilter.All, whatsapp, HistoryFilter.Chat), filterChoices(rows, HistoryFilter.All, null))
+        assertEquals(listOf(HistoryFilter.All, whatsapp, HistoryFilter.Chat), filterChoices(rows, HistoryFilter.All, "ca"))
+        // Spanish has only WhatsApp: one source, nothing to choose.
+        assertEquals(listOf(HistoryFilter.All, whatsapp), filterChoices(rows, HistoryFilter.All, "es"))
+        // A chosen source stays offered after switching to a language without it, so the writer can go back.
+        assertEquals(listOf(HistoryFilter.All, whatsapp, HistoryFilter.Chat), filterChoices(rows, HistoryFilter.Chat, "es"))
+    }
+
+    @Test fun anEmptyFilterNamesTheLanguageWhenThereIsOne() {
+        val whatsapp = HistoryFilter.App("com.whatsapp")
+        assertEquals(R.string.lab_history_flat_no_app_messages, emptyFilterResource(whatsapp, null))
+        assertEquals(R.string.lab_ia_history_no_app_messages_in, emptyFilterResource(whatsapp, "ca"))
+        assertEquals(R.string.lab_history_flat_no_chat_messages, emptyFilterResource(HistoryFilter.Chat, null))
+        assertEquals(R.string.lab_ia_history_no_chat_messages_in, emptyFilterResource(HistoryFilter.Chat, "ca"))
+        assertEquals(R.string.lab_language_scope_history_empty, emptyFilterResource(HistoryFilter.All, "ca"))
+        assertEquals(null, emptyFilterResource(HistoryFilter.All, null))
     }
 }

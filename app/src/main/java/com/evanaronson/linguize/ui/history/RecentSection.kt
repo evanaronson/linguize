@@ -94,7 +94,14 @@ internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: Snackb
  * "Chat · Weekend plans"), language; the text; what came of it. The day is in the header above.
  */
 @Composable
-internal fun SessionRow(row: RecentRow, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
+internal fun SessionRow(
+    row: RecentRow,
+    time: DateTimeFormatter,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    /** Lab, IA History: false when the list is in one language, so every row would repeat it. */
+    showLanguage: Boolean = true,
+) {
     val summary = row.summary
     val resources = LocalResources.current
     val deleteLabel = stringResource(R.string.delete_check)
@@ -119,7 +126,8 @@ internal fun SessionRow(row: RecentRow, time: DateTimeFormatter, onClick: () -> 
             listOfNotNull(
                 time.format(Instant.ofEpochMilli(summary.startedAt).atZone(ZoneId.systemDefault())),
                 row.sourceLabel(resources),
-                targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage)).joinToString(stringResource(R.string.status_separator)),
+                targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage).takeIf { showLanguage },
+            ).joinToString(stringResource(R.string.status_separator)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

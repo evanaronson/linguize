@@ -51,7 +51,7 @@
     <string name="what_did_you_mean">What did you mean?</string>
     <string name="show_understanding">Show how Linguize read it</string>
     <string name="ai_could_not_understand">Linguize couldn\'t tell what this means</string>
-    <string name="check_full_sentence">Check a full sentence in Catalan or Spanish</string>
+    <string name="check_full_sentence">Check a full sentence</string>
     <string name="choose_auto_language">Choose Auto Detect to detect the language.</string>
     <string name="your_text">Your text</string>
     <string name="no_text_to_check">No text to check.</string>
@@ -220,7 +220,6 @@
     <string name="menu_note">Each entry checks in that language. Keep at least one.</string>
     <string name="popup_position_bottom_description">Leaves the top of the app visible.</string>
     <string name="popup_position_top_description">Leaves the typing field visible.</string>
-    <string name="try_it_sample" translatable="false">Bon dia! Com estas amb la pluja?</string>
 
     <!-- Always pass the count as a format argument as well as the quantity. -->
     <plurals name="fix_count">

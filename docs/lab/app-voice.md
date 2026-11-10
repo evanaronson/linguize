@@ -18,7 +18,7 @@ the app's voice, and the card says so in one short line.
 - **Settings › Writing preferences › Per-app voice.** The page lists apps with a
   rule, then apps from recent History, then installed messaging and email apps.
 - Tap an app to set:
-  - **Language**: Auto Detect, Catalan or Spanish.
+  - **Language**: Auto Detect or one of your languages.
   - **Register**: Same as settings, Casual, Everyday or Formal.
   - **What to suggest**: Same as settings, Fixes and rewordings, Fixes only or
     Rewordings only.

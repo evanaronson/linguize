@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
-import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.write.WriteDraft
 import com.evanaronson.linguize.data.write.WriteDraftStore
 import kotlinx.coroutines.CoroutineDispatcher
@@ -26,11 +25,12 @@ import java.util.UUID
 /**
  * Notes' editor (once Write): the open note's text and language, and the other notes. Each note is kept as a draft in the store (`data/write`, `lab_write.json`, names kept so nothing moves). Text is saved
  * [saveMillis] after typing stops and at once on [flush] (leaving the tab or the app). A blank
- * draft, or the untouched [sample] a fresh install starts with, is never kept.
+ * draft, or the untouched sample a fresh install starts with, is never kept. [sample] picks it
+ * (read off the main thread): a sentence in one of the writer's languages, see [NoteSamples].
  */
 class NotesViewModel(
     private val store: WriteDraftStore,
-    private val sample: String,
+    private val sample: () -> String,
     private val saveMillis: Long = SAVE_MILLIS,
     private val clock: () -> Long = System::currentTimeMillis,
     private val io: CoroutineDispatcher = Dispatchers.IO,
@@ -52,7 +52,9 @@ class NotesViewModel(
         private set
 
     /** The editor holds the untouched sample a fresh install starts with, which is never saved. */
-    val showingSample: Boolean get() = text == sample
+    val showingSample: Boolean get() = sampleText != null && text == sampleText
+
+    private var sampleText: String? = null
 
     private val lock = Mutex()
     private var id: String? = null
@@ -63,11 +65,12 @@ class NotesViewModel(
     init {
         viewModelScope.launch {
             val stored = stored { it.load() }
+            sampleText = withContext(io) { sample() }
             // Typing before the drafts were read wins over what was stored.
             if (!touched) {
                 val current = stored.current
                 show(current)
-                if (current == null && stored.drafts.isEmpty()) text = sample
+                if (current == null && stored.drafts.isEmpty()) text = sampleText.orEmpty()
             }
             drafts = stored.others
         }
@@ -149,7 +152,7 @@ class NotesViewModel(
         return Snapshot(id, text, language, title)
     }
 
-    private fun keeps(value: String) = value.isNotBlank() && value != sample
+    private fun keeps(value: String) = value.isNotBlank() && value != sampleText
 
     private suspend fun persist(snapshot: Snapshot) {
         val draftId = snapshot.id ?: return
@@ -182,7 +185,7 @@ class NotesViewModel(
                         File(app.filesDir, WriteDraftStore.FILE_NAME),
                         legacy = File(app.filesDir, WriteDraftStore.PAD_FILE_NAME),
                     ),
-                    sample = app.getString(R.string.try_it_sample),
+                    sample = { NoteSamples.forLanguages(runCatching { app.settings.myLanguages.codes }.getOrDefault(emptyList())) },
                 )
             }
         }

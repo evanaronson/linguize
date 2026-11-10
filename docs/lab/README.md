@@ -31,15 +31,15 @@ Settings behind the gear.
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 | Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |
-| Everywhere | [Language scope](language-scope.md): one language selector in the top bar (Linguize, Catalanize, Castilianize); Chat, Notes, Progress and History follow it. [Home and navigation](home-ia.md): one top bar on every tab | Top bar |
+| Everywhere | [Language scope](language-scope.md): one language selector in the top bar (Linguize, then the writer's languages by brand name, such as Catalanize or Gallicize); Chat, Notes, Progress and History follow it. [Home and navigation](home-ia.md): one top bar on every tab | Top bar |
 | Everywhere | [Expand pattern](expand-pattern.md): secondary detail opens in place with one shared Disclosure; pages only for destinations | History, Chat; next the card |
 | Everywhere | [Any language](language-generic.md): any ISO 639-1 language works end to end; the writer's languages are the selector's short list, with one writing profile each | Top bar; Settings; card picker |
 
 ## Language scope
 
 The writer's current language is app-level context. One selector in the top bar of the
-four tabs sets it: **Linguize** (Auto, the default: every language), **Catalanize** or
-**Castilianize**. The Chat list and new conversations, Notes' checks, Progress and History
+four tabs sets it: **Linguize** (Auto, the default: every language), or one of the writer's
+languages by its brand name (**Catalanize**, **Castilianize**, **Gallicize**, …). The Chat list and new conversations, Notes' checks, Progress and History
 follow it; no screen has a language choice of its own. Checks from other apps aren't scoped:
 they detect the language (or use the Catalanize or Castilianize menu entry) and file under
 it. Data with no known language shows only under Linguize. See
@@ -48,8 +48,8 @@ it. Data with no known language shows only under Linguize. See
 ## What Linguize is, from first principles
 
 **The person.** An adult who lives in, or regularly writes in, a language that is
-not their first: today Spanish and Catalan, with English as the usual native
-language. They can already communicate. Their problem is not "how do I say this
+not their first: any language, from Spanish or Catalan to French, German or Japanese,
+and any native language. They can already communicate. Their problem is not "how do I say this
 at all" but "is what I wrote right, and does it sound like a person from here?"
 The writing is short, social and consequential: a WhatsApp to a landlord, a
 message to a colleague, a reply in a neighbours' group, an email to the school.

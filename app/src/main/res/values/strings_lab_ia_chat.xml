@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, Chat tab IA (docs/lab/ia-chat.md). -->
+    <!-- A conversation row's last line when the writer sent the latest message: whose turn it is. -->
+    <string name="lab_ia_chat_last_you">You: %1$s</string>
+    <!-- Under a sent message whose accepted changes were all rewordings: nothing in it was wrong. -->
+    <plurals name="lab_ia_chat_reworded_count">
+        <item quantity="one">Reworded, %d change</item>
+        <item quantity="other">Reworded, %d changes</item>
+    </plurals>
+    <!-- New-conversation sheet: above the people memory knows, offered as suggestions. -->
+    <string name="lab_ia_chat_people">People you write to</string>
+</resources>

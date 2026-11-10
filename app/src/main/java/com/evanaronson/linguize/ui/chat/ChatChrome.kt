@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import com.evanaronson.linguize.core.chat.ChatLabels
 import com.evanaronson.linguize.core.chat.ConversationSummary
 import com.evanaronson.linguize.core.chat.NewConversation
 import com.evanaronson.linguize.ui.components.LinguizeButton
@@ -112,12 +113,16 @@ internal fun ConversationList(
     onOpen: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
+    /** No key yet: the list says so first, since no partner can answer (Lab, Chat tab IA). */
+    needsKey: Boolean = false,
+    onOpenSettings: () -> Unit = {},
 ) {
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     var starting by rememberSaveable { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)) {
+            if (needsKey) item(key = "no_key") { NoKeyStrip(onOpenSettings) }
             if (conversations.isEmpty()) item(key = "empty") {
                 val name = language?.let { scopeLanguageName(it) }
                 Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp)) {
@@ -200,9 +205,14 @@ private fun NewConversationSheet(
             Spacer(Modifier.height(12.dp))
             LinguizeTextField(who, { who = it.take(com.evanaronson.linguize.llm.chat.ChatPrompt.MAX_PERSONA) },
                 label = stringResource(R.string.lab_chat_who_label),
-                placeholder = stringResource(R.string.lab_chat_who_placeholder), singleLine = true)
+                placeholder = stringResource(R.string.lab_chat_who_placeholder),
+                supporting = stringResource(R.string.lab_chat_who_note), singleLine = true)
             if (people.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
+                // Lab, Chat tab IA: the suggestions say what they are (memory's "People you write to").
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.lab_ia_chat_people), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     people.take(MAX_PEOPLE).forEach { person ->
                         LinguizeButton(person.take(40), { who = person.take(com.evanaronson.linguize.llm.chat.ChatPrompt.MAX_PERSONA) },
@@ -210,9 +220,6 @@ private fun NewConversationSheet(
                     }
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.lab_chat_who_note), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 LanguageIcon(language?.let { LanguageOption(it) })
@@ -247,7 +254,11 @@ private fun ConversationRow(
     val title = conversation.title.ifEmpty { stringResource(R.string.lab_chat_untitled) }
     val language = languageDisplayName(conversation.language)
     val time = lastTime(conversation.updatedAt)
-    val row = stringResource(R.string.lab_chat_row, title, language, time)
+    val persona = conversation.persona?.takeIf { it != title }?.let { stringResource(R.string.lab_chat_talking_to, it) }
+    // Lab, Chat tab IA: whose turn it is. The writer's own last message reads "You: …".
+    val last = summary.lastText?.let { if (summary.lastFromWriter) stringResource(R.string.lab_ia_chat_last_you, it) else it }
+    // Everything the row shows, so a screen reader hears who and what too, not only the title.
+    val row = ChatLabels.rowDescription(title, persona, language, time, last)
     var menu by rememberSaveable { mutableStateOf(false) }
     Row(
         Modifier
@@ -270,11 +281,11 @@ private fun ConversationRow(
                 }
                 Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
-            conversation.persona?.takeIf { it != title }?.let {
-                Text(stringResource(R.string.lab_chat_talking_to, it), style = MaterialTheme.typography.labelMedium,
+            persona?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            summary.lastText?.let {
+            last?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

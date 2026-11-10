@@ -173,7 +173,7 @@ class HomeActivity : ComponentActivity() {
                                 is Screen.WordDetail -> com.evanaronson.linguize.ui.words.WordDetailScreen(
                                     words, current.language, current.key, current.level, onOpenCheck = ::open,
                                 )
-                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatListScreen(language) {
+                                Screen.Chat -> com.evanaronson.linguize.ui.chat.ChatListScreen(language, openSettings) {
                                     navigation = navigation.open(Screen.ChatThread(it))
                                 }
                                 is Screen.ChatThread -> com.evanaronson.linguize.ui.chat.ChatThreadScreen(

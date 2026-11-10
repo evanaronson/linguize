@@ -68,6 +68,7 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Edit
 import com.evanaronson.linguize.core.EditKind
+import com.evanaronson.linguize.core.chat.ChatLabels
 import com.evanaronson.linguize.core.chat.ChatMessage
 import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.chat.SentCheck
@@ -209,7 +210,11 @@ private fun CheckMark(message: ChatMessage, expanded: Boolean, onToggle: () -> U
             modifier = Modifier.padding(top = 4.dp, end = 4.dp))
         SentCheck.Corrected -> {
             val count = message.changes.size
-            val label = pluralStringResource(R.plurals.lab_chat_changes_count, count, count)
+            // Lab, Chat tab IA: "Corrected" only when a fix was accepted; rewordings alone weren't mistakes.
+            val label = when (ChatLabels.sent(message.changes)) {
+                ChatLabels.Sent.Corrected -> pluralStringResource(R.plurals.lab_chat_changes_count, count, count)
+                ChatLabels.Sent.Reworded -> pluralStringResource(R.plurals.lab_ia_chat_reworded_count, count, count)
+            }
             val action = stringResource(if (expanded) R.string.lab_chat_hide_changes else R.string.lab_chat_show_changes)
             Row(
                 Modifier

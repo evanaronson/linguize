@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Inuktitut and Inupiaq, after the Inuit Circumpolar Council's flag. See docs/lab/language-catalog.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FF2F7BC4" android:pathData="M12,0A12,12 0,1 1,12,24A12,12 0,1 1,12,0Z" />
+    <path android:fillColor="#FFD52B1E" android:pathData="M5.8,12A6.2,6.2 0,0 1,18.2,12Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M5.8,12A6.2,6.2 0,0 0,18.2,12Z" />
+</vector>

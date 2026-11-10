@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Avestan, a flame for the sacred fire. See docs/lab/language-catalog.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FF1E4E5C" android:pathData="M12,0A12,12 0,1 1,12,24A12,12 0,1 1,12,0Z" />
+    <path android:fillColor="#FFF2A33A" android:pathData="M12,4.8C14.6,8 17.2,10.4 17.2,14.1C17.2,17.1 14.9,19.2 12,19.2C9.1,19.2 6.8,17.1 6.8,14.1C6.8,11.6 8.3,10 9.4,8.4C9.7,9.9 10.4,10.9 11.2,11.4C10.9,9 11.2,7 12,4.8Z" />
+    <path android:fillColor="#FFFFE08A" android:pathData="M12,11C13.3,12.6 14.4,13.8 14.4,15.4C14.4,16.9 13.3,17.8 12,17.8C10.7,17.8 9.6,16.9 9.6,15.4C9.6,14.2 10.4,13.3 11,12.6C11.2,13.4 11.6,13.8 12,14C11.8,13 11.8,12 12,11Z" />
+</vector>

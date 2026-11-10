@@ -71,6 +71,12 @@ internal sealed interface Screen {
      */
     data class ChatThread(val id: String?) : Screen
 
+    /** Lab, lang-selector: the writer's languages, from the selector's "Add languages…" and from Settings. */
+    data object Languages : Screen
+
+    /** Lab, lang-selector: Settings › About › Open-source notices. */
+    data object Notices : Screen
+
     /** A bottom-bar destination: opening one replaces the path above the start destination. */
     val isTab: Boolean get() = this in tabs
 
@@ -98,6 +104,8 @@ internal sealed interface Screen {
             Progress -> "progress"
             TimeSpent -> "lab_time_spent"
             is ChatThread -> if (id == null) CHAT_THREAD else "$CHAT_THREAD:$id"
+            Languages -> "lab_lang_selector"
+            Notices -> "lab_lang_selector_notices"
         }
 
     companion object {
@@ -141,6 +149,8 @@ internal sealed interface Screen {
             saved == "lab_time_spent" -> TimeSpent
             saved == CHAT_THREAD -> ChatThread(null)
             saved.startsWith("$CHAT_THREAD:") && saved.length > CHAT_THREAD.length + 1 -> ChatThread(saved.removePrefix("$CHAT_THREAD:"))
+            saved == "lab_lang_selector" -> Languages
+            saved == "lab_lang_selector_notices" -> Notices
             else -> null
         }
     }

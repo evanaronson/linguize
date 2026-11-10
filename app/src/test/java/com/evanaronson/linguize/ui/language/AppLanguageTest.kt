@@ -2,7 +2,6 @@ package com.evanaronson.linguize.ui.language
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
-import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.data.language.LanguageChoice
@@ -83,17 +82,17 @@ class AppLanguageTest {
         assertEquals("Linguize", name(null))
         assertEquals("Catalanize", name("ca"))
         assertEquals("Castilianize", name("es"))
-        // Any other language is called by its own name, with a code badge.
+        // Any other language takes the catalog's brand name (CatalogLanguageNamesTest).
         assertNull(brandNameResource("en"))
-        assertNull(flagFor("en", null))
     }
 
-    @Test fun flagsFollowTheProfilesVarietyAndOtherLanguagesGetABadge() {
-        assertEquals(R.drawable.lab_language_scope_flag_ca, flagFor("ca", null))
-        assertEquals(R.drawable.lab_language_scope_flag_es, flagFor("es", "Peninsular"))
-        assertEquals(R.drawable.lab_language_scope_flag_es, flagFor("es", null))
-        assertEquals(R.drawable.lab_language_scope_flag_mx, flagFor("es", "Mexican Spanish"))
-        assertEquals(R.drawable.lab_language_scope_flag_ar, flagFor("es", "Rioplatense"))
-        assertNull(flagFor("en", null))
+    @Test fun theShortListIsLinguizeThenTheWritersLanguagesInOrder() = runBlocking {
+        val app = language(Choice())
+        app.load()
+        assertEquals(listOf(null, "ca", "es"), selectorOptions(app.options.value).map { it?.code })
+        assertEquals("Mexican", app.options.value.first { it.code == "es" }.variety)
+        assertEquals("Mexican", app.varietyOf("es"))
+        app.languagesChanged(listOf("fr", "ca"))
+        assertEquals(listOf(null, "fr", "ca"), selectorOptions(app.options.value).map { it?.code })
     }
 }

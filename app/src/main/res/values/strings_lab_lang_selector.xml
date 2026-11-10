@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, lang-selector: the selector's "Add languages…", the Languages page (from the selector and Settings) and Open-source notices. -->
+    <string name="lab_lang_selector_add">Add languages…</string>
+    <string name="lab_lang_selector_title">Languages</string>
+    <string name="lab_lang_selector_search">Search languages</string>
+    <string name="lab_lang_selector_note">Checked languages appear in the selector at the top. Unchecking one keeps everything saved in it.</string>
+    <string name="lab_lang_selector_yours">Your languages</string>
+    <string name="lab_lang_selector_suggested">Suggested</string>
+    <string name="lab_lang_selector_suggested_note">You\'ve written in these before.</string>
+    <string name="lab_lang_selector_every">Every language</string>
+    <!-- %1$s: what was typed in the search field. -->
+    <string name="lab_lang_selector_no_results">No language matches “%1$s”</string>
+    <!-- %1$s: a brand name, "Catalanize". -->
+    <string name="lab_lang_selector_last">%1$s is your only language. Check another one first.</string>
+    <!-- %1$d: the most languages the list holds (24). -->
+    <string name="lab_lang_selector_full">You can have up to %1$d languages. Uncheck one first.</string>
+    <!-- %1$s: a brand name, "Castilianize". The action of the up arrow beside a language. -->
+    <string name="lab_lang_selector_move_up">Move %1$s up</string>
+    <!-- Screen readers: %1$s brand name, %2$s English name, %3$s the language's own name. -->
+    <string name="lab_lang_selector_row">%1$s, %2$s, %3$s</string>
+    <string name="lab_lang_selector_about">About</string>
+    <string name="lab_lang_selector_notices">Open-source notices</string>
+    <string name="lab_lang_selector_notices_summary">Language names, flags and word lists</string>
+</resources>

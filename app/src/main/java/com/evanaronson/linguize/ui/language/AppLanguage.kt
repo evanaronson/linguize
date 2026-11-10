@@ -86,6 +86,12 @@ class AppLanguage internal constructor(
     /** Removes [code] from the writer's languages; the last one stays. */
     suspend fun remove(code: String) = languagesChanged(withContext(Dispatchers.IO) { languages.remove(code) })
 
+    /** Moves [code] to [index] in the writer's languages (Lab, lang-selector: the short list's order). */
+    suspend fun move(code: String, index: Int) = languagesChanged(withContext(Dispatchers.IO) { languages.move(code, index) })
+
+    /** The variety the writer's profile names for [code] (for Castilianize's flag), once [load]ed. */
+    fun varietyOf(code: String): String? = profileCache.firstOrNull { it.language == code }?.variety
+
     private fun refreshOptions() {
         mutableOptions.value = optionsFor()
         mutableSuggested.value = LanguageScope.suggested(dataCache, mutableMine.value)

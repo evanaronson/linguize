@@ -153,6 +153,8 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Lab, lang-selector: every language label in the app comes from the language catalog.
+        com.evanaronson.linguize.data.language.CatalogLanguageNames.install(this)
         // onCreate runs once per process, so this does too. A session open in the database
         // that this process didn't open was open when an earlier process ended.
         appScope.launch {

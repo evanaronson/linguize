@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Church Slavonic, little yus (Ѧ). See docs/lab/language-catalog.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FF8E2B3A" android:pathData="M12,0A12,12 0,1 1,12,24A12,12 0,1 1,12,0Z" />
+    <path android:strokeColor="#FFF6D98E" android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M6.6,17.6L12,6.4L17.4,17.6M9.4,12.6H14.6M12,12.6V17.6" />
+</vector>

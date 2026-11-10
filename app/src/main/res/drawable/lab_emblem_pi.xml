@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab, lang-selector: Pali, the Dhamma wheel. See docs/lab/language-catalog.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFD9821E" android:pathData="M12,0A12,12 0,1 1,12,24A12,12 0,1 1,12,0Z" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.4" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M12,6.1A5.9,5.9 0,1 1,12,17.9A5.9,5.9 0,1 1,12,6.1Z" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.1" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:pathData="M13.48,12.61L17.17,14.14M12.61,13.48L14.14,17.17M11.39,13.48L9.86,17.17M10.52,12.61L6.83,14.14M10.52,11.39L6.83,9.86M11.39,10.52L9.86,6.83M12.61,10.52L14.14,6.83M13.48,11.39L17.17,9.86" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M12,10.4A1.6,1.6 0,1 1,12,13.6A1.6,1.6 0,1 1,12,10.4Z" />
+</vector>

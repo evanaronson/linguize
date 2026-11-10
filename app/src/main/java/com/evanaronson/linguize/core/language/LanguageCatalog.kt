@@ -9,8 +9,8 @@ import kotlinx.serialization.json.Json
 /**
  * One language of the app-wide catalog (`assets/lab_languages.json`): an ISO 639-1 [code], its
  * [english] name and [native] name (autonym, both from Unicode CLDR where it has them), the
- * product's [brand] verb ("Catalanize", "Anglicize") and its circular [flag] key, or null when
- * no flag is fair and the UI draws a code badge. See docs/lab/language-catalog.md.
+ * product's [brand] verb ("Catalanize", "Anglicize") and its circular [flag] key, or, when no
+ * flag is fair, the [emblem] Linguize draws for it instead. See docs/lab/language-catalog.md.
  */
 @Serializable
 data class CatalogLanguage(
@@ -20,6 +20,11 @@ data class CatalogLanguage(
     val brand: String,
     /** A circle-flags file name ("es-ct" is the senyera, "gb" the UK), not a language code. */
     val flag: String? = null,
+    /**
+     * When there is no [flag]: the key of the circular emblem Linguize draws for the language
+     * (the Navajo Nation's flag, the Inuit flag, a letter of its script). Never a code badge.
+     */
+    val emblem: String? = null,
     /** "living", "classical" (Latin, Sanskrit, …) or "constructed" (Esperanto, …). */
     val kind: String = LIVING,
     /** True for an ISO 639-3 macrolanguage (Arabic, Chinese, Norwegian, …). */
@@ -74,6 +79,9 @@ class LanguageCatalog(languages: List<CatalogLanguage>) {
 
     /** The brand verb for [code] ("Catalanize", "Anglicize"), or null for a code not in the catalog. */
     fun brandName(code: String?): String? = find(code)?.brand
+
+    /** The emblem key for a language without a flag ("nv", "inuit"); null when it has a flag or isn't known. */
+    fun emblemKey(code: String?): String? = find(code)?.takeIf { it.flag == null }?.emblem
 
     /**
      * The flag key for [code]: the [variety]'s own flag when a variety's words appear in it

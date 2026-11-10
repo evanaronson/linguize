@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +54,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -81,6 +79,8 @@ import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.card.ReviewActions
 import com.evanaronson.linguize.ui.card.visibleValue
 import com.evanaronson.linguize.ui.components.ButtonKind
+import com.evanaronson.linguize.ui.components.DisclosureChevron
+import com.evanaronson.linguize.ui.components.disclosureToggle
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.text.titleResource
@@ -210,20 +210,19 @@ private fun CheckMark(message: ChatMessage, expanded: Boolean, onToggle: () -> U
         SentCheck.Corrected -> {
             val count = message.changes.size
             val label = pluralStringResource(R.plurals.lab_chat_changes_count, count, count)
-            val action = stringResource(if (expanded) R.string.lab_chat_hide_changes else R.string.lab_chat_show_changes)
             Row(
                 Modifier
                     .padding(top = 2.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClickLabel = action, onClick = onToggle)
+                    .disclosureToggle(expanded, { onToggle() },
+                        stringResource(R.string.lab_chat_show_changes), stringResource(R.string.lab_chat_hide_changes))
                     .heightIn(min = 32.dp)
-                    .padding(horizontal = 6.dp)
-                    .semantics { stateDescription = action },
+                    .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(label, style = style, color = Linguize.colors.proof)
                 Spacer(Modifier.width(4.dp))
-                Text(if (expanded) "▴" else "▾", style = style, color = Linguize.colors.proof, modifier = Modifier.clearAndSetSemantics {})
+                DisclosureChevron(expanded, size = 16)
             }
         }
     }

@@ -38,6 +38,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -118,6 +119,77 @@ class WordsQueryOwnershipTest {
         assertEquals(WordLevel.Lemmas, f.vm.state.value.shownLevel)
         assertEquals(VocabLevel.Lemma, f.vm.state.value.coverage?.deck?.level)
         assertEquals(VocabLevel.Lemma, f.store.selection().level)
+    }
+
+    @Test fun formsAndLexemesReuseCoverageWithoutChangingCsvOrSelection() = runTest(main.dispatcher) {
+        val f = fixture()
+        advanceUntilIdle()
+        val coverage = f.vm.state.value.coverage
+        assertNotNull(coverage)
+        assertEquals(1, f.measurements.size)
+        f.vm.exportCsv()
+        advanceUntilIdle()
+        val csv = (f.vm.export.value as WordsExport.Ready).file.readText()
+
+        for (level in listOf(WordLevel.Forms, WordLevel.Lexemes)) {
+            f.vm.countBy(level)
+            advanceUntilIdle()
+            assertEquals(level, f.vm.state.value.shownLevel)
+            assertEquals(1, f.measurements.size)
+            assertSame(coverage, f.vm.state.value.coverage)
+            assertEquals(VocabSelection("es", "bundled-es"), f.store.selection())
+            f.vm.exportCsv()
+            advanceUntilIdle()
+            assertEquals(csv, (f.vm.export.value as WordsExport.Ready).file.readText())
+        }
+    }
+
+    @Test fun aNoPosDeckReusesCoverageAcrossLevelsWhileSelectionKeepsTheRequestedLevel() = runTest(main.dispatcher) {
+        val f = fixture()
+        advanceUntilIdle()
+        val imported = f.store.import("No POS", "es", listOf(DeckEntry(1, "casa"), DeckEntry(2, "perro")))
+        f.vm.selectDeck(imported.id)
+        advanceUntilIdle()
+        val coverage = f.vm.state.value.coverage
+        assertEquals(VocabLevel.Lemma, coverage?.deck?.level)
+        val builds = f.measurements.size
+
+        for (level in listOf(WordLevel.Forms, WordLevel.Lemmas, WordLevel.Lexemes)) {
+            f.vm.countBy(level)
+            advanceUntilIdle()
+            assertEquals(level, f.vm.state.value.shownLevel)
+            assertEquals(builds, f.measurements.size)
+            assertSame(coverage, f.vm.state.value.coverage)
+            val savedLevel = if (level == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme
+            assertEquals(VocabSelection("es", imported.id, savedLevel), f.store.selection())
+        }
+    }
+
+    @Test fun aRealLemmaVariantRebuildsCoverageAndChangesCsvRanksAndSavedSelection() = runTest(main.dispatcher) {
+        val f = fixture()
+        advanceUntilIdle()
+        val imported = f.store.import("Homographs", "es", listOf(
+            DeckEntry(1, "casa", "v"), DeckEntry(2, "perro", "n"), DeckEntry(3, "casa", "n"),
+        ))
+        f.vm.selectDeck(imported.id)
+        advanceUntilIdle()
+        val builds = f.measurements.size
+        assertEquals(setOf("casa/n"), f.vm.state.value.coverage?.used)
+        f.vm.exportCsv()
+        advanceUntilIdle()
+        val csv = (f.vm.export.value as WordsExport.Ready).file.readText()
+        assertTrue(csv.contains("casa,casa,n,3,1,0,100,"))
+
+        f.vm.countBy(WordLevel.Lemmas)
+        advanceUntilIdle()
+        assertEquals(builds + 1, f.measurements.size)
+        assertEquals(WordLevel.Lemmas, f.vm.state.value.shownLevel)
+        assertEquals(VocabLevel.Lemma, f.vm.state.value.coverage?.deck?.level)
+        assertEquals(setOf("casa"), f.vm.state.value.coverage?.used)
+        assertEquals(VocabSelection("es", imported.id, VocabLevel.Lemma), f.store.selection())
+        f.vm.exportCsv()
+        advanceUntilIdle()
+        assertEquals(csv.replace("casa,casa,n,3,", "casa,casa,n,1,"), (f.vm.export.value as WordsExport.Ready).file.readText())
     }
 
     @Test fun evidenceRevisionInvalidatesImmediatelyAndOldCalculationCannotPublishLater() = runTest(main.dispatcher) {
@@ -387,6 +459,7 @@ class WordsQueryOwnershipTest {
     private data class Fixture(
         val vm: WordsViewModel, val source: Source, val revisions: MutableStateFlow<Long>,
         val store: VocabGapsStore, val library: DeckLibrary, val exports: Exports,
+        val measurements: List<VocabDeck>,
     )
 
     private fun fixture(
@@ -402,14 +475,16 @@ class WordsQueryOwnershipTest {
             BundledDecks { asset -> if (asset.contains("_ca")) "word\ngat\ngos\n" else "word,pos\ncasa,n\nperro,n\n" },
             io = libraryIo, compute = main.dispatcher)
         val exports = Exports(File(folder.root, "cache"))
+        val measurements = mutableListOf<VocabDeck>()
         val vm = WordsViewModel(Corpus(listOf(source)), morphology, library, revisions,
             compute = main.dispatcher, io = vmIo, exports = exports,
             countCoverage = { words, deck ->
                 gate?.awaitIfMatching(words, deck)
+                measurements += deck
                 DeckCoverage.build(words, deck, morphology)
             })
         owner.put("words", vm)
-        return Fixture(vm, source, revisions, store, library, exports)
+        return Fixture(vm, source, revisions, store, library, exports, measurements)
     }
 
     private fun pick(vm: WordsViewModel, name: String, text: String) {

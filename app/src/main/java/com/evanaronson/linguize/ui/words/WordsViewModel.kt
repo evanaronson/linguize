@@ -165,7 +165,6 @@ class WordsViewModel internal constructor(
     )
 
     private val queries = AtomicLong()
-    private val selectionWrites = Mutex()
     private val deleteWrites = Mutex()
     private val failedDeletes = LinkedHashSet<String>()
     private var queryJob: Job? = null
@@ -315,7 +314,10 @@ class WordsViewModel internal constructor(
         }
         val level = if (words.morphology) intent.level ?: WordLevel.Lexemes else WordLevel.Forms
         val key = CoverageKey(index.fingerprint, words.language, choice?.id, level)
-        val coverage = lastCoverage?.takeIf { it.first == key }?.second ?: deck?.let {
+        val coverage = lastCoverage?.takeIf { (previous, _) ->
+            previous == key || (deck != null && previous.copy(level = level) == key &&
+                (!deck.hasLexemes || (previous.level == WordLevel.Lemmas) == (level == WordLevel.Lemmas)))
+        }?.second ?: deck?.let {
             val variant = if (level == WordLevel.Lemmas || !it.hasLexemes) it.byLemma() else it
             countCoverage(words, variant)
         }
@@ -347,17 +349,14 @@ class WordsViewModel internal constructor(
         val lab = decks ?: return
         val language = key.language ?: return
         if (!restored) return
-        // The IO write checks the same atomic token under the store's lock. Serialization also
-        // ensures an already-started old write cannot finish after the newer selection is saved.
-        selectionWrites.withLock {
-            if (!current(query)) return
-            try {
-                val saved = lab.select(VocabSelection(language, key.deckId,
-                    if (key.level == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme)) { current(query) }
-                if (saved && current(query)) clearStorageFailure(WordsStorageFailure.SaveSelection)
-            } catch (_: IOException) {
-                if (current(query)) _state.update { it.copy(storageFailure = WordsStorageFailure.SaveSelection) }
-            }
+        // The store serializes this ownership check and the complete write under its shared lock.
+        if (!current(query)) return
+        try {
+            val saved = lab.select(VocabSelection(language, key.deckId,
+                if (key.level == WordLevel.Lemmas) VocabLevel.Lemma else VocabLevel.Lexeme)) { current(query) }
+            if (saved && current(query)) clearStorageFailure(WordsStorageFailure.SaveSelection)
+        } catch (_: IOException) {
+            if (current(query)) _state.update { it.copy(storageFailure = WordsStorageFailure.SaveSelection) }
         }
     }
 

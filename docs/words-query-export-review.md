@@ -256,3 +256,19 @@ The experiment, candidate diff and results are retained in the task workspace as
 `words-step2-checkout`, `words-step2-candidate.patch`, the three
 `words-step2-*-results.json` files, and baseline/candidate/negative-control/final
 logs. The branch receives this decision record only.
+
+## Step 3: implementation
+
+Applied the exact independently reviewed and tested candidate to `feature/bonanza`:
+equivalent coverage reuses its prior calculation, and selection writes use the
+store's existing shared lock without a second ViewModel mutex. Requested selection,
+missing-deck behavior, and query/export ownership remain as reviewed above.
+The five prospective tests are now installed; no existing test is removed or disabled.
+Production changes by -1 line, tests by +158. Cumulative production growth against
+`5b5ecd9` is now +2,118 lines.
+
+Validation: all 2,017 normal Kotlin cases pass, including all 2,012 preceding cases;
+all 144 Python tests, release lint/assembly, and the architecture check pass.
+Lint retains 65 warnings and one hint, with no errors. All 200 archived replay
+outputs match the preceding implementation. The five opt-in known-defect assertions
+still fail identically, with no errors or skips.

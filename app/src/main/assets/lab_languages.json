@@ -1,0 +1,1689 @@
+{
+ "version": 1,
+ "source": {
+  "codes": "ISO 639-1, as the two-letter codes in Unicode CLDR 49 supplemental aliases (cldr-core 49.0.0), plus tl and tw",
+  "english": "Unicode CLDR 49 English display names (cldr-localenames-full 49.0.0), Unicode License v3",
+  "native": "Unicode CLDR 49 display name of each language in itself; 43 without CLDR locale data from common reference usage",
+  "flags": "HatScripts circle-flags (MIT), commit 379588b",
+  "brand": "Linguize, docs/lab/language-catalog.md"
+ },
+ "languages": [
+  {
+   "code": "aa",
+   "english": "Afar",
+   "native": "Qafaraf",
+   "brand": "Afarize",
+   "flag": "et-af"
+  },
+  {
+   "code": "ab",
+   "english": "Abkhazian",
+   "native": "аԥсуа бызшәа",
+   "brand": "Abkhazize",
+   "flag": "ge-ab",
+   "aliases": [
+    "Abkhaz"
+   ]
+  },
+  {
+   "code": "ae",
+   "english": "Avestan",
+   "native": "avesta",
+   "brand": "Avestanize",
+   "flag": null,
+   "kind": "classical"
+  },
+  {
+   "code": "af",
+   "english": "Afrikaans",
+   "native": "Afrikaans",
+   "brand": "Afrikaanize",
+   "flag": "za"
+  },
+  {
+   "code": "ak",
+   "english": "Akan",
+   "native": "Akan",
+   "brand": "Akanize",
+   "flag": "gh",
+   "macrolanguage": true
+  },
+  {
+   "code": "am",
+   "english": "Amharic",
+   "native": "አማርኛ",
+   "brand": "Amharicize",
+   "flag": "et",
+   "notes": "Amharicize, not Amharize: Amharization names an assimilation policy."
+  },
+  {
+   "code": "an",
+   "english": "Aragonese",
+   "native": "aragonés",
+   "brand": "Aragonesize",
+   "flag": "es-ar"
+  },
+  {
+   "code": "ar",
+   "english": "Arabic",
+   "native": "العربية",
+   "brand": "Arabicize",
+   "flag": "language/ar",
+   "macrolanguage": true,
+   "notes": "Arabicize (adapt to Arabic, a linguistic term), not Arabize: Arabization also names forced-assimilation policies."
+  },
+  {
+   "code": "as",
+   "english": "Assamese",
+   "native": "অসমীয়া",
+   "brand": "Assamesize",
+   "flag": "in-as"
+  },
+  {
+   "code": "av",
+   "english": "Avaric",
+   "native": "авар мацӀ",
+   "brand": "Avarize",
+   "flag": "ru-da"
+  },
+  {
+   "code": "ay",
+   "english": "Aymara",
+   "native": "aymar aru",
+   "brand": "Aymarize",
+   "flag": "wiphala",
+   "macrolanguage": true
+  },
+  {
+   "code": "az",
+   "english": "Azerbaijani",
+   "native": "azərbaycan",
+   "brand": "Azerize",
+   "flag": "az",
+   "aliases": [
+    "Azeri"
+   ]
+  },
+  {
+   "code": "ba",
+   "english": "Bashkir",
+   "native": "башҡорт",
+   "brand": "Bashkirize",
+   "flag": "ru-ba"
+  },
+  {
+   "code": "be",
+   "english": "Belarusian",
+   "native": "беларуская",
+   "brand": "Belarusianize",
+   "flag": "by"
+  },
+  {
+   "code": "bg",
+   "english": "Bulgarian",
+   "native": "български",
+   "brand": "Bulgarianize",
+   "flag": "bg",
+   "notes": "Bulgarianize, not Bulgarize: Bulgarization names the 1980s forced renaming of Bulgarian Turks."
+  },
+  {
+   "code": "bi",
+   "english": "Bislama",
+   "native": "Bislama",
+   "brand": "Bislamize",
+   "flag": "vu"
+  },
+  {
+   "code": "bm",
+   "english": "Bambara",
+   "native": "bamanakan",
+   "brand": "Bambarize",
+   "flag": "ml"
+  },
+  {
+   "code": "bn",
+   "english": "Bangla",
+   "native": "বাংলা",
+   "brand": "Banglize",
+   "flag": "bd",
+   "aliases": [
+    "Bengali"
+   ]
+  },
+  {
+   "code": "bo",
+   "english": "Tibetan",
+   "native": "བོད་སྐད་",
+   "brand": "Tibetanize",
+   "flag": "cn-xz"
+  },
+  {
+   "code": "br",
+   "english": "Breton",
+   "native": "brezhoneg",
+   "brand": "Bretonize",
+   "flag": "fr-bre"
+  },
+  {
+   "code": "bs",
+   "english": "Bosnian",
+   "native": "bosanski",
+   "brand": "Bosnianize",
+   "flag": "ba"
+  },
+  {
+   "code": "ca",
+   "english": "Catalan",
+   "native": "català",
+   "brand": "Catalanize",
+   "flag": "es-ct",
+   "aliases": [
+    "Valencian"
+   ],
+   "varieties": [
+    {
+     "name": "Central",
+     "match": [
+      "central"
+     ],
+     "flag": "es-ct"
+    },
+    {
+     "name": "Valencian",
+     "match": [
+      "valencia"
+     ],
+     "flag": "es-vc"
+    },
+    {
+     "name": "Balearic",
+     "match": [
+      "balear",
+      "mallorc"
+     ],
+     "flag": "es-ib"
+    }
+   ]
+  },
+  {
+   "code": "ce",
+   "english": "Chechen",
+   "native": "нохчийн",
+   "brand": "Chechenize",
+   "flag": "ru-ce"
+  },
+  {
+   "code": "ch",
+   "english": "Chamorro",
+   "native": "Chamoru",
+   "brand": "Chamorrize",
+   "flag": "gu"
+  },
+  {
+   "code": "co",
+   "english": "Corsican",
+   "native": "corsu",
+   "brand": "Corsicanize",
+   "flag": "fr-20r"
+  },
+  {
+   "code": "cr",
+   "english": "Cree",
+   "native": "ᓀᐦᐃᔭᐍᐏᐣ",
+   "brand": "Creeize",
+   "flag": null,
+   "macrolanguage": true
+  },
+  {
+   "code": "cs",
+   "english": "Czech",
+   "native": "čeština",
+   "brand": "Czechize",
+   "flag": "cz"
+  },
+  {
+   "code": "cu",
+   "english": "Church Slavic",
+   "native": "ѩзыкъ словѣньскъ",
+   "brand": "Slavonicize",
+   "flag": null,
+   "kind": "classical",
+   "aliases": [
+    "Old Church Slavonic",
+    "Church Slavonic",
+    "Old Bulgarian"
+   ]
+  },
+  {
+   "code": "cv",
+   "english": "Chuvash",
+   "native": "чӑваш чӗлхи",
+   "brand": "Chuvashize",
+   "flag": "ru-cu"
+  },
+  {
+   "code": "cy",
+   "english": "Welsh",
+   "native": "Cymraeg",
+   "brand": "Cymricize",
+   "flag": "gb-wls"
+  },
+  {
+   "code": "da",
+   "english": "Danish",
+   "native": "dansk",
+   "brand": "Danicize",
+   "flag": "dk"
+  },
+  {
+   "code": "de",
+   "english": "German",
+   "native": "Deutsch",
+   "brand": "Germanize",
+   "flag": "de",
+   "varieties": [
+    {
+     "name": "Germany",
+     "match": [
+      "germany"
+     ],
+     "flag": "de"
+    },
+    {
+     "name": "Austrian",
+     "match": [
+      "austria",
+      "österreich"
+     ],
+     "flag": "at"
+    },
+    {
+     "name": "Swiss",
+     "match": [
+      "swiss",
+      "schweiz"
+     ],
+     "flag": "ch"
+    }
+   ],
+   "notes": "Germanize: both the established word and the pattern form."
+  },
+  {
+   "code": "dv",
+   "english": "Divehi",
+   "native": "ދިވެހި",
+   "brand": "Divehize",
+   "flag": "mv",
+   "aliases": [
+    "Dhivehi",
+    "Maldivian"
+   ]
+  },
+  {
+   "code": "dz",
+   "english": "Dzongkha",
+   "native": "རྫོང་ཁ",
+   "brand": "Dzongkhize",
+   "flag": "bt"
+  },
+  {
+   "code": "ee",
+   "english": "Ewe",
+   "native": "eʋegbe",
+   "brand": "Eweize",
+   "flag": "ewe"
+  },
+  {
+   "code": "el",
+   "english": "Greek",
+   "native": "Ελληνικά",
+   "brand": "Hellenize",
+   "flag": "gr",
+   "aliases": [
+    "Modern Greek"
+   ]
+  },
+  {
+   "code": "en",
+   "english": "English",
+   "native": "English",
+   "brand": "Anglicize",
+   "flag": "gb",
+   "varieties": [
+    {
+     "name": "British",
+     "match": [
+      "british",
+      "uk",
+      "england"
+     ],
+     "flag": "gb"
+    },
+    {
+     "name": "American",
+     "match": [
+      "american",
+      "us"
+     ],
+     "flag": "us"
+    },
+    {
+     "name": "Australian",
+     "match": [
+      "australia"
+     ],
+     "flag": "au"
+    },
+    {
+     "name": "Canadian",
+     "match": [
+      "canad"
+     ],
+     "flag": "ca"
+    },
+    {
+     "name": "Irish",
+     "match": [
+      "irish",
+      "ireland"
+     ],
+     "flag": "ie"
+    },
+    {
+     "name": "New Zealand",
+     "match": [
+      "zealand"
+     ],
+     "flag": "nz"
+    }
+   ]
+  },
+  {
+   "code": "eo",
+   "english": "Esperanto",
+   "native": "Esperanto",
+   "brand": "Esperantize",
+   "flag": "language/eo",
+   "kind": "constructed"
+  },
+  {
+   "code": "es",
+   "english": "Spanish",
+   "native": "español",
+   "brand": "Castilianize",
+   "flag": "es",
+   "aliases": [
+    "Castilian"
+   ],
+   "varieties": [
+    {
+     "name": "Peninsular",
+     "match": [
+      "peninsular",
+      "spain",
+      "españa"
+     ],
+     "flag": "es"
+    },
+    {
+     "name": "Mexican",
+     "match": [
+      "mexic",
+      "méxic"
+     ],
+     "flag": "mx"
+    },
+    {
+     "name": "Rioplatense",
+     "match": [
+      "argentin",
+      "rioplat"
+     ],
+     "flag": "ar"
+    },
+    {
+     "name": "Colombian",
+     "match": [
+      "colombia"
+     ],
+     "flag": "co"
+    }
+   ]
+  },
+  {
+   "code": "et",
+   "english": "Estonian",
+   "native": "eesti",
+   "brand": "Estonianize",
+   "flag": "ee",
+   "macrolanguage": true
+  },
+  {
+   "code": "eu",
+   "english": "Basque",
+   "native": "euskara",
+   "brand": "Basquize",
+   "flag": "es-pv"
+  },
+  {
+   "code": "fa",
+   "english": "Persian",
+   "native": "فارسی",
+   "brand": "Persianize",
+   "flag": "ir",
+   "macrolanguage": true,
+   "aliases": [
+    "Farsi"
+   ]
+  },
+  {
+   "code": "ff",
+   "english": "Fula",
+   "native": "Pulaar",
+   "brand": "Fulize",
+   "flag": null,
+   "macrolanguage": true,
+   "aliases": [
+    "Fulah",
+    "Fulani"
+   ]
+  },
+  {
+   "code": "fi",
+   "english": "Finnish",
+   "native": "suomi",
+   "brand": "Fennicize",
+   "flag": "fi"
+  },
+  {
+   "code": "fj",
+   "english": "Fijian",
+   "native": "vosa Vakaviti",
+   "brand": "Fijianize",
+   "flag": "fj"
+  },
+  {
+   "code": "fo",
+   "english": "Faroese",
+   "native": "føroyskt",
+   "brand": "Faroesize",
+   "flag": "fo"
+  },
+  {
+   "code": "fr",
+   "english": "French",
+   "native": "français",
+   "brand": "Gallicize",
+   "flag": "fr",
+   "varieties": [
+    {
+     "name": "France",
+     "match": [
+      "france"
+     ],
+     "flag": "fr"
+    },
+    {
+     "name": "Canadian",
+     "match": [
+      "canad",
+      "québec",
+      "quebec"
+     ],
+     "flag": "ca"
+    },
+    {
+     "name": "Belgian",
+     "match": [
+      "belg"
+     ],
+     "flag": "be"
+    },
+    {
+     "name": "Swiss",
+     "match": [
+      "swiss",
+      "suisse"
+     ],
+     "flag": "ch"
+    }
+   ]
+  },
+  {
+   "code": "fy",
+   "english": "Western Frisian",
+   "native": "Frysk",
+   "brand": "Frisianize",
+   "flag": "nl-fr",
+   "aliases": [
+    "Frisian"
+   ]
+  },
+  {
+   "code": "ga",
+   "english": "Irish",
+   "native": "Gaeilge",
+   "brand": "Hibernicize",
+   "flag": "ie"
+  },
+  {
+   "code": "gd",
+   "english": "Scottish Gaelic",
+   "native": "Gàidhlig",
+   "brand": "Gaelicize",
+   "flag": "gb-sct",
+   "aliases": [
+    "Gaelic"
+   ]
+  },
+  {
+   "code": "gl",
+   "english": "Galician",
+   "native": "galego",
+   "brand": "Galicianize",
+   "flag": "es-ga"
+  },
+  {
+   "code": "gn",
+   "english": "Guarani",
+   "native": "Avañe'ẽ",
+   "brand": "Guaranize",
+   "flag": "guarani",
+   "macrolanguage": true,
+   "aliases": [
+    "Guaraní"
+   ]
+  },
+  {
+   "code": "gu",
+   "english": "Gujarati",
+   "native": "ગુજરાતી",
+   "brand": "Gujaratize",
+   "flag": "in-gj"
+  },
+  {
+   "code": "gv",
+   "english": "Manx",
+   "native": "Gaelg",
+   "brand": "Manxize",
+   "flag": "im"
+  },
+  {
+   "code": "ha",
+   "english": "Hausa",
+   "native": "Hausa",
+   "brand": "Hausize",
+   "flag": "hausa"
+  },
+  {
+   "code": "he",
+   "english": "Hebrew",
+   "native": "עברית",
+   "brand": "Hebraize",
+   "flag": "il"
+  },
+  {
+   "code": "hi",
+   "english": "Hindi",
+   "native": "हिन्दी",
+   "brand": "Hindize",
+   "flag": "in"
+  },
+  {
+   "code": "ho",
+   "english": "Hiri Motu",
+   "native": "Hiri Motu",
+   "brand": "Motuize",
+   "flag": "pg"
+  },
+  {
+   "code": "hr",
+   "english": "Croatian",
+   "native": "hrvatski",
+   "brand": "Croatianize",
+   "flag": "hr"
+  },
+  {
+   "code": "ht",
+   "english": "Haitian Creole",
+   "native": "Kreyòl ayisyen",
+   "brand": "Haitianize",
+   "flag": "ht",
+   "aliases": [
+    "Haitian"
+   ]
+  },
+  {
+   "code": "hu",
+   "english": "Hungarian",
+   "native": "magyar",
+   "brand": "Hungarianize",
+   "flag": "hu",
+   "notes": "Hungarianize, not Magyarize: Magyarization names a forced-assimilation policy."
+  },
+  {
+   "code": "hy",
+   "english": "Armenian",
+   "native": "հայերեն",
+   "brand": "Armenianize",
+   "flag": "am"
+  },
+  {
+   "code": "hz",
+   "english": "Herero",
+   "native": "Otjiherero",
+   "brand": "Hererize",
+   "flag": "na"
+  },
+  {
+   "code": "ia",
+   "english": "Interlingua",
+   "native": "interlingua",
+   "brand": "Interlinguize",
+   "flag": "language/ia",
+   "kind": "constructed"
+  },
+  {
+   "code": "id",
+   "english": "Indonesian",
+   "native": "Indonesia",
+   "brand": "Indonesianize",
+   "flag": "id"
+  },
+  {
+   "code": "ie",
+   "english": "Interlingue",
+   "native": "Interlingue",
+   "brand": "Occidentalize",
+   "flag": "language/ie",
+   "kind": "constructed",
+   "aliases": [
+    "Occidental"
+   ],
+   "notes": "Occidentalize: Interlingue's original name was Occidental; Interlinguize is Interlingua's."
+  },
+  {
+   "code": "ig",
+   "english": "Igbo",
+   "native": "Asụsụ Igbo",
+   "brand": "Igboize",
+   "flag": "ng"
+  },
+  {
+   "code": "ii",
+   "english": "Sichuan Yi",
+   "native": "ꆈꌠꉙ",
+   "brand": "Nuosuize",
+   "flag": "cn",
+   "aliases": [
+    "Nuosu",
+    "Yi"
+   ]
+  },
+  {
+   "code": "ik",
+   "english": "Inupiaq",
+   "native": "Iñupiaq",
+   "brand": "Inupiaqize",
+   "flag": null,
+   "macrolanguage": true
+  },
+  {
+   "code": "io",
+   "english": "Ido",
+   "native": "Ido",
+   "brand": "Idize",
+   "flag": "language/io",
+   "kind": "constructed"
+  },
+  {
+   "code": "is",
+   "english": "Icelandic",
+   "native": "íslenska",
+   "brand": "Icelandicize",
+   "flag": "is"
+  },
+  {
+   "code": "it",
+   "english": "Italian",
+   "native": "italiano",
+   "brand": "Italianize",
+   "flag": "it"
+  },
+  {
+   "code": "iu",
+   "english": "Inuktitut",
+   "native": "ᐃᓄᒃᑎᑐᑦ",
+   "brand": "Inuktitutize",
+   "flag": null,
+   "macrolanguage": true
+  },
+  {
+   "code": "ja",
+   "english": "Japanese",
+   "native": "日本語",
+   "brand": "Japanize",
+   "flag": "jp",
+   "notes": "Japanize: the established English word."
+  },
+  {
+   "code": "jv",
+   "english": "Javanese",
+   "native": "Jawa",
+   "brand": "Javanesize",
+   "flag": "id-jt"
+  },
+  {
+   "code": "ka",
+   "english": "Georgian",
+   "native": "ქართული",
+   "brand": "Georgianize",
+   "flag": "ge"
+  },
+  {
+   "code": "kg",
+   "english": "Kongo",
+   "native": "Kikongo",
+   "brand": "Kongize",
+   "flag": "kongo",
+   "macrolanguage": true
+  },
+  {
+   "code": "ki",
+   "english": "Kikuyu",
+   "native": "Gĩgĩkũyũ",
+   "brand": "Kikuyuize",
+   "flag": "kikuyu",
+   "aliases": [
+    "Gikuyu"
+   ]
+  },
+  {
+   "code": "kj",
+   "english": "Kuanyama",
+   "native": "Oshikwanyama",
+   "brand": "Kuanyamize",
+   "flag": "na",
+   "aliases": [
+    "Kwanyama"
+   ]
+  },
+  {
+   "code": "kk",
+   "english": "Kazakh",
+   "native": "қазақ тілі",
+   "brand": "Kazakhize",
+   "flag": "kz"
+  },
+  {
+   "code": "kl",
+   "english": "Kalaallisut",
+   "native": "kalaallisut",
+   "brand": "Greenlandicize",
+   "flag": "gl",
+   "aliases": [
+    "Greenlandic"
+   ]
+  },
+  {
+   "code": "km",
+   "english": "Khmer",
+   "native": "ខ្មែរ",
+   "brand": "Khmerize",
+   "flag": "kh"
+  },
+  {
+   "code": "kn",
+   "english": "Kannada",
+   "native": "ಕನ್ನಡ",
+   "brand": "Kannadize",
+   "flag": "in-ka"
+  },
+  {
+   "code": "ko",
+   "english": "Korean",
+   "native": "한국어",
+   "brand": "Koreanize",
+   "flag": "kr"
+  },
+  {
+   "code": "kr",
+   "english": "Kanuri",
+   "native": "Kanuri",
+   "brand": "Kanurize",
+   "flag": "kanuri",
+   "macrolanguage": true
+  },
+  {
+   "code": "ks",
+   "english": "Kashmiri",
+   "native": "کٲشُر",
+   "brand": "Kashmirize",
+   "flag": "pk-jk"
+  },
+  {
+   "code": "ku",
+   "english": "Kurdish",
+   "native": "kurdî (kurmancî)",
+   "brand": "Kurdicize",
+   "flag": "iq-kr",
+   "macrolanguage": true
+  },
+  {
+   "code": "kv",
+   "english": "Komi",
+   "native": "коми кыв",
+   "brand": "Komize",
+   "flag": "ru-ko",
+   "macrolanguage": true,
+   "aliases": [
+    "Komi-Zyrian"
+   ]
+  },
+  {
+   "code": "kw",
+   "english": "Cornish",
+   "native": "kernewek",
+   "brand": "Cornicize",
+   "flag": "gb-con"
+  },
+  {
+   "code": "ky",
+   "english": "Kyrgyz",
+   "native": "кыргызча",
+   "brand": "Kyrgyzize",
+   "flag": "kg",
+   "aliases": [
+    "Kirghiz"
+   ]
+  },
+  {
+   "code": "la",
+   "english": "Latin",
+   "native": "Latina",
+   "brand": "Latinize",
+   "flag": "language/la",
+   "kind": "classical"
+  },
+  {
+   "code": "lb",
+   "english": "Luxembourgish",
+   "native": "Lëtzebuergesch",
+   "brand": "Luxembourgicize",
+   "flag": "lu",
+   "aliases": [
+    "Letzeburgesch"
+   ]
+  },
+  {
+   "code": "lg",
+   "english": "Ganda",
+   "native": "Luganda",
+   "brand": "Gandize",
+   "flag": "ug",
+   "aliases": [
+    "Luganda"
+   ]
+  },
+  {
+   "code": "li",
+   "english": "Limburgish",
+   "native": "Limburgs",
+   "brand": "Limburgicize",
+   "flag": "nl",
+   "aliases": [
+    "Limburgan"
+   ]
+  },
+  {
+   "code": "ln",
+   "english": "Lingala",
+   "native": "lingála",
+   "brand": "Lingalize",
+   "flag": "kongo"
+  },
+  {
+   "code": "lo",
+   "english": "Lao",
+   "native": "ລາວ",
+   "brand": "Laoize",
+   "flag": "la"
+  },
+  {
+   "code": "lt",
+   "english": "Lithuanian",
+   "native": "lietuvių",
+   "brand": "Lithuanianize",
+   "flag": "lt"
+  },
+  {
+   "code": "lu",
+   "english": "Luba-Katanga",
+   "native": "Tshiluba",
+   "brand": "Lubize",
+   "flag": "cd",
+   "aliases": [
+    "Luba"
+   ]
+  },
+  {
+   "code": "lv",
+   "english": "Latvian",
+   "native": "latviešu",
+   "brand": "Latvianize",
+   "flag": "lv",
+   "macrolanguage": true
+  },
+  {
+   "code": "mg",
+   "english": "Malagasy",
+   "native": "Malagasy",
+   "brand": "Malagasize",
+   "flag": "mg",
+   "macrolanguage": true
+  },
+  {
+   "code": "mh",
+   "english": "Marshallese",
+   "native": "Kajin M̧ajeļ",
+   "brand": "Marshallesize",
+   "flag": "mh"
+  },
+  {
+   "code": "mi",
+   "english": "Māori",
+   "native": "Māori",
+   "brand": "Māorize",
+   "flag": "maori"
+  },
+  {
+   "code": "mk",
+   "english": "Macedonian",
+   "native": "македонски",
+   "brand": "Macedonianize",
+   "flag": "mk"
+  },
+  {
+   "code": "ml",
+   "english": "Malayalam",
+   "native": "മലയാളം",
+   "brand": "Malayalamize",
+   "flag": "malayali"
+  },
+  {
+   "code": "mn",
+   "english": "Mongolian",
+   "native": "монгол",
+   "brand": "Mongolianize",
+   "flag": "mn",
+   "macrolanguage": true
+  },
+  {
+   "code": "mr",
+   "english": "Marathi",
+   "native": "मराठी",
+   "brand": "Marathize",
+   "flag": "language/mr"
+  },
+  {
+   "code": "ms",
+   "english": "Malay",
+   "native": "Melayu",
+   "brand": "Malayize",
+   "flag": "my",
+   "macrolanguage": true
+  },
+  {
+   "code": "mt",
+   "english": "Maltese",
+   "native": "Malti",
+   "brand": "Maltesize",
+   "flag": "mt"
+  },
+  {
+   "code": "my",
+   "english": "Burmese",
+   "native": "မြန်မာ",
+   "brand": "Burmesize",
+   "flag": "mm",
+   "notes": "Burmesize, not Burmanize: Burmanization names an assimilation policy toward minorities."
+  },
+  {
+   "code": "na",
+   "english": "Nauru",
+   "native": "Dorerin Naoero",
+   "brand": "Nauruanize",
+   "flag": "nr"
+  },
+  {
+   "code": "nb",
+   "english": "Norwegian Bokmål",
+   "native": "norsk bokmål",
+   "brand": "Bokmålize",
+   "flag": "no",
+   "macro": "no"
+  },
+  {
+   "code": "nd",
+   "english": "North Ndebele",
+   "native": "isiNdebele",
+   "brand": "Sindebelize",
+   "flag": "zw",
+   "aliases": [
+    "Sindebele"
+   ],
+   "notes": "Sindebelize, from Sindebele, Zimbabwe's name for North Ndebele; Ndebelize is South Ndebele's."
+  },
+  {
+   "code": "ne",
+   "english": "Nepali",
+   "native": "नेपाली",
+   "brand": "Nepalize",
+   "flag": "np",
+   "macrolanguage": true
+  },
+  {
+   "code": "ng",
+   "english": "Ndonga",
+   "native": "Oshindonga",
+   "brand": "Ndongize",
+   "flag": "na"
+  },
+  {
+   "code": "nl",
+   "english": "Dutch",
+   "native": "Nederlands",
+   "brand": "Dutchize",
+   "flag": "nl",
+   "aliases": [
+    "Flemish"
+   ]
+  },
+  {
+   "code": "nn",
+   "english": "Norwegian Nynorsk",
+   "native": "norsk nynorsk",
+   "brand": "Nynorskize",
+   "flag": "no",
+   "macro": "no"
+  },
+  {
+   "code": "no",
+   "english": "Norwegian",
+   "native": "norsk",
+   "brand": "Norskize",
+   "flag": "no",
+   "macrolanguage": true,
+   "notes": "Norskize, not Norwegianize: Norwegianization (fornorsking) names the assimilation policy toward the Sami and Kven."
+  },
+  {
+   "code": "nr",
+   "english": "South Ndebele",
+   "native": "isiNdebele",
+   "brand": "Ndebelize",
+   "flag": "za"
+  },
+  {
+   "code": "nv",
+   "english": "Navajo",
+   "native": "Diné bizaad",
+   "brand": "Navajize",
+   "flag": null,
+   "aliases": [
+    "Navaho"
+   ]
+  },
+  {
+   "code": "ny",
+   "english": "Nyanja",
+   "native": "chiCheŵa",
+   "brand": "Nyanjize",
+   "flag": "mw",
+   "aliases": [
+    "Chichewa",
+    "Chewa"
+   ]
+  },
+  {
+   "code": "oc",
+   "english": "Occitan",
+   "native": "occitan",
+   "brand": "Occitanize",
+   "flag": "occitania",
+   "aliases": [
+    "Provençal"
+   ]
+  },
+  {
+   "code": "oj",
+   "english": "Ojibwa",
+   "native": "ᐊᓂᔑᓈᐯᒧᐎᓐ",
+   "brand": "Ojibwize",
+   "flag": null,
+   "macrolanguage": true
+  },
+  {
+   "code": "om",
+   "english": "Oromo",
+   "native": "Oromoo",
+   "brand": "Oromize",
+   "flag": "et-or",
+   "macrolanguage": true
+  },
+  {
+   "code": "or",
+   "english": "Odia",
+   "native": "ଓଡ଼ିଆ",
+   "brand": "Odize",
+   "flag": "in-or",
+   "macrolanguage": true,
+   "aliases": [
+    "Oriya"
+   ]
+  },
+  {
+   "code": "os",
+   "english": "Ossetic",
+   "native": "ирон",
+   "brand": "Ossetize",
+   "flag": null,
+   "aliases": [
+    "Ossetian"
+   ],
+   "notes": "No flag: the set's Ossetian flag is South Ossetia's, a partially recognised state; most speakers live elsewhere."
+  },
+  {
+   "code": "pa",
+   "english": "Punjabi",
+   "native": "ਪੰਜਾਬੀ",
+   "brand": "Punjabize",
+   "flag": "in",
+   "aliases": [
+    "Panjabi"
+   ]
+  },
+  {
+   "code": "pi",
+   "english": "Pali",
+   "native": "पालि",
+   "brand": "Palize",
+   "flag": null,
+   "kind": "classical"
+  },
+  {
+   "code": "pl",
+   "english": "Polish",
+   "native": "polski",
+   "brand": "Polonize",
+   "flag": "pl",
+   "notes": "Polonize: the established English word, mostly cultural and linguistic."
+  },
+  {
+   "code": "ps",
+   "english": "Pashto",
+   "native": "پښتو",
+   "brand": "Pashtize",
+   "flag": "af",
+   "macrolanguage": true,
+   "aliases": [
+    "Pushto"
+   ],
+   "notes": "Pashtize, not Pashtunize: Pashtunization names an assimilation policy."
+  },
+  {
+   "code": "pt",
+   "english": "Portuguese",
+   "native": "português",
+   "brand": "Portuguesize",
+   "flag": "pt",
+   "varieties": [
+    {
+     "name": "European",
+     "match": [
+      "european",
+      "portugal"
+     ],
+     "flag": "pt"
+    },
+    {
+     "name": "Brazilian",
+     "match": [
+      "brazil",
+      "brasil"
+     ],
+     "flag": "br"
+    }
+   ]
+  },
+  {
+   "code": "qu",
+   "english": "Quechua",
+   "native": "Runasimi",
+   "brand": "Quechuize",
+   "flag": "quechua",
+   "macrolanguage": true
+  },
+  {
+   "code": "rm",
+   "english": "Romansh",
+   "native": "rumantsch",
+   "brand": "Romanshize",
+   "flag": "ch-gr"
+  },
+  {
+   "code": "rn",
+   "english": "Rundi",
+   "native": "Ikirundi",
+   "brand": "Rundize",
+   "flag": "bi",
+   "aliases": [
+    "Kirundi"
+   ]
+  },
+  {
+   "code": "ro",
+   "english": "Romanian",
+   "native": "română",
+   "brand": "Romanianize",
+   "flag": "ro",
+   "aliases": [
+    "Moldavian",
+    "Moldovan"
+   ],
+   "notes": "Romanianize, not Romanize (which means writing in Latin script)."
+  },
+  {
+   "code": "ru",
+   "english": "Russian",
+   "native": "русский",
+   "brand": "Russianize",
+   "flag": "ru",
+   "notes": "Russianize (the pattern form), not Russify: Russification is the forced-assimilation sense."
+  },
+  {
+   "code": "rw",
+   "english": "Kinyarwanda",
+   "native": "Ikinyarwanda",
+   "brand": "Kinyarwandize",
+   "flag": "rw",
+   "aliases": [
+    "Rwanda"
+   ]
+  },
+  {
+   "code": "sa",
+   "english": "Sanskrit",
+   "native": "संस्कृत भाषा",
+   "brand": "Sanskritize",
+   "flag": "in",
+   "kind": "classical"
+  },
+  {
+   "code": "sc",
+   "english": "Sardinian",
+   "native": "sardu",
+   "brand": "Sardinianize",
+   "flag": "it-88",
+   "macrolanguage": true
+  },
+  {
+   "code": "sd",
+   "english": "Sindhi",
+   "native": "سنڌي",
+   "brand": "Sindhize",
+   "flag": "pk-sd"
+  },
+  {
+   "code": "se",
+   "english": "Northern Sami",
+   "native": "davvisámegiella",
+   "brand": "Samize",
+   "flag": "sami",
+   "aliases": [
+    "Sami",
+    "Saami"
+   ]
+  },
+  {
+   "code": "sg",
+   "english": "Sango",
+   "native": "Sängö",
+   "brand": "Sangize",
+   "flag": "cf"
+  },
+  {
+   "code": "si",
+   "english": "Sinhala",
+   "native": "සිංහල",
+   "brand": "Sinhalaize",
+   "flag": "lk",
+   "aliases": [
+    "Sinhalese"
+   ],
+   "notes": "Sinhalaize, not Sinhalize: Sinhalization names state settlement and language policies."
+  },
+  {
+   "code": "sk",
+   "english": "Slovak",
+   "native": "slovenčina",
+   "brand": "Slovakize",
+   "flag": "sk"
+  },
+  {
+   "code": "sl",
+   "english": "Slovenian",
+   "native": "slovenščina",
+   "brand": "Slovenize",
+   "flag": "si"
+  },
+  {
+   "code": "sm",
+   "english": "Samoan",
+   "native": "Gagana fa'a Sāmoa",
+   "brand": "Samoanize",
+   "flag": "ws"
+  },
+  {
+   "code": "sn",
+   "english": "Shona",
+   "native": "chiShona",
+   "brand": "Shonize",
+   "flag": "zw"
+  },
+  {
+   "code": "so",
+   "english": "Somali",
+   "native": "Soomaali",
+   "brand": "Soomaalize",
+   "flag": "so",
+   "notes": "Soomaalize, from the autonym Soomaali: Somalization is used for state collapse."
+  },
+  {
+   "code": "sq",
+   "english": "Albanian",
+   "native": "shqip",
+   "brand": "Albanianize",
+   "flag": "al",
+   "macrolanguage": true
+  },
+  {
+   "code": "sr",
+   "english": "Serbian",
+   "native": "српски",
+   "brand": "Serbianize",
+   "flag": "rs"
+  },
+  {
+   "code": "ss",
+   "english": "Swati",
+   "native": "siSwati",
+   "brand": "Swatize",
+   "flag": "sz",
+   "aliases": [
+    "Swazi"
+   ]
+  },
+  {
+   "code": "st",
+   "english": "Southern Sotho",
+   "native": "Sesotho",
+   "brand": "Sesothize",
+   "flag": "ls",
+   "aliases": [
+    "Sesotho"
+   ]
+  },
+  {
+   "code": "su",
+   "english": "Sundanese",
+   "native": "Basa Sunda",
+   "brand": "Sundanesize",
+   "flag": "id-jb"
+  },
+  {
+   "code": "sv",
+   "english": "Swedish",
+   "native": "svenska",
+   "brand": "Swedicize",
+   "flag": "se"
+  },
+  {
+   "code": "sw",
+   "english": "Swahili",
+   "native": "Kiswahili",
+   "brand": "Swahilize",
+   "flag": "ke",
+   "macrolanguage": true
+  },
+  {
+   "code": "ta",
+   "english": "Tamil",
+   "native": "தமிழ்",
+   "brand": "Tamilize",
+   "flag": "in-tn"
+  },
+  {
+   "code": "te",
+   "english": "Telugu",
+   "native": "తెలుగు",
+   "brand": "Telugize",
+   "flag": "in-tg"
+  },
+  {
+   "code": "tg",
+   "english": "Tajik",
+   "native": "тоҷикӣ",
+   "brand": "Tajikize",
+   "flag": "tj"
+  },
+  {
+   "code": "th",
+   "english": "Thai",
+   "native": "ไทย",
+   "brand": "Thaize",
+   "flag": "th"
+  },
+  {
+   "code": "ti",
+   "english": "Tigrinya",
+   "native": "ትግርኛ",
+   "brand": "Tigrinyize",
+   "flag": "et-ti"
+  },
+  {
+   "code": "tk",
+   "english": "Turkmen",
+   "native": "türkmen dili",
+   "brand": "Turkmenize",
+   "flag": "tm"
+  },
+  {
+   "code": "tl",
+   "english": "Tagalog",
+   "native": "Tagalog",
+   "brand": "Tagalogize",
+   "flag": "ph",
+   "aliases": [
+    "Filipino"
+   ]
+  },
+  {
+   "code": "tn",
+   "english": "Tswana",
+   "native": "Setswana",
+   "brand": "Tswanize",
+   "flag": "bw",
+   "aliases": [
+    "Setswana"
+   ]
+  },
+  {
+   "code": "to",
+   "english": "Tongan",
+   "native": "lea fakatonga",
+   "brand": "Tonganize",
+   "flag": "to",
+   "aliases": [
+    "Tonga"
+   ]
+  },
+  {
+   "code": "tr",
+   "english": "Turkish",
+   "native": "Türkçe",
+   "brand": "Turkicize",
+   "flag": "tr",
+   "notes": "Turkicize, not Turkify: Turkification names a forced-assimilation policy."
+  },
+  {
+   "code": "ts",
+   "english": "Tsonga",
+   "native": "Xitsonga",
+   "brand": "Tsongize",
+   "flag": "za"
+  },
+  {
+   "code": "tt",
+   "english": "Tatar",
+   "native": "татар",
+   "brand": "Tatarize",
+   "flag": "ru-ta"
+  },
+  {
+   "code": "tw",
+   "english": "Twi",
+   "native": "Twi",
+   "brand": "Twize",
+   "flag": "gh",
+   "macro": "ak"
+  },
+  {
+   "code": "ty",
+   "english": "Tahitian",
+   "native": "reo Tahiti",
+   "brand": "Tahitianize",
+   "flag": "pf"
+  },
+  {
+   "code": "ug",
+   "english": "Uyghur",
+   "native": "ئۇيغۇرچە",
+   "brand": "Uyghurize",
+   "flag": "cn-xj",
+   "aliases": [
+    "Uighur"
+   ]
+  },
+  {
+   "code": "uk",
+   "english": "Ukrainian",
+   "native": "українська",
+   "brand": "Ukrainianize",
+   "flag": "ua"
+  },
+  {
+   "code": "ur",
+   "english": "Urdu",
+   "native": "اردو",
+   "brand": "Urdize",
+   "flag": "pk"
+  },
+  {
+   "code": "uz",
+   "english": "Uzbek",
+   "native": "o‘zbek",
+   "brand": "Uzbekize",
+   "flag": "uz",
+   "macrolanguage": true
+  },
+  {
+   "code": "ve",
+   "english": "Venda",
+   "native": "Tshivenḓa",
+   "brand": "Vendize",
+   "flag": "za",
+   "aliases": [
+    "Tshivenda"
+   ]
+  },
+  {
+   "code": "vi",
+   "english": "Vietnamese",
+   "native": "Tiếng Việt",
+   "brand": "Vietnamesize",
+   "flag": "vn",
+   "notes": "Vietnamesize, not Vietnamize: Vietnamization names a war policy."
+  },
+  {
+   "code": "vo",
+   "english": "Volapük",
+   "native": "Volapük",
+   "brand": "Volapükize",
+   "flag": "language/vo",
+   "kind": "constructed"
+  },
+  {
+   "code": "wa",
+   "english": "Walloon",
+   "native": "walon",
+   "brand": "Walloonize",
+   "flag": "be"
+  },
+  {
+   "code": "wo",
+   "english": "Wolof",
+   "native": "Wolof",
+   "brand": "Wolofize",
+   "flag": "sn"
+  },
+  {
+   "code": "xh",
+   "english": "Xhosa",
+   "native": "IsiXhosa",
+   "brand": "Xhosize",
+   "flag": "za"
+  },
+  {
+   "code": "yi",
+   "english": "Yiddish",
+   "native": "ייִדיש",
+   "brand": "Yiddishize",
+   "flag": "language/yi",
+   "macrolanguage": true
+  },
+  {
+   "code": "yo",
+   "english": "Yoruba",
+   "native": "Èdè Yorùbá",
+   "brand": "Yorubize",
+   "flag": "yorubaland"
+  },
+  {
+   "code": "za",
+   "english": "Zhuang",
+   "native": "Vahcuengh",
+   "brand": "Zhuangize",
+   "flag": "cn",
+   "macrolanguage": true,
+   "aliases": [
+    "Chuang"
+   ]
+  },
+  {
+   "code": "zh",
+   "english": "Chinese",
+   "native": "中文",
+   "brand": "Sinicize",
+   "flag": "cn",
+   "macrolanguage": true,
+   "notes": "Sinicize: the established English word, also a linguistic term (Sinicized vocabulary)."
+  },
+  {
+   "code": "zu",
+   "english": "Zulu",
+   "native": "isiZulu",
+   "brand": "Zulize",
+   "flag": "za"
+  }
+ ]
+}

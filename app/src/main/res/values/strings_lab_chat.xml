@@ -15,17 +15,10 @@
     <!-- Under the card when nothing is accepted: sends the message exactly as typed. -->
     <string name="lab_chat_send_as_written">Send as written</string>
     <string name="lab_chat_send_checked">Check and send message</string>
-    <string name="lab_chat_keep_editing">Keep editing</string>
     <string name="lab_chat_checking">Checking your message</string>
     <string name="lab_chat_typing">Writing a reply</string>
     <string name="lab_chat_looks_good">Looks good</string>
     <string name="lab_chat_as_written">Sent as written</string>
-    <string name="lab_chat_show_changes">Show changes</string>
-    <string name="lab_chat_hide_changes">Hide changes</string>
-    <string name="lab_chat_you_wrote">You wrote</string>
-    <string name="lab_chat_change_replace">%1$s becomes %2$s</string>
-    <string name="lab_chat_change_add">Added %1$s</string>
-    <string name="lab_chat_change_remove">Removed %1$s</string>
     <plurals name="lab_chat_changes_count">
         <item quantity="one">Corrected, %d change</item>
         <item quantity="other">Corrected, %d changes</item>

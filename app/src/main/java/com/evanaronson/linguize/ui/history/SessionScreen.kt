@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.history
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -123,9 +124,7 @@ private fun Shown(page: SessionPage.Shown, onOpenConversation: ((String) -> Unit
     val openChat = if (chat != null && onOpenConversation != null) ({ onOpenConversation(chat.conversationId) }) else null
     SessionDetails(session, source, openChat)
 
-    SectionHeader(stringResource(R.string.history_before))
-    SectionCard(contentPadding = BlockPadding) {
-        TextBlock(session.text)
+    SavedBefore(session.text) {
         page.failure?.let {
             Quiet(stringResource(R.string.check_failed_reason, stringResource(it.titleResource)),
                 Modifier.padding(top = 12.dp))
@@ -152,6 +151,19 @@ private fun Shown(page: SessionPage.Shown, onOpenConversation: ((String) -> Unit
     // Lab, Meaning: the card's one Meaning section (meaning, clarification, assumptions, how it
     // landed), read-only, in the place the readings already had here.
     if (reviewed != null) SavedMeaning(session.id, reviewed, settled)
+}
+
+/**
+ * "Before": the text exactly as written. A saved check's page and a corrected chat message
+ * (`ui/chat/ChatCorrections.kt`) both show it this way; [notes] go under the text.
+ */
+@Composable
+internal fun SavedBefore(text: String, notes: @Composable ColumnScope.() -> Unit = {}) {
+    SectionHeader(stringResource(R.string.history_before))
+    SectionCard(contentPadding = BlockPadding) {
+        TextBlock(text)
+        notes()
+    }
 }
 
 /** The saved check's Meaning section: the card's, with nothing to clarify or remove. */

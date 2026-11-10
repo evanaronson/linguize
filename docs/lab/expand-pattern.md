@@ -18,7 +18,7 @@ Short answer: the accordion isn't out of place. The app already opens things in 
 | Card: assumptions / clarify | Clarify editor (choices + field) | `ClarifyLink` (`›`) and `AssumptionInset` (`›`), replaced in place by `ClarifyBlock` | In place, but the end chevron suggests a page | Cancel button. Back closes the popup | Click label "Clarify …". No expanded state |
 | Card: Teach me | A lesson with a quiz | `TeachMe` (`ClarifyLink` "Teach me ›"), loading, then the lesson in place | In place, with a request behind it | Hide button (on failure). Back closes the popup | Live regions for loading and failure. No expanded state |
 | Card: Phrasebook star | Nothing. It saves | `SavePhraseButton` | Toggle | n/a | Toggle state. Not a disclosure |
-| Chat: corrected message | What changed under the bubble | `CheckMark` chip "2 changes ▾" + `Changes`, state in `ChatViewModel.expanded` (one open at a time) | In place | n/a | Before this change the state was spoken as the action ("Show changes"), which is wrong. It now says Expanded/Collapsed |
+| Chat: corrected message | What changed under the bubble | Tap the bubble (like a reply's translation flip); History's `SavedBefore` + `SavedSuggestions` open under it (`ChatCorrections.kt`), state in `ChatViewModel.expanded` (one open at a time) | In place | n/a | Bubble click label "Show corrections"/"Hide corrections", state Expanded/Collapsed |
 | Chat: partner bubble | Its translation | `Crossfade` in the bubble | Flip: replaces in place | n/a | Click label "Show translation"/"Show original" |
 | History: saved check | One saved suggestion's explanation | `SavedSuggestion` row with a `▾` text glyph, no animation | Accordion per row, saveable | n/a | Click label, state "Expanded"/"Collapsed" |
 | Phrasebook / Memory rows | Row actions (Open check, Delete, Edit) | Whole row toggles a `FlowRow` of buttons | In place | n/a | Click label "Show/Hide actions". Also custom actions |
@@ -58,7 +58,7 @@ Two findings matter:
 Using `Disclosure` now:
 
 - History, saved check: each saved suggestion (`SavedSuggestions.kt`). Before this change it used a `▾` glyph with no motion.
-- Chat, corrected message: the "N changes" chip uses `disclosureToggle` and `DisclosureChevron`. The content stays in the bubble, and the view model still keeps one open at a time. This fixes the state, which was spoken as the action.
+- Chat, corrected message: the bubble itself is the toggle (the "N changes" chip and its own Changes panel are gone). It opens History's saved suggestions, which are Disclosures, under the bubble with the Disclosure motion; the view model keeps one open at a time. See [Chat](chat.md).
 
 Should adopt it later. Each is left alone here because another agent is reworking it or because it needs a separate decision:
 

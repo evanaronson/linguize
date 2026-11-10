@@ -48,7 +48,7 @@ from what they already do, not a timer they have to start.
   and Try it record nothing: there's no message to attribute it to and nothing in History to
   delete it with. (Drafts as a separate figure were considered and dropped: they'd be mostly
   noise from drafts left in the composer.)
-- **Keep editing** pauses review and resumes writing; the review time of that opening is
+- **Edit message** (or Back) on the review pauses review and resumes writing; the review time of that opening is
   kept for the same message. **Re-checks and clarifications** stay in review; their waiting
   doesn't count. **A failed check** counts as neither.
 - **Not counted:** thinking before the first keystroke, and reading the partner's replies.
@@ -78,7 +78,7 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
 - `core/time/ActiveTimer.kt`: the one timer. Pure Kotlin, injectable clock; `start`, `touch`,
   `pause`/`resume` (the host's reason) and `visible` (on screen), `stop`. Gaps are capped.
 - `core/time/DraftTimer.kt`: the chat draft's writing time. `ChatViewModel` calls it on
-  each text change, Send, Keep editing, a new conversation, and visibility (from `ChatScreen`'s
+  each text change, Send, Edit message (or Back), a new conversation, and visibility (from `ChatScreen`'s
   lifecycle observer).
 - `ui/time/CardTiming.kt`: the card's review time, owned by `CheckViewModel` (`timing`). It
   follows the card's state (counting only while it's `Done`); hosts only say when the card is

@@ -1,7 +1,13 @@
 package com.evanaronson.linguize.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,7 +15,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,10 +35,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,12 +48,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -53,22 +63,16 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.CheckResult
-import com.evanaronson.linguize.core.Edit
-import com.evanaronson.linguize.core.EditKind
-import com.evanaronson.linguize.core.chat.ChatLabels
 import com.evanaronson.linguize.core.chat.ChatMessage
-import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.chat.SentCheck
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.ui.card.CardActions
@@ -78,23 +82,28 @@ import com.evanaronson.linguize.ui.card.Failure
 import com.evanaronson.linguize.ui.card.Progress
 import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.card.ReviewActions
-import com.evanaronson.linguize.ui.card.visibleValue
 import com.evanaronson.linguize.ui.components.ButtonKind
-import com.evanaronson.linguize.ui.components.DisclosureChevron
-import com.evanaronson.linguize.ui.components.disclosureToggle
+import com.evanaronson.linguize.ui.components.DisclosureMotion
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.NavigationBackHandler
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.text.titleResource
 import com.evanaronson.linguize.ui.theme.Linguize
 
 private val BubbleMax = 300.dp
 
+/** Marks the writer bubble's check line, for tests of where it sits. */
+internal const val CHECK_META_TAG = "lab_chat_check_meta"
+
 /**
  * One message: the writer's on the right in ink, the partner's on the left on paper. A tap on
- * a partner bubble flips it to its translation (tinted, with a short crossfade) and back. The
- * text is selectable (long-press, with the system's Copy and other apps' actions); a long-press
- * on the bubble's edge opens Copy message (and Copy translation while it shows). Screen readers
- * get the same as actions.
+ * a bubble shows more of it in place: a partner bubble flips to its translation (tinted, with a
+ * short crossfade) and back; a corrected writer bubble opens its corrections under it, the same
+ * rows History shows for a saved check, and closes them again. How the writer's message was
+ * checked sits at the bubble's bottom end, like a messaging app's time. The text is selectable
+ * (long-press, with the system's Copy and other apps' actions); a long-press on the bubble's
+ * edge opens Copy message (and Copy translation while it shows). Screen readers get the same as
+ * actions, and the corrections' state.
  */
 @Composable
 internal fun MessageBubble(
@@ -104,18 +113,36 @@ internal fun MessageBubble(
     flipped: Flipped?,
     onFlip: () -> Unit,
     hint: Boolean,
+    language: String? = null,
 ) {
     val context = LocalContext.current
     val mine = message.fromWriter
+    val corrections = hasCorrections(message)
+    val open = corrections && expanded
     val shownText = (flipped as? Flipped.Text)?.translation
-    val spoken = when {
+    val status = if (mine) checkStatus(message) else null
+    val said = when {
         mine -> stringResource(R.string.lab_chat_you_said, message.text)
         shownText != null -> stringResource(R.string.lab_chat_translation_said, shownText)
         else -> stringResource(R.string.lab_chat_partner_said, message.text)
     }
+    val spoken = listOfNotNull(said, status).joinToString(". ")
     val copyLabel = stringResource(R.string.lab_chat_copy)
     val copyTranslationLabel = stringResource(R.string.lab_chat_copy_translation)
-    val flipLabel = stringResource(if (flipped != null) R.string.lab_chat_show_original else R.string.lab_chat_show_translation)
+    // One tap per bubble, named for what it does: flip a reply, or open a corrected message.
+    val tapLabel = when {
+        !mine -> stringResource(if (flipped != null) R.string.lab_chat_show_original else R.string.lab_chat_show_translation)
+        corrections -> stringResource(if (open) R.string.lab_chat_corrections_hide else R.string.lab_chat_corrections_show)
+        else -> null
+    }
+    val onTap: (() -> Unit)? = when {
+        !mine -> onFlip
+        corrections -> onToggle
+        else -> null
+    }
+    val state = if (corrections) {
+        stringResource(if (open) R.string.lab_expand_pattern_expanded else R.string.lab_expand_pattern_collapsed)
+    } else null
     var menu by remember { mutableStateOf(false) }
     val copy = { context.copyToClipboard(message.text) }
     val tint = Linguize.colors.proof.copy(alpha = 0.08f)
@@ -135,25 +162,32 @@ internal fun MessageBubble(
                     else -> Linguize.colors.card
                 },
                 contentColor = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                border = if (mine) null else BorderStroke(1.dp,
-                    if (flipped != null) Linguize.colors.proof.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant),
+                // The same highlight on both sides: a proof border while the bubble shows more of itself.
+                border = when {
+                    mine -> if (open) BorderStroke(2.dp, Linguize.colors.proof) else null
+                    flipped != null -> BorderStroke(1.dp, Linguize.colors.proof.copy(alpha = 0.35f))
+                    else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                },
                 modifier = Modifier
                     .widthIn(max = BubbleMax)
                     .semantics(mergeDescendants = true) {
                         contentDescription = spoken
+                        state?.let { stateDescription = it }
+                        if (onTap != null && tapLabel != null) onClick(tapLabel) { onTap(); true }
                         customActions = listOfNotNull(
-                            if (!mine) CustomAccessibilityAction(flipLabel) { onFlip(); true } else null,
+                            if (onTap != null && tapLabel != null) CustomAccessibilityAction(tapLabel) { onTap(); true } else null,
                             CustomAccessibilityAction(copyLabel) { copy(); true },
                             shownText?.let { text -> CustomAccessibilityAction(copyTranslationLabel) { context.copyToClipboard(text); true } },
                         )
                     }
-                    // A long-press on the text selects it; one on the bubble's edge opens the menu. A tap flips a reply.
-                    .pointerInput(mine) {
-                        detectTapGestures(onTap = { if (!mine) onFlip() }, onLongPress = { menu = true })
+                    // A long-press on the text selects it; one on the bubble's edge opens the menu.
+                    // A tap flips a reply, or opens (and closes) a corrected message's corrections.
+                    .pointerInput(onTap) {
+                        detectTapGestures(onTap = { onTap?.invoke() }, onLongPress = { menu = true })
                     },
             ) {
-                Crossfade(targetState = flipped, animationSpec = tween(180), label = "translation") { side ->
-                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp).clearAndSetSemantics {}) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Crossfade(flipped, Modifier.clearAndSetSemantics {}, animationSpec = tween(180), label = "translation") { side ->
                         when (side) {
                             null -> SelectionContainer { Text(message.text, style = MaterialTheme.typography.bodyLarge) }
                             is Flipped.Text -> SelectionContainer {
@@ -175,6 +209,7 @@ internal fun MessageBubble(
                             }
                         }
                     }
+                    status?.let { CheckMeta(it, message.check == SentCheck.LooksGood, Modifier.align(Alignment.End)) }
                 }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -185,8 +220,15 @@ internal fun MessageBubble(
             }
         }
         if (mine) {
-            CheckMark(message, expanded, onToggle)
-            if (expanded && message.changes.isNotEmpty()) Changes(message)
+            // The expand pattern's motion: grow from the top and fade in, shrink and fade out.
+            AnimatedVisibility(
+                visible = open,
+                enter = expandVertically(tween(DisclosureMotion.EXPAND_MILLIS, easing = FastOutSlowInEasing), expandFrom = Alignment.Top) +
+                    fadeIn(tween(DisclosureMotion.EXPAND_MILLIS)),
+                exit = shrinkVertically(tween(DisclosureMotion.COLLAPSE_MILLIS)) + fadeOut(tween(DisclosureMotion.COLLAPSE_MILLIS)),
+            ) {
+                ChatCorrections(message, language)
+            }
         } else if (hint && flipped == null) {
             Text(stringResource(R.string.lab_chat_tap_to_translate), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
@@ -194,92 +236,18 @@ internal fun MessageBubble(
     }
 }
 
-/** Under a sent message: how it was checked. A corrected one opens to show what changed. */
+/** The writer bubble's meta line, at its bottom end: quiet, like a messaging app's time. */
 @Composable
-private fun CheckMark(message: ChatMessage, expanded: Boolean, onToggle: () -> Unit) {
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val style = MaterialTheme.typography.labelMedium
-    when (message.check) {
-        SentCheck.None -> Unit
-        SentCheck.LooksGood -> Row(Modifier.padding(top = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(R.drawable.ic_check), contentDescription = null, tint = muted, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(stringResource(R.string.lab_chat_looks_good), style = style, color = muted)
+private fun CheckMeta(text: String, looksGood: Boolean, modifier: Modifier = Modifier) {
+    val quiet = LocalContentColor.current.copy(alpha = 0.72f)
+    // Spoken as part of the bubble's description; the tag only marks where it sits.
+    Row(modifier.padding(top = 4.dp).clearAndSetSemantics { testTag = CHECK_META_TAG }, verticalAlignment = Alignment.CenterVertically) {
+        if (looksGood) {
+            Icon(painterResource(R.drawable.ic_check), contentDescription = null, tint = quiet, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(3.dp))
         }
-        SentCheck.AsWritten -> Text(stringResource(R.string.lab_chat_as_written), style = style, color = muted,
-            modifier = Modifier.padding(top = 4.dp, end = 4.dp))
-        SentCheck.Corrected -> {
-            val count = message.changes.size
-            // Lab, Chat tab IA: "Corrected" only when a fix was accepted; rewordings alone weren't mistakes.
-            val label = when (ChatLabels.sent(message.changes)) {
-                ChatLabels.Sent.Corrected -> pluralStringResource(R.plurals.lab_chat_changes_count, count, count)
-                ChatLabels.Sent.Reworded -> pluralStringResource(R.plurals.lab_ia_chat_reworded_count, count, count)
-            }
-            Row(
-                Modifier
-                    .padding(top = 2.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .disclosureToggle(expanded, { onToggle() },
-                        stringResource(R.string.lab_chat_show_changes), stringResource(R.string.lab_chat_hide_changes))
-                    .heightIn(min = 32.dp)
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(label, style = style, color = Linguize.colors.proof)
-                Spacer(Modifier.width(4.dp))
-                DisclosureChevron(expanded, size = 16)
-            }
-        }
+        Text(text, style = MaterialTheme.typography.labelSmall, color = quiet)
     }
-}
-
-/** What the writer typed, with the corrected parts marked, and each change in words. */
-@Composable
-private fun Changes(message: ChatMessage) {
-    val proof = Linguize.colors.proof
-    val raw = buildAnnotatedString {
-        var pos = 0
-        for (change in message.changes.sortedBy { it.start }) {
-            if (change.start < pos) continue
-            append(message.raw.substring(pos, change.start))
-            withStyle(SpanStyle(color = proof, textDecoration = TextDecoration.Underline)) {
-                append(message.raw.substring(change.start, change.end).ifEmpty { "‸" })
-            }
-            pos = change.end
-        }
-        append(message.raw.substring(pos))
-    }
-    Column(
-        Modifier
-            .padding(top = 4.dp)
-            .widthIn(max = BubbleMax)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Linguize.colors.card)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    ) {
-        Text(stringResource(R.string.lab_chat_you_wrote), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(2.dp))
-        SelectionContainer {
-            Text(raw, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { contentDescription = message.raw })
-        }
-        message.changes.forEach { change ->
-            Spacer(Modifier.height(8.dp))
-            Text(changeText(change.from, change.to), style = MaterialTheme.typography.bodyMedium,
-                color = if (change.kind == EditKind.Fix) proof else MaterialTheme.colorScheme.onSurface)
-            change.why?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun changeText(from: String, to: String): String = when {
-    from.isEmpty() -> stringResource(R.string.lab_chat_change_add, to.visibleValue())
-    to.isEmpty() -> stringResource(R.string.lab_chat_change_remove, from.visibleValue())
-    else -> stringResource(R.string.lab_chat_change_replace, from.visibleValue(), to.visibleValue())
 }
 
 /** The partner is writing. */
@@ -321,6 +289,16 @@ internal fun ReplyMissing(failure: CheckFailure?, onRetry: () -> Unit, onOpenSet
 internal fun Composer(chat: ChatViewModel) {
     val ink = MaterialTheme.colorScheme.onSurface
     val canSend = chat.draft.text.isNotBlank() && chat.thread != null
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // Back from the review: the draft comes back focused, with the keyboard, as it was left.
+    LaunchedEffect(chat.focusDraft) {
+        if (chat.focusDraft) {
+            runCatching { focus.requestFocus() }
+            keyboard?.show()
+            chat.draftFocused()
+        }
+    }
     Row(
         Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 8.dp),
         verticalAlignment = Alignment.Bottom,
@@ -343,7 +321,7 @@ internal fun Composer(chat: ChatViewModel) {
                 textStyle = style,
                 cursorBrush = SolidColor(ink),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = label },
                 decorationBox = { inner ->
                     Box {
                         if (chat.draft.text.isEmpty()) {
@@ -367,9 +345,11 @@ internal fun Composer(chat: ChatViewModel) {
 
 /**
  * The check before sending: the same card as for a message in another app, with its Replace
- * labelled Send. Reviewing is forced, accepting isn't: with nothing accepted, Send as written
- * under the card sends the text as typed. A failed or unclear check offers Retry (or clarifying) and
- * Keep editing, never a way round it.
+ * labelled Send. It is a step on top of the draft, so the way back is navigation, not a peer
+ * of Send: Edit message with a back arrow above the card, and system Back, both return to the
+ * draft with the keyboard. Reviewing is forced, accepting isn't: with nothing accepted, Send as
+ * written under the card sends the text as typed. A failed or unclear check offers Retry (or
+ * clarifying) and Edit message, never a way round it.
  */
 @Composable
 internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: Dp, onOpenSettings: () -> Unit) {
@@ -393,20 +373,31 @@ internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: 
         onRemoveClarification = check::removeMeaning,
     )
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+        BackToDraft(chat::editDraft)
         if (state != null) {
             ResultCard(state, actions, Modifier.fillMaxWidth().heightIn(max = maxHeight), scrollable = true)
         } else {
             Progress(stringResource(R.string.lab_chat_checking))
         }
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-        ) {
-            LinguizeButton(stringResource(R.string.lab_chat_keep_editing), chat::keepEditing, ButtonKind.Text)
-            // With something accepted, the card's own row says "N changes accepted  Undo  Send".
-            if (revision != null && !revision.canUndo) {
+        // With something accepted, the card's own row says "N changes accepted  Undo  Send".
+        if (revision != null && !revision.canUndo) {
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
                 LinguizeButton(stringResource(R.string.lab_chat_send_as_written), { chat.sendReviewed(revision) }, ButtonKind.Filled)
             }
         }
+    }
+}
+
+/**
+ * The review's way back to the draft, at its top start where a back arrow goes: "Edit message".
+ * System Back does the same while it shows (after closing the keyboard, if one is up).
+ */
+@Composable
+internal fun BackToDraft(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    NavigationBackHandler(onBack = onBack)
+    LinguizeButton(onBack, ButtonKind.Text, modifier, contentPadding = PaddingValues(start = 8.dp, end = 16.dp)) {
+        Icon(painterResource(R.drawable.ic_back), contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.lab_chat_corrections_edit_message))
     }
 }

@@ -1,5 +1,10 @@
 package com.evanaronson.linguize.core.corpus
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import java.io.IOException
+
 /**
  * Lab: one piece of text the writer typed themselves, exactly as typed, before any correction.
  *
@@ -50,21 +55,71 @@ interface CorpusSource {
     /** Matches [Utterance.source]. */
     val name: String
 
-    /** Everything this source currently holds. Deleted input must no longer appear. */
+    /** The requested successful input. Deleted input must no longer appear; an unreadable source throws. */
     suspend fun utterances(): List<Utterance>
+
+    /** A source may supply bounded coverage or an incomplete read instead of claiming all input. */
+    suspend fun read(): CorpusRead = CorpusRead(utterances(), listOf(CorpusSourceCoverage(name, CorpusReadStatus.Complete)))
+}
+
+/** Complete means the requested window was read; [CorpusSourceCoverage.hasMore] describes older input. */
+enum class CorpusReadStatus { Complete, Partial, Failed }
+
+/** Pure source metadata: a bounded successful read is distinct from a partial or failed read. */
+data class CorpusSourceCoverage(
+    val source: String,
+    val status: CorpusReadStatus,
+    val limit: Int? = null,
+    val hasMore: Boolean? = null,
+    /** Process-local identity, when the source supports it; never a persisted fingerprint. */
+    val revision: Long? = null,
+    /** Source records selected and successfully loaded, before eligibility filtering. */
+    val selectedItems: Int? = null,
+    val loadedItems: Int? = null,
+)
+
+/** Successful portions remain inspectable, but complete-only consumers must explicitly require them. */
+data class CorpusRead(val utterances: List<Utterance>, val sources: List<CorpusSourceCoverage>) {
+    val status: CorpusReadStatus
+        get() = when {
+            sources.all { it.status == CorpusReadStatus.Complete } -> CorpusReadStatus.Complete
+            sources.all { it.status == CorpusReadStatus.Failed } -> CorpusReadStatus.Failed
+            else -> CorpusReadStatus.Partial
+        }
+
+    fun requireComplete(): List<Utterance> {
+        if (status != CorpusReadStatus.Complete) throw IOException("Writer evidence could not be read completely")
+        return utterances
+    }
 }
 
 /**
  * Lab: all writer input across features, oldest first. It is derived on demand from the
  * sources, so deleting from a source removes the input from everything built on the corpus.
- * A source that fails is skipped rather than failing the whole corpus.
+ * Source failures remain explicit, and cancellation stops the whole read immediately.
  */
 class Corpus(private val sources: List<CorpusSource>) {
-    suspend fun utterances(language: String? = null): List<Utterance> =
-        sources.flatMap { source -> runCatching { source.utterances() }.getOrElse { emptyList() } }
-            .filter { language == null || it.language == language }
+    suspend fun read(language: String? = null): CorpusRead {
+        val reads = sources.map { source ->
+            currentCoroutineContext().ensureActive()
+            val result = try {
+                source.read()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                CorpusRead(emptyList(), listOf(CorpusSourceCoverage(source.name, CorpusReadStatus.Failed)))
+            }
+            currentCoroutineContext().ensureActive()
+            result
+        }
+        val utterances = reads.flatMap { it.utterances }.filter { language == null || it.language == language }
             .distinctBy { it.id }
             .sortedBy { it.at }
+        return CorpusRead(utterances, reads.flatMap { it.sources })
+    }
+
+    /** Strict convenience for analysers that cannot truthfully consume partial evidence. */
+    suspend fun utterances(language: String? = null): List<Utterance> = read(language).requireComplete()
 
     /** The languages present, most used first. */
     suspend fun languages(): List<String> =

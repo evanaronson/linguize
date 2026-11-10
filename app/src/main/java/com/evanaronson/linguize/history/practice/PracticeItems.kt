@@ -5,10 +5,11 @@ import com.evanaronson.linguize.core.Sentences
 import com.evanaronson.linguize.core.practice.Answers
 import com.evanaronson.linguize.core.practice.PracticeItem
 import com.evanaronson.linguize.history.Decision
-import com.evanaronson.linguize.history.HistoryCursor
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.HistoryEvidenceReader
+import com.evanaronson.linguize.history.HistoryEvidenceResult
+import com.evanaronson.linguize.history.HistoryEvidenceWindow
 import com.evanaronson.linguize.history.SessionDetail
-import com.evanaronson.linguize.history.SessionDetailResult
 import com.evanaronson.linguize.history.SuggestionRecord
 
 /**
@@ -167,30 +168,41 @@ object PracticeItems {
     }
 }
 
-/** Reads every visible check from [history] and builds the deck from it. */
-class PracticeSource(private val history: HistoryStore) {
+/** A successful bounded deck read, or a retryable failure that must not prune schedules. */
+sealed interface PracticeEvidenceResult {
+    data class Ready(
+        val items: List<PracticeItem>,
+        val window: HistoryEvidenceWindow,
+        val revision: Long? = null,
+    ) : PracticeEvidenceResult
+    data object Failed : PracticeEvidenceResult
+}
+
+/** Rebuilds Practice's items from shared History evidence, retaining its own selection policy. */
+class PracticeSource(private val evidence: HistoryEvidenceReader) {
+    constructor(history: HistoryStore) : this(HistoryEvidenceReader(history))
+
     /**
-     * All items from the newest [maxChecks] checks. Null when part of History couldn't be
-     * read, so callers don't mistake a failed read for deleted checks.
+     * The newest [maxChecks] checks, rounded to a full 50-row page as this source has always
+     * read them. Production uses exactly 500. Failure cannot be mistaken for a smaller deck.
      */
-    suspend fun load(preferred: Set<String> = emptySet(), maxChecks: Int = MAX_CHECKS): List<PracticeItem>? {
-        val details = mutableListOf<SessionDetail>()
-        var cursor: HistoryCursor? = null
-        var read = 0
-        do {
-            val page = history.page(cursor, PAGE) ?: return null
-            for (row in page.rows) {
-                when (val result = history.detail(row.id)) {
-                    is SessionDetailResult.Found -> details += result.detail
-                    SessionDetailResult.Missing -> Unit
-                    SessionDetailResult.Failed -> return null
-                }
-            }
-            read += page.rows.size
-            cursor = page.next
-        } while (cursor != null && read < maxChecks)
-        return PracticeItems.from(details, preferred)
+    suspend fun read(preferred: Set<String> = emptySet(), maxChecks: Int = MAX_CHECKS): PracticeEvidenceResult {
+        val window = (((maxChecks.toLong().coerceAtLeast(1) + PAGE - 1) / PAGE) * PAGE)
+            .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        return when (val result = evidence.read(window)) {
+            is HistoryEvidenceResult.Ready -> PracticeEvidenceResult.Ready(
+                PracticeItems.from(result.snapshot.details, preferred), result.snapshot.window, result.snapshot.revision,
+            )
+            HistoryEvidenceResult.Failed -> PracticeEvidenceResult.Failed
+        }
     }
+
+    /** Convenience for callers that need items only; null is a failed read, never an empty deck. */
+    suspend fun load(preferred: Set<String> = emptySet(), maxChecks: Int = MAX_CHECKS): List<PracticeItem>? =
+        when (val result = read(preferred, maxChecks)) {
+            is PracticeEvidenceResult.Ready -> result.items
+            PracticeEvidenceResult.Failed -> null
+        }
 
     companion object {
         const val MAX_CHECKS = 500

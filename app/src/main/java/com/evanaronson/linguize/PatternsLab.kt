@@ -6,6 +6,10 @@ import com.evanaronson.linguize.data.lab.ExplanationStore
 import com.evanaronson.linguize.data.lab.SavedExplanation
 import com.evanaronson.linguize.data.lab.SavedTip
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.HistoryEvidenceReader
+import com.evanaronson.linguize.history.HistoryEvidenceResult
+import com.evanaronson.linguize.history.HistoryEvidenceSnapshot
+import com.evanaronson.linguize.history.HistoryEvidenceWindow
 import com.evanaronson.linguize.history.patterns.PatternAnalyser
 import com.evanaronson.linguize.history.patterns.PatternKind
 import com.evanaronson.linguize.history.patterns.PatternReport
@@ -26,6 +30,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
+import java.io.IOException
 
 /** How a saved explanation relates to the current report. */
 enum class ExplanationStatus {
@@ -41,6 +46,8 @@ data class PatternsSnapshot(
     val report: PatternReport,
     val explanation: SavedExplanation? = null,
     val status: ExplanationStatus? = null,
+    /** The all-language source window, before this report's optional language filter. */
+    val window: HistoryEvidenceWindow? = null,
 )
 
 /**
@@ -68,6 +75,7 @@ class PatternsLab(
     private val prompt: () -> PatternsPrompt,
     private val now: () -> Long = System::currentTimeMillis,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val evidence: HistoryEvidenceReader = HistoryEvidenceReader(history),
 ) {
     private val lock = Mutex()
     private val explanationRequest = AtomicLong()
@@ -83,15 +91,25 @@ class PatternsLab(
     }
 
     private suspend fun loadLocked(language: String?): PatternsSnapshot? {
-        val details = history.patternEvidence() ?: return null
+        val read = evidence.patternEvidence() as? HistoryEvidenceResult.Ready ?: return null
         currentCoroutineContext().ensureActive()
+        val report = PatternAnalyser.analyse(read.snapshot.details)
+        if (!current(read.snapshot)) return null
         // Read evidence and reconcile under the same lock: an older read must never delete
         // an explanation saved from newer evidence while that read was suspended.
-        val all = reconcileLocked(PatternAnalyser.analyse(details))
-        if (language == null) return all
-        val report = PatternAnalyser.analyse(details.filter { it.session.targetLanguage == language })
-        val status = all.explanation?.let { saved -> explanationStatus(saved, report)?.takeIf { saved.sources.isNotEmpty() } }
-        return PatternsSnapshot(report, all.explanation?.takeIf { status != null }, status)
+        return snapshotLocked(read.snapshot, report, language)
+    }
+
+    private fun current(snapshot: HistoryEvidenceSnapshot): Boolean =
+        snapshot.revision == null || evidence.revision() == snapshot.revision
+
+    private suspend fun snapshotLocked(evidence: HistoryEvidenceSnapshot, report: PatternReport, language: String?): PatternsSnapshot? {
+        val all = reconcileLocked(report).copy(window = evidence.window)
+        if (language == null) return all.takeIf { current(evidence) }
+        val scoped = PatternAnalyser.analyse(evidence.details.filter { it.session.targetLanguage == language })
+        val status = all.explanation?.let { saved -> explanationStatus(saved, scoped)?.takeIf { saved.sources.isNotEmpty() } }
+        return PatternsSnapshot(scoped, all.explanation?.takeIf { status != null }, status, evidence.window)
+            .takeIf { current(evidence) }
     }
 
     /** Deletes a saved explanation whose evidence is gone, and says how the rest relates to [report]. */
@@ -190,8 +208,26 @@ class PatternsLab(
             lock.withLock {
                 currentCoroutineContext().ensureActive()
                 if (generation != explanationRequest.get()) throw CancellationException("Explanation superseded")
-                notes.write(saved)
-                loadLocked(language) ?: reconcileLocked(report)
+                val read = evidence.patternEvidence() as? HistoryEvidenceResult.Ready
+                    ?: throw IOException("Couldn't reread History for the explanation")
+                val currentReport = PatternAnalyser.analyse(read.snapshot.details)
+                currentCoroutineContext().ensureActive()
+                if (generation != explanationRequest.get()) throw CancellationException("Explanation superseded")
+                if (!current(read.snapshot)) throw IOException("History changed while validating the explanation")
+                // The provider may have answered after a source was deleted. Validate before
+                // saving; a failed reread can never authorize reuse of the old input report.
+                val written = explanationStatus(saved, currentReport) != null
+                if (written) notes.write(saved)
+                if (!current(read.snapshot)) {
+                    // History has its own writer. A source can disappear during the local
+                    // file write even though the evidence was current before it began.
+                    if (written) notes.delete()
+                    throw IOException("History changed while saving the explanation")
+                }
+                snapshotLocked(read.snapshot, currentReport, language) ?: run {
+                    if (written) notes.delete()
+                    throw IOException("History changed while reading the saved explanation")
+                }
             }
         }
     }

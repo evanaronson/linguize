@@ -165,7 +165,6 @@ class WriterEvidenceContractTest {
     }
 
     @Test
-    @Category(KnownBonanzaDefect::class)
     fun corpusPropagatesCancellationInsteadOfReturningSuccessfulEmptyEvidence() = runBlocking {
         val cancelled = CancellationException("superseded evidence request")
         var readNextSource = false

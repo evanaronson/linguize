@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.FakePreferences
 import com.evanaronson.linguize.PatternsLab
+import com.evanaronson.linguize.history.HistoryEvidenceReader
 import com.evanaronson.linguize.data.lab.ExplanationStore
 import com.evanaronson.linguize.data.lab.SavedExplanation
 import com.evanaronson.linguize.history.patterns.FakePatternHistory
@@ -56,11 +57,13 @@ class HomeScopeLifecycleTest {
         // No process housekeeping is needed to test Activity dispatch and its Flow observer.
         app.appScope.cancel()
         ReflectionHelpers.setField(app, "history\$delegate", lazyOf(history))
+        val evidence = HistoryEvidenceReader(history)
+        ReflectionHelpers.setField(app, "historyEvidence\$delegate", lazyOf(evidence))
         val lab = PatternsLab(history, object : ExplanationStore {
             override fun read(): SavedExplanation? = null
             override fun write(explanation: SavedExplanation) = Unit
             override fun delete() = Unit
-        }, FakePreferences(), { null }, emptyMap(), { PatternsPrompt("Unused") }, io = Dispatchers.Main.immediate)
+        }, FakePreferences(), { null }, emptyMap(), { PatternsPrompt("Unused") }, io = Dispatchers.Main.immediate, evidence = evidence)
         ReflectionHelpers.setField(app, "patterns\$delegate", lazyOf(lab))
         AppLanguage.of(app).select(null)
     }

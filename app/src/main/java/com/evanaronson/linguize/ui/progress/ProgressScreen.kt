@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.ui.progress
 
+import com.evanaronson.linguize.ui.components.EvidenceFailureNotice
+
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -153,6 +155,12 @@ fun ProgressScreen(
         else patternsState.snapshot?.report?.takeIf { it.worthShowing }
 
     ScreenColumn {
+        if (wordsState.evidenceFailed || conjugationsState.failed) {
+            EvidenceFailureNotice(wordsState.index != null || conjugationsState.reports.isNotEmpty()) {
+                words.refresh()
+                conjugations.refresh()
+            }
+        }
         progressLayout(language, found, options.map { it.code }).forEach { section ->
             when (section) {
                 ProgressSection.Headline -> TimeHeadline(language) { onOpen(ProgressView.Time, null) }

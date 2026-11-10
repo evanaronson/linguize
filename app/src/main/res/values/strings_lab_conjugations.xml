@@ -5,8 +5,6 @@
     <string name="lab_conjugations_home_summary">Which verb tenses you use in Spanish and Catalan</string>
     <string name="lab_conjugations_open">Open your conjugations</string>
     <string name="lab_conjugations_loading">Counting your verbs</string>
-    <string name="lab_conjugations_failed">Couldn\'t read what you wrote</string>
-    <string name="lab_conjugations_retry">Retry</string>
     <string name="lab_conjugations_intro">Counted from what you typed yourself. Words a fix replaced don\'t count.</string>
     <string name="lab_conjugations_empty_hint">Text you write in Spanish or Catalan in checks and chats appears here.</string>
     <plurals name="lab_conjugations_cells_used">

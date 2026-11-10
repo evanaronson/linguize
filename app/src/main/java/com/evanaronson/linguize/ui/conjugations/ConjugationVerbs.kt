@@ -1,5 +1,7 @@
 package com.evanaronson.linguize.ui.conjugations
 
+import com.evanaronson.linguize.ui.components.EvidenceFailureNotice
+
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -148,8 +150,9 @@ fun ConjugationVerbsScreen(model: ConjugationsViewModel, language: String, cell:
     val arranged = remember(rows, sort, query) { VerbList.arrange(rows, sort, query, Locale.forLanguageTag(language)) }
 
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+        if (state.failed) item(key = "evidence_failure") { EvidenceFailureNotice(report != null, model::refresh) }
         if (report == null) {
-            item(key = "loading") { PageLoading(stringResource(R.string.lab_conjugations_loading)) }
+            if (state.loading) item(key = "loading") { PageLoading(stringResource(R.string.lab_conjugations_loading)) }
             return@LazyColumn
         }
         item(key = "controls") {

@@ -14,6 +14,8 @@ import com.evanaronson.linguize.DeckChoice
 import com.evanaronson.linguize.ImportOutcome
 import com.evanaronson.linguize.DeckLibrary
 import com.evanaronson.linguize.core.corpus.Corpus
+import com.evanaronson.linguize.core.corpus.CorpusReadStatus
+import com.evanaronson.linguize.core.corpus.CorpusSourceCoverage
 import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.vocab.DeckParse
 import com.evanaronson.linguize.core.vocab.VocabDeck
@@ -79,6 +81,9 @@ data class WordsState(
     val measuring: Boolean = true,
     /** Export is available only after the complete current query has been published. */
     val exportReady: Boolean = false,
+    /** Status and bounds of the latest evidence read; incomplete reads never replace [index]. */
+    val evidenceStatus: CorpusReadStatus? = null,
+    val evidenceSources: List<CorpusSourceCoverage> = emptyList(),
     val index: WordIndex? = null,
     /** The language chosen; null picks the most used. */
     val language: String? = null,
@@ -102,6 +107,8 @@ data class WordsState(
     val importMessage: ImportMessage? = null,
     val storageFailure: WordsStorageFailure? = null,
 ) {
+    val evidenceFailed: Boolean get() = evidenceStatus == CorpusReadStatus.Partial || evidenceStatus == CorpusReadStatus.Failed
+
     /** The language shown: the chosen one, else the first with words or a deck. */
     val shownLanguage: String? get() = language ?: languages.firstOrNull()
 
@@ -216,9 +223,31 @@ class WordsViewModel internal constructor(
     private suspend fun loadQuery(query: Long) {
         val exportGeneration = exports?.generation() ?: 0L
         val before = _state.value
-        val index = if (needsRebuild || before.index == null || indexGeneration != exportGeneration) {
-            withContext(compute) { cache.index(corpus.utterances()) }
-        } else before.index
+        val evidence = if (needsRebuild || before.index == null || indexGeneration != exportGeneration) {
+            withContext(compute) { corpus.read() }
+        } else null
+        if (!current(query)) return
+        if (evidence != null && evidence.status != CorpusReadStatus.Complete) {
+            needsRebuild = true
+            // Deck membership is independent durable state. In particular, a deletion can
+            // commit membership before physical cleanup fails while History is unavailable.
+            var inventoryFailed = false
+            val imported = try { decks?.imported() } catch (_: IOException) { inventoryFailed = true; null }
+            if (!current(query)) return
+            val ids = imported?.mapTo(HashSet()) { it.id }
+            _state.update {
+                val removed = ids != null && it.deckId?.startsWith(VocabGapsStore.IMPORTED_PREFIX) == true && it.deckId !in ids
+                it.copy(loading = false, measuring = false, exportReady = false,
+                    evidenceStatus = evidence.status, evidenceSources = evidence.sources,
+                    imported = imported ?: it.imported,
+                    decks = if (ids == null) it.decks else it.decks.filter { deck -> deck.bundled || deck.id in ids },
+                    deckId = it.deckId.takeUnless { removed }, coverage = it.coverage.takeUnless { removed },
+                    storageFailure = if (inventoryFailed) WordsStorageFailure.ReadDecks else it.storageFailure)
+            }
+            return
+        }
+        val index = if (evidence != null) withContext(compute) { cache.index(evidence.utterances) }
+            else requireNotNull(before.index)
         if (!current(query)) return
 
         var readFailure: WordsStorageFailure? = null
@@ -269,6 +298,7 @@ class WordsViewModel internal constructor(
                 // Keep a previous result intact on read failure. On first load, writer evidence
                 // can still be shown without pretending the failed deck read was an empty list.
                 it.copy(loading = false, measuring = false, index = it.index ?: index,
+                    evidenceStatus = CorpusReadStatus.Complete, evidenceSources = evidence?.sources ?: before.evidenceSources,
                     languages = if (it.index == null) written else it.languages,
                     storageFailure = WordsStorageFailure.ReadDecks)
             }
@@ -294,6 +324,7 @@ class WordsViewModel internal constructor(
         readyWords = ReadyWords(query, key, words, coverage, exportGeneration)
         _state.update {
             it.copy(loading = false, measuring = false, exportReady = true, index = index, languages = languages,
+                evidenceStatus = CorpusReadStatus.Complete, evidenceSources = evidence?.sources ?: before.evidenceSources,
                 decks = choices, deckId = choice?.id, coverage = coverage,
                 deckFailed = choice != null && deck == null, imported = imported,
                 storageFailure = readFailure ?: pendingDeleteFailure() ?: it.storageFailure.takeUnless { failure ->
@@ -478,8 +509,10 @@ class WordsViewModel internal constructor(
             try {
                 when (val outcome = lab.import(pending.text, name.ifBlank { pending.suggestedName }, language)) {
                     is ImportOutcome.Imported -> {
-                        if (picked == pickVersion) _state.update {
-                            it.copy(pendingImport = null, importMessage = ImportMessage.Imported(outcome.deck.size))
+                        _state.update {
+                            it.copy(imported = it.imported.filterNot { deck -> deck.id == outcome.deck.id } + outcome.deck,
+                                pendingImport = if (picked == pickVersion) null else it.pendingImport,
+                                importMessage = if (picked == pickVersion) ImportMessage.Imported(outcome.deck.size) else it.importMessage)
                         }
                         val selectImported = selected == scopeVersion
                         if (selectImported) {
@@ -521,7 +554,9 @@ class WordsViewModel internal constructor(
                 publishDeleteFailure()
                 _state.update { it.copy(importMessage = null) }
                 requestQuery(clearCoverage = _state.value.deckId == id) {
-                    it.copy(deckId = it.deckId.takeIf { current -> current != id })
+                    it.copy(deckId = it.deckId.takeIf { current -> current != id },
+                        imported = it.imported.filterNot { deck -> deck.id == id },
+                        decks = it.decks.filterNot { deck -> deck.id == id })
                 }
             }
         }

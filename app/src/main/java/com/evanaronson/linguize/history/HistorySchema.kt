@@ -194,6 +194,20 @@ internal object HistorySchema {
     const val SESSION_SUGGESTIONS =
         """SELECT * FROM $SUGGESTIONS WHERE "sessionId" = ? AND "deletedAt" IS NULL ORDER BY "attempt", "start", "end" """
 
+    /** The same visible/tied order as [recent], with full rows for one evidence window. */
+    fun evidenceSessions(limit: Int) =
+        """SELECT * FROM $SESSIONS WHERE $VISIBLE_HISTORY ORDER BY "startedAt" DESC, "id" DESC LIMIT ${limit.coerceAtLeast(0)}"""
+
+    /** A bounded subquery avoids SQLite's bind-parameter limit for the 3,000-check corpus. */
+    fun evidenceSuggestions(limit: Int) = """
+        SELECT * FROM $SUGGESTIONS
+        WHERE "deletedAt" IS NULL AND "sessionId" IN (
+            SELECT "id" FROM $SESSIONS WHERE $VISIBLE_HISTORY
+            ORDER BY "startedAt" DESC, "id" DESC LIMIT ${limit.coerceAtLeast(0)}
+        )
+        ORDER BY "sessionId", "attempt", "start", "end"
+    """.trimIndent()
+
     /** Raw retained records for migration and internal inspection, including hidden legacy checks. */
     const val ALL_SESSIONS = """SELECT * FROM $SESSIONS WHERE "deletedAt" IS NULL ORDER BY "startedAt" """
 

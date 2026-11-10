@@ -2,16 +2,19 @@ package com.evanaronson.linguize.history.corpus
 
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.corpus.CorpusSource
+import com.evanaronson.linguize.core.corpus.CorpusRead
+import com.evanaronson.linguize.core.corpus.CorpusReadStatus
+import com.evanaronson.linguize.core.corpus.CorpusSourceCoverage
 import com.evanaronson.linguize.core.corpus.Span
 import com.evanaronson.linguize.core.corpus.Utterance
 import com.evanaronson.linguize.core.corpus.WriterGaps
 import com.evanaronson.linguize.history.Decision
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.HistoryEvidenceReader
+import com.evanaronson.linguize.history.HistoryEvidenceResult
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.SessionDetail
 import com.evanaronson.linguize.history.SuggestionRecord
-import com.evanaronson.linguize.history.patterns.patternEvidence
-import java.io.IOException
 
 /**
  * Lab: the corpus source "check" (docs/lab/corpus.md). Each visible saved check gives its
@@ -21,19 +24,27 @@ import java.io.IOException
 class CheckCorpusSource(
     private val history: HistoryStore,
     private val maxChecks: Int = MAX_CHECKS,
+    private val evidence: HistoryEvidenceReader = HistoryEvidenceReader(history),
 ) : CorpusSource {
     override val name: String = NAME
 
-    /** Throws when History couldn't be read, so the corpus skips it rather than reading it as empty. */
-    override suspend fun utterances(): List<Utterance> {
-        val details = history.patternEvidence(maxChecks, PAGE) ?: throw IOException("History couldn't be read")
-        return CheckUtterances.from(details)
+    /** Strict compatibility for direct callers; partial or failed reads never become an empty corpus. */
+    override suspend fun utterances(): List<Utterance> = read().requireComplete()
+
+    override suspend fun read(): CorpusRead = when (val result = evidence.read(maxChecks)) {
+        is HistoryEvidenceResult.Ready -> CorpusRead(CheckUtterances.from(result.snapshot.details), listOf(
+            CorpusSourceCoverage(name, CorpusReadStatus.Complete, result.snapshot.window.limit,
+                result.snapshot.window.hasMore, result.snapshot.revision,
+                selectedItems = result.snapshot.selectedIds.size, loadedItems = result.snapshot.details.size),
+        ))
+        HistoryEvidenceResult.Failed -> CorpusRead(emptyList(), listOf(
+            CorpusSourceCoverage(name, CorpusReadStatus.Failed, limit = maxChecks),
+        ))
     }
 
     companion object {
         const val NAME = "check"
         const val MAX_CHECKS = 3000
-        private const val PAGE = 100
     }
 }
 

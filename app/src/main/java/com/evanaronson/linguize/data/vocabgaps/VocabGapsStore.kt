@@ -7,6 +7,7 @@ import com.evanaronson.linguize.core.vocab.DeckParser
 import com.evanaronson.linguize.core.vocab.VocabDeck
 import com.evanaronson.linguize.core.vocab.VocabLevel
 import com.evanaronson.linguize.data.writeAtomically
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -141,7 +142,14 @@ class BundledDecks(private val load: (String) -> String) {
         decks.getOrPut(language + ":" + lemmatizer.javaClass.name) {
             val asset = ASSETS[language] ?: return@getOrPut null
             val entries = parsed.getOrPut(language) {
-                (runCatching { DeckParser.parse(load(asset), language) }.getOrNull() as? DeckParse.Parsed)?.entries
+                val result = try {
+                    DeckParser.parse(load(asset), language)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+                (result as? DeckParse.Parsed)?.entries
             } ?: return@getOrPut null
             if (language in FORM_LISTS) {
                 VocabDeck.fromForms(idFor(language), "", language, entries, bundled = true) { lemmatizer.lexemes(it, language) }

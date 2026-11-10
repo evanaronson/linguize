@@ -4,11 +4,16 @@ import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
 import com.evanaronson.linguize.core.practice.AnswerResult
+import com.evanaronson.linguize.core.practice.Deck
+import com.evanaronson.linguize.core.practice.Grade
 import com.evanaronson.linguize.data.practice.PracticeStore
+import com.evanaronson.linguize.history.HistoryEvidenceResult
+import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.patterns.FakePatternHistory
 import com.evanaronson.linguize.history.patterns.PatternFixtures.check
 import com.evanaronson.linguize.history.patterns.PatternFixtures.fix
 import com.evanaronson.linguize.testing.MainDispatcherRule
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -26,6 +31,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 import java.time.ZoneOffset
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -121,8 +127,98 @@ class PracticeFailureTest {
         assertNotNull(model.state.value.run)
     }
 
+
+    @Test fun aPartialEvidenceFailureKeepsTheLastDeckAndCannotPruneItsSchedule() = runTest(main.dispatcher) {
+        val model = model()
+        advanceUntilIdle()
+        model.start()
+        model.submit("después")
+        advanceUntilIdle()
+        val items = model.state.value.items
+        val progress = store.read()
+        assertEquals(500, model.state.value.window?.limit)
+        history.failDetail = "one"
+        history.revisions.value++
+        advanceUntilIdle()
+
+        assertTrue(model.state.value.loadFailed)
+        assertEquals(items, model.state.value.items)
+        assertEquals(progress, model.state.value.progress)
+        assertEquals(progress, store.read())
+
+        history.failDetail = null
+        model.retryLoad()
+        advanceUntilIdle()
+        assertFalse(model.state.value.loadFailed)
+        assertEquals(progress, store.read())
+        assertEquals(500, model.state.value.window?.limit)
+    }
+
+    @Test fun historyChangingWhilePruneWaitsCannotRemoveANewerSchedule() = runTest(main.dispatcher) {
+        val io = HeldDispatcher(main.dispatcher)
+        var revision = 0L
+        var holdUpdate = false
+        val source = object : HistoryStore by history {
+            override fun evidenceRevision() = revision
+            override suspend fun evidence(limit: Int): HistoryEvidenceResult {
+                val read = history.evidence(limit)
+                if (holdUpdate) {
+                    holdUpdate = false
+                    io.hold()
+                }
+                return when (read) {
+                    is HistoryEvidenceResult.Ready -> read.copy(snapshot = read.snapshot.copy(revision = revision))
+                    HistoryEvidenceResult.Failed -> read
+                }
+            }
+        }
+        store.update { Deck.record(it, "one-s0", Grade.Good, 100, 0) }
+        val model = PracticeViewModel(source, PracticeStore(file, io), savedState = SavedStateHandle())
+            .also { owners.put("practice", it) }
+        advanceUntilIdle()
+        val before = model.state.value
+
+        revision++ // Force a fresh read, then pause only its following progress update.
+        holdUpdate = true
+        model.retryLoad()
+        advanceUntilIdle()
+        history.sessions.clear()
+        history.sessions["two"] = check("two", 2, fix("aqui", "aquí"), text = "aqui.")
+        revision++
+        val newer = store.update { Deck.record(it, "two-s0", Grade.Good, 200, 0) }
+        io.release()
+        advanceUntilIdle()
+
+        assertTrue(model.state.value.loadFailed)
+        assertEquals(before.items, model.state.value.items)
+        assertEquals(before.progress, model.state.value.progress)
+        assertEquals(newer, store.read())
+
+        model.retryLoad()
+        advanceUntilIdle()
+        assertFalse(model.state.value.loadFailed)
+        assertEquals(listOf("two-s0"), model.state.value.items!!.map { it.id })
+        assertEquals(setOf("two-s0"), store.read().states.keys)
+    }
+
     private fun blockTemp() = File(folder.root, "practice.json.tmp").also {
         assertTrue(it.mkdir())
         File(it, "keep").writeText("storage obstruction")
+    }
+
+    private class HeldDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+        private var held = false
+        private val pending = ArrayDeque<Pair<CoroutineContext, Runnable>>()
+        fun hold() { held = true }
+        fun release() {
+            held = false
+            while (pending.isNotEmpty()) {
+                val (context, block) = pending.removeFirst()
+                delegate.dispatch(context, block)
+            }
+        }
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            if (held) pending.addLast(context to block) else delegate.dispatch(context, block)
+        }
     }
 }

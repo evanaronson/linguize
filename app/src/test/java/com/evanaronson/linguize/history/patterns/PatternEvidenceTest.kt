@@ -11,16 +11,16 @@ class PatternEvidenceTest {
     private val details = (1..7).map { check("c$it", it, fix("esta", "está")) }
 
     @Test
-    fun readsEveryVisibleCheckAcrossPagesNewestFirst() = runBlocking {
+    fun readsVisibleChecksNewestFirst() = runBlocking {
         val store = FakePatternHistory(details)
-        val read = store.patternEvidence(pageSize = 3)!!
+        val read = store.patternEvidence()!!
         assertEquals((7 downTo 1).map { "c$it" }, read.map { it.session.id })
     }
 
     @Test
     fun stopsAtTheLimit() = runBlocking {
         val store = FakePatternHistory(details)
-        val read = store.patternEvidence(limit = 4, pageSize = 3)!!
+        val read = store.patternEvidence(limit = 4)!!
         assertEquals(listOf("c7", "c6", "c5", "c4"), read.map { it.session.id })
         assertEquals(4, store.detailReads.size)
     }

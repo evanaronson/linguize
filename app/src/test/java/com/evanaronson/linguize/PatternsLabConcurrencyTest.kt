@@ -2,8 +2,7 @@ package com.evanaronson.linguize
 
 import com.evanaronson.linguize.data.lab.ExplanationStore
 import com.evanaronson.linguize.data.lab.SavedExplanation
-import com.evanaronson.linguize.history.HistoryCursor
-import com.evanaronson.linguize.history.HistoryPage
+import com.evanaronson.linguize.history.HistoryEvidenceResult
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.patterns.FakePatternHistory
 import com.evanaronson.linguize.history.patterns.PatternAnalyser
@@ -30,6 +29,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PatternsLabConcurrencyTest {
@@ -93,8 +93,8 @@ class PatternsLabConcurrencyTest {
         val release = CompletableDeferred<Unit>()
         var holdNextRead = true
         val delayed = object : HistoryStore by history {
-            override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage? {
-                val captured = history.page(before, limit)
+            override suspend fun evidence(limit: Int): HistoryEvidenceResult {
+                val captured = history.evidence(limit)
                 if (holdNextRead) {
                     holdNextRead = false
                     release.await()
@@ -122,8 +122,8 @@ class PatternsLabConcurrencyTest {
         val release = CompletableDeferred<Unit>()
         var holdNextRead = false
         val delayed = object : HistoryStore by history {
-            override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage? {
-                val captured = history.page(before, limit)
+            override suspend fun evidence(limit: Int): HistoryEvidenceResult {
+                val captured = history.evidence(limit)
                 if (holdNextRead) {
                     holdNextRead = false
                     withContext(NonCancellable) { release.await() }
@@ -146,10 +146,88 @@ class PatternsLabConcurrencyTest {
         assertEquals(saved, notes.saved)
     }
 
+
+    @Test fun aFailedRereadAfterSourceDeletionCannotSaveAnExplanationFromTheOldReport() = runTest {
+        val answer = CompletableDeferred<String>()
+        val lab = service { answer.await() }
+        val report = lab.load()!!.report
+        val pending = async { runCatching { lab.explain(report) } }
+        runCurrent()
+        history.delete("b")
+        history.failPage = true
+        answer.complete(REPLY)
+        advanceUntilIdle()
+
+        assertTrue(pending.await().exceptionOrNull() is IOException)
+        assertNull(notes.saved)
+    }
+
+    @Test fun aSuccessfulRereadDropsAReplyWhoseSourcesWereDeleted() = runTest {
+        val answer = CompletableDeferred<String>()
+        val lab = service { answer.await() }
+        val report = lab.load()!!.report
+        val pending = async { lab.explain(report) }
+        runCurrent()
+        history.delete("b")
+        answer.complete(REPLY)
+        advanceUntilIdle()
+
+        val current = pending.await()
+        assertEquals(1, current.report.checksCounted)
+        assertEquals(400, current.window?.limit)
+        assertNull(current.explanation)
+        assertNull(notes.saved)
+    }
+
+    @Test fun aSourceDeletedDuringTheExplanationWriteRetiresThatReply() = runTest {
+        val lab = service(revisionedHistory())
+        val report = lab.load()!!.report
+        notes.afterWrite = {
+            history.sessions.remove("b")
+            history.revisions.value++
+        }
+
+        val result = runCatching { lab.explain(report) }
+
+        assertTrue(result.exceptionOrNull() is IOException)
+        assertNull(notes.saved)
+        assertEquals(1, lab.load()!!.report.checksCounted)
+    }
+
+    @Test fun aSourceDeletedDuringSavedExplanationReadCannotPublishTheOldSnapshot() = runTest {
+        val lab = service(revisionedHistory())
+        lab.explain(lab.load()!!.report)
+        notes.afterRead = {
+            notes.afterRead = null
+            history.sessions.remove("b")
+            history.revisions.value++
+        }
+
+        assertNull(lab.load())
+        val fresh = lab.load()!!
+        assertEquals(1, fresh.report.checksCounted)
+        assertNull(fresh.explanation)
+        assertNull(notes.saved)
+    }
+
+    private fun revisionedHistory() = object : HistoryStore by history {
+        override fun evidenceRevision(): Long = history.revisions.value
+        override suspend fun evidence(limit: Int): HistoryEvidenceResult =
+            when (val read = history.evidence(limit)) {
+                is HistoryEvidenceResult.Ready -> read.copy(snapshot = read.snapshot.copy(revision = evidenceRevision()))
+                HistoryEvidenceResult.Failed -> read
+            }
+    }
+
     private class Notes : ExplanationStore {
         var saved: SavedExplanation? = null
-        override fun read() = saved
-        override fun write(explanation: SavedExplanation) { saved = explanation }
+        var afterRead: (() -> Unit)? = null
+        var afterWrite: (() -> Unit)? = null
+        override fun read() = saved.also { afterRead?.invoke() }
+        override fun write(explanation: SavedExplanation) {
+            saved = explanation
+            afterWrite?.invoke()
+        }
         override fun delete() { saved = null }
     }
 

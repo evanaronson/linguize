@@ -17,6 +17,7 @@ import com.evanaronson.linguize.history.Decision
 import com.evanaronson.linguize.history.HistoryCursor
 import com.evanaronson.linguize.history.HistoryPage
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.readEvidencePages
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.SessionDetail
 import com.evanaronson.linguize.history.SessionDetailResult
@@ -53,6 +54,9 @@ class PracticeViewModelTest {
 
     private val history = object : HistoryStore by SqliteHistoryStore(app, "unused") {
         override fun revisions() = revisions
+        // This fixture owns page/detail rows; do not delegate its batch to the unused database.
+        override fun evidenceRevision(): Long? = null
+        override suspend fun evidence(limit: Int) = readEvidencePages(limit)
 
         override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage =
             HistoryPage(sessions.values.sortedByDescending { it.session.startedAt }.map {

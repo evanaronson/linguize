@@ -43,6 +43,7 @@ import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
+import com.evanaronson.linguize.ui.components.EvidenceFailureNotice
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
@@ -81,8 +82,9 @@ fun WordDetailScreen(
         }
     }
     ScreenColumn {
+        if (state.evidenceFailed) EvidenceFailureNotice(state.index != null, words::refresh)
         if (shown == null || row == null) {
-            if (state.index != null && !state.loading) CardNote(stringResource(R.string.lab_words_gone))
+            if (state.index != null && !state.loading && !state.evidenceFailed) CardNote(stringResource(R.string.lab_words_gone))
             return@ScreenColumn
         }
         Spacer(Modifier.height(8.dp))

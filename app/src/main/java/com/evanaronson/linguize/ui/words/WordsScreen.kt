@@ -73,6 +73,7 @@ import com.evanaronson.linguize.ui.components.FilterDropdown
 import androidx.compose.foundation.layout.FlowRow
 import com.evanaronson.linguize.ui.components.CardNote
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.ui.components.EvidenceFailureNotice
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.RowDivider
@@ -121,7 +122,8 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, language: String?, o
     val shown = state.shown
     if (state.index == null || shown == null) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            if (state.index == null) PageLoading(stringResource(R.string.lab_vocab_gaps_loading))
+            if (state.evidenceFailed) EvidenceFailureNotice(state.index != null, words::refresh)
+            else if (state.index == null) PageLoading(stringResource(R.string.lab_vocab_gaps_loading))
             else EmptyCard(stringResource(R.string.lab_words_empty_title), stringResource(R.string.lab_words_empty))
             state.storageFailure?.let { StorageFailureNotice(it, words::retryStorage) }
             if (historyOn == false) CardNote(stringResource(R.string.history_off))
@@ -140,6 +142,7 @@ fun WordsScreen(words: WordsViewModel, historyOn: Boolean?, language: String?, o
     val growth = remember(shown, coverage, level) { WordList.growth(shown.rows(level), coverage) }
 
     LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+        if (state.evidenceFailed) item(key = "evidence_failure") { EvidenceFailureNotice(true, words::refresh) }
         item(key = "header") { Header(shown, coverage, state.deckFailed, level) }
         state.storageFailure?.let { failure ->
             item(key = "storage_failure") { StorageFailureNotice(failure, words::retryStorage) }

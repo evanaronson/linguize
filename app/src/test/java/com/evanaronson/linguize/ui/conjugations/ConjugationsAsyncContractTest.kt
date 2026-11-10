@@ -6,6 +6,11 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.core.corpus.Utterance
+import com.evanaronson.linguize.core.corpus.Corpus
+import com.evanaronson.linguize.core.corpus.CorpusRead
+import com.evanaronson.linguize.core.corpus.CorpusReadStatus
+import com.evanaronson.linguize.core.corpus.CorpusSource
+import com.evanaronson.linguize.core.corpus.CorpusSourceCoverage
 import com.evanaronson.linguize.core.morphology.Morphology
 import com.evanaronson.linguize.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
@@ -136,5 +141,58 @@ class ConjugationsAsyncContractTest {
         advanceUntilIdle()
         assertFalse(model.state.value.failed)
         assertEquals(1, model.state.value.reports["es"]?.utterances)
+    }
+
+    @Test fun partialCorpusEvidenceCannotReplaceCompleteReportsAndRetryUsesTheRecoveredSource() = runTest(main.dispatcher) {
+        var status = CorpusReadStatus.Complete
+        var items = spanish
+        val source = object : CorpusSource {
+            override val name = "check"
+            override suspend fun read() = CorpusRead(items, listOf(CorpusSourceCoverage(name, status)))
+            override suspend fun utterances() = read().requireComplete()
+        }
+        val corpus = Corpus(listOf(source))
+        val model = model { corpus.utterances() }
+        model.refresh()
+        advanceUntilIdle()
+        val before = model.state.value.reports
+        status = CorpusReadStatus.Partial
+        items = catalan
+        model.refresh()
+        advanceUntilIdle()
+        assertTrue(model.state.value.failed)
+        assertSame(before, model.state.value.reports)
+        assertEquals(1, model.state.value.reports["es"]?.utterances)
+
+        status = CorpusReadStatus.Complete
+        model.refresh()
+        advanceUntilIdle()
+        assertFalse(model.state.value.failed)
+        assertEquals(0, model.state.value.reports["es"]?.utterances)
+        assertEquals(1, model.state.value.reports["ca"]?.utterances)
+    }
+
+    @Test fun anUnreadableInitialCorpusIsAFailureAndASuccessfulEmptyRetryIsNot() = runTest(main.dispatcher) {
+        var failed = true
+        val source = object : CorpusSource {
+            override val name = "check"
+            override suspend fun utterances(): List<Utterance> {
+                if (failed) throw IOException("History unavailable")
+                return emptyList()
+            }
+        }
+        val model = model { Corpus(listOf(source)).utterances() }
+        model.refresh()
+        advanceUntilIdle()
+        assertTrue(model.state.value.failed)
+        assertFalse(model.state.value.loading)
+        assertTrue(model.state.value.reports.isEmpty())
+
+        failed = false
+        model.refresh()
+        advanceUntilIdle()
+        assertFalse(model.state.value.failed)
+        assertEquals(setOf("es", "ca"), model.state.value.reports.keys)
+        assertTrue(model.state.value.reports.values.all { it.utterances == 0 })
     }
 }

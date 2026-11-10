@@ -17,6 +17,9 @@ import com.evanaronson.linguize.core.practice.PracticeProgress
 import com.evanaronson.linguize.core.practice.ReviewState
 import com.evanaronson.linguize.data.practice.PracticeStore
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.HistoryEvidenceReader
+import com.evanaronson.linguize.history.HistoryEvidenceWindow
+import com.evanaronson.linguize.history.practice.PracticeEvidenceResult
 import com.evanaronson.linguize.history.practice.PracticeSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +46,8 @@ data class PracticeState(
     val loadFailed: Boolean = false,
     val saving: Boolean = false,
     val saveFailed: Boolean = false,
+    /** This is Practice's retained sample, not a statement that older History no longer exists. */
+    val window: HistoryEvidenceWindow? = null,
 ) {
     /** The items in [language]; an item whose language isn't known is only in an unscoped deck. */
     val scoped: List<PracticeItem>? get() = items?.filter { LanguageScope.keeps(it.language, language) }
@@ -77,8 +82,9 @@ class PracticeViewModel internal constructor(
     private val clock: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val savedState: SavedStateHandle,
+    private val evidence: HistoryEvidenceReader = HistoryEvidenceReader(history),
 ) : ViewModel() {
-    private val source = PracticeSource(history)
+    private val source = PracticeSource(evidence)
     private val mutable = MutableStateFlow(PracticeState())
     val state: StateFlow<PracticeState> = mutable.asStateFlow()
     private val operations = Mutex()
@@ -99,12 +105,21 @@ class PracticeViewModel internal constructor(
         try {
             operations.withLock {
                 val saved = store.read()
-                val items = source.load(saved.states.keys)
-                if (items == null) {
+                val result = source.read(saved.states.keys)
+                val loaded = result as? PracticeEvidenceResult.Ready
+                if (loaded == null) {
                     mutable.update { it.copy(loadFailed = true) }
                 } else {
-                    val progress = store.update { Deck.prune(it, items.mapTo(HashSet()) { item -> item.id }) }
-                    mutable.update { it.copy(items = items, progress = progress, loadFailed = false) }
+                    val items = loaded.items
+                    val progress = store.update {
+                        // History may have changed while this update waited for the progress
+                        // writer. An older sample cannot retire a newer item's schedule.
+                        if (loaded.revision != null && evidence.revision() != loaded.revision) {
+                            throw IOException("History changed before updating practice progress")
+                        }
+                        Deck.prune(it, items.mapTo(HashSet()) { item -> item.id })
+                    }
+                    mutable.update { it.copy(items = items, progress = progress, loadFailed = false, window = loaded.window) }
                     checkpoint?.let { saved ->
                         val restored = saved.run?.restore(items, progress, saved.pending)
                         pendingGrade = restored?.pending
@@ -115,7 +130,7 @@ class PracticeViewModel internal constructor(
                     }
                 }
                 tick()
-                if (items != null) requestedEntry?.let { (id, language) ->
+                if (loaded != null) requestedEntry?.let { (id, language) ->
                     requestedEntry = null
                     enter(language, id)
                 }
@@ -275,7 +290,7 @@ class PracticeViewModel internal constructor(
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PracticeViewModel(app.history, PracticeStore(File(app.filesDir, PracticeStore.FILE)),
-                    savedState = createSavedStateHandle())
+                    savedState = createSavedStateHandle(), evidence = app.historyEvidence)
             }
         }
     }

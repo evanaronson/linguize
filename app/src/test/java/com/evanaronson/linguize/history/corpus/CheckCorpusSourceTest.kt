@@ -2,6 +2,7 @@ package com.evanaronson.linguize.history.corpus
 
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.corpus.Corpus
+import com.evanaronson.linguize.core.corpus.CorpusReadStatus
 import com.evanaronson.linguize.core.corpus.Lemmatizer
 import com.evanaronson.linguize.core.corpus.Span
 import com.evanaronson.linguize.core.words.WordIndexCache
@@ -175,11 +176,54 @@ class CheckCorpusSourceTest {
     }
 
     @Test
-    fun aFailedHistoryReadIsSkippedNotEmptied() = runBlocking {
+    fun aFailedHistoryReadIsExplicitAndTheStrictAdapterDoesNotReturnEmpty() = runBlocking {
         val history = FakePatternHistory(listOf(detail(session("a", "Hola"))))
         history.failPage = true
-        // The corpus skips a failing source; the source itself must not report an empty History.
-        val failed = runCatching { CheckCorpusSource(history).utterances() }
+        val source = CheckCorpusSource(history)
+        assertEquals(CorpusReadStatus.Failed, source.read().status)
+        assertEquals(CheckCorpusSource.MAX_CHECKS, source.read().sources.single().limit)
+        val failed = runCatching { source.utterances() }
         assertTrue(failed.isFailure)
+    }
+
+    @Test fun aSuccessfulBoundedWindowCarriesCoverageWithoutChangingTheUtteranceMapping() = runBlocking {
+        val old = detail(session("old", "gat", startedAt = 1))
+        val middle = detail(session("middle", "gos", startedAt = 2))
+        val newest = detail(session("new", "casa", startedAt = 3))
+        val history = FakePatternHistory(listOf(old, middle, newest))
+        val read = CheckCorpusSource(history, maxChecks = 2).read()
+        assertEquals(CorpusReadStatus.Complete, read.status)
+        assertEquals(CheckUtterances.from(listOf(newest, middle)), read.utterances)
+        val coverage = read.sources.single()
+        assertEquals(2, coverage.limit)
+        assertEquals(true, coverage.hasMore)
+        assertEquals(2, coverage.selectedItems)
+        assertEquals(2, coverage.loadedItems)
+        assertNull("Unknown source revisions must not acquire a cache identity", coverage.revision)
+    }
+
+    @Test fun selectedRowsMissingBeforeDetailsRemainVisibleInCoverage() = runBlocking {
+        val history = FakePatternHistory(listOf(
+            detail(session("gone", "gat", startedAt = 2)),
+            detail(session("live", "gos", startedAt = 1)),
+        )).also { it.vanishOnDetail = "gone" }
+        val read = CheckCorpusSource(history).read()
+        assertEquals(CorpusReadStatus.Complete, read.status)
+        assertEquals(listOf("check:live"), read.utterances.map { it.id })
+        assertEquals(2, read.sources.single().selectedItems)
+        assertEquals(1, read.sources.single().loadedItems)
+        assertEquals(false, read.sources.single().hasMore)
+    }
+
+    @Test fun aFailedDetailReadIsNotACompleteWindowOfTheOtherChecks() = runBlocking {
+        val history = FakePatternHistory(listOf(
+            detail(session("bad", "gat", startedAt = 2)),
+            detail(session("live", "gos", startedAt = 1)),
+        )).also { it.failDetail = "bad" }
+        val corpus = Corpus(listOf(CheckCorpusSource(history)))
+        assertEquals(CorpusReadStatus.Failed, corpus.read().status)
+        assertTrue(runCatching { corpus.utterances() }.isFailure)
+        history.failDetail = null
+        assertEquals(2, corpus.utterances().size)
     }
 }

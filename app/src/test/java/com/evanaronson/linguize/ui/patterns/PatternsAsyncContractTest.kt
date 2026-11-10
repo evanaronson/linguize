@@ -123,6 +123,32 @@ class PatternsAsyncContractTest {
         assertNotNull(patterns.state.value.snapshot?.explanation)
     }
 
+
+    @Test fun anUnavailableFinalEvidenceReadKeepsTheReportAndOffersHistoryRetry() = runTest(main.dispatcher) {
+        val patterns = patterns()
+        advanceUntilIdle()
+        val snapshot = patterns.state.value.snapshot
+        patterns.explain()
+        runCurrent()
+        history.failPage = true
+        client.answer.complete(REPLY)
+        advanceUntilIdle()
+
+        assertSame(snapshot, patterns.state.value.snapshot)
+        assertTrue(patterns.state.value.failed)
+        assertFalse(patterns.state.value.explaining)
+        assertNull(patterns.state.value.explainFailure)
+        assertNull(notes.saved)
+        assertEquals(1, client.requests.size)
+
+        history.failPage = false
+        patterns.refresh()
+        advanceUntilIdle()
+        assertFalse(patterns.state.value.failed)
+        assertEquals(400, patterns.state.value.snapshot?.window?.limit)
+        assertEquals(1, client.requests.size)
+    }
+
     @Test fun aFailedHistoryRefreshKeepsTheLastReportAndRecoversOnRetry() = runTest(main.dispatcher) {
         val patterns = patterns()
         advanceUntilIdle()

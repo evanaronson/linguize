@@ -6,6 +6,7 @@ import com.evanaronson.linguize.data.ApiKeys
 import com.evanaronson.linguize.data.SelectionMenu
 import com.evanaronson.linguize.data.Settings
 import com.evanaronson.linguize.history.HistoryEnvironment
+import com.evanaronson.linguize.history.HistoryEvidenceReader
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.SqliteHistoryStore
 import com.evanaronson.linguize.llm.GeminiClient
@@ -32,6 +33,9 @@ class App : Application() {
 
     /** Eligible recorded checks and their outcomes. Opens its database off the main thread. */
     val history: HistoryStore by lazy { SqliteHistoryStore(this) }
+
+    /** Shared bounded History evidence; consumers keep their own 400/500/3000-row windows. */
+    val historyEvidence by lazy { HistoryEvidenceReader(history) }
 
     /** One owner serializes exports from Settings and saved checks. */
     val exports by lazy { Exports(cacheDir) }
@@ -103,7 +107,7 @@ class App : Application() {
     val corpus by lazy {
         com.evanaronson.linguize.core.corpus.Corpus(listOf<com.evanaronson.linguize.core.corpus.CorpusSource>(
             // Chat messages are History records too (Origin.Chat), so this one source covers them.
-            com.evanaronson.linguize.history.corpus.CheckCorpusSource(history),
+            com.evanaronson.linguize.history.corpus.CheckCorpusSource(history, evidence = historyEvidence),
         ))
     }
 
@@ -147,14 +151,14 @@ class App : Application() {
     val chatTargets by lazy {
         ChatTargets({ corpus.utterances() }, { morphology }, { lemmatizer },
             com.evanaronson.linguize.data.vocabgaps.BundledDecks { name -> assets.open(name).bufferedReader().use { it.readText() } },
-            appScope)
+            appScope, evidenceRevision = { historyEvidence.revision() })
     }
 
     /** Lab: Your patterns, derived from History and kept in its own `lab_patterns` store. */
     val patterns by lazy {
         PatternsLab(history, PatternNotes(this), settings, keys, clients, {
             PatternsPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
-        })
+        }, evidence = historyEvidence)
     }
 
     /** Lab, Time spent: measured writing and review time, in its own `lab_time_spent` database. */
@@ -192,6 +196,7 @@ class App : Application() {
         }
         // Lab: a saved patterns explanation is deleted as soon as a check it used is.
         appScope.launch { patterns.watch() }
+        appScope.launch { historyEvidence.watch() }
         appScope.launch { chatDeletions.drain() }
     }
 

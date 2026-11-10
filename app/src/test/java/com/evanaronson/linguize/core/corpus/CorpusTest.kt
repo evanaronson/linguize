@@ -4,7 +4,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.io.IOException
 
 class CorpusTest {
     private fun source(name: String, vararg items: Utterance) = object : CorpusSource {
@@ -18,14 +20,65 @@ class CorpusTest {
     }
 
     @Test
-    fun mergesSourcesOldestFirstAndSkipsFailures() = runBlocking {
+    fun mergesSuccessfulPortionsOldestFirstAndReportsTheFailedSource() = runBlocking {
         val corpus = Corpus(listOf(
             source("chat", Utterance("chat:2", "chat", "es", "hola", at = 20)),
             failing,
             source("check", Utterance("check:1", "check", "ca", "bon dia", at = 10)),
         ))
-        assertEquals(listOf("check:1", "chat:2"), corpus.utterances().map { it.id })
-        assertEquals(listOf("chat:2"), corpus.utterances("es").map { it.id })
+        val read = corpus.read()
+        assertEquals(CorpusReadStatus.Partial, read.status)
+        assertEquals(listOf("check:1", "chat:2"), read.utterances.map { it.id })
+        assertEquals(listOf("broken"), read.sources.filter { it.status == CorpusReadStatus.Failed }.map { it.source })
+        assertEquals(listOf("chat:2"), corpus.read("es").utterances.map { it.id })
+        assertThrows(IOException::class.java) { read.requireComplete() }
+        assertTrue(runCatching { corpus.utterances() }.exceptionOrNull() is IOException)
+        assertTrue(runCatching { corpus.languages() }.exceptionOrNull() is IOException)
+    }
+
+    @Test fun emptyAndFailedReadsAreDifferentEvenAfterLanguageFiltering() = runBlocking {
+        assertEquals(CorpusReadStatus.Complete, Corpus(emptyList()).read().status)
+        val failed = Corpus(listOf(failing)).read("ca")
+        assertEquals(CorpusReadStatus.Failed, failed.status)
+        assertTrue(failed.utterances.isEmpty())
+        val partial = Corpus(listOf(failing, source("check"))).read("ca")
+        assertEquals(CorpusReadStatus.Partial, partial.status)
+        assertTrue(partial.utterances.isEmpty())
+    }
+
+    @Test fun successfulBoundedCoverageIsCompleteWithoutClaimingTheWholeSourceWasRead() = runBlocking {
+        val coverage = CorpusSourceCoverage("check", CorpusReadStatus.Complete, limit = 3000, hasMore = true, revision = 12L)
+        val bounded = object : CorpusSource {
+            override val name = "check"
+            override suspend fun read() = CorpusRead(listOf(Utterance("a", name, "ca", "gat", at = 1)), listOf(coverage))
+            override suspend fun utterances() = read().requireComplete()
+        }
+        val read = Corpus(listOf(bounded)).read()
+        assertEquals(CorpusReadStatus.Complete, read.status)
+        assertEquals(listOf(coverage), read.sources)
+        assertEquals(listOf("a"), read.requireComplete().map { it.id })
+    }
+
+    @Test fun aPartialSourceCannotBecomeCompleteWhenItsAvailableRowsAreFilteredOut() = runBlocking<Unit> {
+        val incomplete = object : CorpusSource {
+            override val name = "partial"
+            override suspend fun read() = CorpusRead(listOf(Utterance("a", name, "es", "casa", at = 1)),
+                listOf(CorpusSourceCoverage(name, CorpusReadStatus.Partial, limit = 10)))
+            override suspend fun utterances() = read().requireComplete()
+        }
+        val read = Corpus(listOf(incomplete)).read("ca")
+        assertEquals(CorpusReadStatus.Partial, read.status)
+        assertTrue(read.utterances.isEmpty())
+        assertThrows(IOException::class.java) { read.requireComplete() }
+    }
+
+    @Test fun completeMergingKeepsFirstSourceIdentityThenOrdersByTime() = runBlocking {
+        val first = Utterance("duplicate", "first", "es", "first", at = 20)
+        val corpus = Corpus(listOf(source("first", first), source("second",
+            first.copy(source = "second", text = "later copy", at = 1),
+            Utterance("oldest", "second", "ca", "gat", at = 10))))
+        assertEquals(listOf("oldest", "duplicate"), corpus.utterances().map { it.id })
+        assertEquals(first, corpus.utterances().last())
     }
 
     @Test

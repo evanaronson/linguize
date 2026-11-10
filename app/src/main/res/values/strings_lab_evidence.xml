@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lab_evidence_load_failed">Couldn\'t load your writing. Try again.</string>
+    <string name="lab_evidence_refresh_failed">Couldn\'t refresh your writing. Showing the last available results.</string>
+    <string name="lab_evidence_retry">Try again</string>
+</resources>

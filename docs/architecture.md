@@ -171,29 +171,64 @@ features. Its raw model answers and final decisions are observations, with the
 
 | Consumer | Current evidence path | Derived state |
 |---|---|---|
-| Words and Conjugations | `App.corpus` → `CheckCorpusSource`, up to 3,000 saved checks | Word index/deck coverage and morphology reports, rebuilt from original writer text and changed-word spans |
-| Chat practice targets | The same corpus → `PracticeTargetsBuilder` | Per-language cached target blocks; vocabulary still uses `VocabAnalyser` and `WordFolding`, while Words uses `WordIndex`/`DeckCoverage` |
-| Patterns | History's `patternEvidence`, up to 400 checks | Deterministic report plus an optional saved model explanation with source IDs and fingerprint |
-| Practice | `PracticeSource` reads up to 500 History checks | Rebuilt items plus separately stored review schedules; the current policy prunes schedules outside the loaded set |
+| Words and Conjugations | `App.corpus` → `CheckCorpusSource` → `App.historyEvidence`, up to 3,000 saved checks | Word index/deck coverage and morphology reports, rebuilt from original writer text and changed-word spans |
+| Chat practice targets | The same 3,000-check corpus → `PracticeTargetsBuilder` | Per-language target blocks; vocabulary still uses `VocabAnalyser` and `WordFolding`, while Words uses `WordIndex`/`DeckCoverage` |
+| Patterns | `App.historyEvidence`, up to 400 checks | Deterministic report plus an optional saved model explanation with source IDs and fingerprint |
+| Practice | `PracticeSource` → `App.historyEvidence`, up to 500 checks | Rebuilt items plus separately stored review schedules; the existing policy prunes schedules outside the successfully loaded set |
 | User memory | Chat exchanges → `LabUserMemory`, independently of the corpus | Model-proposed facts and writer-owned notes in `MemoryStore`; `ChatPartner` includes enabled memory in its prompt |
+
+`App.historyEvidence` is one `HistoryEvidenceReader` bound to one History store.
+SQLite reads the selected sessions and their suggestions in one transaction and
+binds that snapshot to its process-local committed revision. The reader shares the
+largest successful window among consumers at that revision. Smaller windows slice
+the original selected IDs in rank order; they do not backfill missing slots with
+older records or turn a 400-check request into a 3,000-check analysis. A commit that
+overtakes a read invalidates it and allows one retry. Stores without an authoritative
+revision use the compatibility page/detail reader and do not populate this cache.
+
+The shared cache retains full `SessionDetail` objects, including original text,
+suggestions, attempts and raw model answers. It is bounded by the largest requested
+record window (3,000 for the registered consumers), not by bytes or a lean evidence
+projection. It has no per-screen or time expiry: a larger read replaces the window,
+a History revision invalidates it, and process death releases it. The application's
+revision watcher also releases obsolete cached payloads between reads. This is a
+process cache, with no new database table or migration.
 
 `CheckCorpusSource` is the only source registered in `App.corpus`. It reads eligible
 History records, including recorded Chat messages, rather than scanning Chat's
 independent store. A conversation with History disabled therefore remains visible
-in Chat but does not contribute new corpus evidence. `CheckUtterances` maps original
-text, source/session identity, language, and the words changed by accepted
-corrections (whole spans for filled gaps); it also
-applies the existing reuse and rechecked-output exclusions. Corpus reads currently
-skip a source that throws, so an empty result does not prove a successful empty
-History read.
+in Chat but does not contribute new corpus evidence. `CheckUtterances` preserves
+original text, source/session identity, language, changed-word spans, filled gaps,
+and the existing reuse and rechecked-output exclusions.
 
-Reports and caches have feature-specific lifetimes. Words and Conjugations rebuild
-from the corpus; Patterns watches History revisions and reconciles its saved
-explanation against the current bounded report. Those analysis windows are not
-inventories of every surviving source record. Keep the window, retention, and
-authorship policies explicit when changing an analyser. The older vocabulary path
-is still needed by Chat targets and shared deck matching; removing the former
-Vocabulary gaps screen did not make that engine obsolete.
+`Corpus.read` reports `Complete`, `Partial` or `Failed`, with per-source coverage:
+requested limit, whether older records exist, revision when known, and selected and
+loaded record counts before mapping. `Complete` means the requested bounded read
+succeeded; it does not mean all History was read, or that every loaded record became
+an utterance. A successful empty window is distinct from a failed read. Partial
+results remain inspectable, but `Corpus.utterances()` requires complete evidence
+and throws on partial or failed reads. Cancellation propagates through the shared
+reader, corpus and consumers; it is not converted into empty or partial evidence.
+
+Chat targets retain their five-minute freshness interval and four-second wait.
+Only successful complete builds become cached targets. A failed or timed-out
+refresh may use a previous target block only while its known evidence revision
+still matches. A revision change revokes fresh blocks, pending old builds and
+fallbacks; unknown revisions require another read and cannot use failure/timeout
+fallback. A timed-out caller does not cancel the shared build, which may finish for
+a later caller. A configured supported-language deck that cannot load is a
+retryable failure, not a successful register-only block; unsupported languages and
+explicitly absent decks remain valid configurations.
+
+These boundaries leave the linguistic algorithms, target ordering and evidence
+windows unchanged. Reports and persisted derived state still have independent
+retention rules. Patterns reconciles explanations against its bounded report;
+Practice keeps its existing schedule policy; saved phrases, memory, Notes and Chat
+records do not become owned by the shared reader. History deletion removes records
+from subsequent successful evidence reads. Chat deletion's queued cleanup can
+reach History later, and an older window is not an inventory of all surviving
+records. Removing the former Vocabulary gaps screen did not make its vocabulary
+engine obsolete: Chat targets and shared deck matching still use it.
 
 Two kinds of improvement need different evidence. A wrong linguistic suggestion
 belongs in a reviewed eval case with an expected judgment. A lookup failure,

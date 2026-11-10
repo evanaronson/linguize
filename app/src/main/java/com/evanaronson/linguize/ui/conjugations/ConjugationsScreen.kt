@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.evanaronson.linguize.ui.components.EvidenceFailureNotice
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,9 +43,7 @@ import com.evanaronson.linguize.core.conjugations.ConjugationReport
 import com.evanaronson.linguize.core.conjugations.MonthPoint
 import com.evanaronson.linguize.core.conjugations.VerbList
 import com.evanaronson.linguize.core.morphology.Person
-import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.CardNote
-import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.components.ScreenColumn
@@ -95,13 +94,11 @@ fun ConjugationsScreen(
         val report = state.report
         // Lab, Progress IA: the language, then a summary, as on every page Progress opens.
         ScopeHeader(state.shown)
+        if (state.failed) EvidenceFailureNotice(report != null, model::refresh)
         when {
             state.shown !in CONJUGATION_LANGUAGES -> EmptyCard(stringResource(R.string.lab_lang_generic_conjugations_unavailable, scopeLanguageName(state.shown)), null)
             report == null && state.loading -> PageLoading(stringResource(R.string.lab_conjugations_loading))
-            report == null -> {
-                CardNote(stringResource(R.string.lab_conjugations_failed))
-                LinguizeButton(stringResource(R.string.lab_conjugations_retry), model::refresh, ButtonKind.Text, Modifier.padding(start = 8.dp, top = 8.dp))
-            }
+            report == null -> Unit
             report.isEmpty -> EmptyCard(stringResource(R.string.lab_ia_progress_conjugations_empty), stringResource(R.string.lab_conjugations_empty_hint))
             else -> Report(
                 report,

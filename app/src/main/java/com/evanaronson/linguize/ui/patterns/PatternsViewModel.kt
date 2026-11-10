@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 /** Why an explanation request failed, as the card shows it. */
 data class ExplainFailure(val reason: CheckFailure.Reason, val message: CheckFailure.Message?)
@@ -142,6 +143,8 @@ class PatternsViewModel internal constructor(
                 if (current()) _state.update { it.copy(snapshot = snapshot) }
             } catch (e: CheckFailure) {
                 if (current()) _state.update { it.copy(explainFailure = ExplainFailure(e.reason, e.userMessage)) }
+            } catch (_: IOException) {
+                if (current()) _state.update { it.copy(failed = true) }
             } finally {
                 if (current()) _state.update { it.copy(explaining = false) }
             }

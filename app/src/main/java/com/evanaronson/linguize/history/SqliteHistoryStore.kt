@@ -2,12 +2,15 @@ package com.evanaronson.linguize.history
 
 import android.content.Context
 import android.database.Cursor
+import android.database.sqlite.SQLiteCursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.database.sqlite.SQLiteStatement
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +18,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 
@@ -37,16 +42,20 @@ import java.io.OutputStream
 class SqliteHistoryStore(
     context: Context,
     name: String = HistorySchema.NAME,
+    /** Optional query observation for bounded-read verification; absent in production. */
+    queryObserver: ((String) -> Unit)? = null,
 ) : HistoryStore {
     private val context = context.applicationContext
     private val name = name
-    private val helper = Helper(this.context, name)
+    private val helper = Helper(this.context, name, queryObserver)
 
     /** Sessions opened here, and ones cleared or deleted, which an open card mustn't write back. */
     private val forgotten = Forgotten()
 
     /** Bumped after every write, so the observed queries run again. */
     private val changes = MutableStateFlow(0L)
+    /** Binds evidence rows to the committed revision, including cancellation after a commit. */
+    private val evidenceLock = Mutex()
 
     override fun registerSession(id: String) {
         forgotten.saving(id)
@@ -108,6 +117,7 @@ class SqliteHistoryStore(
     }
 
     override fun revisions(): Flow<Long> = changes.asStateFlow()
+    override fun evidenceRevision(): Long = changes.value
 
     override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage? = read("read a history page", null) { db ->
         val size = limit.coerceIn(1, Int.MAX_VALUE - 1)
@@ -120,6 +130,31 @@ class SqliteHistoryStore(
 
     override suspend fun detail(id: String): SessionDetailResult = read("read a session", SessionDetailResult.Failed) { db ->
         db.snapshot { db.detail(id)?.let { SessionDetailResult.Found(it) } ?: SessionDetailResult.Missing }
+    }
+
+    override suspend fun evidence(limit: Int): HistoryEvidenceResult = evidenceLock.withLock {
+        val cancellation = currentCoroutineContext()
+        val size = limit.coerceIn(1, Int.MAX_VALUE - 1)
+        read("read history evidence", HistoryEvidenceResult.Failed) { db ->
+            db.snapshot {
+                val sessions = mutableListOf<SessionRecord>()
+                var hasMore = false
+                db.eachRow(HistorySchema.evidenceSessions(size + 1)) { row ->
+                    cancellation.ensureActive()
+                    // The lookahead establishes coverage, but is outside the selected window.
+                    if (sessions.size < size) sessions += sessionRecord(row) else hasMore = true
+                }
+                val suggestions = mutableMapOf<String, MutableList<SuggestionRecord>>()
+                cancellation.ensureActive()
+                db.eachRow(HistorySchema.evidenceSuggestions(size)) { row ->
+                    cancellation.ensureActive()
+                    suggestionRecord(row)?.let { suggestions.getOrPut(it.sessionId) { mutableListOf() } += it }
+                }
+                cancellation.ensureActive()
+                val details = sessions.map { session -> SessionDetail(session, suggestions[session.id]?.toList().orEmpty()) }
+                HistoryEvidenceResult.Ready(HistoryEvidenceSnapshot(changes.value, HistoryEvidenceWindow(size, hasMore), details))
+            }
+        }
     }
 
     /**
@@ -198,8 +233,8 @@ class SqliteHistoryStore(
         select(HistorySchema.SESSION_SUGGESTIONS, listOf(sessionId), ::suggestionRecord).filterNotNull()
 
     /** Runs [block] in a transaction on [Dispatchers.IO], then tells the observed queries. Logs a failure. */
-    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit): Boolean {
-        val written = read(what, false) { db ->
+    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit): Boolean = evidenceLock.withLock {
+        read(what, false) { db ->
             db.beginTransaction()
             try {
                 block(db)
@@ -207,10 +242,11 @@ class SqliteHistoryStore(
             } finally {
                 db.endTransaction()
             }
+            // Publish before returning across dispatchers: cancellation there must not hide
+            // a committed mutation from revision-based evidence caches.
+            changes.update { it + 1 }
             true
         }
-        if (written) changes.update { it + 1 }
-        return written
     }
 
     /** [block] on [Dispatchers.IO] with the database; [fallback] when it fails. */
@@ -224,8 +260,13 @@ class SqliteHistoryStore(
         .flowOn(Dispatchers.IO)
         .distinctUntilChanged()
 
-    private class Helper(context: Context, name: String) :
-        SQLiteOpenHelper(context, name, null, HistorySchema.VERSION) {
+    private class Helper(context: Context, name: String, queryObserver: ((String) -> Unit)?) :
+        SQLiteOpenHelper(context, name, queryObserver?.let { observe ->
+            SQLiteDatabase.CursorFactory { _, driver, table, query ->
+                observe(query.toString())
+                SQLiteCursor(driver, table, query)
+            }
+        }, HistorySchema.VERSION) {
         init {
             // Lets the observed queries read while a close is being written.
             setWriteAheadLoggingEnabled(true)

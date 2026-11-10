@@ -1,5 +1,8 @@
 package com.evanaronson.linguize.ui.conjugations
 
+import com.evanaronson.linguize.ui.components.EvidenceFailureNotice
+import com.evanaronson.linguize.ui.progress.PageLoading
+
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -48,6 +51,11 @@ fun ConjugationCellScreen(
     val stats = report?.stats(cell)
     val locale = LocalResources.current.uiLocale
     ScreenColumn {
+        if (state.failed) EvidenceFailureNotice(report != null, model::refresh)
+        if (report == null) {
+            if (state.loading) PageLoading(stringResource(R.string.lab_conjugations_loading))
+            return@ScreenColumn
+        }
         Spacer(Modifier.height(8.dp))
         SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
             cell.person?.let {
@@ -71,7 +79,7 @@ fun ConjugationCellScreen(
         SectionHeader(stringResource(R.string.lab_conjugations_cell_verbs))
         // Lab, Conjugations page: the most used few, then "Show all N verbs"; each opens Words.
         VerbPreviewCard(
-            VerbList.preview(VerbList.rows(report ?: return@ScreenColumn, cell)), language, cell,
+            VerbList.preview(VerbList.rows(report, cell)), language, cell,
             onOpenVerb = { onOpenVerb(language, it) },
             onShowAll = { onOpenVerbs(language, cell) },
         )

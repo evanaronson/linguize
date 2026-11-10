@@ -83,13 +83,14 @@ returns to it.
   that keeps notes, checked with the same card as everywhere in the app's language, with
   Check, Copy and Share under the editor, New note by the header, the card below (see
   [Notes](notes.md) and [its hierarchy](ia-notes.md)); **Other notes** when there are others.
-- **Progress**, in the current language (under Linguize, the per-language sections once per
-  language in use, each headed by its brand name and icon, and Time added up once): **Practice** (always shown here: "4 due" or
-  "Nothing due"); **Your writing**: Words ("312 words you've written in Catalan": the words
-  you've used and the common ones you haven't, in one list), Your conjugations ("12 of 40
-  forms used"). **Fixes and phrases**: Your patterns (top groups and a sparkline once
-  there's enough), Phrasebook (count). **Time**: Time spent (this week's total and a
-  sparkline; see [Time spent](time-spent.md)).
+- **Progress**, in the current language (see [Progress](ia-progress.md)): **This week**, the
+  headline (time spent writing and reviewing, with the last 8 weeks; it opens Time spent);
+  **Practice** ("4 due" with Start practice, or when the next one is); **Your writing**: Words
+  ("312 words you've written, 18 new this month"), Your conjugations ("12 of 40 forms used",
+  Spanish and Catalan), Your patterns (top groups and a sparkline once there's enough);
+  **Saved by you**: Phrasebook (count). Under Linguize the headline and the Phrasebook cover
+  every language once, Practice has a row per language in use, and Your writing is one card
+  per language, headed by its brand name and icon.
 - **History**: the list in the current language (every language under Linguize), with a
   source dropdown above it when there is more than one source (see
   [One list of messages](history-flat.md)).
@@ -115,12 +116,12 @@ returns to it.
 | Fill the gaps | Home row; card row when text has gaps | Removed; every check fills [gaps](gaps-in-check.md); its saved page opens Notes | Part of the core check, everywhere |
 | Help me reply | Home, own section; Understand card | Removed; saved pages open Notes | Interpretation, not part of the writing loop; another app does it |
 | Understand a photo | Home, own section; share sheet | Removed, with the image share target; saved pages open Notes | Same: send the photo to a general assistant |
-| Practice | Home, only while due | Progress, always (count or Nothing due) | Pull, not push: visiting Progress is asking |
+| Practice | Home, only while due | Progress, under the headline, always (Start practice, or when the next one is) | Pull, not push: visiting Progress is asking |
 | Your patterns | Home card once worth showing; row above History | Progress | One place for stats |
 | Your words | Home card; row above History | Progress › Words, in the current language | Merged with Vocabulary gaps: the words you know are a subset of all the words |
 | Your conjugations | Home, own section | Progress, in the current language | |
 | Vocabulary gaps | Home row | Progress › Words (Not yet filter, coverage in the header); its saved pages open Words | One list, not two |
-| Phrasebook | Home, own section; star on the card | Progress › Fixes and phrases; star unchanged | Things kept from your own writing |
+| Phrasebook | Home, own section; star on the card | Progress › Saved by you, last; star unchanged | Things kept from your own writing |
 | Recent (last five) and View all | Home | Removed; History is a tab | A preview of a page that's one tap away |
 | History | View all on Home; Settings › History | Bottom bar; Settings › History unchanged | |
 | Accessibility button setup | Home, bottom | Settings › In other apps | Set up once |

@@ -13,7 +13,7 @@ for that mistake. A run is 5 to 10 items and takes about a minute.
 
 ## How to use it
 
-- Progress shows **Practice** at the top: "N due", or "Nothing due", for the app's current
+- Progress shows **Practice** under its headline: "N due" with **Start practice**, or when the next practice is, for the app's current
   language: only its items are due and drilled ([Language scope](language-scope.md)). Nothing is pushed
   anywhere else: Progress is where you go when you want to practise.
 - Tap it. Each item shows **You wrote** with the mistaken words underlined in

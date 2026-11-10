@@ -132,8 +132,9 @@ class HomeActivity : ComponentActivity() {
                                 Screen.Progress -> com.evanaronson.linguize.ui.progress.ProgressScreen(
                                     practice, patterns, words, conjugations, language, appLanguage.options,
                                 ) { view, block ->
-                                    // Under Linguize (Auto), a language's block opens its page in that language.
-                                    block?.let { scopeView(view, it) }
+                                    // Under Linguize (Auto), a language's block opens its page in that language;
+                                    // a section for every language (the Phrasebook) opens in the app's.
+                                    scopeView(view, block ?: language)
                                     navigation = navigation.open(view.screen)
                                 }
                                 Screen.History -> HistoryScreen(
@@ -235,12 +236,15 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
-    /** Lab, Consistency: under Linguize (Auto), Progress opens [view] from [language]'s block, in that language. */
-    private fun scopeView(view: com.evanaronson.linguize.ui.progress.ProgressView, language: String) {
+    /**
+     * Lab, Consistency: Progress opens [view] in [language]: a block's under Linguize (Auto), else
+     * the app's (null is every language; Words and Your conjugations then keep theirs).
+     */
+    private fun scopeView(view: com.evanaronson.linguize.ui.progress.ProgressView, language: String?) {
         when (view) {
             com.evanaronson.linguize.ui.progress.ProgressView.Practice -> practice.setLanguage(language)
-            com.evanaronson.linguize.ui.progress.ProgressView.Words -> words.selectLanguage(language)
-            com.evanaronson.linguize.ui.progress.ProgressView.Conjugations -> conjugations.select(language)
+            com.evanaronson.linguize.ui.progress.ProgressView.Words -> language?.let(words::selectLanguage)
+            com.evanaronson.linguize.ui.progress.ProgressView.Conjugations -> language?.let(conjugations::select)
             com.evanaronson.linguize.ui.progress.ProgressView.Patterns -> patterns.setLanguage(language)
             com.evanaronson.linguize.ui.progress.ProgressView.Phrasebook -> phrasebook.setLanguage(language)
             // Time totals add up across languages; its page breaks them down.

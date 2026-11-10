@@ -131,9 +131,11 @@ fun PhrasebookScreen(model: PhrasebookViewModel, onOpenCheck: (String) -> Unit) 
                 Spacer(Modifier.height(8.dp))
             }
             when {
-                current.total == 0 -> SectionCard {
-                    Quiet(stringResource(R.string.lab_phrasebook_empty), Modifier.padding(vertical = 14.dp))
-                }
+                // Lab, Progress IA: the same empty state as every page Progress opens.
+                current.total == 0 -> com.evanaronson.linguize.ui.progress.EmptyCard(
+                    stringResource(R.string.lab_ia_progress_phrasebook_empty),
+                    stringResource(R.string.lab_ia_progress_phrasebook_empty_hint),
+                )
                 current.matching == 0 -> SectionCard {
                     Quiet(stringResource(R.string.lab_phrasebook_no_match), Modifier.padding(vertical = 14.dp))
                 }

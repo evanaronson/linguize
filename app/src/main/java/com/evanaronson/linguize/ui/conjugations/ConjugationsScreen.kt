@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +53,13 @@ import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.uiLocale
+import com.evanaronson.linguize.ui.components.Quiet
+import com.evanaronson.linguize.ui.progress.EmptyCard
+import com.evanaronson.linguize.ui.progress.HowItsCounted
+import com.evanaronson.linguize.ui.progress.PageLoading
+import com.evanaronson.linguize.ui.progress.ProgressCardPadding
+import com.evanaronson.linguize.ui.progress.ScopeHeader
+import com.evanaronson.linguize.ui.progress.StatRow
 import com.evanaronson.linguize.ui.theme.Linguize
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -73,56 +79,35 @@ fun ConjugationsScreen(model: ConjugationsViewModel, onOpenCell: (language: Stri
     ScreenColumn {
         // Lab, Language scope: the language is the app's, switched in the top bar.
         val report = state.report
+        // Lab, Progress IA: the language, then a summary, as on every page Progress opens.
+        ScopeHeader(state.shown)
         when {
-            state.shown !in CONJUGATION_LANGUAGES -> CardNote(stringResource(R.string.lab_language_scope_conjugations_unsupported))
-            report == null && state.loading -> Loading()
+            state.shown !in CONJUGATION_LANGUAGES -> EmptyCard(stringResource(R.string.lab_language_scope_conjugations_unsupported), null)
+            report == null && state.loading -> PageLoading(stringResource(R.string.lab_conjugations_loading))
             report == null -> {
                 CardNote(stringResource(R.string.lab_conjugations_failed))
                 LinguizeButton(stringResource(R.string.lab_conjugations_retry), model::refresh, ButtonKind.Text, Modifier.padding(start = 8.dp, top = 8.dp))
             }
-            report.isEmpty -> Empty()
+            report.isEmpty -> EmptyCard(stringResource(R.string.lab_ia_progress_conjugations_empty), stringResource(R.string.lab_conjugations_empty_hint))
             else -> Report(report) { onOpenCell(report.language, it) }
         }
-        SectionHeader(stringResource(R.string.lab_conjugations_how))
-        SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-            Text(stringResource(R.string.lab_conjugations_how_body), style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
-private fun Loading() {
-    val label = stringResource(R.string.lab_conjugations_loading)
-    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(Modifier.semantics { contentDescription = label }, color = MaterialTheme.colorScheme.onSurface)
-    }
-}
-
-@Composable
-private fun Empty() {
-    Spacer(Modifier.height(12.dp))
-    SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
-        Text(stringResource(R.string.lab_conjugations_empty_title), style = MaterialTheme.typography.titleSmall)
-        Text(
-            stringResource(R.string.lab_conjugations_empty_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        HowItsCounted(listOf(stringResource(R.string.lab_conjugations_how_body)))
     }
 }
 
 @Composable
 private fun Report(report: ConjugationReport, onOpenCell: (Cell) -> Unit) {
-    CardNote(stringResource(R.string.lab_conjugations_intro))
     val total = report.gridCells.size
     val used = report.usedGridCells
+    SectionCard(contentPadding = ProgressCardPadding) {
+        StatRow(
+            stringResource(R.string.lab_ia_progress_stat_of, used, total) to stringResource(R.string.lab_ia_progress_stat_forms),
+            report.verbs.size.toString() to stringResource(R.string.lab_ia_progress_stat_verbs),
+        )
+        Quiet(stringResource(R.string.lab_conjugations_intro), Modifier.padding(top = 12.dp))
+    }
     SectionHeader(stringResource(R.string.lab_conjugations_grid))
     SectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
-        Text(
-            pluralStringResource(R.plurals.lab_conjugations_cells_used, used, used, total),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
-        )
         Grid(report, onOpenCell)
     }
     CardNote(stringResource(R.string.lab_conjugations_grid_note))
@@ -272,7 +257,8 @@ private fun Trend(points: List<MonthPoint>) {
                             .fillMaxWidth()
                             .height((72f * point.cells / most).coerceAtLeast(2f).dp)
                             .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = if (point.cells == 0) 0.15f else 0.7f)),
+                            // Lab, Progress IA: bars in the proof colour, an empty month a hairline, like every chart here.
+                            .background(if (point.cells == 0) Linguize.colors.rowDivider else Linguize.colors.proof),
                     )
                     Text(month, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }

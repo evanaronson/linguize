@@ -1,8 +1,8 @@
 # Time spent
 
 How long you actually spend doing language work in Linguize: writing and reviewing your
-messages, per message, per word and per change, by language and by week. It's in Progress ›
-Time. Nothing shows while it's being timed.
+messages, per message, per word and per change, by language and by week. It's the headline of
+Progress. Nothing shows while it's being timed.
 
 ## The user moment
 
@@ -69,9 +69,9 @@ from what they already do, not a timer they have to start.
 
 ## How to use it
 
-Progress › Time shows, for the app's current language ([Language scope](language-scope.md)), this week's total with a small chart; tap it for the page: This week,
+Progress shows, at the top as its headline (**This week**), for the app's current language ([Language scope](language-scope.md)), this week's total with a small chart; tap it for the page: This week,
 All time (writing and reviewing, with the measured/estimated split), Averages, By language
-(with what other apps' writing is estimated from), Last 8 weeks, and How this is counted.
+(with what other apps' writing is estimated from), Last 8 weeks, and How it's counted.
 
 ## How it works
 

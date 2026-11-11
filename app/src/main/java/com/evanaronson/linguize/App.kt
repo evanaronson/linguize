@@ -93,9 +93,15 @@ class App : Application() {
     }
     val understander by lazy { Understander(settings, keys, clients) }
 
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. The one lesson store, shared
+    // with the transfer so its additions reach the Teacher's cache (inline in [teacher] before).
+    val lessonStore by lazy {
+        com.evanaronson.linguize.data.teachme.LessonStore(java.io.File(filesDir, com.evanaronson.linguize.data.teachme.LessonStore.FILE_NAME))
+    }
+
     /** Lab: "Teach me" lessons, saved in their own file. */
     val teacher by lazy {
-        Teacher(settings, keys, clients, com.evanaronson.linguize.data.teachme.LessonStore(java.io.File(filesDir, com.evanaronson.linguize.data.teachme.LessonStore.FILE_NAME))) {
+        Teacher(settings, keys, clients, lessonStore) {
             com.evanaronson.linguize.llm.teachme.LessonPrompt.load { name -> assets.open(name).bufferedReader().use { it.readText() } }
         }
     }

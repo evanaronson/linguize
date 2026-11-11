@@ -42,6 +42,7 @@ composition root.
 | root | `App` composes services; `Checker`, `ChatPartner`, `ChatTargets`, `PatternsLab`, `Teacher`, and `LabUserMemory` coordinate feature operations | All of the above, resources |
 | `ui` | View models, shared card, app screens, navigation, and localized presentation | Root and all lower layers |
 | `menu`, `accessibility` | Android entry points and returning changes to the source app | `ui`, root, and all lower layers |
+| `transfer` | TEMPORARY ([lab transfer bridge](lab/transfer-bridge.md)): the one-shot pull from Linguize X Claude; `ui` imports it only for its Settings row | `ui`, root, and all lower layers |
 
 `codec` and `core` stay free of Android imports. `llm` and `history` are peers:
 the model client does not read history, and stored records do not depend on a

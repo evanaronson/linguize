@@ -46,6 +46,28 @@ class TimeStore(
         }
     }
 
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+    /**
+     * Adds each of [records] whose session has no record here yet, in one transaction; a record
+     * already here is never replaced, so nothing is counted twice. Null when it couldn't.
+     */
+    suspend fun insertIfAbsent(records: List<TimeRecord>): Int? = io("add transferred time records", null) { db ->
+        synchronized(mutations) {
+            db.beginTransaction()
+            try {
+                var added = 0
+                for (record in records) {
+                    if (record.sessionId in deleted) continue
+                    if (db.insertWithOnConflict(TABLE, null, record.values(), SQLiteDatabase.CONFLICT_IGNORE) != -1L) added++
+                }
+                db.setTransactionSuccessful()
+                added
+            } finally {
+                db.endTransaction()
+            }
+        }
+    }
+
     /** Every record, oldest first. */
     suspend fun all(): List<TimeRecord> = io("read time records", emptyList()) { db ->
         db.rawQuery("SELECT * FROM $TABLE ORDER BY at", null).use { cursor ->

@@ -47,6 +47,8 @@ import com.evanaronson.linguize.ui.settings.SettingsChoiceScreen
 import com.evanaronson.linguize.ui.settings.SettingsScreen
 import com.evanaronson.linguize.ui.settings.SettingsViewModel
 import com.evanaronson.linguize.ui.theme.AppTheme
+// TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+import com.evanaronson.linguize.transfer.LabTransferSection
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
 
@@ -152,6 +154,8 @@ class HomeActivity : ComponentActivity() {
                                 }, onSetUpAccessibility = { navigation = navigation.open(Screen.AccessibilitySetup) }, languagesRow = {
                                     com.evanaronson.linguize.ui.language.LanguagesSettingsRow(appLanguage) { navigation = navigation.open(Screen.Languages) }
                                 }, aboutSection = {
+                                    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+                                    LabTransferSection(onImported = settings::refresh)
                                     com.evanaronson.linguize.ui.settings.AboutSection { navigation = navigation.open(Screen.Notices) }
                                 })
                                 is Screen.SettingsChoice -> SettingsChoiceScreen(settings, current.page)

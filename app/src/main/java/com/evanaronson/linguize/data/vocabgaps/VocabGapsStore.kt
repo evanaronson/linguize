@@ -65,6 +65,28 @@ class VocabGapsStore(private val dir: File) {
         deck
     }
 
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+    /**
+     * Adds [deck] with its words as CSV ([csv], as another install saved it) under its own id,
+     * unless a deck with that id is here already: then nothing changes and it returns false.
+     * The CSV must parse. Failures throw, leaving the index as it was.
+     */
+    fun adopt(deck: ImportedDeck, csv: String): Boolean = synchronized(lock) {
+        require(deck.id.startsWith(IMPORTED_PREFIX) && deck.id.matches(Regex("[A-Za-z0-9_-]+"))) { "Not an imported deck id" }
+        require(DeckParser.parse(csv, deck.language) is DeckParse.Parsed) { "Unreadable deck words" }
+        val before = imported()
+        if (before.any { it.id == deck.id }) return@synchronized false
+        val words = File(decksDir, "${deck.id}.csv")
+        writeAtomically(words, csv)
+        try {
+            writeAtomically(index, json.encodeToString(ListSerializer(ImportedDeck.serializer()), before + deck))
+        } catch (failure: IOException) {
+            try { Files.deleteIfExists(words.toPath()) } catch (cleanup: IOException) { failure.addSuppressed(cleanup) }
+            throw failure
+        }
+        true
+    }
+
     /** Deletes an imported deck, its words and any cached reports left by older builds. */
     fun delete(id: String) = synchronized(lock) {
         val remaining = imported().filterNot { it.id == id }

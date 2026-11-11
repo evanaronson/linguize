@@ -143,6 +143,11 @@ internal class Forgotten {
         open -= id
     }
 
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+    /** Whether a transferred session may be added: not one cleared or deleted in this process. */
+    @Synchronized
+    fun transferable(id: String): Boolean = id !in gone
+
     /** The sessions this process opened that are still open: not abandoned. */
     @Synchronized
     fun openHere(): List<String> = open.toList()

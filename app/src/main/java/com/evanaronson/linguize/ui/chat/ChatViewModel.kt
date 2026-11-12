@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -60,7 +61,16 @@ sealed interface ConversationWriteFailure {
     }
     data class Rename(override val id: String, val title: String) : ConversationWriteFailure
     data class Delete(override val id: String) : ConversationWriteFailure
+
+    /** Rewinding conversation [id] to edit the writer's message [messageId]. */
+    data class Rewind(override val id: String, val messageId: String) : ConversationWriteFailure
 }
+
+/**
+ * Editing the writer's message [messageId] would also delete later messages of theirs: [checks]
+ * of their messages in all, the edited one included, go from the chat and History.
+ */
+data class EditConfirmation(val conversationId: String, val messageId: String, val checks: Int)
 
 /** The check before sending, run by the screen's card (a [com.evanaronson.linguize.ui.card.CheckViewModel]). */
 interface DraftCheck {
@@ -150,6 +160,26 @@ class ChatViewModel(
     /** The id of the writer message whose corrections are open under it, if any: one at a time. */
     var expanded by mutableStateOf<String?>(null)
         private set
+
+    /** Edit on a sent message is waiting for the writer to confirm deleting later checks too. */
+    var editConfirmation by mutableStateOf<EditConfirmation?>(null)
+        private set
+
+    /** A sent message is being taken back for editing. */
+    var rewinding by mutableStateOf(false)
+        private set
+
+    /**
+     * Whether the writer can edit a sent message now: only between turns. Not while a message
+     * is being checked, reviewed or saved, while the partner writes, while the conversation is
+     * still being created, or while another edit is under way.
+     */
+    val canEdit: Boolean
+        get() {
+            val current = thread ?: return false
+            return send == SendState.Composing && !replying && !rewinding &&
+                creatingConversationId != current.conversation.id && selection?.id == current.conversation.id
+        }
 
     /** Back from the review: the composer takes focus and brings the keyboard up once. */
     var focusDraft by mutableStateOf(false)
@@ -370,6 +400,7 @@ class ChatViewModel(
             }
             is ConversationWriteFailure.Rename -> rename(failed.id, failed.title)
             is ConversationWriteFailure.Delete -> delete(failed.id)
+            is ConversationWriteFailure.Rewind -> if (canEdit && thread?.conversation?.id == failed.id) rewind(failed.id, failed.messageId)
         }
     }
 
@@ -427,6 +458,7 @@ class ChatViewModel(
         replyFailure = null
         unsavedPartner = null
         expanded = null
+        editConfirmation = null
         focusDraft = false
         draft = TextFieldValue()
         draftCheck?.stop()
@@ -516,6 +548,94 @@ class ChatViewModel(
     /** A tap on a corrected writer bubble: opens its corrections (closing any other), or closes them. */
     fun toggleCorrections(messageId: String) {
         expanded = if (expanded == messageId) null else messageId
+    }
+
+    // Editing a sent message.
+
+    /**
+     * Edit on the writer's sent message [messageId]: rewinds the conversation to just before it
+     * and puts its text in the composer, to send again through the usual check. When later
+     * messages of the writer would go too, [editConfirmation] asks first; editing the last
+     * message they sent (only replies after it) goes straight away. Does nothing mid-turn
+     * ([canEdit]) or for a partner message.
+     */
+    fun edit(messageId: String) {
+        if (!canEdit) return
+        val current = thread ?: return
+        val index = current.messages.indexOfFirst { it.id == messageId }
+        if (index < 0 || !current.messages[index].fromWriter) return
+        val checks = current.messages.drop(index).count { it.fromWriter }
+        if (checks > 1) {
+            editConfirmation = EditConfirmation(current.conversation.id, messageId, checks)
+        } else {
+            rewind(current.conversation.id, messageId)
+        }
+    }
+
+    /** The confirmation's Delete: the edit goes ahead. */
+    fun confirmEdit() {
+        val pending = editConfirmation ?: return
+        editConfirmation = null
+        if (canEdit && thread?.conversation?.id == pending.conversationId) rewind(pending.conversationId, pending.messageId)
+    }
+
+    /** The confirmation's Cancel (or dismissing it): nothing changes. */
+    fun cancelEdit() {
+        editConfirmation = null
+    }
+
+    /**
+     * Removes [messageId] and everything after it, durably queueing each removed writer
+     * message's History, time and memory cleanup with the same transaction (as deleting a
+     * conversation does), then puts the message's sent text in the composer, focused.
+     * There is no Undo: History deletes for good, and the text is still in the composer.
+     */
+    private fun rewind(conversationId: String, messageId: String) {
+        val owner = selection?.takeIf { it.id == conversationId } ?: return
+        val text = thread?.messages?.firstOrNull { it.id == messageId }?.text ?: return
+        val command = Any().also { metadataCommand = it }
+        val renameAtStart = acknowledgedRenames[conversationId]
+        val pendingSend = sendJob
+        rewinding = true
+        cancelPartner()
+        viewModelScope.launch {
+            try {
+                pendingSend?.join()
+                val rewound = withContext(NonCancellable) {
+                    store.rewind(conversationId, messageId) { owner.permit.active }?.also {
+                        appScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                            // Invalidate queued/in-flight learning from the removed messages first.
+                            try {
+                                memory().forget(source(conversationId))
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Memory couldn't forget a rewound conversation", e)
+                            }
+                            drainDeletions()
+                        }
+                    }
+                }
+                if (!owns(owner)) return@launch
+                if (rewound == null) {
+                    if (metadataCommand === command) conversationSaveFailure = ConversationWriteFailure.Rewind(conversationId, messageId)
+                    return@launch
+                }
+                if (metadataCommand === command) conversationSaveFailure = null
+                editor = Any()
+                replyFailure = null
+                unsavedPartner = null
+                expanded = null
+                thread = rewound.afterRename(renameAtStart)
+                draft = TextFieldValue(text, TextRange(text.length))
+                // Lab, Time spent: the edited message's record went with it; writing counts afresh.
+                drafting.reset()
+                focusDraft = true
+                reloadList()
+            } finally {
+                rewinding = false
+            }
+        }
     }
 
     // Translations of partner messages.

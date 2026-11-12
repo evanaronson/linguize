@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -171,6 +172,63 @@ class ChatStoreTest {
         // An older reply has no translation of its own: it is fetched only if tapped.
         assertNull(old.translation)
         assertEquals("Jordi", upgraded.conversation("c")?.persona)
+        upgraded.close()
+    }
+
+    @Test fun rewindRemovesTheWritersMessageAndEverythingAfterItAndQueuesTheirCleanup() = runBlocking {
+        assertTrue(store.create(first.copy(learnedCount = 4)))
+        assertTrue(store.create(second))
+        store.add(opener)
+        store.add(mine.copy(sessionId = "s1"))
+        store.add(ChatMessage.partner("p2", "c1", "¡Abrígate!", 31))
+        // Same time as the previous reply: order is (at, seq), as the thread reads it.
+        store.add(ChatMessage("w2", "c1", true, "Vale", "Vale", check = SentCheck.LooksGood, at = 31, sessionId = "s2"))
+        store.add(ChatMessage.partner("p3", "c1", "Hasta luego", 32))
+        store.add(ChatMessage("w3", "c2", true, "Hola", "Hola", at = 40, sessionId = "s3"))
+
+        // A partner message, or another conversation's message, is not rewound to.
+        assertNull(store.rewind("c1", "p2"))
+        assertNull(store.rewind("c2", "w2"))
+        assertTrue(store.pendingDeletions().entries.isEmpty())
+
+        val left = store.rewind("c1", "w2")!!
+        assertEquals(listOf("p1", "w1", "p2"), left.messages.map { it.id })
+        assertEquals(listOf("p1", "w1", "p2"), store.messages("c1").map { it.id })
+        assertEquals(0, store.conversation("c1")!!.learnedCount)
+        assertEquals(listOf(PendingChatDeletion("c1", listOf("s2"), rewoundFrom = "w2")), store.pendingDeletions().entries)
+
+        assertNotNull(store.rewind("c1", "w1"))
+        assertEquals(listOf("p1"), store.messages("c1").map { it.id })
+        val pending = store.pendingDeletions().entries
+        assertEquals(listOf(listOf("s2"), listOf("s1")), pending.map { it.sessionIds })
+        // The conversation, and the other one, stay.
+        assertEquals("c1", store.conversation("c1")?.id)
+        assertEquals(listOf("s3"), store.sessionIds("c2"))
+
+        assertTrue(store.completeDeletion(pending.first()))
+        assertEquals(listOf("w1"), store.pendingDeletions().entries.map { it.rewoundFrom })
+        // A conversation deletion and a rewind of it are separate work.
+        assertTrue(store.delete("c1"))
+        assertEquals(listOf(null, "w1"), store.pendingDeletions().entries.map { it.rewoundFrom })
+    }
+
+    @Test fun aVersionFourDatabaseGainsTheRewindQueue() = runBlocking {
+        store.close()
+        context.deleteDatabase(ChatStore.DATABASE)
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(ChatStore.DATABASE), null).use { db ->
+            db.execSQL("CREATE TABLE conversations (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL DEFAULT '', language TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, title_custom INTEGER NOT NULL DEFAULT 0, learned_count INTEGER NOT NULL DEFAULT 0, persona TEXT)")
+            db.execSQL("CREATE TABLE messages (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, conversation TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE, from_writer INTEGER NOT NULL, raw TEXT NOT NULL, text TEXT NOT NULL, changes TEXT, checked TEXT NOT NULL DEFAULT 'none', at INTEGER NOT NULL, session_id TEXT, translation TEXT)")
+            db.execSQL("CREATE TABLE pending_deletions (conversation TEXT PRIMARY KEY NOT NULL, session_ids TEXT NOT NULL)")
+            db.execSQL("INSERT INTO conversations VALUES ('c', '', 'es', 1, 2, 0, 2, NULL)")
+            db.execSQL("INSERT INTO messages (id, conversation, from_writer, raw, text, changes, checked, at, session_id) VALUES ('p', 'c', 0, 'Hola', 'Hola', '[]', 'none', 2, NULL)")
+            db.execSQL("INSERT INTO messages (id, conversation, from_writer, raw, text, changes, checked, at, session_id) VALUES ('w', 'c', 1, 'Bien', 'Bien', '[]', 'looks_good', 3, 's')")
+            db.execSQL("INSERT INTO pending_deletions VALUES ('gone', '[\"x\"]')")
+            db.version = 4
+        }
+        val upgraded = ChatStore(context)
+        assertEquals(listOf(PendingChatDeletion("gone", listOf("x"))), upgraded.pendingDeletions().entries)
+        assertEquals(listOf("p"), upgraded.rewind("c", "w")!!.messages.map { it.id })
+        assertEquals(listOf(null, "w"), upgraded.pendingDeletions().entries.map { it.rewoundFrom })
         upgraded.close()
     }
 }

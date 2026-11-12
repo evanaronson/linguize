@@ -93,7 +93,8 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
 - `TimeSpentViewModel` captures the requested language with each refresh. A newer refresh
   cancels the old one; an obsolete History read cannot sweep measurements or publish its
   report. Changing language clears the previous scope's report while the new one loads.
-- **Deletion.** Deleting a conversation deletes its rows with its History sessions. Every
+- **Deletion.** Deleting a conversation deletes its rows with its History sessions, and
+  editing a sent chat message deletes the rows of every message the edit removes. Every
   time Time is read, rows whose session History no longer has (deleted from History, or
   History cleared) are dropped (`TimeSweep`); a row younger than 10 minutes is kept, since
   its session's write may still be landing.

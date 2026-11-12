@@ -6,7 +6,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Finishes conversation deletion after its durable local transaction, including after restart. */
+/**
+ * Finishes conversation deletion, and the rewind before editing a sent message, after its
+ * durable local transaction, including after restart.
+ */
 class ChatDeletions(
     private val store: ChatStore,
     private val forgetMemory: suspend (String) -> Unit,
@@ -28,6 +31,11 @@ class ChatDeletions(
                 // Forget first: it invalidates queued learning before its first suspension, even
                 // if another child fails. Still attempt independent cleanup after a storage error.
                 var acknowledged = attempt { forgetMemory("chat:${deletion.conversationId}"); true }
+                if (deletion.rewoundFrom != null) {
+                    // A rewound conversation stays: memory learns it again from what remains.
+                    // Missing (deleted since) is fine; its own deletion forgets it.
+                    acknowledged = attempt { store.setLearned(deletion.conversationId, 0); true } && acknowledged
+                }
                 for (id in deletion.sessionIds) {
                     acknowledged = attempt { deleteHistory(id) } && acknowledged
                 }

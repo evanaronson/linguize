@@ -78,6 +78,10 @@ The screen works without any chat: notes added by hand are used the same way.
   deleted unless the writer wrote or edited it. A failed write propagates to the
   deletion coordinator so the command remains pending; source invalidation takes
   effect before that write is dispatched.
+- **Editing a sent chat message** rewinds the conversation (see [Chat](chat.md)). Facts cite
+  the conversation, not a message, so the rewind forgets `chat:<id>` and resets what memory
+  learned from it: the next time the conversation goes quiet or is left, memory learns it
+  again from the messages that remain.
 
 ## Limits
 

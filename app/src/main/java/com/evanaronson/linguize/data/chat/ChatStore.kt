@@ -23,8 +23,12 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
-/** Work left after removing a conversation. IDs only; no message text is copied into the queue. */
-data class PendingChatDeletion(val conversationId: String, val sessionIds: List<String>)
+/**
+ * Work left after removing a conversation, or after rewinding one to edit a message
+ * ([rewoundFrom], the edited message's id: the conversation stays). IDs only; no message text
+ * is copied into the queue.
+ */
+data class PendingChatDeletion(val conversationId: String, val sessionIds: List<String>, val rewoundFrom: String? = null)
 
 /** Malformed work stays in the database without preventing independent valid cleanup. */
 data class PendingChatDeletions(val entries: List<PendingChatDeletion>, val hasUnreadableEntries: Boolean)
@@ -212,32 +216,78 @@ class ChatStore(
         }
     }
 
+    /**
+     * Rewinds [conversationId] to just before the writer's message [messageId], to edit it:
+     * that message and every message after it go, and their History, time and memory cleanup
+     * is queued durably in the same transaction (drained by `ChatDeletions`, like a deleted
+     * conversation's). Memory will learn the conversation again from what remains. Returns
+     * what remains; null when nothing was removed (no such writer message, not [permitted],
+     * or the write failed).
+     */
+    suspend fun rewind(conversationId: String, messageId: String, permitted: () -> Boolean = { true }): ChatSnapshot? =
+        io("rewind a conversation", null) { db ->
+            db.transaction {
+                val anchor = db.rawQuery(
+                    "SELECT at, seq FROM messages WHERE id = ? AND conversation = ? AND from_writer = 1",
+                    arrayOf(messageId, conversationId),
+                ).use { if (it.moveToFirst()) it.getLong(0) to it.getLong(1) else null } ?: return@transaction null
+                val (at, seq) = anchor
+                // The order the thread is read in: (at, seq).
+                val from = "conversation = ? AND (at > ? OR (at = ? AND seq >= ?))"
+                val args = arrayOf(conversationId, at.toString(), at.toString(), seq.toString())
+                // Read links directly: an unreadable message must not lose its History cleanup ID.
+                val sessions = db.rawQuery(
+                    "SELECT DISTINCT session_id FROM messages WHERE $from AND session_id IS NOT NULL ORDER BY session_id", args,
+                ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+                if (!permitted()) return@transaction null
+                db.delete(MESSAGES, from, args)
+                db.update(CONVERSATIONS, ContentValues().apply { put("learned_count", 0) }, "id = ?", arrayOf(conversationId))
+                db.insertOrThrow(REWINDS, null, ContentValues().apply {
+                    put("message", messageId)
+                    put("conversation", conversationId)
+                    put("session_ids", json.encodeToString(sessionList, sessions))
+                })
+                checkNotNull(db.snapshot(conversationId))
+            }
+        }
+
     /** Database failures throw; malformed entries stay pending and are explicitly reported. */
     suspend fun pendingDeletions(): PendingChatDeletions = withContext(dispatcher) {
-        helper.readableDatabase.rawQuery("SELECT conversation, session_ids FROM $DELETIONS ORDER BY rowid", null).use { cursor ->
-            var unreadable = false
-            val entries = buildList {
+        val db = helper.readableDatabase
+        var unreadable = false
+        fun decode(encoded: String): List<String>? = try {
+            json.decodeFromString(sessionList, encoded)
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "Unreadable conversation cleanup remains pending", e)
+            unreadable = true
+            null
+        }
+        val entries = buildList {
+            db.rawQuery("SELECT conversation, session_ids FROM $DELETIONS ORDER BY rowid", null).use { cursor ->
                 while (cursor.moveToNext()) {
-                    val encoded = cursor.getString(1)
-                    val sessions = try {
-                        json.decodeFromString(sessionList, encoded)
-                    } catch (e: IllegalArgumentException) {
-                        Log.w(TAG, "Unreadable conversation cleanup remains pending", e)
-                        unreadable = true
-                        null
-                    }
-                    if (sessions != null) add(PendingChatDeletion(cursor.getString(0), sessions))
+                    decode(cursor.getString(1))?.let { add(PendingChatDeletion(cursor.getString(0), it)) }
                 }
             }
-            PendingChatDeletions(entries, unreadable)
+            db.rawQuery("SELECT conversation, session_ids, message FROM $REWINDS ORDER BY rowid", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    decode(cursor.getString(1))?.let { add(PendingChatDeletion(cursor.getString(0), it, rewoundFrom = cursor.getString(2))) }
+                }
+            }
         }
+        PendingChatDeletions(entries, unreadable)
     }
 
     /** Retires only the exact work that was acknowledged, never a replacement for the same ID. */
     suspend fun completeDeletion(deletion: PendingChatDeletion): Boolean = withContext(dispatcher) {
-        helper.writableDatabase.delete(DELETIONS, "conversation = ? AND session_ids = ?", arrayOf(
-            deletion.conversationId, json.encodeToString(sessionList, deletion.sessionIds),
-        )) == 1
+        val sessions = json.encodeToString(sessionList, deletion.sessionIds)
+        val rewound = deletion.rewoundFrom
+        if (rewound != null) {
+            helper.writableDatabase.delete(REWINDS, "message = ? AND conversation = ? AND session_ids = ?",
+                arrayOf(rewound, deletion.conversationId, sessions)) == 1
+        } else {
+            helper.writableDatabase.delete(DELETIONS, "conversation = ? AND session_ids = ?",
+                arrayOf(deletion.conversationId, sessions)) == 1
+        }
     }
 
     private suspend fun <T> io(what: String, fallback: T, block: (SQLiteDatabase) -> T): T = withContext(dispatcher) {
@@ -350,12 +400,22 @@ class ChatStore(
             upgradeTo2(db)
             upgradeTo3(db)
             upgradeTo4(db)
+            upgradeTo5(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) upgradeTo2(db)
             if (oldVersion < 3) upgradeTo3(db)
             if (oldVersion < 4) upgradeTo4(db)
+            if (oldVersion < 5) upgradeTo5(db)
+        }
+
+        /**
+         * Version 5: cleanup after rewinding a conversation to edit a message, one row per
+         * edited message. Apart from deletions, since the conversation itself stays.
+         */
+        private fun upgradeTo5(db: SQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS $REWINDS (message TEXT PRIMARY KEY NOT NULL, conversation TEXT NOT NULL, session_ids TEXT NOT NULL)")
         }
 
         /** Version 4: cleanup that must outlive the conversation and the current process. */
@@ -379,13 +439,14 @@ class ChatStore(
     companion object {
         /** The database file's name. */
         const val DATABASE = "lab_chat"
-        private const val VERSION = 4
+        private const val VERSION = 5
 
         /** SQLite's default limit on bound arguments is 999. */
         private const val SQL_ARGS = 500
         private const val CONVERSATIONS = "conversations"
         private const val MESSAGES = "messages"
         private const val DELETIONS = "pending_deletions"
+        private const val REWINDS = "pending_rewinds"
         private const val TAG = "LabChat"
         private val json = Json { ignoreUnknownKeys = true }
         private val changeList = ListSerializer(StoredChange.serializer())

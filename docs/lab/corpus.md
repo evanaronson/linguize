@@ -109,6 +109,7 @@ it must state its rule (count toward each candidate, or split the count).
 they are, who they write to, what they're working on. It starts as `UserMemory.None`.
 
 - Every fact names its sources (`"chat:<conversation id>"`); `forget(source)` removes what
-  was learned only from it. Deleting a conversation calls `forget`.
+  was learned only from it. Deleting a conversation calls `forget`, and so does editing a
+  sent chat message, which then lets memory learn the conversation again from what remains.
 - The writer can see, edit, delete and switch off everything remembered.
 - Memory is about the person, not their mistakes; grammar evidence belongs to the corpus.

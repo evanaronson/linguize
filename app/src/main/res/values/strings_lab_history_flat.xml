@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- History: day headers over one list of messages. -->
+    <string name="lab_history_flat_today">Today</string>
+    <string name="lab_history_flat_yesterday">Yesterday</string>
+    <!-- A chat message's source on its History row and saved page, with the conversation's title. -->
+    <string name="lab_history_flat_chat_source">Chat · %1$s</string>
+    <!-- The source filter above the History list. -->
+    <string name="lab_history_flat_filter">Show messages from</string>
+    <string name="lab_history_flat_no_app_messages">No messages from %1$s yet.</string>
+    <string name="lab_history_flat_no_chat_messages">No chat messages yet.</string>
+</resources>

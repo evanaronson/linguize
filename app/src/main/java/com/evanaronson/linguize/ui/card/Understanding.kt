@@ -22,8 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -36,57 +34,12 @@ import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ClarifyLink
 import com.evanaronson.linguize.ui.components.Chevron
-import com.evanaronson.linguize.ui.components.FooterRow
 import com.evanaronson.linguize.ui.components.InsetShape
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListRow
-import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.theme.Linguize
 
-/** The way into Meaning: an edge-to-edge footer row. */
-@Composable
-internal fun UnderstandingEntry(onOpen: () -> Unit) {
-    FooterRow(
-        stringResource(R.string.meaning),
-        stringResource(R.string.meaning_subtitle),
-        onClick = onOpen,
-        onClickLabel = stringResource(R.string.show_understanding),
-    )
-}
-
-/**
- * How the text was read: the meaning, the writer's clarification, and the assumptions the
- * suggestions rest on. Live checks can always be clarified, even without a supplied meaning.
- */
-@Composable
-internal fun UnderstandingPage(
-    meaning: String,
-    assumptions: List<Assumption>,
-    settled: List<Settled>,
-    /** Null on a past check, which cannot be checked again. */
-    onSettle: ((String, String) -> Unit)?,
-    /** Null on a past check, whose answers remain evidence of that request. */
-    onRemoveChoice: ((String) -> Unit)?,
-    onBack: () -> Unit,
-    onClarify: ((String) -> Unit)? = null,
-    onRemoveClarification: (() -> Unit)? = null,
-) {
-    val focus = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
-    PageHeader(stringResource(R.string.meaning)) {
-        focus.clearFocus()
-        keyboard?.hide()
-        onBack()
-    }
-    MeaningSection(meaning, settled, onClarify, onRemoveClarification)
-    val assumptionAnswers = settled.filterNot { it.isMeaning }
-    if (assumptions.isNotEmpty() || assumptionAnswers.isNotEmpty()) {
-        Spacer(Modifier.height(20.dp))
-        Assumptions(assumptions, assumptionAnswers, onSettle, onRemoveChoice)
-    }
-}
-
-/** Back arrow and title, inside a card that has a page of its own. */
+/** Back arrow and title, inside a card that has a page of its own (the clipboard job's). */
 @Composable
 internal fun PageHeader(title: String, onBack: () -> Unit) {
     Row(
@@ -102,45 +55,33 @@ internal fun PageHeader(title: String, onBack: () -> Unit) {
 }
 
 /**
- * Shared by Meaning and an unclear result, so either can take the writer's intent: the
- * reading, then [linkText] before a clarification exists. The saved clarification itself
- * opens the same prefilled [ClarifyBlock] when it can still be edited.
+ * An unclear result's clarification. Reviewed checks use [MeaningLandsSection].
+ * The saved clarification opens the same prefilled [ClarifyBlock] for editing.
  */
 @Composable
 internal fun MeaningSection(
-    meaning: String,
     settled: List<Settled>,
     onClarify: ((String) -> Unit)?,
     onRemoveClarification: (() -> Unit)?,
-    linkText: String = stringResource(R.string.not_what_you_mean),
+    linkText: String = stringResource(R.string.clarify_what_you_mean),
     /** An unclear result titles the editor, since there is no meaning above it. */
     editorTitle: String? = null,
     submitKind: ButtonKind = ButtonKind.Filled,
 ) {
     val clarification = settled.firstOrNull { it.isMeaning }
-    if (meaning.isBlank() && clarification == null && onClarify == null) return
-    if (meaning.isNotBlank()) {
-        Text(
-            stringResource(R.string.meaning_subtitle),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        TextBlock(meaning)
-        if (clarification != null || onClarify != null) Spacer(Modifier.height(8.dp))
-    }
-    key(meaning) {
+    if (clarification == null && onClarify == null) return
+    key("") {
         Clarification(clarification, onClarify, onRemoveClarification, linkText, editorTitle, submitKind)
     }
 }
 
 /** One entry, saved row, and editor for a clarification of either scope. */
 @Composable
-private fun Clarification(
+internal fun Clarification(
     clarification: Settled?,
     onClarify: ((String) -> Unit)?,
     onRemove: (() -> Unit)?,
-    linkText: String = stringResource(R.string.not_what_you_mean),
+    linkText: String = stringResource(R.string.clarify_what_you_mean),
     editorTitle: String? = null,
     submitKind: ButtonKind = ButtonKind.Filled,
 ) {
@@ -186,15 +127,17 @@ private fun Clarification(
     }
 }
 
+/** The readings the suggestions rest on, under the Meaning section's own sub-heading. */
 @Composable
-private fun Assumptions(
+internal fun Assumptions(
     assumptions: List<Assumption>,
     settled: List<Settled>,
     onSettle: ((String, String) -> Unit)?,
     onRemoveChoice: ((String) -> Unit)?,
 ) {
     val open = assumptions.filterNot { a -> settled.any { it.answers(a.about) } }
-    Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.assumptions), style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier.semantics { heading() })
     Text(
         stringResource(if (onSettle != null) R.string.assumptions_description else R.string.assumptions_description_past),
         style = MaterialTheme.typography.bodySmall,

@@ -36,9 +36,9 @@ class WritingRequestTest {
                 """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":${JsonPrimitive(raw)}}]}]}"""
             }
             val http = FakeHttp { _, _ -> 200 to payload }
-            val client = if (provider == Provider.Gemini) GeminiClient(http.client, prompt) else OpenAIClient(http.client, prompt)
+            val client = if (provider == Provider.Gemini) GeminiClient(http.client) else OpenAIClient(http.client)
             val request = CheckRequest("Com estas?", null, Punctuation.Moderate, Judgments.Both, writingProfiles = profiles)
-            val answer = client.check("key", "model", request)
+            val answer = prompt.read(client.generate("key", "model", prompt.generation(request)))
             assertEquals(SuggestionAssessment(3, 0), answer.verdict.fixes.single().assessment)
             assertTrue(http.body(0).contains("Writing profiles:"))
             assertTrue(http.body(0).contains("Girona"))

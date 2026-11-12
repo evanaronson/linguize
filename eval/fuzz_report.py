@@ -6,7 +6,7 @@ import html
 import hashlib
 import json
 from pathlib import Path
-from fuzz import requests
+from fuzz import PREPARATION_FIELDS, requests
 
 
 def evidence_digest(value):
@@ -18,6 +18,8 @@ def matching_review(reply, engine, note):
     """A new model answer or changed engine output must receive a fresh review."""
     if note and all(note.get(field) == reply.get(field) for field in
                     ("provider", "model", "prompt_sha256", "corpus_sha256")) and \
+            evidence_digest({key: note[key] for key in PREPARATION_FIELDS if key in note}) == \
+            evidence_digest({key: reply[key] for key in PREPARATION_FIELDS if key in reply}) and \
             note.get("verdict_sha256") == evidence_digest(reply.get("verdict")) and \
             ("repair" not in reply and "repair_sha256" not in note or
              note.get("repair_sha256") == evidence_digest(reply.get("repair"))) and \
@@ -56,6 +58,20 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False, repai
     identity_fields = ("provider", "model", "prompt_sha256", "corpus_sha256")
     for identity, case in expected.items():
         reply = answers[identity]
+        mode = reply.get("mode", "base")
+        if mode == "app":
+            parser = reply.get("parser")
+            if type(reply.get("preparation_version")) is not int or reply["preparation_version"] != 1 or \
+                    any(not isinstance(reply.get(field), str) or not reply[field].strip()
+                        for field in ("contract_sha256", "request_sha256", "repair_contract_sha256", "repair_request_sha256")) or \
+                    not isinstance(parser, dict) or parser.get("policy") != "base-fresh-v1" or \
+                    not isinstance(parser.get("prompt_hash"), str) or not parser["prompt_hash"].strip() or \
+                    reply.get("prompt_sha256") != reply["contract_sha256"]:
+                raise ValueError(f"App evidence requires complete preparation identity and parser policy: {identity}")
+            if legacy_unbound:
+                raise ValueError("Historical unbound replay is only available for base captures")
+        elif mode != "base" or any(field in reply for field in PREPARATION_FIELDS if field != "mode"):
+            raise ValueError(f"Base archive rows cannot contain app preparation metadata: {identity}")
         if reply["case"] != case:
             raise ValueError(f"Reply case differs from corpus request: {identity}")
         if "error" in reply or not isinstance(reply.get("verdict"), dict) or not reply["verdict"]:
@@ -81,7 +97,7 @@ def complete_evidence(replies, engine_rows, corpus, require_repairs=False, repai
                 continue
             source = engines[identity].get("replay_input")
             required_fields = ("case", *identity_fields, "verdict")
-            fields = (*required_fields, "repair")
+            fields = (*required_fields, *PREPARATION_FIELDS, "repair")
             if not isinstance(source, dict) or any(key not in source for key in required_fields) or \
                     evidence_digest({key: source[key] for key in fields if key in source}) != \
                     evidence_digest({key: reply[key] for key in fields if key in reply}):
@@ -120,6 +136,7 @@ def main():
     (args.results / "review.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in joined))
     summary = {
         "requests": len(joined),
+        "capture_modes": collections.Counter(row.get("mode", "base") for row in joined),
         "replay_input_binding": collections.Counter(row["replay_input_binding"] for row in joined),
         "answered": sum("verdict" in row for row in joined),
         "provider_errors": sum("error" in row for row in joined),

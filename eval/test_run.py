@@ -5,13 +5,33 @@ import io
 import json
 import os
 from pathlib import Path
-import re
 import tempfile
 import unittest
 from unittest.mock import patch
 import urllib.error
 
 import run
+
+
+def prepared_fixture(path, mode="app"):
+    """Transport fixture, deliberately not a second prompt implementation."""
+    cases, dataset_sha256 = run.prepared.read_cases(path)
+    records = []
+    for index, case in enumerate(cases):
+        def request(repair):
+            record = {
+                "generation": {"system": "Kotlin-exported system", "user": "Exported: " + case["text"] +
+                               (" [repair]" if repair else ""), "schema": {"type": "object"},
+                               "name": "check", "max_tokens": 8192},
+                "compatibility_hash": "123456789abc-g12345678-t12345678",
+                "parser": {"policy": "base-fresh-v1", "prompt_hash": "123456789abc"},
+            }
+            record["contract_sha256"] = run.prepared.contract_digest(mode, record)
+            record["request_sha256"] = run.prepared.request_digest(record)
+            return record
+        records.append({"version": 1, "mode": mode, "case_index": index, "case": case,
+                        "dataset_sha256": dataset_sha256, "initial": request(False), "repair": request(True)})
+    return records
 
 
 class EvaluationHarness:
@@ -21,7 +41,9 @@ class EvaluationHarness:
             path.write_text("\n".join(json.dumps(case) for case in cases))
             output = io.StringIO()
             with patch.dict(run.PROVIDERS, {"fake": (answer, "fixture-model", "EVAL_FIXTURE_KEY")}), \
+                    patch.dict(run.PREPARED_PROVIDERS, {"fake": answer}), \
                     patch.dict(os.environ, {"EVAL_FIXTURE_KEY": "fixture"}), \
+                    patch.object(run.prepared, "prepare_cases", side_effect=prepared_fixture), \
                     contextlib.redirect_stdout(output):
                 status = run.main(["--provider", "fake", "--cases", str(path)])
             return status, output.getvalue()
@@ -54,28 +76,15 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
             "Text: <text>Demà vaig anar.</text>",
         ], lines)
 
-    def test_unknown_clarification_scope_fails_before_the_provider_and_later_cases_run(self):
-        calls = []
-
-        def answer(*args):
-            calls.append(args[-1])
-            return {"status": "ok"}, 0.01
-
-        status, output = self.evaluate([
-            {"text": "First", "settled": [{"scope": "unknown", "answer": "A visit"}]},
-            {"text": "Second", "status": "ok"},
-        ], answer)
-        self.assertEqual(1, status)
-        self.assertEqual(1, len(calls))
-        self.assertIn("Text: <text>Second</text>", calls[0])
-        self.assertIn("Unknown clarification scope", output)
-        self.assertIn("1/2 as expected", output)
+    def test_legacy_formatter_rejects_unknown_clarification_scope(self):
+        with self.assertRaisesRegex(ValueError, "Unknown clarification scope"):
+            run.user_message({"text": "First", "settled": [{"scope": "unknown", "answer": "A visit"}]})
 
     def test_a_mismatch_fails_the_gate_and_later_cases_still_run(self):
         calls = []
 
         def answer(*args):
-            calls.append(args[-1])
+            calls.append(args[-1]["user"])
             return {"status": "ok", "has_errors": False}, 0.01
 
         status, output = self.evaluate([
@@ -86,7 +95,7 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
         self.assertEqual(2, len(calls))
         self.assertIn("1/2 as expected", output)
         self.assertIn("model: fixture-model", output)
-        self.assertRegex(output, r"prompt: [0-9a-f]{12} · cases: [0-9a-f]{12}")
+        self.assertRegex(output, r"mode: app · contracts: [0-9a-f]{12} · cases: [0-9a-f]{12}")
 
     def test_all_provider_errors_fail_and_still_report_a_summary(self):
         def offline(*args):
@@ -213,20 +222,25 @@ class EvaluationTest(EvaluationHarness, unittest.TestCase):
             path.write_text(json.dumps({"text": text, "status": "ok"}, ensure_ascii=False) + "\n")
             messages = []
             def answer(*args):
-                messages.append(args[-1])
+                messages.append(args[-1]["user"])
                 return {"status": "ok"}, 0.01
             with patch.dict(run.PROVIDERS, {"fake": (answer, "any-model", "EVAL_FIXTURE_KEY")}), \
+                    patch.dict(run.PREPARED_PROVIDERS, {"fake": answer}), \
                     patch.dict(os.environ, {"EVAL_FIXTURE_KEY": "fixture"}), \
+                    patch.object(run.prepared, "prepare_cases", side_effect=prepared_fixture), \
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(0, run.main(["--provider", "fake", "--cases", str(path)]))
             self.assertEqual(1, len(messages))
-            self.assertIn("<text>" + text + "</text>", messages[0])
+            self.assertEqual("Exported: " + text, messages[0])
 
-    def test_language_varieties_match_the_apps_options(self):
-        source = (run.ROOT / "app/src/main/java/com/evanaronson/linguize/core/CheckOptions.kt").read_text()
-        languages = re.findall(r'Language\("[a-z]+", "([^"]+)", "([^"]+)"\)', source)
-        self.assertTrue(languages)
-        self.assertEqual(dict(languages), run.LANGUAGES)
+    def test_default_run_uses_exported_request_without_calling_legacy_formatter(self):
+        received = []
+        with patch.object(run, "user_message", side_effect=AssertionError("Legacy formatter called")):
+            status, _ = self.evaluate([{"text": "Bonjour", "language": "French", "replying_to": "Salut"}],
+                                      lambda *args: (received.append(args) or {"status": "ok"}, .1))
+        self.assertEqual(0, status)
+        self.assertEqual("Kotlin-exported system", received[0][2]["system"])
+        self.assertEqual("Exported: Bonjour", received[0][2]["user"])
 
     def test_request_matches_prompt_fixture_including_variety_and_untrusted_answers(self):
         # Same controls exercised by PromptTest.settledAnswersCannotForgeSettingLines.
@@ -276,7 +290,7 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
         ]
         for payload in payloads:
             with self.subTest(payload=payload):
-                status, output = self.evaluate_payloads(run.check_openai, payload, self.openai())
+                status, output = self.evaluate_payloads(run.generate_openai, payload, self.openai())
                 self.assertEqual(1, status)
                 self.assertIn("ERROR", output)
                 self.assertIn("1/2 as expected", output)
@@ -288,16 +302,16 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
         payloads.append({"promptFeedback": {"blockReason": "SAFETY"}})
         for payload in payloads:
             with self.subTest(payload=payload):
-                status, output = self.evaluate_payloads(run.check_gemini, payload, self.gemini())
+                status, output = self.evaluate_payloads(run.generate_gemini, payload, self.gemini())
                 self.assertEqual(1, status)
                 self.assertIn("ERROR", output)
                 self.assertIn("1/2 as expected", output)
 
     def test_malformed_provider_envelopes_do_not_stop_the_dataset(self):
         for adapter, good, malformed in [
-            (run.check_openai, self.openai(), [None, [], {}, {"status": "completed", "output": [None]},
+            (run.generate_openai, self.openai(), [None, [], {}, {"status": "completed", "output": [None]},
                                              self.openai(content=[]), self.openai(content=[{"type": "output_text", "text": "{"}])]),
-            (run.check_gemini, self.gemini(), [None, [], {}, {"candidates": []}, {"candidates": [None]},
+            (run.generate_gemini, self.gemini(), [None, [], {}, {"candidates": []}, {"candidates": [None]},
                                              self.gemini(parts=[]), self.gemini(parts=[{"text": "{"}])]),
         ]:
             for payload in malformed:
@@ -315,7 +329,7 @@ class ProviderResponseTest(EvaluationHarness, unittest.TestCase):
         openai = self.openai(content=[{"type": "output_text", "text": raw[:split]},
                                      {"type": "output_text", "text": raw[split:]}])
         openai["output"].insert(0, {"type": "reasoning", "summary": []})
-        for adapter, payload in [(run.check_gemini, gemini), (run.check_openai, openai)]:
+        for adapter, payload in [(run.generate_gemini, gemini), (run.generate_openai, openai)]:
             with self.subTest(adapter=adapter.__name__):
                 status, output = self.evaluate_payloads(adapter, payload)
                 self.assertEqual(0, status)

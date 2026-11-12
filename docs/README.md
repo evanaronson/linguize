@@ -5,6 +5,9 @@ Start with the [project README](../README.md) for installation, local builds, an
 | Document | Use it for |
 |---|---|
 | [Architecture](architecture.md) | Package ownership, dependency direction, repository navigation, and how to extend the app |
+| [Bonanza behavior contracts](bonanza-contracts.md) | Preservation tests, opt-in known-defect contracts, and the baseline for cleanup |
+| [Words query-to-export review](words-query-export-review.md) | Scoped architecture review, repeated work, and boundaries for the next cleanup |
+| [Chat cleanup review](chat-cleanup-review.md) | Full-path review, implemented reductions, and preserved save/navigation contracts |
 | [History today](history.md) | What is recorded, decision meanings, reuse, replay, storage, and evidence limits |
 | [Accessibility shortcut reliability](accessibility-spec.md) | Current lookup and replacement contracts, plus the handset evidence behind them |
 | [Copy style](copy-style.md) | English wording for screens, toasts, platform labels, and screen readers |

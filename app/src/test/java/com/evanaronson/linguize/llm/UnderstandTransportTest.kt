@@ -14,7 +14,6 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class UnderstandTransportTest {
-    private val prompt = Prompt("CORRECTION PROMPT MUST NOT BE SENT", "{}")
     private val raw = """{"translation":"They are asking how you are.","notes":[]}"""
 
     @Test fun aReadingRequestUsesTheExactSettingsSnapshotItWasStartedWith() = runBlocking {
@@ -23,7 +22,7 @@ class UnderstandTransportTest {
             200 to """{"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":$wire}]}}]}"""
         }
         val prefs = FakePreferences().apply { models[Provider.Gemini] = "captured-model" }
-        val engine = Understander(prefs, ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client, prompt)))
+        val engine = Understander(prefs, ProviderKeys { "key" }, mapOf(Provider.Gemini to GeminiClient(http.client)))
         val used = engine.context()
         prefs.provider = Provider.OpenAI
         prefs.nativeLanguage = "Catalan"
@@ -43,7 +42,7 @@ class UnderstandTransportTest {
                 """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":$wire}]}]}"""
             }
             val http = FakeHttp { _, _ -> 200 to payload }
-            val client = if (provider == Provider.Gemini) GeminiClient(http.client, prompt) else OpenAIClient(http.client, prompt)
+            val client = if (provider == Provider.Gemini) GeminiClient(http.client) else OpenAIClient(http.client)
             val prefs = object : CheckPreferences {
                 override val provider = provider
                 override val punctuation = Punctuation.Moderate

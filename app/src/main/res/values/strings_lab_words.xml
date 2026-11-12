@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Your words. Counts only what the writer typed themselves. -->
+    <string name="lab_words_title">Words</string>
+    <string name="lab_words_open">Open words</string>
+    <string name="lab_words_history_summary">Common words you\'ve used, and the ones you haven\'t</string>
+    <string name="lab_words_other_language">Other</string>
+
+    <string name="lab_words_stat_distinct">Words</string>
+    <string name="lab_words_stat_lexemes">Lexemes</string>
+    <string name="lab_words_stat_lemmas">Lemmas</string>
+    <string name="lab_words_stat_total">Words written</string>
+    <string name="lab_words_stat_month">This month</string>
+    <plurals name="lab_words_new_this_month">
+        <item quantity="one">%1$d new word this month.</item>
+        <item quantity="other">%1$d new words this month.</item>
+    </plurals>
+    <string name="lab_words_growth">Words over time</string>
+    <string name="lab_words_growth_description">Words you\'ve used grew from %1$d on %2$s to %3$d on %4$s</string>
+    <string name="lab_words_growth_both_description">Words you\'ve used grew from %1$d on %2$s to %3$d on %4$s. Of the top %5$d, %6$d used.</string>
+    <string name="lab_words_growth_words_legend">All your words: %1$d</string>
+    <string name="lab_words_growth_top_legend">Of the top %2$d: %1$d</string>
+
+    <string name="lab_words_list">Word list</string>
+    <string name="lab_words_search">Search words</string>
+    <string name="lab_words_sort_most_used">Most used</string>
+    <string name="lab_words_sort_newest">Newest</string>
+    <string name="lab_words_sort_az">A–Z</string>
+    <string name="lab_words_sort_rank">Rank</string>
+    <string name="lab_words_sort_most_misused">Most misused</string>
+    <string name="lab_words_sort">Sort</string>
+    <string name="lab_words_filter">Show</string>
+    <string name="lab_words_filter_tried">Used wrong</string>
+    <string name="lab_words_not_in_list">not in list</string>
+    <string name="lab_words_detail_rank">Rank in %1$s</string>
+    <string name="lab_words_detail_not_used">You haven\'t used this word yet.</string>
+    <string name="lab_words_by_form">Word forms</string>
+    <string name="lab_words_by_lexeme">Lexemes</string>
+    <string name="lab_words_by_lemma">Lemmas</string>
+    <string name="lab_words_no_match">No words match</string>
+    <!-- A row's use: "12 right, 3 wrong". Wrong is a use Linguize flagged as wrong. -->
+    <string name="lab_words_row_right_wrong">%1$d right, %2$d wrong</string>
+    <!-- "80% right, last Nov 3" -->
+    <string name="lab_words_row_accuracy_last">%1$d%% right, last %2$s</string>
+    <string name="lab_words_open_word">Open word</string>
+    <plurals name="lab_words_names">
+        <item quantity="one">%1$d name left out: %2$s</item>
+        <item quantity="other">%1$d names left out: %2$s</item>
+    </plurals>
+    <string name="lab_words_export">Export CSV</string>
+    <string name="lab_words_export_chooser">Export your words</string>
+    <string name="lab_words_export_failed">Couldn\'t export your words</string>
+
+    <string name="lab_words_empty_title">No words yet</string>
+    <string name="lab_words_empty">Words from the checks you put back show up here.</string>
+    <string name="lab_words_how">Only words you typed yourself count, from your saved checks. Words Linguize suggested never count.</string>
+    <string name="lab_words_how_tried">A word Linguize flags as wrong counts as used wrong, whether or not you accept the fix. Words a fix keeps, and rewordings, don\'t count against you.</string>
+    <string name="lab_words_how_accuracy">Right and wrong add up to every use. The percent is the share used right.</string>
+    <string name="lab_words_how_delete">Delete a check and its words leave this list.</string>
+
+    <string name="lab_words_detail_right">Used right</string>
+    <string name="lab_words_detail_tried">Used wrong</string>
+    <!-- The share of uses that were right: "80%" -->
+    <string name="lab_words_detail_accuracy">Right</string>
+    <string name="lab_words_percent">%1$d%%</string>
+    <string name="lab_words_detail_first">First used</string>
+    <string name="lab_words_detail_last">Last used</string>
+    <string name="lab_words_detail_messages">Messages</string>
+    <string name="lab_words_detail_lexemes">Could be</string>
+    <string name="lab_words_detail_lexemes_under">Lexemes</string>
+    <string name="lab_words_detail_forms">Forms you used</string>
+    <string name="lab_words_contexts">Where you used it</string>
+    <plurals name="lab_words_contexts_newest">
+        <item quantity="one">The newest %1$d of %2$d uses.</item>
+        <item quantity="other">The newest %1$d of %2$d uses.</item>
+    </plurals>
+    <!-- "Nov 3, Saved check" -->
+    <string name="lab_words_context_caption">%1$s, %2$s</string>
+    <string name="lab_words_context_tried">%1$s, %2$s, fixed</string>
+    <string name="lab_words_source_check">Saved check</string>
+    <string name="lab_words_source_chat">Conversation</string>
+    <string name="lab_words_open_check">Open check</string>
+    <string name="lab_words_gone">This word isn\'t in your words anymore.</string>
+
+    <!-- Lexemes: a lemma with its part of speech. "el (art)" -->
+    <string name="lab_words_lexeme">%1$s (%2$s)</string>
+    <string name="lab_words_levels">Count by</string>
+    <string name="lab_words_row_forms">Forms: %1$s</string>
+    <string name="lab_words_row_forms_ambiguous">Forms: %1$s (ambiguous: %2$s)</string>
+    <!-- "art, pron. Forms: el, la" -->
+    <string name="lab_words_row_could_be">could be %1$s</string>
+    <string name="lab_words_ambiguous_note">An ambiguous form counts toward every word it could be, so these counts can add up to more than the words you wrote.</string>
+    <string name="lab_words_how_levels">Word forms are spellings as you wrote them. A lexeme is a word with its part of speech, so la the article and la the pronoun stay apart. A lemma groups every lexeme with the same dictionary form.</string>
+    <string name="lab_words_how_ambiguous">When a form could be more than one word, it counts toward each and is marked ambiguous.</string>
+    <string name="lab_words_detail_ambiguous">Ambiguous forms</string>
+    <string name="lab_words_pos_noun">noun</string>
+    <string name="lab_words_pos_verb">verb</string>
+    <string name="lab_words_pos_adjective">adj</string>
+    <string name="lab_words_pos_adverb">adv</string>
+    <string name="lab_words_pos_pronoun">pron</string>
+    <string name="lab_words_pos_determiner">det</string>
+    <string name="lab_words_pos_article">art</string>
+    <string name="lab_words_pos_preposition">prep</string>
+    <string name="lab_words_pos_conjunction">conj</string>
+    <string name="lab_words_pos_numeral">num</string>
+    <string name="lab_words_pos_interjection">interj</string>
+    <string name="lab_words_pos_other">other</string>
+    <string name="lab_words_pos_unknown">unknown</string>
+</resources>

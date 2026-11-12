@@ -13,14 +13,11 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 /** OpenAI's Responses API over plain REST. */
-class OpenAIClient(http: OkHttpClient, private val prompt: Prompt) : ProviderClient {
+class OpenAIClient(http: OkHttpClient) : ProviderClient {
     private val http = http.forProviderRequests()
 
     /** Minimal supported reasoning; models that reject the option get their default instead. */
     private val reasoningNone = DroppableOption(refusal = "reasoning")
-
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer =
-        prompt.read(generate(key, model, prompt.generation(request)))
 
     override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
         // One time limit for the whole check, the retry without reasoning control included.

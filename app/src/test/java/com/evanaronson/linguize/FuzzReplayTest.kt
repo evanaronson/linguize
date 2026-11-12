@@ -8,13 +8,22 @@ import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.core.Links
 import com.evanaronson.linguize.core.Sentences
+import com.evanaronson.linguize.eval.CheckPreparationExport
 import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.CheckFailure
+import com.evanaronson.linguize.llm.CheckRequest
+import com.evanaronson.linguize.llm.GenerationRequest
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.llm.ProviderClient
+import com.evanaronson.linguize.llm.PreparedCheck
+import com.evanaronson.linguize.llm.lab.CheckComposition
+import com.evanaronson.linguize.llm.lab.GapsInCheck
+import com.evanaronson.linguize.llm.lab.ReplyPrompt
+import com.evanaronson.linguize.llm.lab.ToneInCheck
 import com.evanaronson.linguize.llm.read
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -23,16 +32,20 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import java.text.Normalizer
+import java.util.Collections
 
-/** Replays saved live answers through the production Checker and edit/Accept engine. */
+/** Fresh captures use Checker.check; explicitly historical captures use Checker.reuse and the same repair selection. */
 class FuzzReplayTest {
     @Test fun replayEverySavedProviderAnswer() = runBlocking<Unit> {
         val path = System.getenv("LINGUIZE_FUZZ_REPLIES")
         assumeTrue("Live fuzz replay is opt-in and never makes provider requests", path != null)
         val replies = File(path!!)
         val output = File(System.getenv("LINGUIZE_FUZZ_ENGINE") ?: "build/fuzz/engine.jsonl")
-        output.parentFile.mkdirs()
+        output.parentFile?.mkdirs()
         val prompt = Prompt.load { File("src/main/assets", it).readText() }
+        val appGaps by lazy { GapsInCheck.load(::asset) }
+        val appTone by lazy { ToneInCheck.load(::asset) }
+        val reply by lazy { ReplyPrompt.load(::asset) }
         val parser = ReplayParser.from(System.getenv("LINGUIZE_FUZZ_PARSER"))
         println("Fuzz replay parser: ${parser.token}")
         var processed = 0
@@ -46,7 +59,6 @@ class FuzzReplayTest {
                 evidence += entry
                 val case = entry.getValue("case").jsonObject
                 val original = case.getValue("text").jsonPrimitive.content
-                val language = case.getValue("language").jsonPrimitive.content
                 val flags = mutableListOf<String>()
                 val actions = mutableListOf<JsonObject>()
                 val report = buildJsonObject {
@@ -60,42 +72,47 @@ class FuzzReplayTest {
                     }
                     try {
                         val repair = entry["repair"]?.jsonObject
-                        val client = replayClient(prompt, entry, parser)
+                        val mode = replayMode(entry)
+                        require(mode != "app" || parser == ReplayParser.Fresh) { "App evidence requires fresh replay" }
+                        val client = ReplayClient(entry)
                         val preferences = FakePreferences().apply {
                             provider = Provider.entries.first { it.token == entry.getValue("provider").jsonPrimitive.content }
                             models[provider] = entry.getValue("model").jsonPrimitive.content
                         }
-                        val checker = fakeChecker(preferences, client, prompt = prompt)
-                        val selected = Language.all.firstOrNull { it.name == language }
+                        val gaps = if (mode == "app") appGaps else null
+                        val tone = if (mode == "app") appTone else null
+                        val replyingTo = CheckPreparationExport.replyingTo(case)
+                        require(mode == "app" || replyingTo == null) { "Reply context requires app preparation mode" }
+                        val checker = Checker(preferences, { "replay-key" }, prompt, Provider.entries.associateWith { client },
+                            replyPrompt = { reply }, gapsInCheck = gaps?.let { { it } }, toneInCheck = tone?.let { { it } })
                         // Replay the request context actually recorded with this evidence. Older
                         // captures predate profiles; today's defaults must not be injected into them.
-                        val context = recordedContext(runBlocking { checker.context() }, case)
-                        val checked = runBlocking { checker.check(original, selected, context = context) }
+                        val recorded = recordedContext(runBlocking { checker.context(replyingTo) }, case)
+                        val request = CheckPreparationExport.request(case).let {
+                            if (mode == "base") it.copy(writingProfiles = recorded.writingProfiles) else it
+                        }
+                        val selected = request.language
+                        val context = recorded.copy(punctuation = request.punctuation, judgments = request.judgments,
+                            native = request.native, writingProfiles = request.writingProfiles)
+                        val initial = CheckComposition.prepare(prompt, gaps, tone, request, reply, replyingTo)
+                        val retry = CheckComposition.prepare(prompt, gaps, tone, request.copy(repair = true), reply, replyingTo)
+                        if (mode == "app") verifyPreparation(entry, initial, retry)
+                        put("replay_path", if (parser == ReplayParser.Fresh) "fresh_check" else "legacy_reuse")
+                        val checked = runBlocking {
+                            if (parser == ReplayParser.Fresh) checker.check(original, selected, request.settled, context, replyingTo)
+                            else replayLegacy(checker, client, request, context, initial, retry)
+                        }
                         val verdict = prompt.parseVerdict(checked.raw)
                         put("selected_verdict", Json.parseToJsonElement(checked.raw))
-                        put("retry_evidence", if (client.checks.size == 1) "not_needed" else if (repair == null) "simulated" else "recorded")
+                        put("retry_evidence", if (client.generations.size == 1) "not_needed" else if (repair == null) "simulated" else "recorded")
                         if (repair != null && (repair["provider"] != entry["provider"] || repair["model"] != entry["model"]))
                             flags += "model_context_drift"
                         if (checked.context.provider != preferences.provider ||
                             checked.context.model != entry.getValue("model").jsonPrimitive.content)
                             flags += "model_context_drift"
-                        val expectedMessage = buildString {
-                            appendLine("Language: " + (selected?.let {
-                                if (context.writingProfiles.isEmpty()) it.name + " (" + it.variety + ")" else it.name
-                            } ?: "auto"))
-                            appendLine("Punctuation: ${context.punctuation.token}")
-                            if (context.writingProfiles.isNotEmpty()) {
-                                val profiles = Json.encodeToString(context.writingProfiles)
-                                    .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
-                                appendLine("Writing profiles: $profiles")
-                            }
-                            appendLine("Checks: ${context.judgments.token}")
-                            appendLine("Native: ${context.native} (write meaning, assumptions and reasons in ${context.native})")
-                            append("Text: <text>$original</text>")
-                        }
-                        val requests = client.checks.map { it.third }
-                        if (prompt.userMessage(requests.first()) != expectedMessage || requests.size !in 1..2 ||
-                            requests.drop(1).any { it != requests.first().copy(repair = true) })
+                        val requests = client.generations
+                        if (requests.first() != initial.generation || requests.size !in 1..2 ||
+                            requests.drop(1).any { it != retry.generation })
                             flags += "request_contract_drift"
                         if (runBlocking { checker.reuse(original, selected, checked.raw, checked.context) }.result != checked.result)
                             flags += "reuse_differs_from_fresh_check"
@@ -219,17 +236,76 @@ class FuzzReplayTest {
         }
     }
 
-    private fun replayClient(prompt: Prompt, entry: JsonObject, parser: ReplayParser): FakeClient {
-        val raw = entry.getValue("verdict").toString()
-        val repair = entry["repair"]?.jsonObject
-        return FakeClient { request ->
-            if (!request.repair || repair == null) parser.read(prompt, raw)
+    /** Only raw saved evidence crosses this fake transport, exactly as a live provider returns it. */
+    private class ReplayClient(private val entry: JsonObject) : ProviderClient {
+        val generations: MutableList<GenerationRequest> = Collections.synchronizedList(mutableListOf())
+
+        override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
+            generations += request
+            val repair = entry["repair"]?.jsonObject
+            return if (generations.size == 1 || repair == null) entry.getValue("verdict").toString()
             else {
                 if ("error" in repair) throw CheckFailure(CheckFailure.Reason.BadResponse)
-                parser.read(prompt, repair.getValue("verdict").toString())
+                repair.getValue("verdict").toString()
             }
         }
+
+        override suspend fun models(key: String): List<String> = error("Replay never lists provider models")
     }
+
+    private fun replayChecker(preferences: FakePreferences, client: ReplayClient, prompt: Prompt) =
+        Checker(preferences, { "replay-key" }, prompt, Provider.entries.associateWith { client })
+
+    /** Archived answers use the real replay parser; they are never disguised as fresh answers. */
+    private suspend fun replayLegacy(
+        checker: Checker,
+        client: ReplayClient,
+        request: CheckRequest,
+        context: CheckContext,
+        initial: PreparedCheck,
+        retry: PreparedCheck,
+    ): Checked {
+        val first = checker.reuse(request.text, request.language,
+            client.generate("replay-key", context.model, initial.generation), context)
+        val partial = first.result as? CheckResult.Reviewed
+        if (partial == null || partial.withheld.isEmpty()) return first
+        val second = try {
+            checker.reuse(request.text, request.language,
+                client.generate("replay-key", context.model, retry.generation), context)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return first
+        }
+        return selectRepairedCheck(first, second)
+    }
+
+    private fun verifyPreparation(entry: JsonObject, initial: PreparedCheck, retry: PreparedCheck) {
+        require(entry["preparation_version"] == JsonPrimitive(1)) { "Unsupported recorded preparation version" }
+        val first = CheckPreparationExport.preparedRequestRecord("app", initial)
+        val repair = CheckPreparationExport.preparedRequestRecord("app", retry)
+        val expected = mapOf(
+            "contract_sha256" to first.getValue("contract_sha256"),
+            "request_sha256" to first.getValue("request_sha256"),
+            "repair_contract_sha256" to repair.getValue("contract_sha256"),
+            "repair_request_sha256" to repair.getValue("request_sha256"),
+            "parser" to first.getValue("parser"),
+            "prompt_sha256" to first.getValue("contract_sha256"),
+        )
+        require(expected.all { (key, value) -> entry[key] == value }) { "Recorded preparation differs from the current check contract" }
+    }
+
+    private fun replayMode(entry: JsonObject): String {
+        val mode = entry["mode"]?.jsonPrimitive?.content ?: "base"
+        require(mode == "app" || mode == "base") { "Unknown recorded check mode" }
+        require(mode == "app" || listOf("preparation_version", "contract_sha256", "request_sha256",
+            "repair_contract_sha256", "repair_request_sha256", "parser").none { it in entry }) {
+            "Base archive rows cannot contain app preparation metadata"
+        }
+        return mode
+    }
+
+    private fun asset(name: String): String = File("src/main/assets", name).readText()
 
     private fun scoredAnswer(kind: String, scores: String): JsonObject = Json.parseToJsonElement(
         """{"status":"ok","language":"Catalan","meaning":"","assumptions":[],
@@ -240,18 +316,17 @@ class FuzzReplayTest {
 
     @Test fun freshReplayRejectsUnassessedAndQuotedScoresWithoutLosingRawEvidence() {
         val prompt = Prompt("", "{}")
-        val parser = ReplayParser.from(null)
         for (kind in listOf("fixes", "natural_changes")) for (scores in listOf(
             "", ""","confidence":null,"impact":null""",
             ""","confidence":"3","impact":1""", ""","confidence":1,"impact":"0"""",
         )) {
             val verdict = scoredAnswer(kind, scores)
-            val client = replayClient(prompt, buildJsonObject { put("verdict", verdict) }, parser)
-            val checker = fakeChecker(FakePreferences(), client, prompt = prompt)
+            val client = ReplayClient(buildJsonObject { put("verdict", verdict) })
+            val checker = replayChecker(FakePreferences(), client, prompt)
             val failure = assertThrows(CheckFailure::class.java) { runBlocking { checker.check(QUESTION, null) } }
             assertEquals(CheckFailure.Message.InvalidReply, failure.userMessage)
             assertEquals(verdict.toString(), failure.raw)
-            assertEquals(1, client.checks.size)
+            assertEquals(1, client.generations.size)
         }
         assertThrows(IllegalStateException::class.java) { ReplayParser.from("unknown") }
     }
@@ -281,14 +356,110 @@ class FuzzReplayTest {
             put("verdict", first)
             put("repair", buildJsonObject { put("verdict", scoredAnswer("fixes", "")) })
         }
-        val client = replayClient(prompt, entry, ReplayParser.from(null))
-        val checker = fakeChecker(FakePreferences(), client, prompt = prompt)
+        val client = ReplayClient(entry)
+        val checker = replayChecker(FakePreferences(), client, prompt)
         val checked = checker.check(QUESTION, null)
         assertEquals(first.toString(), checked.raw)
         assertTrue((checked.result as CheckResult.Reviewed).withheld.isNotEmpty())
-        assertEquals(2, client.checks.size)
-        assertTrue(client.checks.last().third.repair)
+        assertEquals(2, client.generations.size)
+        assertTrue("\nRepair: true\nText: " in client.generations.last().user)
         assertEquals(checked.result, checker.reuse(QUESTION, null, checked.raw, checked.context).result)
+    }
+
+    @Test fun legacyUnscoredRepairUsesTheReplayParserAndOriginalEvidence() = runBlocking<Unit> {
+        val prompt = Prompt.load(::asset)
+        val repaired = Json.parseToJsonElement(LEGACY_CORRECTION)
+        val first = JsonObject(repaired.jsonObject + ("more_natural" to JsonPrimitive(true)))
+        val entry = buildJsonObject {
+            put("verdict", first)
+            put("repair", buildJsonObject { put("verdict", repaired) })
+        }
+        val client = ReplayClient(entry)
+        val checker = replayChecker(FakePreferences(), client, prompt)
+        val context = checker.context().copy(writingProfiles = emptyList())
+        val request = CheckRequest(QUESTION, Language.Catalan, context.punctuation, context.judgments)
+        val initial = CheckComposition.prepare(prompt, null, null, request)
+        val retry = CheckComposition.prepare(prompt, null, null, request.copy(repair = true))
+
+        val checked = replayLegacy(checker, client, request, context, initial, retry)
+
+        assertEquals(LEGACY_CORRECTION, checked.raw)
+        val reviewed = checked.result as CheckResult.Reviewed
+        assertTrue(reviewed.withheld.isEmpty())
+        assertEquals(listOf(initial.generation, retry.generation), client.generations)
+        assertEquals("Com estàs?", reviewed.revision.acceptAll(EditKind.Fix).workingText)
+        assertEquals(checked.result, checker.reuse(QUESTION, Language.Catalan, checked.raw, context).result)
+        val failure = assertThrows(CheckFailure::class.java) { initial.read(checked.raw) }
+        assertEquals(CheckFailure.Message.InvalidReply, failure.userMessage)
+        assertEquals(checked.raw, failure.raw)
+    }
+
+    @Test fun malformedLegacyRepairKeepsTheFirstRawAnswerAndTwoRecordedAttempts() = runBlocking<Unit> {
+        val prompt = Prompt.load(::asset)
+        val first = JsonObject(Json.parseToJsonElement(LEGACY_CORRECTION).jsonObject + ("more_natural" to JsonPrimitive(true)))
+        val entry = buildJsonObject {
+            put("verdict", first)
+            put("repair", buildJsonObject { put("verdict", "not an answer object") })
+        }
+        val client = ReplayClient(entry)
+        val checker = replayChecker(FakePreferences(), client, prompt)
+        val context = checker.context().copy(writingProfiles = emptyList())
+        val request = CheckRequest(QUESTION, Language.Catalan, context.punctuation, context.judgments)
+        val initial = CheckComposition.prepare(prompt, null, null, request)
+        val retry = CheckComposition.prepare(prompt, null, null, request.copy(repair = true))
+
+        val checked = replayLegacy(checker, client, request, context, initial, retry)
+
+        assertEquals(first.toString(), checked.raw)
+        assertTrue((checked.result as CheckResult.Reviewed).withheld.isNotEmpty())
+        assertEquals(listOf(initial.generation, retry.generation), client.generations)
+    }
+
+    @Test fun appCaptureRequiresMatchingPreparationParserAndBothRequestIdentities() {
+        val prompt = Prompt.load(::asset)
+        val gaps = GapsInCheck.load(::asset)
+        val tone = ToneInCheck.load(::asset)
+        val reply = ReplyPrompt.load(::asset)
+        val request = CheckRequest(QUESTION, Language.Catalan, Punctuation.Moderate, Judgments.Both)
+        val initial = CheckComposition.prepare(prompt, gaps, tone, request, reply, "Com va?")
+        val retry = CheckComposition.prepare(prompt, gaps, tone, request.copy(repair = true), reply, "Com va?")
+        val firstRecord = CheckPreparationExport.preparedRequestRecord("app", initial)
+        val retryRecord = CheckPreparationExport.preparedRequestRecord("app", retry)
+        val recorded = buildJsonObject {
+            put("preparation_version", 1)
+            put("contract_sha256", firstRecord.getValue("contract_sha256"))
+            put("request_sha256", firstRecord.getValue("request_sha256"))
+            put("repair_contract_sha256", retryRecord.getValue("contract_sha256"))
+            put("repair_request_sha256", retryRecord.getValue("request_sha256"))
+            put("parser", firstRecord.getValue("parser"))
+            put("prompt_sha256", firstRecord.getValue("contract_sha256"))
+        }
+        verifyPreparation(recorded, initial, retry)
+        for (key in recorded.keys) {
+            assertThrows("A mismatch in $key must reject replay", IllegalArgumentException::class.java) {
+                verifyPreparation(JsonObject(recorded + (key to JsonPrimitive("wrong"))), initial, retry)
+            }
+        }
+        val wrongReply = CheckComposition.prepare(prompt, gaps, tone, request, reply, "Different reply")
+        assertThrows(IllegalArgumentException::class.java) { verifyPreparation(recorded, wrongReply, retry) }
+    }
+
+    @Test fun recordedAppPreparationCannotBeRelabelledAsAnOlderBaseCapture() {
+        assertEquals("base", replayMode(buildJsonObject {}))
+        assertEquals("base", replayMode(buildJsonObject { put("mode", "base") }))
+        for (field in listOf("preparation_version", "contract_sha256", "request_sha256",
+            "repair_contract_sha256", "repair_request_sha256", "parser")) {
+            val recorded = buildJsonObject { put("mode", "app"); put(field, "recorded") }
+            assertEquals("app", replayMode(recorded))
+            assertThrows(IllegalArgumentException::class.java) { replayMode(JsonObject(recorded - "mode")) }
+            assertThrows(IllegalArgumentException::class.java) {
+                replayMode(JsonObject(recorded + ("mode" to JsonPrimitive("base"))))
+            }
+        }
+    }
+
+    private companion object {
+        const val LEGACY_CORRECTION = """{"status":"ok","language":"Catalan","meaning":"How are you?","assumptions":[],"has_errors":true,"corrected":"Com estàs?","fixes":[{"from":"estas","to":"estàs","why":"Accent"}],"more_natural":false,"natural":"","natural_changes":[]}"""
     }
 
     /** Missing profile data is genuinely legacy evidence, never permission to invent it. */

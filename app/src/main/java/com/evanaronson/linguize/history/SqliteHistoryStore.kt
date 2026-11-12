@@ -2,12 +2,15 @@ package com.evanaronson.linguize.history
 
 import android.content.Context
 import android.database.Cursor
+import android.database.sqlite.SQLiteCursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.database.sqlite.SQLiteStatement
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +18,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 
@@ -37,16 +42,20 @@ import java.io.OutputStream
 class SqliteHistoryStore(
     context: Context,
     name: String = HistorySchema.NAME,
+    /** Optional query observation for bounded-read verification; absent in production. */
+    queryObserver: ((String) -> Unit)? = null,
 ) : HistoryStore {
     private val context = context.applicationContext
     private val name = name
-    private val helper = Helper(this.context, name)
+    private val helper = Helper(this.context, name, queryObserver)
 
     /** Sessions opened here, and ones cleared or deleted, which an open card mustn't write back. */
     private val forgotten = Forgotten()
 
     /** Bumped after every write, so the observed queries run again. */
     private val changes = MutableStateFlow(0L)
+    /** Binds evidence rows to the committed revision, including cancellation after a commit. */
+    private val evidenceLock = Mutex()
 
     override fun registerSession(id: String) {
         forgotten.saving(id)
@@ -108,6 +117,7 @@ class SqliteHistoryStore(
     }
 
     override fun revisions(): Flow<Long> = changes.asStateFlow()
+    override fun evidenceRevision(): Long = changes.value
 
     override suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage? = read("read a history page", null) { db ->
         val size = limit.coerceIn(1, Int.MAX_VALUE - 1)
@@ -120,6 +130,31 @@ class SqliteHistoryStore(
 
     override suspend fun detail(id: String): SessionDetailResult = read("read a session", SessionDetailResult.Failed) { db ->
         db.snapshot { db.detail(id)?.let { SessionDetailResult.Found(it) } ?: SessionDetailResult.Missing }
+    }
+
+    override suspend fun evidence(limit: Int): HistoryEvidenceResult = evidenceLock.withLock {
+        val cancellation = currentCoroutineContext()
+        val size = limit.coerceIn(1, Int.MAX_VALUE - 1)
+        read("read history evidence", HistoryEvidenceResult.Failed) { db ->
+            db.snapshot {
+                val sessions = mutableListOf<SessionRecord>()
+                var hasMore = false
+                db.eachRow(HistorySchema.evidenceSessions(size + 1)) { row ->
+                    cancellation.ensureActive()
+                    // The lookahead establishes coverage, but is outside the selected window.
+                    if (sessions.size < size) sessions += sessionRecord(row) else hasMore = true
+                }
+                val suggestions = mutableMapOf<String, MutableList<SuggestionRecord>>()
+                cancellation.ensureActive()
+                db.eachRow(HistorySchema.evidenceSuggestions(size)) { row ->
+                    cancellation.ensureActive()
+                    suggestionRecord(row)?.let { suggestions.getOrPut(it.sessionId) { mutableListOf() } += it }
+                }
+                cancellation.ensureActive()
+                val details = sessions.map { session -> SessionDetail(session, suggestions[session.id]?.toList().orEmpty()) }
+                HistoryEvidenceResult.Ready(HistoryEvidenceSnapshot(changes.value, HistoryEvidenceWindow(size, hasMore), details))
+            }
+        }
     }
 
     /**
@@ -188,6 +223,60 @@ class SqliteHistoryStore(
         true
     }
 
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+    /**
+     * Every stored session (open, hidden and visible alike) with all its suggestions, each row
+     * exactly as stored, column to value, from one read snapshot. Only reads: a database that
+     * doesn't exist yet is not made. False when it couldn't be read.
+     */
+    suspend fun transferRows(each: (TransferSession) -> Unit): Boolean {
+        val exists = withContext(Dispatchers.IO) { context.getDatabasePath(name).exists() }
+        if (!exists) return true
+        return read("read history for transfer", false) { db ->
+            db.snapshot {
+                db.rawQuery("""SELECT * FROM ${HistorySchema.SESSIONS} ORDER BY "startedAt", "id" """, null).use { sessions ->
+                    while (sessions.moveToNext()) {
+                        val session = sessions.rawRow()
+                        val id = session["id"] as? String ?: continue
+                        val suggestions = db.rawQuery(
+                            """SELECT * FROM ${HistorySchema.SUGGESTIONS} WHERE "sessionId" = ? ORDER BY "attempt", "start", "end", "id" """,
+                            arrayOf(id),
+                        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.rawRow()) } }
+                        each(TransferSession(session, suggestions))
+                    }
+                }
+                true
+            }
+        }
+    }
+
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+    /**
+     * Adds each of [sessions] whose id this database doesn't have yet, with its suggestions,
+     * in one transaction. Never updates or deletes a row: a session already here (or deleted
+     * in this process) is left exactly as it is, and so are its suggestions. Only this build's
+     * columns are written. Returns how many sessions were added, or null when nothing could be.
+     */
+    suspend fun insertIfAbsent(sessions: List<TransferSession>): Int? {
+        var added = 0
+        val ok = write("add transferred sessions") { db ->
+            added = 0
+            for (transfer in sessions) {
+                val id = transfer.session["id"] as? String ?: continue
+                if (REQUIRED_SESSION_COLUMNS.any { transfer.session[it] == null }) continue
+                val present = db.rawQuery("""SELECT 1 FROM ${HistorySchema.SESSIONS} WHERE "id" = ?""", arrayOf(id)).use { it.moveToFirst() }
+                if (present || !forgotten.transferable(id)) continue
+                db.insertRaw(HistorySchema.SESSIONS, HistorySchema.SESSION_COLUMNS, transfer.session)
+                for (suggestion in transfer.suggestions) {
+                    if (suggestion["sessionId"] != id || REQUIRED_SUGGESTION_COLUMNS.any { suggestion[it] == null }) continue
+                    db.insertRaw(HistorySchema.SUGGESTIONS, HistorySchema.SUGGESTION_COLUMNS, suggestion, ignoreConflict = true)
+                }
+                added++
+            }
+        }
+        return if (ok) added else null
+    }
+
     private fun SQLiteDatabase.detail(id: String): SessionDetail? {
         val session = select(HistorySchema.SESSION, listOf(id), ::sessionRecord).firstOrNull() ?: return null
         return SessionDetail(session, suggestions(id))
@@ -198,8 +287,8 @@ class SqliteHistoryStore(
         select(HistorySchema.SESSION_SUGGESTIONS, listOf(sessionId), ::suggestionRecord).filterNotNull()
 
     /** Runs [block] in a transaction on [Dispatchers.IO], then tells the observed queries. Logs a failure. */
-    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit): Boolean {
-        val written = read(what, false) { db ->
+    private suspend fun write(what: String, block: (SQLiteDatabase) -> Unit): Boolean = evidenceLock.withLock {
+        read(what, false) { db ->
             db.beginTransaction()
             try {
                 block(db)
@@ -207,10 +296,11 @@ class SqliteHistoryStore(
             } finally {
                 db.endTransaction()
             }
+            // Publish before returning across dispatchers: cancellation there must not hide
+            // a committed mutation from revision-based evidence caches.
+            changes.update { it + 1 }
             true
         }
-        if (written) changes.update { it + 1 }
-        return written
     }
 
     /** [block] on [Dispatchers.IO] with the database; [fallback] when it fails. */
@@ -224,8 +314,13 @@ class SqliteHistoryStore(
         .flowOn(Dispatchers.IO)
         .distinctUntilChanged()
 
-    private class Helper(context: Context, name: String) :
-        SQLiteOpenHelper(context, name, null, HistorySchema.VERSION) {
+    private class Helper(context: Context, name: String, queryObserver: ((String) -> Unit)?) :
+        SQLiteOpenHelper(context, name, queryObserver?.let { observe ->
+            SQLiteDatabase.CursorFactory { _, driver, table, query ->
+                observe(query.toString())
+                SQLiteCursor(driver, table, query)
+            }
+        }, HistorySchema.VERSION) {
         init {
             // Lets the observed queries read while a close is being written.
             setWriteAheadLoggingEnabled(true)
@@ -285,6 +380,46 @@ class SqliteHistoryStore(
                 db.execute("""UPDATE sessions SET "attempts" = ?, "targetLanguage" = ?, "detectedLanguage" = ? WHERE "id" = ?""", it)
             }
         }
+    }
+}
+
+// TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+/** One stored session and its suggestions, each row as column to value (String, Long, Double or null). */
+data class TransferSession(val session: Map<String, Any?>, val suggestions: List<Map<String, Any?>>)
+
+// TEMPORARY: lab transfer bridge. The NOT NULL columns without a default, which a transferred row must carry.
+private val REQUIRED_SESSION_COLUMNS = listOf(
+    "id", "deviceId", "schema", "createdAt", "updatedAt", "startedAt", "origin", "text", "textHash",
+    "punctuation", "judgments", "provider", "model", "promptHash", "appVersion", "attempts",
+)
+private val REQUIRED_SUGGESTION_COLUMNS = listOf(
+    "id", "sessionId", "deviceId", "schema", "createdAt", "updatedAt", "attempt", "kind", "start", "end",
+    "fromText", "toText", "decision", "decidedAt",
+)
+
+// TEMPORARY: lab transfer bridge. The current row, every column as stored.
+private fun Cursor.rawRow(): Map<String, Any?> = buildMap {
+    for (index in 0 until columnCount) {
+        put(getColumnName(index), when (getType(index)) {
+            Cursor.FIELD_TYPE_NULL -> null
+            Cursor.FIELD_TYPE_INTEGER -> getLong(index)
+            Cursor.FIELD_TYPE_FLOAT -> getDouble(index)
+            else -> getString(index)
+        })
+    }
+}
+
+// TEMPORARY: lab transfer bridge. Inserts [row]'s values for this build's [columns] that it has.
+private fun SQLiteDatabase.insertRaw(table: String, columns: List<String>, row: Map<String, Any?>, ignoreConflict: Boolean = false) {
+    val present = columns.filter { it in row }
+    val verb = if (ignoreConflict) "INSERT OR IGNORE" else "INSERT"
+    val sql = "$verb INTO $table (${present.joinToString { "\"$it\"" }}) VALUES (${present.joinToString { "?" }})"
+    val statement = compileStatement(sql)
+    try {
+        statement.bindAll(present.map { row[it] })
+        statement.executeInsert()
+    } finally {
+        statement.close()
     }
 }
 
@@ -379,6 +514,7 @@ private fun SQLiteStatement.bindAll(values: Collection<Any?>) {
             is String -> bindString(i + 1, value)
             is Int -> bindLong(i + 1, value.toLong())
             is Long -> bindLong(i + 1, value)
+            is Double -> bindDouble(i + 1, value) // TEMPORARY: lab transfer bridge (raw rows)
             else -> error("History can't store a ${value::class.simpleName}")
         }
     }

@@ -31,16 +31,32 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalContext
+import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.Language
+import com.evanaronson.linguize.core.language.LanguageScope
+import com.evanaronson.linguize.ui.language.LanguageIcon
+import com.evanaronson.linguize.ui.language.LanguageOption
+import com.evanaronson.linguize.ui.language.brandName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.evanaronson.linguize.ui.text.displayName
 
 /**
- * "Auto Detect ▾": picks the language to check as, from auto-detect (null) and every language
- * in [Language.all]. The host draws the menu over content in the same window, without
- * changing the trigger's layout or requiring a separate popup-window token.
+ * "Auto-detect ▾": picks the language to check as, from auto-detect (null) and the writer's
+ * languages ([options]; by default [rememberMyLanguages]), plus [selected] if it isn't one of
+ * them. The host draws the menu over content in the same window, without changing the
+ * trigger's layout or requiring a separate popup-window token.
  */
 @Composable
-fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier: Modifier = Modifier) {
+fun LanguagePicker(
+    selected: Language?,
+    onSelect: (Language?) -> Unit,
+    modifier: Modifier = Modifier,
+    options: List<Language> = rememberMyLanguages(),
+) {
+    val entries = (listOf<Language?>(null) + options + listOfNotNull(selected)).distinctBy { it?.code }
     val menu = LocalMenuState.current
     val owner = remember { Any() }
     var anchor by remember { mutableStateOf(Rect.Zero) }
@@ -51,10 +67,11 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
     val name = label(selected)
     val description = stringResource(R.string.language_accessibility, name,
         selected?.displayName() ?: stringResource(R.string.detect_language))
+    val varieties = rememberVarieties()
     LinguizeButton(
         onClick = {
             if (open) menu.dismiss() else menu.show(owner, anchor) {
-                LanguageMenu(selected) { entry ->
+                LanguageMenu(entries, selected, varieties) { entry ->
                     menu.dismiss()
                     onSelect(entry)
                 }
@@ -68,14 +85,22 @@ fun LanguagePicker(selected: Language?, onSelect: (Language?) -> Unit, modifier:
             }
             .semantics { contentDescription = description },
     ) {
+        PickerIcon(selected, varieties, Modifier.clearAndSetSemantics {})
+        Spacer(Modifier.width(8.dp))
         Text(name)
         Spacer(Modifier.width(8.dp))
         Text(if (open) "▴" else "▾", Modifier.clearAndSetSemantics {})
     }
 }
 
+/** Lab, lang-selector: the selector's circular icon for [language] (Linguize's mark for Auto), with the writer's variety. */
 @Composable
-private fun LanguageMenu(selected: Language?, onSelect: (Language?) -> Unit) {
+private fun PickerIcon(language: Language?, varieties: Map<String, String?>, modifier: Modifier = Modifier) {
+    LanguageIcon(language?.let { LanguageOption(it.code, varieties[it.code]) }, modifier, size = 20.dp)
+}
+
+@Composable
+private fun LanguageMenu(entries: List<Language?>, selected: Language?, varieties: Map<String, String?>, onSelect: (Language?) -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -83,13 +108,15 @@ private fun LanguageMenu(selected: Language?, onSelect: (Language?) -> Unit) {
         modifier = Modifier.widthIn(min = 220.dp, max = 320.dp),
     ) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
-            (listOf(null) + Language.all).forEach { entry ->
+            entries.forEach { entry ->
                 Row(
                     Modifier.fillMaxWidth()
                         .selectable(selected = entry == selected, role = Role.RadioButton) { onSelect(entry) }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    PickerIcon(entry, varieties, Modifier.clearAndSetSemantics {})
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(label(entry), style = MaterialTheme.typography.bodyLarge)
                         Text(
@@ -111,16 +138,37 @@ private fun LanguageMenu(selected: Language?, onSelect: (Language?) -> Unit) {
 }
 
 /**
- * Auto-detect is an action, distinct from the app's brand. Named languages keep their
- * selection-menu labels, or use the language's own name when it has no such label.
+ * Auto-detect is an action, distinct from the app's brand. Languages have the selector's brand
+ * names (Lab, lang-selector: "Catalanize", "Gallicize", from the language catalog), else the
+ * language's own name.
  */
 @Composable
-private fun label(language: Language?): String {
-    val named = when (language) {
-        null -> R.string.auto_detect
-        Language.Catalan -> R.string.menu_catalan
-        Language.Spanish -> R.string.menu_castilian
-        else -> null
+private fun label(language: Language?): String =
+    if (language == null) stringResource(R.string.auto_detect) else brandName(language.code)
+
+/** Lab, lang-selector: each writing profile's variety by language, for Castilianize's flag; empty until read. */
+@Composable
+private fun rememberVarieties(): Map<String, String?> {
+    val context = LocalContext.current
+    val varieties by produceState(emptyMap<String, String?>(), context) {
+        withContext(Dispatchers.IO) {
+            runCatching { App.of(context).settings.writingProfiles.associate { it.language to it.variety } }.getOrNull()
+        }?.let { value = it }
     }
-    return named?.let { stringResource(it) } ?: language?.displayName().orEmpty()
+    return varieties
+}
+
+/**
+ * Lab, language-generic: the writer's languages, read once off the main thread; Catalan and
+ * Spanish until then (or where the app's settings can't be reached, as in a preview).
+ */
+@Composable
+fun rememberMyLanguages(): List<Language> {
+    val context = LocalContext.current
+    val codes by produceState(LanguageScope.DEFAULT_LANGUAGES, context) {
+        withContext(Dispatchers.IO) {
+            runCatching { App.of(context).settings.myLanguages.codes }.getOrNull()
+        }?.let { value = it }
+    }
+    return remember(codes) { codes.mapNotNull(Language::forCode) }
 }

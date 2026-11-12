@@ -70,7 +70,7 @@ class GeminiClientTest {
     fun aModelNameCannotChangeTheRequestPathOrQuery() {
         val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
         val model = "gemini-test/elsewhere?key=unexpected#fragment"
-        runBlocking { GeminiClient(http.client, prompt).check("key", model, request) }
+        runBlocking { prompt.read(GeminiClient(http.client).generate("key", model, prompt.generation(request))) }
         val url = http.requests.single().url
         assertEquals(listOf("v1beta", "models", "$model:generateContent"), url.pathSegments)
         assertEquals(null, url.query)
@@ -80,7 +80,7 @@ class GeminiClientTest {
     @Test
     fun aNullPageTokenEndsTheModelList() {
         val http = FakeHttp { _, _ -> 200 to """{"models":[],"nextPageToken":null}""" }
-        assertEquals(emptyList<String>(), runBlocking { GeminiClient(http.client, prompt).models("key") })
+        assertEquals(emptyList<String>(), runBlocking { GeminiClient(http.client).models("key") })
         assertEquals(1, http.requests.size)
     }
 
@@ -96,21 +96,21 @@ class GeminiClientTest {
             if (index == 0) 400 to """{"error":{"message":"Thinking level MINIMAL is not supported"}}"""
             else 200 to answer(VERDICT_JSON)
         }
-        val client = GeminiClient(http.client, prompt)
-        runBlocking { client.check("key", "gemini-x", request) }
+        val client = GeminiClient(http.client)
+        runBlocking { prompt.read(client.generate("key", "gemini-x", prompt.generation(request))) }
         assertEquals(2, http.requests.size)
         assertTrue("thinkingConfig" in http.body(0))
         assertFalse("thinkingConfig" in http.body(1))
 
         // Remembered, so the next check goes straight to the default.
-        runBlocking { client.check("key", "gemini-x", request) }
+        runBlocking { prompt.read(client.generate("key", "gemini-x", prompt.generation(request))) }
         assertFalse("thinkingConfig" in http.body(2))
     }
 
     @Test
     fun theOutputLimitIsSent() {
         val http = FakeHttp { _, _ -> 200 to answer(VERDICT_JSON) }
-        runBlocking { GeminiClient(http.client, prompt).check("key", "gemini-x", request) }
+        runBlocking { prompt.read(GeminiClient(http.client).generate("key", "gemini-x", prompt.generation(request))) }
         assertTrue("\"maxOutputTokens\":${Prompt.MAX_OUTPUT_TOKENS}" in http.body(0))
     }
 
@@ -119,7 +119,7 @@ class GeminiClientTest {
         val http = FakeHttp { _, index ->
             200 to modelsPage("gemini-$index-flash", next = if (index < 2) "t$index" else null)
         }
-        val ids = runBlocking { GeminiClient(http.client, prompt).models("key") }
+        val ids = runBlocking { GeminiClient(http.client).models("key") }
         assertEquals(listOf("gemini-2-flash", "gemini-1-flash", "gemini-0-flash"), ids)
         assertEquals(listOf(null, "t0", "t1"), http.requests.map { it.url.queryParameter("pageToken") })
     }
@@ -127,7 +127,7 @@ class GeminiClientTest {
     @Test
     fun aRepeatedPageTokenEndsTheModelList() {
         val http = FakeHttp { _, index -> 200 to modelsPage("gemini-$index-flash", next = "same") }
-        val ids = runBlocking { GeminiClient(http.client, prompt).models("key") }
+        val ids = runBlocking { GeminiClient(http.client).models("key") }
         assertEquals(2, http.requests.size)
         assertEquals(listOf("gemini-1-flash", "gemini-0-flash"), ids)
     }
@@ -135,7 +135,7 @@ class GeminiClientTest {
     @Test
     fun modelPagesStopAtTheCap() {
         val http = FakeHttp { _, index -> 200 to modelsPage("gemini-$index-flash", next = "t$index") }
-        val ids = runBlocking { GeminiClient(http.client, prompt).models("key") }
+        val ids = runBlocking { GeminiClient(http.client).models("key") }
         assertEquals(GeminiClient.MAX_MODEL_PAGES, http.requests.size)
         assertEquals(GeminiClient.MAX_MODEL_PAGES, ids.size)
     }

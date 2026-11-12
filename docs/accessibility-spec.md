@@ -29,7 +29,7 @@ Build 65 fixed the separate WhatsApp Accept regression by detaching the overlay 
 
 ## Existing contracts
 
-Individual Accept and Accept all change the card preview and keep the card open. Once all suggestions are resolved, the final text stays visible and can be copied. Apply or dismissal puts accepted changes back. Explicit Copy copies the chosen version, shows a brief toast, and keeps the popup open. Accept never copies, including when replacement fails.
+Individual Accept and Accept all change the card preview and keep the card open. Once all suggestions are resolved, the final text stays visible and can be copied. Replace or dismissal puts accepted changes back. Explicit Copy copies the chosen version, shows a brief toast, and keeps the popup open. Accept never copies, including when replacement fails.
 
 Replacement targets the original field after the overlay detaches. Refresh it and require its full text to match the original before Set text. Preserve surrounding text and cursor placement.
 
@@ -101,7 +101,7 @@ its provider, model, or explanation language changed. Late answers from a replac
 request cannot replace the current result. Returning to a retained Check similarly
 checks whether its settings changed and preserves accepted work on recheck.
 It shares the existing popup frame, positioning, scrim, loading/errors and Meaning
-text treatment. It has no Accept, Apply, correction highlights or persistent history.
+text treatment. It has no Accept, Replace, correction highlights or persistent history.
 The popup header contains no noninteractive Understand label.
 
 The debug-only ClipboardProbeService and scripts/verify_clipboard_overlay.sh

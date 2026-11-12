@@ -18,6 +18,8 @@ sealed interface CheckResult {
         val meaning: String = "",
         /** Judgments with proposed changes that could not be offered safely. */
         val withheld: Set<EditKind> = emptySet(),
+        /** Lab, How it lands: the answer's optional reading of the corrected text; null when it had none. */
+        val landing: com.evanaronson.linguize.core.lab.Landing? = null,
     ) : CheckResult {
         /** No changes were needed, rather than proposed changes being discarded. */
         val looksGood get() = withheld.isEmpty() && kinds.all { revision.edits(it).isEmpty() }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runs the app's prompt and schema against eval/cases.jsonl and reports
+"""Runs Kotlin-prepared check requests against eval/cases.jsonl and reports
 judgment mismatches and latency. Exits nonzero when a case fails or a call errors.
 This evaluates provider answers; Android tests cover parsing, edits and writeback.
 
@@ -21,7 +21,6 @@ also set "expected_corrected" / "expected_natural" for exact result text and
 app nagging about language that is already fine.
 """
 import argparse
-import hashlib
 import http.client
 import json
 import os
@@ -31,6 +30,8 @@ import time
 import urllib.request
 import urllib.error
 
+import prepared
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "app/src/main/assets"
 
@@ -38,7 +39,8 @@ ASSETS = ROOT / "app/src/main/assets"
 MAX_OUTPUT_TOKENS = 8192
 TEXT_OPEN, TEXT_CLOSE = "<text>", "</text>"
 
-# Matches Language.all. Contract tests compare this with CheckOptions.kt.
+# Historical base-only formatter, retained for archived fuzz runs. New evaluations
+# consume Kotlin's prepared requests and do not construct prompts in Python.
 LANGUAGES = {"Catalan": "standard Central Catalan", "Spanish": "Peninsular"}
 
 
@@ -64,6 +66,7 @@ def settled_json(item):
 
 
 def user_message(case):
+    """Legacy base-only request format; not the app-mode preparation path."""
     language = case.get("language", "auto")
     profiles = case.get("writing_profiles", [])
     if not isinstance(profiles, list):
@@ -102,13 +105,20 @@ def json_array(value, label):
 
 
 def check_gemini(model, key, system, schema, message):
+    return generate_gemini(model, key, {
+        "system": system, "schema": schema, "user": message,
+        "name": "check", "max_tokens": MAX_OUTPUT_TOKENS,
+    })
+
+
+def generate_gemini(model, key, generation):
     body = {
-        "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [{"role": "user", "parts": [{"text": message}]}],
+        "systemInstruction": {"parts": [{"text": generation["system"]}]},
+        "contents": [{"role": "user", "parts": [{"text": generation["user"]}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
-            "responseJsonSchema": schema,
-            "maxOutputTokens": MAX_OUTPUT_TOKENS,
+            "responseJsonSchema": generation["schema"],
+            "maxOutputTokens": generation["max_tokens"],
             "thinkingConfig": {"thinkingLevel": "MINIMAL"},
         },
     }
@@ -149,17 +159,24 @@ def check_gemini(model, key, system, schema, message):
 
 
 def check_openai(model, key, system, schema, message):
+    return generate_openai(model, key, {
+        "system": system, "schema": schema, "user": message,
+        "name": "check", "max_tokens": MAX_OUTPUT_TOKENS,
+    })
+
+
+def generate_openai(model, key, generation):
     # Mirrors OpenAIClient: strict mode rejects Gemini's propertyOrdering.
-    schema = {k: v for k, v in schema.items() if k != "propertyOrdering"}
+    schema = {k: v for k, v in generation["schema"].items() if k != "propertyOrdering"}
     body = {
         "model": model,
-        "instructions": system,
-        "input": message,
+        "instructions": generation["system"],
+        "input": generation["user"],
         "store": False,
-        "max_output_tokens": MAX_OUTPUT_TOKENS,
+        "max_output_tokens": generation["max_tokens"],
         "reasoning": {"effort": "low" if model == "gpt-6.1-sol" or model.startswith("gpt-6.1-sol-")\
                           or model == "gpt-6-astra" or model.startswith("gpt-6-astra-") else "none"},
-        "text": {"format": {"type": "json_schema", "name": "check", "strict": True, "schema": schema}},
+        "text": {"format": {"type": "json_schema", "name": generation["name"], "strict": True, "schema": schema}},
     }
     request = urllib.request.Request(
         "https://api.openai.com/v1/responses",
@@ -200,6 +217,13 @@ PROVIDERS = {
     "gemini": (check_gemini, "gemini-3.5-flash-lite", "GEMINI_API_KEY"),
     "openai": (check_openai, "gpt-6.1-sol", "OPENAI_API_KEY"),
 }
+
+PREPARED_PROVIDERS = {"gemini": generate_gemini, "openai": generate_openai}
+
+
+def check_prepared(provider, model, key, generation):
+    """Send an exported request without rebuilding its prompt or settings."""
+    return PREPARED_PROVIDERS[provider](model, key, generation)
 
 
 def summarize_answer(case, verdict, elapsed):
@@ -260,41 +284,83 @@ def main(argv=None):
     parser.add_argument("--provider", choices=PROVIDERS, default="gemini")
     parser.add_argument("--model", help="override the provider's default model")
     parser.add_argument("--cases", type=pathlib.Path, default=ROOT / "eval/cases.jsonl", help="curated JSON Lines cases")
+    parser.add_argument("--mode", choices=prepared.MODES, default="app",
+                        help="app composition (default), or explicit historical base prompt")
+    parser.add_argument("--prepared", type=pathlib.Path,
+                        help="reuse an exported artifact bound to these exact cases and mode")
+    parser.add_argument("--prepare-only", action="store_true",
+                        help="export requests without provider credentials or network calls")
+    parser.add_argument("--output", type=pathlib.Path,
+                        help="new JSONL file for prepared requests or durable live results; never overwritten")
     args = parser.parse_args(argv)
-    check, default_model, key_var = PROVIDERS[args.provider]
+    _, default_model, key_var = PROVIDERS[args.provider]
     model = args.model or default_model
     key = os.environ.get(key_var)
-    if not key:
+    if not args.prepare_only and not key:
         parser.error(f"Set {key_var} to run provider evaluations")
-    system = (ASSETS / "check_prompt.md").read_text()
-    schema_text = (ASSETS / "check_schema.json").read_text()
-    schema = json.loads(schema_text)
-    cases_text = args.cases.read_text()
-    cases = [json.loads(line) for line in cases_text.split("\n") if line.strip()]
-    if not cases:
-        parser.error("The evaluation dataset has no cases")
-    prompt_hash = hashlib.sha256((system + "\0" + schema_text).encode()).hexdigest()[:12]
-    cases_hash = hashlib.sha256(cases_text.encode()).hexdigest()[:12]
-    print(f"Provider: {args.provider} · model: {model} · prompt: {prompt_hash} · cases: {cases_hash}")
+    try:
+        records = (prepared.load_prepared(args.prepared, args.cases, args.mode) if args.prepared
+                   else prepared.prepare_cases(args.cases, args.mode))
+        output = args.output.open("x", encoding="utf-8") if args.output else None
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    try:
+        if args.prepare_only:
+            for record in records:
+                if output:
+                    write_result(output, record)
+                else:
+                    print(prepared.compact(record))
+            return 0
+        return evaluate(records, args.provider, model, key, output)
+    finally:
+        if output:
+            output.close()
 
+
+def write_result(output, result):
+    output.write(prepared.compact(result) + "\n")
+    output.flush()
+    os.fsync(output.fileno())
+
+
+def evaluate(records, provider, model, key, output=None):
+    cases_hash = records[0]["dataset_sha256"][:12]
+    contracts = ",".join(dict.fromkeys(record["initial"]["contract_sha256"][:12] for record in records))
+    print(f"Provider: {provider} · model: {model} · mode: {records[0]['mode']} · contracts: {contracts} · cases: {cases_hash}")
     times, failures = [], 0
-    for number, case in enumerate(cases, 1):
+    for record in records:
+        case = record["case"]
+        result = {
+            "version": 1, "mode": record["mode"], "case_index": record["case_index"], "case": case,
+            "dataset_sha256": record["dataset_sha256"], "provider": provider, "model": model,
+            "prepared": record["initial"],
+        }
         try:
-            message = user_message(case)
-            verdict, elapsed = check(model, key, system, schema, message)
+            verdict, elapsed = check_prepared(provider, model, key, record["initial"]["generation"])
+            # Reject non-finite numbers or invalid Unicode before adding an answer
+            # to durable JSONL; malformed provider data must not stop later cases.
+            prepared.compact(verdict).encode("utf-8")
+            result.update(verdict=verdict, latency_seconds=elapsed)
             problems, report = summarize_answer(case, verdict, elapsed)
         except (OSError, http.client.HTTPException, LookupError, TypeError, ValueError, AttributeError) as error:
             # Includes HTTP/network failures and malformed envelopes/answers. Keep later
             # cases running, without counting or printing a partial successful report.
             failures += 1
-            label = case.get("text", f"case {number}") if isinstance(case, dict) else f"case {number}"
+            label = case.get("text", f"case {record['case_index'] + 1}")
             print(f"ERROR  {label}\n       {error}")
+            result["error"] = {"type": type(error).__name__, "message": str(error)}
+            if output:
+                write_result(output, result)
             continue
         times.append(elapsed)
         failures += bool(problems)
         print(report)
+        result["problems"] = problems
+        if output:
+            write_result(output, result)
 
-    print(f"\n{len(cases) - failures}/{len(cases)} as expected")
+    print(f"\n{len(records) - failures}/{len(records)} as expected")
     if times:
         times.sort()
         p90 = times[min(len(times) - 1, int(len(times) * 0.9))]

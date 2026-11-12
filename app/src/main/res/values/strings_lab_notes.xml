@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notes (Linguize Lab, once Write): the list of notes, and a page per note checked with the card. -->
+    <string name="lab_notes_header">Write and check</string>
+    <string name="lab_notes_placeholder">Write or paste a message</string>
+    <string name="lab_notes_copy">Copy</string>
+    <string name="lab_notes_share">Share</string>
+    <string name="lab_notes_new">New note</string>
+    <string name="lab_notes_sample_hint">A sample to try. Check it, or write your own.</string>
+    <string name="lab_notes_kept">Notes stay on this phone. Checks here aren\'t saved in History.</string>
+    <string name="lab_notes_other_apps">In other apps, select text and choose Linguize in the menu.</string>
+    <string name="lab_notes_open">Open note</string>
+    <string name="lab_notes_delete">Delete note</string>
+    <string name="lab_notes_deleted">Note deleted</string>
+    <string name="lab_notes_read_failed">Couldn\'t read your notes. Try again.</string>
+    <string name="lab_notes_open_failed">Couldn\'t open this note. Try again.</string>
+    <string name="lab_notes_save_failed">Couldn\'t save this note. Your text is still here.</string>
+    <string name="lab_notes_delete_failed">Couldn\'t delete this note. Try again.</string>
+    <string name="lab_notes_restore_failed">Couldn\'t restore this note. Try again.</string>
+</resources>

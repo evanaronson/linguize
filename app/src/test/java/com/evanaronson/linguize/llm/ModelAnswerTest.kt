@@ -35,7 +35,7 @@ class ModelAnswerTest {
             200 to """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":${JsonPrimitive(VERDICT_JSON)}}]}]}"""
         }
         val request = CheckRequest("x", null, Punctuation.Moderate, Judgments.Both)
-        val answer = runBlocking { OpenAIClient(http.client, prompt).check("key", "gpt-x", request) }
+        val answer = runBlocking { prompt.read(OpenAIClient(http.client).generate("key", "gpt-x", prompt.generation(request))) }
         assertEquals(VERDICT_JSON, answer.raw)
     }
 }

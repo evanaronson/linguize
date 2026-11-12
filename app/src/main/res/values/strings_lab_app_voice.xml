@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Per-app voice (Lab). See docs/lab/app-voice.md. -->
+
+    <!-- The card's note above a check, e.g. "Formal, Gmail rule". %1$s is a register, suggestion choice or language; %2$s is the app's name. -->
+    <string name="lab_app_voice_chip_rule">%1$s, %2$s rule</string>
+    <!-- After the writer picks a register or suggestions on the card, for this check only. -->
+    <string name="lab_app_voice_chip_this_check">%1$s, this check</string>
+    <!-- Screen reader label for the note. %1$s is the visible text. -->
+    <string name="lab_app_voice_chip_description">%1$s. Change for this check</string>
+    <!-- Menu row that saves the card's choices as the app's rule. %1$s is the app's name. -->
+    <string name="lab_app_voice_save">Save as %1$s rule</string>
+
+    <!-- Settings -->
+    <string name="lab_app_voice_title">Per-app voice</string>
+    <string name="lab_app_voice_summary_none">Same settings in every app</string>
+    <plurals name="lab_app_voice_summary">
+        <item quantity="one">%d app has its own rule</item>
+        <item quantity="other">%d apps have their own rules</item>
+    </plurals>
+    <string name="lab_app_voice_intro">Checks from an app follow its rule. The card says when one applies.</string>
+    <string name="lab_app_voice_with_rule">With a rule</string>
+    <string name="lab_app_voice_recent">Recent apps</string>
+    <string name="lab_app_voice_messaging">Messaging apps</string>
+    <string name="lab_app_voice_empty">Apps you check text in appear here.</string>
+    <string name="lab_app_voice_usual">Usual settings</string>
+    <string name="lab_app_voice_open">Change rule for %1$s</string>
+    <string name="lab_app_voice_reset_all">Reset all rules</string>
+    <string name="lab_app_voice_reset_all_question">Reset all rules?</string>
+    <string name="lab_app_voice_reset_all_description">Every app goes back to your settings.</string>
+    <string name="lab_app_voice_reset">Reset</string>
+
+    <!-- One app's rule -->
+    <string name="lab_app_voice_language">Language</string>
+    <string name="lab_app_voice_same_as_settings">Same as settings</string>
+    <string name="lab_app_voice_language_note">A language entry in the selection menu, or the card\'s language picker, still wins.</string>
+    <string name="lab_app_voice_reset_rule">Reset rule</string>
+</resources>

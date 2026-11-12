@@ -3,12 +3,24 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+        TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. One fixed permission that
+        both Linguize and Linguize X Claude declare and hold. Signature level: only an app signed
+        with the same key gets it, so only the other build can read the transfer snapshot.
+    -->
+    <permission
+        android:name="com.evanaronson.linguize.permission.LAB_TRANSFER"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.evanaronson.linguize.permission.LAB_TRANSFER" />
+
     <!-- Lets Recent name the app a check came from (package visibility, Android 11+). -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. The app data comes from. -->
+        <package android:name="com.evanaronson.linguize.xclaude" />
     </queries>
 
     <application
@@ -89,6 +101,21 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Lab: share text to check or understand it. -->
+        <activity
+            android:name=".menu.ShareActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@style/Theme.Linguize.Overlay">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!-- The accessibility button, for apps whose selection menu doesn't show the entries above. -->
         <service
             android:name=".accessibility.LinguizeAccessibilityService"
@@ -103,6 +130,38 @@
                 android:resource="@xml/accessibility_service" />
         </service>
 
+        <!--
+            Lab quick tile: checks or explains copied text. Opened only by this app's tile and
+            launcher shortcuts (which start it as this app), so it isn't exported. Its own task
+            (no affinity) keeps the app underneath in place when the card closes.
+        -->
+        <activity
+            android:name=".menu.ClipboardActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Linguize.Overlay">
+            <intent-filter>
+                <action android:name="com.evanaronson.linguize.action.CHECK_COPIED_TEXT" />
+                <action android:name="com.evanaronson.linguize.action.UNDERSTAND_COPIED_TEXT" />
+                <action android:name="com.evanaronson.linguize.action.CHOOSE_COPIED_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".menu.ClipboardTileService"
+            android:exported="true"
+            android:icon="@drawable/lab_quick_tile_tile"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- Hands the history export to the share sheet. -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -113,5 +172,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+            TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. A read-only snapshot
+            of this app's data for the other build, guarded by the signature permission above.
+        -->
+        <provider
+            android:name=".transfer.LabTransferProvider"
+            android:authorities="${applicationId}.labtransfer"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            android:permission="com.evanaronson.linguize.permission.LAB_TRANSFER" />
     </application>
 </manifest>

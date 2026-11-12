@@ -1,0 +1,106 @@
+<resources>
+    <!-- Lab: Your patterns. Recurring fixes, derived from History. -->
+    <string name="lab_patterns_title">Your patterns</string>
+    <string name="lab_patterns_open">Open your patterns</string>
+    <string name="lab_patterns_open_pattern">Open pattern</string>
+    <string name="lab_patterns_history_summary">Fixes that keep coming back</string>
+    <string name="lab_patterns_home_one">%1$s</string>
+    <string name="lab_patterns_home_two">%1$s and %2$s</string>
+    <plurals name="lab_patterns_home_more">
+        <item quantity="one">%1$s, %2$s and %3$d more</item>
+        <item quantity="other">%1$s, %2$s and %3$d more</item>
+    </plurals>
+
+    <string name="lab_patterns_inferred_note">Linguize groups the fixes itself, so treat the groups as hints.</string>
+    <string name="lab_patterns_recurring">Recurring</string>
+    <string name="lab_patterns_not_grouped">Not grouped</string>
+    <plurals name="lab_patterns_other_fixes">
+        <item quantity="one">%d other fix</item>
+        <item quantity="other">%d other fixes</item>
+    </plurals>
+    <string name="lab_patterns_not_grouped_summary">Seen in only one check, or no rule matched</string>
+    <string name="lab_patterns_how_counting">Only fixes you accepted and put back count. A text checked again counts once, and reused answers don\'t count.</string>
+    <string name="lab_patterns_how_deleting">Deleting a check removes it from here, and deletes any explanation that used it.</string>
+    <string name="lab_patterns_how_version">Analyser %1$s. Reads your %2$d newest checks at most.</string>
+    <string name="lab_patterns_loading">Loading your patterns</string>
+    <string name="lab_patterns_empty_title">No patterns yet</string>
+    <string name="lab_patterns_empty">Patterns appear once the same kind of fix shows up in 2 saved checks.</string>
+
+    <!-- Counts: times is always at least the number of checks, and at least 2. -->
+    <plurals name="lab_patterns_times_in_checks">
+        <item quantity="one">%1$d times in %2$d check</item>
+        <item quantity="other">%1$d times in %2$d checks</item>
+    </plurals>
+    <plurals name="lab_patterns_times">
+        <item quantity="one">%d time</item>
+        <item quantity="other">%d times</item>
+    </plurals>
+    <string name="lab_patterns_row_summary">%1$s, %2$s</string>
+    <string name="lab_patterns_trend_fewer">seen in fewer recent checks</string>
+    <string name="lab_patterns_trend_more">seen in more recent checks</string>
+    <string name="lab_patterns_trend_steady">about as often lately</string>
+    <string name="lab_patterns_trend_unknown">too early for a trend</string>
+    <string name="lab_patterns_trend_caveat">Based only on checks you saved. Different kinds of text can change it too.</string>
+    <string name="lab_patterns_chart_description">Times seen from %1$s to %2$s, oldest first: %3$s</string>
+
+    <string name="lab_patterns_kind_accents">Written accents</string>
+    <string name="lab_patterns_kind_inverted_marks">Opening ¿ and ¡</string>
+    <string name="lab_patterns_kind_capitals">Capital letters</string>
+    <string name="lab_patterns_kind_punctuation">Punctuation and spacing</string>
+    <string name="lab_patterns_kind_elision">Elision (l\', d\')</string>
+    <string name="lab_patterns_kind_tenir_que">Tenir que instead of haver de</string>
+    <string name="lab_patterns_kind_ser_estar">Ser and estar</string>
+    <string name="lab_patterns_kind_por_para">Por and para</string>
+    <string name="lab_patterns_kind_gender">Gender agreement</string>
+    <string name="lab_patterns_kind_number">Singular and plural</string>
+    <string name="lab_patterns_kind_agreement">Agreement</string>
+    <string name="lab_patterns_kind_articles">Articles</string>
+    <string name="lab_patterns_kind_prepositions">Prepositions</string>
+    <string name="lab_patterns_kind_subjunctive">Subjunctive</string>
+    <string name="lab_patterns_kind_verb_forms">Verb forms</string>
+    <string name="lab_patterns_kind_spelling">Spelling</string>
+    <string name="lab_patterns_kind_other">Not grouped</string>
+
+    <string name="lab_patterns_about_accents">Words that needed a written accent, or had one they didn\'t need.</string>
+    <string name="lab_patterns_about_inverted_marks">Spanish questions and exclamations that needed ¿ or ¡ at the start.</string>
+    <string name="lab_patterns_about_capitals">Words that needed a capital letter, or didn\'t.</string>
+    <string name="lab_patterns_about_punctuation">Commas, full stops and spaces.</string>
+    <string name="lab_patterns_about_elision">In Catalan, el, la and de shorten before a vowel: l\'home, d\'acord.</string>
+    <string name="lab_patterns_about_tenir_que">In Catalan, obligation is usually haver de or caldre, not tenir que.</string>
+    <string name="lab_patterns_about_ser_estar">One of ser and estar swapped for the other.</string>
+    <string name="lab_patterns_about_por_para">Por swapped for para, or para for por.</string>
+    <string name="lab_patterns_about_gender">Words that needed to match the gender of the noun.</string>
+    <string name="lab_patterns_about_number">Words that needed to match singular or plural.</string>
+    <string name="lab_patterns_about_agreement">Words that needed to agree with each other.</string>
+    <string name="lab_patterns_about_articles">An article added, removed or changed.</string>
+    <string name="lab_patterns_about_prepositions">A preposition added, removed or changed.</string>
+    <string name="lab_patterns_about_subjunctive">Verbs that needed the subjunctive, or didn\'t.</string>
+    <string name="lab_patterns_about_verb_forms">Verbs in another tense or form.</string>
+    <string name="lab_patterns_about_spelling">Words spelled almost right.</string>
+    <string name="lab_patterns_about_other">Fixes seen in only one check, or that no rule matched.</string>
+
+    <string name="lab_patterns_grouped_exact">Grouped by the change itself.</string>
+    <string name="lab_patterns_grouped_inferred">Grouped by Linguize. It can be wrong.</string>
+    <string name="lab_patterns_basis_exact">The change itself shows this</string>
+    <string name="lab_patterns_basis_words">Linguize\'s guess from the words</string>
+    <string name="lab_patterns_basis_reason">Linguize\'s guess from the saved reason</string>
+    <string name="lab_patterns_most_common">Most common</string>
+    <string name="lab_patterns_examples">Examples</string>
+    <string name="lab_patterns_change">%1$s → %2$s</string>
+    <string name="lab_patterns_change_spoken">%1$s becomes %2$s</string>
+    <string name="lab_patterns_deleted_text">(deleted)</string>
+    <string name="lab_patterns_missing">This pattern isn\'t in your saved checks anymore.</string>
+
+    <string name="lab_patterns_explain_header">Explain my patterns</string>
+    <string name="lab_patterns_explain">Explain my patterns</string>
+    <string name="lab_patterns_explain_again">Explain again</string>
+    <string name="lab_patterns_explain_sends">Sends the groups and a few examples to %1$s.</string>
+    <string name="lab_patterns_explain_no_key">Add an API key in settings to explain your patterns.</string>
+    <string name="lab_patterns_explaining">Explaining your patterns</string>
+    <plurals name="lab_patterns_explained_by">
+        <item quantity="one">Written by %1$s on %2$s, from %3$d saved check.</item>
+        <item quantity="other">Written by %1$s on %2$s, from %3$d saved checks.</item>
+    </plurals>
+    <string name="lab_patterns_explained_outdated">Newer checks aren\'t included.</string>
+    <string name="lab_patterns_delete_explanation">Delete explanation</string>
+</resources>

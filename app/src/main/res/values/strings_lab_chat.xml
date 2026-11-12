@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Chat. A conversation partner who only talks; Linguize checks each message before it goes. -->
+    <string name="lab_chat_title">Chat</string>
+    <string name="lab_chat_new">New conversation</string>
+    <string name="lab_chat_untitled">New conversation</string>
+    <string name="lab_chat_conversations">Conversations</string>
+    <string name="lab_chat_composer_label">Your message</string>
+    <string name="lab_chat_composer_placeholder">Write a message</string>
+    <string name="lab_chat_send">Send</string>
+    <!-- Under the card when nothing is accepted: sends the message exactly as typed. -->
+    <string name="lab_chat_send_as_written">Send as written</string>
+    <string name="lab_chat_send_checked">Check and send message</string>
+    <string name="lab_chat_checking">Checking your message</string>
+    <string name="lab_chat_typing">Writing a reply</string>
+    <string name="lab_chat_looks_good">Looks good</string>
+    <string name="lab_chat_as_written">Sent as written</string>
+    <plurals name="lab_chat_changes_count">
+        <item quantity="one">Corrected, %d change</item>
+        <item quantity="other">Corrected, %d changes</item>
+    </plurals>
+    <string name="lab_chat_you_said">You: %1$s</string>
+    <string name="lab_chat_partner_said">Reply: %1$s</string>
+    <string name="lab_chat_copy">Copy message</string>
+    <string name="lab_chat_translating">Translating</string>
+    <string name="lab_chat_no_reply">No reply yet</string>
+    <string name="lab_chat_no_key_title">No API key</string>
+    <string name="lab_chat_no_key_hint">Add one in settings to get replies and checks.</string>
+    <string name="lab_chat_rename">Rename</string>
+    <string name="lab_chat_rename_title">Rename conversation</string>
+    <string name="lab_chat_title_label">Title</string>
+    <string name="lab_chat_save">Save</string>
+    <string name="lab_chat_cancel">Cancel</string>
+    <string name="lab_chat_delete">Delete</string>
+    <string name="lab_chat_delete_title">Delete conversation?</string>
+    <string name="lab_chat_delete_body">Its messages, their checks in History and what was learned from it are deleted.</string>
+    <string name="lab_chat_more">Rename or delete %1$s</string>
+    <!-- Where a saved check came from, on Patterns examples. -->
+    <string name="lab_chat_origin_chat">Chat</string>
+    <string name="lab_chat_origin_app">Another app</string>
+    <string name="lab_chat_open_conversation">Open conversation</string>
+    <!-- v3: one new-conversation sheet, translations with every reply. -->
+    <string name="lab_chat_who_label">Who are you talking to?</string>
+    <string name="lab_chat_who_placeholder">My kid\'s teacher</string>
+    <string name="lab_chat_who_note">Optional. Leave it empty to chat with a friendly native speaker.</string>
+    <string name="lab_chat_start">Start</string>
+    <string name="lab_chat_talking_to">With %1$s</string>
+    <string name="lab_chat_tap_to_translate">Tap to translate</string>
+    <string name="lab_chat_tap_to_retry">Tap to try again</string>
+    <string name="lab_chat_show_translation">Show translation</string>
+    <string name="lab_chat_show_original">Show original</string>
+    <string name="lab_chat_translation_said">Reply, translated: %1$s</string>
+    <string name="lab_chat_copy_translation">Copy translation</string>
+</resources>

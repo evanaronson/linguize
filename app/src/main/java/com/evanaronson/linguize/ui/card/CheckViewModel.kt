@@ -18,6 +18,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Settled
+import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.history.Answer
 import com.evanaronson.linguize.history.CheckHistory
 import com.evanaronson.linguize.history.Kept
@@ -25,6 +26,9 @@ import com.evanaronson.linguize.history.Opening
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.llm.lab.ReplyPrompt
+import com.evanaronson.linguize.ui.time.CardTiming
+import com.evanaronson.linguize.ui.time.ObservedState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -73,6 +77,8 @@ class CheckViewModel(
     private val checker: () -> Checker,
     private val history: CheckHistory,
     private val keyRevision: (Provider) -> Long = { 0L },
+    /** Lab, Time spent: the card's review time; records nothing by default. */
+    val timing: CardTiming = CardTiming(),
 ) : ViewModel() {
     private var text = ""
     private var language: Language? = null
@@ -90,9 +96,25 @@ class CheckViewModel(
     private var ranWith: CheckContext? = null
     private var ranWithKeyRevision: Long? = null
 
-    /** Null before the first check and after [dismiss]. */
-    var state by mutableStateOf<CardState?>(null)
+    /** Lab Phrasebook: the check's language code (asked for, else detected) and source app. */
+    var phraseLanguage: String? = null
         private set
+    val sourceApp: String? get() = hostApp
+    /**
+     * Adjusts the settings each check runs with before it's sent and recorded, such as the
+     * source app's voice rule (see ui/appvoice). Identity unless a host sets it.
+     */
+    var adjustContext: (CheckContext) -> CheckContext = { it }
+
+    /** Null before the first check and after [dismiss]. Lab, Time spent: review counts while it's Done. */
+    var state by ObservedState(mutableStateOf<CardState?>(null)) { timing.showing(it is CardState.Done) }
+        private set
+
+    /**
+     * Lab: the message this text replies to (in the chat, the partner's last message), or null.
+     * Set by [check] and kept for this card's checks; never shown or recorded, only sent.
+     */
+    private var replyingTo: String? = null
 
     /** The text with accepted changes, or null when nothing has been accepted. */
     val workingText: String?
@@ -101,8 +123,10 @@ class CheckViewModel(
     /**
      * Checks [text] as [language], or detects the language when it's null, starting afresh.
      * [origin] and [hostApp] (the app the text came from, when known) go into history.
+     * Lab: [replyingTo] is the message the text answers (the chat passes the partner's last
+     * message); it is context for the model only, never shown on the card or recorded.
      */
-    fun check(text: String, language: Language?, origin: Origin, hostApp: String? = null) {
+    fun check(text: String, language: Language?, origin: Origin, hostApp: String? = null, replyingTo: String? = null) {
         // A new check replaces the card; whatever it had accepted was never applied.
         history.close(finalText = null)
         hasReviewed = false
@@ -110,6 +134,7 @@ class CheckViewModel(
         this.language = language
         this.origin = origin
         this.hostApp = hostApp
+        this.replyingTo = ReplyPrompt.normalize(replyingTo)
         settled = emptyList()
         run(Run.Fresh)
     }
@@ -145,7 +170,7 @@ class CheckViewModel(
         staleCheck?.cancel()
         staleCheck = viewModelScope.launch {
             val now = try {
-                withContext(Dispatchers.Default) { checker() }.context()
+                adjustContext(withContext(Dispatchers.Default) { checker() }.context(replyingTo))
             } catch (_: CheckFailure) {
                 null
             }
@@ -215,6 +240,7 @@ class CheckViewModel(
         val language = language
         val origin = origin
         val hostApp = hostApp
+        val replyingTo = replyingTo
         job?.cancel()
         if (kind == Run.NewLanguage) history.changeLanguage(language?.code)
         state = CardState.Loading(text, retained)
@@ -224,11 +250,11 @@ class CheckViewModel(
             val shown = try {
                 // Creating the checker reads its prompt from assets, so not on the main thread.
                 val checker = withContext(Dispatchers.Default) { checker() }
-                val context = checker.context()
+                val context = adjustContext(checker.context(replyingTo))
                 // Runtime credential freshness stays outside the context recorded in history.
                 ranWithKeyRevision = keyRevision(context.provider)
                 ranWith = context
-                val ask: suspend () -> Checked = { checker.check(text, language, answers, context) }
+                val ask: suspend () -> Checked = { checker.check(text, language, answers, context, replyingTo) }
                 val opening = Opening(origin, hostApp, language?.code, context.stored)
                 val reuse: suspend (Kept) -> Checked = { kept -> checker.reuse(text, language, kept.raw, context) }
                 val answer = when (kind) {
@@ -248,6 +274,7 @@ class CheckViewModel(
                 // Undo can change the retained revision while the request is in flight.
                 val retained = state?.retainedRevision
                 val result = answer.value.result
+                phraseLanguage = language?.code ?: com.evanaronson.linguize.ui.phrasebook.answerLanguage(answer.value.raw)
                 val kept = if (result is CheckResult.Reviewed) {
                     result.copy(revision = result.revision.acceptMatching(retained?.acceptedEdits.orEmpty()))
                 } else {
@@ -306,11 +333,34 @@ class CheckViewModel(
         generation++
         staleCheck?.cancel()
         staleCheck = null
-        history.close(finalText = if (applied) workingText else null)
+        val timed = revision
+        val saved = history.close(finalText = if (applied) workingText else null)
+        timing.closed(saved, origin.token, phraseLanguage ?: language?.code, text, timed)
         job?.cancel()
         state = null
         hasReviewed = false
         if (waitMs > 0) history.awaitWrites(waitMs)
+    }
+
+    /** A permitted History link for a host that must save its message before closing the check. */
+    val pendingSessionId: String? get() = history.pendingSessionId
+
+    /**
+     * Lab Chat: closes the card because [sent] was sent (the accepted changes applied, or the
+     * text as typed). Returns the History session it is saved as, or null when it isn't saved.
+     */
+    fun dismissSent(sent: String, draft: DraftTiming? = null): String? {
+        val id = history.session?.id
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
+        val timed = revision
+        val saved = history.close(finalText = sent)
+        timing.closed(saved, origin.token, phraseLanguage ?: language?.code, text, timed, draft)
+        job?.cancel()
+        state = null
+        hasReviewed = false
+        return id
     }
 
     /** Keep actual review work available to return to; erase only an untouched provisional check. */
@@ -329,10 +379,13 @@ class CheckViewModel(
         state = null
         hasReviewed = false
         history.discard()
+        timing.reset()
     }
 
     /** Gone without [dismiss]: nothing was handed back. */
-    override fun onCleared() = history.close(finalText = null)
+    override fun onCleared() {
+        history.close(finalText = null)
+    }
 
     private val revision get() = reviewed?.revision ?: state?.retainedRevision
 
@@ -354,6 +407,7 @@ class CheckViewModel(
                 CheckViewModel(
                     checker = { app.checker },
                     keyRevision = { app.keys.revision(it) },
+                    timing = CardTiming(app.timeStore),
                     history = CheckHistory(
                         store = app.history,
                         environment = app.historyEnvironment,

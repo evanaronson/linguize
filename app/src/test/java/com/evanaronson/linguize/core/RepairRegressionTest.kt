@@ -235,7 +235,7 @@ class RepairRegressionTest {
 
     @Test fun providersSettingsAndSavedAnswerReuseShareTheSameSafetyGate() = runBlocking {
         val original = "El vuelo llega a las 2130. Julia espera."
-        val raw = """{"status":"ok","language":"Spanish","has_errors":true,"corrected":"El vuelo llega a las 21:30. Julia espera.","more_natural":true,"natural":"El vuelo llega a las 21:30. Julia aguarda.","natural_changes":[{"from":"espera","to":"aguarda","why":"More formal wording"}]}"""
+        val raw = """{"status":"ok","language":"Spanish","has_errors":true,"corrected":"El vuelo llega a las 21:30. Julia espera.","more_natural":true,"natural":"El vuelo llega a las 21:30. Julia aguarda.","natural_changes":[{"from":"espera","to":"aguarda","why":"More formal wording","confidence":7,"impact":3}]}"""
         val verdict = prompt.parseVerdict(raw)
         for (provider in Provider.entries) for (punctuation in Punctuation.entries)
             for (judgments in Judgments.entries) for (language in listOf(Language.Spanish, null)) {

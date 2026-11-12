@@ -1,5 +1,6 @@
 package com.evanaronson.linguize.ui.history
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,7 @@ import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.Outcome
 import com.evanaronson.linguize.history.SessionRecord
 import com.evanaronson.linguize.ui.card.AssumptionList
@@ -36,25 +38,36 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ListCard
 import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.Quiet
-import com.evanaronson.linguize.ui.components.RowDivider
+import com.evanaronson.linguize.ui.card.MeaningLandsSection
+import com.evanaronson.linguize.ui.card.meaningOutline
+import com.evanaronson.linguize.ui.components.rememberDisclosureState
 import com.evanaronson.linguize.ui.components.ScreenColumn
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
+import com.evanaronson.linguize.ui.teachme.LessonSource
+import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.titleResource
+import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
+import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
 
 private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
 /** Exact saved text and decisions; inspecting a past check cannot change it. */
 @Composable
-fun SessionScreen(session: SessionViewModel, onDeleted: () -> Unit, onOpenAssumptions: () -> Unit = {}) {
+fun SessionScreen(
+    session: SessionViewModel,
+    onDeleted: () -> Unit,
+    /** Lab Chat: opens a chat message's conversation; offered only on chat messages. */
+    onOpenConversation: ((String) -> Unit)? = null,
+) {
     val deletion = session.deletion
     val page = session.page
     LaunchedEffect(deletion) {
         if (deletion == SessionDeletion.Deleted) onDeleted()
     }
     ScreenColumn {
-        SavedSessionContent(page, session::retry) { Shown(it, onOpenAssumptions) }
+        SavedSessionContent(page, session::retry) { Shown(it, onOpenConversation) }
         if (deletion == SessionDeletion.Failed) {
             CardNote(stringResource(R.string.delete_check_failed), color = MaterialTheme.colorScheme.error)
         }
@@ -101,15 +114,17 @@ internal fun savedAssumptions(assumptions: List<Assumption>, settled: List<Settl
 }
 
 @Composable
-private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
+private fun Shown(page: SessionPage.Shown, onOpenConversation: ((String) -> Unit)?) {
     val session = page.session
     val reviewed = page.card?.result as? CheckResult.Reviewed
     val settled = page.card?.settled.orEmpty()
-    SessionDetails(session, page.appLabel)
+    val resources = LocalResources.current
+    val chat = page.chat
+    val source = if (session.origin == Origin.Chat) chatSourceLabel(resources, chat) else page.appLabel
+    val openChat = if (chat != null && onOpenConversation != null) ({ onOpenConversation(chat.conversationId) }) else null
+    SessionDetails(session, source, openChat)
 
-    SectionHeader(stringResource(R.string.history_before))
-    SectionCard(contentPadding = BlockPadding) {
-        TextBlock(session.text)
+    SavedBefore(session.text) {
         page.failure?.let {
             Quiet(stringResource(R.string.check_failed_reason, stringResource(it.titleResource)),
                 Modifier.padding(top = 12.dp))
@@ -121,55 +136,50 @@ private fun Shown(page: SessionPage.Shown, onOpenAssumptions: () -> Unit) {
         }
     }
 
-    if (reviewed != null && (reviewed.meaning.isNotBlank() || reviewed.assumptions.isNotEmpty() || settled.isNotEmpty())) {
-        SectionHeader(stringResource(R.string.meaning))
-        SectionCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)) {
-            if (reviewed.meaning.isNotBlank()) TextBlock(reviewed.meaning, Modifier.padding(bottom = 12.dp))
-            val readings = savedAssumptions(reviewed.assumptions, settled)
-            readings.first?.let { first ->
-                ListRow(
-                    stringResource(R.string.assumptions_count, readings.count),
-                    stringResource(R.string.assumption_summary, first.first, first.second),
-                    onClick = onOpenAssumptions,
-                )
-            }
-            settled.firstOrNull { it.isMeaning }?.let {
-                if (readings.count > 0) RowDivider()
-                ListRow(stringResource(R.string.your_clarification), it.answer)
-            }
-        }
-    }
-
+    // Lab, IA History: what you wrote, what was put back and what changed come first, together;
+    // the reading of it (Meaning, with how it landed) follows as context.
     SectionHeader(stringResource(R.string.history_after))
     SectionCard(contentPadding = BlockPadding) { WhatCameOfIt(session) }
 
-    SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-        reviewed = reviewed, settled = settled)
+    CompositionLocalProvider(LocalLessonSource provides LessonSource(session.targetLanguage ?: session.detectedLanguage, session.text)) {
+        ProvidePhraseOrigin(PhraseOrigin.of(session)) {
+            SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
+                reviewed = reviewed, settled = settled)
+        }
+    }
+
+    // Lab, Meaning: the card's one Meaning section (meaning, clarification, assumptions, how it
+    // landed), read-only, in the place the readings already had here.
+    if (reviewed != null) SavedMeaning(session.id, reviewed, settled)
 }
 
-/** The readings a past check's suggestions rested on, and the writer's answers, read-only. */
+/**
+ * "Before": the text exactly as written. A saved check's page and a corrected chat message
+ * (`ui/chat/ChatCorrections.kt`) both show it this way; [notes] go under the text.
+ */
 @Composable
-fun SessionAssumptionsScreen(session: SessionViewModel) {
-    ScreenColumn {
-        SavedSessionContent(session.page, session::retry) { page ->
-            val assumptions = (page.card?.result as? CheckResult.Reviewed)?.assumptions.orEmpty()
-            val readings = savedAssumptions(assumptions, page.card?.settled.orEmpty())
-            SectionHeader(stringResource(R.string.assumptions))
-            SectionCard(contentPadding = BlockPadding) {
-                if (readings.count == 0) {
-                    Quiet(stringResource(R.string.history_no_assumptions))
-                } else {
-                    Quiet(stringResource(R.string.assumptions_description_past))
-                    Spacer(Modifier.height(4.dp))
-                    AssumptionList(assumptions, readings.open, readings.settled, onSettle = null, onRemoveChoice = null)
-                }
-            }
-        }
+internal fun SavedBefore(text: String, notes: @Composable ColumnScope.() -> Unit = {}) {
+    SectionHeader(stringResource(R.string.history_before))
+    SectionCard(contentPadding = BlockPadding) {
+        TextBlock(text)
+        notes()
+    }
+}
+
+/** The saved check's Meaning section: the card's, with nothing to clarify or remove. */
+@Composable
+private fun SavedMeaning(sessionId: String, reviewed: CheckResult.Reviewed, settled: List<Settled>) {
+    val outline = meaningOutline(reviewed.meaning, reviewed.assumptions, settled, reviewed.landing)
+    if (outline.parts(canClarify = false).isEmpty()) return
+    var expanded by rememberDisclosureState(sessionId)
+    SectionCard(Modifier.padding(top = 16.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)) {
+        MeaningLandsSection(outline, expanded, { expanded = it },
+            onSettle = null, onRemoveChoice = null, onClarify = null, onRemoveClarification = null)
     }
 }
 
 @Composable
-private fun SessionDetails(session: SessionRecord, appLabel: String?) {
+private fun SessionDetails(session: SessionRecord, appLabel: String?, onOpenConversation: (() -> Unit)? = null) {
     val time = rememberTimeFormat()
     val resources = LocalResources.current
     SectionHeader(relativeDate(resources, session.startedAt, System.currentTimeMillis(), time, alwaysTime = true))
@@ -179,7 +189,16 @@ private fun SessionDetails(session: SessionRecord, appLabel: String?) {
         stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it))
     }
     val details = listOfNotNull(target, detected).joinToString("\n")
-    ListCard({ ListRow(appLabel ?: details, if (appLabel != null) details else null) })
+    // A chat message also offers its conversation: an extra, not a different kind of page.
+    ListCard(
+        { ListRow(appLabel ?: details, if (appLabel != null) details else null) },
+        onOpenConversation?.let { open ->
+            {
+                ListRow(stringResource(R.string.lab_chat_open_conversation), onClick = open,
+                    onClickLabel = stringResource(R.string.lab_chat_open_conversation))
+            }
+        },
+    )
 }
 
 @Composable

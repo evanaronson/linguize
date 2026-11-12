@@ -49,19 +49,63 @@ import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
+/** The saved check: its order and the readings inside its Meaning section (the separate Assumptions page is gone). */
 class SessionAssumptionsScreenTest {
     @Test
-    fun summaryCountsAnsweredAssumptionsOnlyOnce() = withScreen(showAssumptions = false) {
+    fun summaryCountsAnsweredAssumptionsOnlyOnce() = withScreen {
         load(SessionDetailResult.Found(detail))
 
-        assertTrue(hasText(activity.getString(R.string.assumptions_count, 2)))
-        assertFalse(hasText(activity.getString(R.string.assumptions_count, 3)))
-        assertTrue(hasText(activity.getString(R.string.assumption_summary, "Person", "Catalan speakers")))
+        // Lab, Meaning: collapsed, only the reading nobody answered is counted.
+        val one = activity.resources.getQuantityString(R.plurals.lab_meaning_lands_assumptions, 1, 1)
+        assertTrue(hasText(one))
+        assertFalse(hasText(activity.resources.getQuantityString(R.plurals.lab_meaning_lands_assumptions, 2, 2)))
+        assertFalse(hasText("Catalan speakers"))
+    }
+
+    @Test
+    fun theSavedMeaningOpensInPlaceWithEveryReadingAndNothingToChange() = withScreen {
+        load(SessionDetailResult.Found(detail))
+
+        val header = nodes().single {
+            it.config.getOrNull(SemanticsActions.OnClick) != null &&
+                it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == activity.getString(R.string.meaning) } == true
+        }
+        assertEquals(activity.getString(R.string.lab_expand_pattern_collapsed), header.config[SemanticsProperties.StateDescription])
+        assertEquals(activity.getString(R.string.lab_meaning_lands_show), header.config[SemanticsActions.OnClick].label)
+        assertTrue(header.config[SemanticsActions.OnClick].action!!.invoke())
+        settle()
+
+        assertTrue(hasText(activity.getString(R.string.assumptions)))
+        assertTrue(hasText(activity.getString(R.string.assumptions_description_past)))
+        assertTrue(hasText("Person"))
+        assertTrue(hasText("Catalan speakers"))
+        assertTrue(hasText("Tomorrow"))
+        assertFalse("A past check offers no clarify", hasText(activity.getString(R.string.clarify_what_you_mean)))
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.OnClick)?.label?.startsWith("Clarify") == true })
+        assertFalse(nodes().any { it.config.getOrNull(SemanticsActions.SetText) != null })
+        // Historical navigation label; its absence no longer needs a production string resource.
+        assertFalse("The readings are here, not behind a link", hasText("Assumptions, 2"))
+    }
+
+    @Test
+    fun beforeAfterAndChangesComeFirstThenTheReadings() = withScreen {
+        load(SessionDetailResult.Found(detail))
+
+        val order = listOf(R.string.history_before, R.string.history_after, R.string.history_suggestions,
+            R.string.meaning, R.string.delete_this_check).map { activity.getString(it) }
+        // The page is one column, so the semantics tree lists its parts top to bottom.
+        val all = nodes()
+        val positions = order.map { text ->
+            all.indexOfFirst { it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text.startsWith(text) } == true }
+        }
+        assertTrue("$order at $positions", positions.all { it >= 0 })
+        assertEquals(positions.sorted(), positions)
     }
 
     @Test
     fun savedClarificationsKeepTheirTopicAndRemainReadOnly() = withScreen {
         load(SessionDetailResult.Found(detail))
+        openMeaning()
 
         assertTrue(hasText("Person"))
         assertTrue(hasText("Catalan speakers"))
@@ -79,6 +123,7 @@ class SessionAssumptionsScreenTest {
             it.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(activity.getString(R.string.loading_history)) == true
         })
         load(SessionDetailResult.Found(detail))
+        openMeaning()
         assertTrue(hasText("Catalan speakers"))
         assertTrue(hasText("Tomorrow"))
 
@@ -89,6 +134,7 @@ class SessionAssumptionsScreenTest {
         clickText(activity.getString(R.string.retry))
         waitFor { model.page is SessionPage.Shown }
         settle()
+        openMeaning()
         assertEquals(3, reads.get())
         assertTrue(hasText("Catalan speakers"))
         assertTrue(hasText("Tomorrow"))
@@ -97,6 +143,7 @@ class SessionAssumptionsScreenTest {
     @Test
     fun removedCheckReplacesTheOpenAssumptionsWithMissingState() = withScreen {
         load(SessionDetailResult.Found(detail))
+        openMeaning()
         assertTrue(hasText("Catalan speakers"))
 
         load(SessionDetailResult.Missing)
@@ -108,6 +155,7 @@ class SessionAssumptionsScreenTest {
     @Test
     fun acknowledgedDeletionCannotLeaveTheAssumptionsPageBlank() = withScreen {
         load(SessionDetailResult.Found(detail))
+        openMeaning()
         model.delete()
         waitFor { model.deletion == SessionDeletion.Deleted }
         settle()
@@ -117,18 +165,21 @@ class SessionAssumptionsScreenTest {
     }
 
     @Test
-    fun unavailableReplayExplainsWhyTheAssumptionsAreEmpty() = withScreen {
+    fun unavailableReplayShowsTheTextWithoutInventingReadings() = withScreen {
         val damaged = detail.copy(session = detail.session.copy(
             attempts = detail.session.attempts.map { it.copy(raw = "not JSON") },
         ))
         load(SessionDetailResult.Found(damaged))
+        openMeaning()
 
-        assertTrue(hasText(activity.getString(R.string.history_no_assumptions)))
+        // An answer that can't be read back has no Meaning section; what was written still shows.
+        assertTrue(hasText("Com estas?"))
         assertFalse(hasText("Catalan speakers"))
+        assertFalse(hasText(activity.getString(R.string.meaning)))
     }
 
-    private fun withScreen(showAssumptions: Boolean = true, test: Fixture.() -> Unit) {
-        val fixture = Fixture(showAssumptions)
+    private fun withScreen(test: Fixture.() -> Unit) {
+        val fixture = Fixture()
         try {
             fixture.test()
         } finally {
@@ -136,7 +187,7 @@ class SessionAssumptionsScreenTest {
         }
     }
 
-    private class Fixture(showAssumptions: Boolean) {
+    private class Fixture {
         private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible().windowFocusChanged(true)
         val activity = controller.get()
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -170,8 +221,7 @@ class SessionAssumptionsScreenTest {
             setParentCompositionContext(recomposer)
             setContent {
                 MaterialTheme {
-                    if (showAssumptions) SessionAssumptionsScreen(model)
-                    else SessionScreen(model, onDeleted = {})
+                    SessionScreen(model, onDeleted = {})
                 }
             }
         }
@@ -217,6 +267,18 @@ class SessionAssumptionsScreenTest {
                     it.config.getOrNull(SemanticsActions.OnClick) != null
             }
             assertTrue(node.config[SemanticsActions.OnClick].action!!.invoke())
+        }
+
+        /** Opens the saved check's Meaning section, where the readings now live, if it's closed. */
+        fun openMeaning() {
+            val header = nodes().singleOrNull {
+                it.config.getOrNull(SemanticsActions.OnClick) != null &&
+                    it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == activity.getString(R.string.meaning) } == true
+            } ?: return
+            if (header.config.getOrNull(SemanticsProperties.StateDescription) == activity.getString(R.string.lab_expand_pattern_collapsed)) {
+                assertTrue(header.config[SemanticsActions.OnClick].action!!.invoke())
+                settle()
+            }
         }
 
         fun hasText(text: String): Boolean = nodes().any {

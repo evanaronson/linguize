@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.history
 
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.language.LanguageCodes
 import java.util.Locale
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonObject
@@ -16,8 +17,10 @@ internal fun languageCode(value: String?): String? {
 private val languageCodes: Map<String, String> by lazy {
     buildMap {
         Locale.getISOLanguages().forEach { code ->
-            put(code, code)
-            put(Locale.forLanguageTag(code).getDisplayLanguage(Locale.ENGLISH).lowercase(Locale.ROOT), code)
+            // Lab, language-generic: Hebrew is "he", not Java's older "iw" (and Indonesian, Yiddish).
+            val current = LanguageCodes.normalize(code) ?: code
+            put(code, current)
+            put(Locale.forLanguageTag(current).getDisplayLanguage(Locale.ENGLISH).lowercase(Locale.ROOT), current)
         }
         put("castilian", "es")
     }

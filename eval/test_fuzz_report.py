@@ -10,6 +10,10 @@ from unittest.mock import patch
 from fuzz import generate, requests
 from fuzz_report import complete_evidence, evidence_digest, matching_review, main
 
+APP_IDENTITY = {"mode": "app", "preparation_version": 1, "contract_sha256": "contract",
+                "request_sha256": "initial", "repair_contract_sha256": "repair-contract", "repair_request_sha256": "repair",
+                "parser": {"policy": "base-fresh-v1", "prompt_hash": "base-parser"}, "prompt_sha256": "contract"}
+
 
 class CompleteEvidenceTest(unittest.TestCase):
     def setUp(self):
@@ -53,6 +57,7 @@ class CompleteEvidenceTest(unittest.TestCase):
             with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()):
                 main()
             self.assertEqual({"legacy_unbound": 200}, json.loads((root / "summary.json").read_text())["replay_input_binding"])
+            self.assertEqual({"base": 200}, json.loads((root / "summary.json").read_text())["capture_modes"])
             self.assertIn("Historical unbound replay", (root / "review.html").read_text())
             joined = [json.loads(line) for line in (root / "review.jsonl").read_text().split("\n") if line]
             self.assertTrue(all(row["replay_input_binding"] == "legacy_unbound" for row in joined))
@@ -142,6 +147,34 @@ class CompleteEvidenceTest(unittest.TestCase):
         self.engines[0]["replay_input"] = dict(reversed(list(self.replies[0].items())))
         self.replies[0].update(latency_seconds=42, attempts=3)
         self.assertEqual(200, len(self.audit()))
+
+    def test_app_replay_binds_every_preparation_identity_before_selecting_repairs(self):
+        self.replies[0].update(copy.deepcopy(APP_IDENTITY))
+        self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+        self.assertEqual(200, len(self.audit()))
+        for field in APP_IDENTITY:
+            with self.subTest(field=field):
+                source = copy.deepcopy(self.replies[0])
+                source.pop(field)
+                self.engines[0]["replay_input"] = source
+                for repairing in (False, True):
+                    with self.assertRaisesRegex(ValueError, "differs from current reply"):
+                        complete_evidence(self.replies, self.engines, self.corpus, repair_collection=repairing)
+
+    def test_app_identity_cannot_be_incomplete_or_disguised_as_historical_base(self):
+        for field in APP_IDENTITY:
+            with self.subTest(field=field):
+                self.setUp()
+                self.replies[0].update(copy.deepcopy(APP_IDENTITY))
+                self.replies[0].pop(field)
+                self.engines[0]["replay_input"] = copy.deepcopy(self.replies[0])
+                with self.assertRaisesRegex(ValueError, "preparation"):
+                    self.audit()
+        self.setUp()
+        self.replies[0].update(copy.deepcopy(APP_IDENTITY))
+        self.engines[0].pop("replay_input")
+        with self.assertRaisesRegex(ValueError, "only available for base"):
+            complete_evidence(self.replies, self.engines, self.corpus, legacy_unbound=True)
 
     def test_repair_resume_skips_only_already_recorded_repairs(self):
         self.replies[0]["repair"] = {"provider": "gemini", "model": "actual", "attempts": 1,
@@ -239,6 +272,18 @@ class ReviewProvenanceTest(unittest.TestCase):
 
     def test_exact_saved_answer_and_engine_keep_the_review(self):
         self.assertEqual("reviewed", matching_review(self.reply, self.engine, self.note)["review_status"])
+
+    def test_manual_review_cannot_follow_a_different_app_preparation(self):
+        self.reply.update(copy.deepcopy(APP_IDENTITY))
+        self.note.update(copy.deepcopy(APP_IDENTITY))
+        self.assertEqual("reviewed", matching_review(self.reply, self.engine, self.note)["review_status"])
+        for field in APP_IDENTITY:
+            with self.subTest(field=field):
+                stale = copy.deepcopy(self.note)
+                stale.pop(field)
+                self.assertEqual("not_reviewed_for_this_answer", matching_review(self.reply, self.engine, stale)["review_status"])
+        self.note["preparation_version"] = True
+        self.assertEqual("not_reviewed_for_this_answer", matching_review(self.reply, self.engine, self.note)["review_status"])
 
     def test_a_repair_payload_needs_its_own_matching_review_hash(self):
         self.reply["repair"] = {"verdict": {"corrected": "Bona nit."}}

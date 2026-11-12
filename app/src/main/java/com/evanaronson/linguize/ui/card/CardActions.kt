@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.card
 import android.content.Context
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.ui.copyToClipboard
+import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
 
 /** What the card's buttons do; supplied by the screen hosting it. */
 class CardActions(
@@ -21,6 +22,8 @@ class CardActions(
     val onClarify: ((answer: String) -> Unit)? = null,
     /** Retracts the writer's meaning clarification; null for a past check. */
     val onRemoveClarification: (() -> Unit)? = null,
+    /** Lab Phrasebook: where saved phrases come from; null shows no save control. */
+    val phraseOrigin: PhraseOrigin? = null,
 ) {
     companion object {
         /**
@@ -35,6 +38,8 @@ class CardActions(
             onClose: () -> Unit,
             onOpenSettings: (() -> Unit)?,
             canReplace: Boolean = true,
+            @androidx.annotation.StringRes applyLabel: Int = com.evanaronson.linguize.R.string.apply,
+            phraseOrigin: PhraseOrigin? = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
@@ -46,6 +51,7 @@ class CardActions(
                     onAcceptAll = { check.acceptAll(it) },
                     onUndo = check::undo,
                     onApply = onClose,
+                    applyLabel = applyLabel,
                 )
             } else {
                 null
@@ -56,6 +62,7 @@ class CardActions(
             onRemoveChoice = check::removeChoice,
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
+            phraseOrigin = phraseOrigin,
         )
     }
 }
@@ -66,4 +73,6 @@ class ReviewActions(
     val onUndo: () -> Unit,
     /** Closes the card, handing back the accepted changes. */
     val onApply: () -> Unit,
+    /** The final action's verb: Replace (the text goes back where it came from), or Send in the chat. */
+    @param:androidx.annotation.StringRes val applyLabel: Int = com.evanaronson.linguize.R.string.apply,
 )

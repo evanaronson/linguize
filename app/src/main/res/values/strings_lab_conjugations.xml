@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Your conjugations. Verb forms counted from what the writer typed. -->
+    <string name="lab_conjugations_title">Your conjugations</string>
+    <string name="lab_conjugations_home_summary">Which verb tenses you use in Spanish and Catalan</string>
+    <string name="lab_conjugations_open">Open your conjugations</string>
+    <string name="lab_conjugations_loading">Counting your verbs</string>
+    <string name="lab_conjugations_intro">Counted from what you typed yourself. Words Linguize flags as wrong don\'t count.</string>
+    <string name="lab_conjugations_empty_hint">Text you write in Spanish or Catalan in checks and chats appears here.</string>
+    <plurals name="lab_conjugations_cells_used">
+        <item quantity="one">%1$d of %2$d forms used</item>
+        <item quantity="other">%1$d of %2$d forms used</item>
+    </plurals>
+    <string name="lab_conjugations_grid">Tenses and persons</string>
+    <string name="lab_conjugations_grid_note">Empty cells are forms you haven\'t used yet. Tap a cell to see your sentences.</string>
+    <string name="lab_conjugations_tense_column">Tense</string>
+    <string name="lab_conjugations_other_forms">Other forms</string>
+    <string name="lab_conjugations_verbs">Verbs you use</string>
+    <string name="lab_conjugations_show_all_verbs">Show all verbs</string>
+    <string name="lab_conjugations_trend">Forms used each month</string>
+    <string name="lab_conjugations_trend_note">How many different tense and person forms you used each month.</string>
+    <string name="lab_conjugations_trend_bar">%1$s: %2$d forms, %3$d in total so far</string>
+    <string name="lab_conjugations_tried">Flagged as wrong</string>
+    <string name="lab_conjugations_tried_note">Forms Linguize proposed fixing, whether or not you accepted. They aren\'t counted above.</string>
+    <string name="lab_conjugations_how_body">Linguize reads the text you typed in checks and chats, before any fix, and recognises verb forms on this phone. Nothing is sent anywhere. He comido and vaig menjar count once, as their own tense. A form that could be two things, like cante, counts half for each. The reading can be wrong, especially for verbs it doesn\'t know.</string>
+
+    <!-- A cell, for screen readers and the cell page. -->
+    <plurals name="lab_conjugations_uses">
+        <item quantity="one">Used %1$s time</item>
+        <item quantity="other">Used %1$s times</item>
+    </plurals>
+    <string name="lab_conjugations_never_used">Not used yet</string>
+    <string name="lab_conjugations_not_a_form">No such form</string>
+    <string name="lab_conjugations_cell_description">%1$s, %2$s: %3$s</string>
+    <plurals name="lab_conjugations_verb_count">
+        <item quantity="one">%d verb</item>
+        <item quantity="other">%d verbs</item>
+    </plurals>
+    <string name="lab_conjugations_cell_summary">%1$s, %2$s</string>
+    <string name="lab_conjugations_last_used">Last used %1$s</string>
+    <string name="lab_conjugations_cell_verbs">Verbs</string>
+    <string name="lab_conjugations_cell_examples">Your sentences</string>
+    <string name="lab_conjugations_cell_empty">You haven\'t used this form yet.</string>
+    <string name="lab_conjugations_cell_shared">Some of these could also be another form, so they count in part.</string>
+    <string name="lab_conjugations_example_form">Form: %1$s, %2$s</string>
+    <string name="lab_conjugations_person_line">%1$s: %2$s</string>
+    <string name="lab_conjugations_verb_tenses">%1$s, %2$s</string>
+
+    <!-- Persons. -->
+    <string name="lab_conjugations_person_1s">First person singular</string>
+    <string name="lab_conjugations_person_2s">Second person singular</string>
+    <string name="lab_conjugations_person_3s">Third person singular</string>
+    <string name="lab_conjugations_person_1p">First person plural</string>
+    <string name="lab_conjugations_person_2p">Second person plural</string>
+    <string name="lab_conjugations_person_3p">Third person plural</string>
+
+    <!-- Tenses. -->
+    <string name="lab_conjugations_tense_present">Present</string>
+    <string name="lab_conjugations_tense_preterite">Preterite</string>
+    <string name="lab_conjugations_tense_simple_past">Simple past</string>
+    <string name="lab_conjugations_tense_imperfect">Imperfect</string>
+    <string name="lab_conjugations_tense_future">Future</string>
+    <string name="lab_conjugations_tense_conditional">Conditional</string>
+    <string name="lab_conjugations_tense_present_subjunctive">Present subjunctive</string>
+    <string name="lab_conjugations_tense_imperfect_subjunctive">Imperfect subjunctive</string>
+    <string name="lab_conjugations_tense_imperative">Imperative</string>
+    <string name="lab_conjugations_tense_infinitive">Infinitive</string>
+    <string name="lab_conjugations_tense_gerund">Gerund</string>
+    <string name="lab_conjugations_tense_participle">Participle</string>
+    <string name="lab_conjugations_tense_perfect">Perfect</string>
+    <string name="lab_conjugations_tense_pluperfect">Pluperfect</string>
+    <string name="lab_conjugations_tense_future_perfect">Future perfect</string>
+    <string name="lab_conjugations_tense_conditional_perfect">Conditional perfect</string>
+    <string name="lab_conjugations_tense_perfect_subjunctive">Perfect subjunctive</string>
+    <string name="lab_conjugations_tense_pluperfect_subjunctive">Pluperfect subjunctive</string>
+    <string name="lab_conjugations_tense_periphrastic_past">Past with vaig</string>
+</resources>

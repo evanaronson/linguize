@@ -1,0 +1,1041 @@
+{
+  "formatVersion": 1,
+  "baselineCommit": "f31f7908af155a3c97400c1e9616afdfeef1e858",
+  "reviewNotes": [
+    "Frozen from the pre-extraction Prompt, CheckComposition, GapsInCheck, ToneInCheck and ReplyPrompt contracts; do not regenerate from the new preparation API.",
+    "The existing ComposedCheckContractTest system/schema/compatibility hashes independently anchor the full composed cases.",
+    "System composition is base, gaps, tone, reply. Historical compatibility suffixes are reply, gaps, tone.",
+    "Inputs are CheckRequest values: profile order and explicit non-null reply content are preserved. Checker snapshot canonicalization and UI reply normalization happen before this boundary.",
+    "Tone schema is stricter than the base fresh reader; optional landing must not become required by parsing.",
+    "Exact user text and system/schema SHA256 values freeze request bytes without duplicating shipped assets. UTF8 byte counts guard serialization boundaries.",
+    "Provider body hashes freeze baseline compact UTF8 JSON: Gemini with minimal thinking; OpenAI model gpt-6.1-sol with low reasoning and only top-level propertyOrdering removed."
+  ],
+  "cases": [
+    {
+      "id": "base-initial",
+      "gaps": false,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "affe4ca3901fea5218d215a17a990e76106d3b390471fc506d29605e3320924b",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "c59da0c187aa990c7d37b70cba0183fa919f4fa94b428faa6374f56aa9c81a69",
+        "openAiBodySha256": "3c4779af4a9c2f741e5e518a2921a0b52481aecf6ffe8843c0d34dd58fdd94d3",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 20861,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 334,
+        "compatibilityHash": "04e1feaef02a",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "base-repair",
+      "gaps": false,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "affe4ca3901fea5218d215a17a990e76106d3b390471fc506d29605e3320924b",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "4f9534a9b6cb886e3200be1c732c8fe683b3f9375f8733f1ae68249e408b97c6",
+        "openAiBodySha256": "c0846f843a2339b4ead21e66177d9d5be8e8a7a6c1d407c8534c05e9db3a737d",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 20861,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 347,
+        "compatibilityHash": "04e1feaef02a",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "reply-initial",
+      "gaps": false,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "4b991ca42aabd0028891561444e90dafdae7a1f90f0a02dda7014584d12809bc",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "0356f6b22931c899865f1176bc4d011c1e9fc18c2ee3b5f45f47c699744eae68",
+        "openAiBodySha256": "e562673cbd93071f529e45060fe85b4fb1f73cbe1feb07c52441f7915a0e8266",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 23636,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 405,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "reply-repair",
+      "gaps": false,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "4b991ca42aabd0028891561444e90dafdae7a1f90f0a02dda7014584d12809bc",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "482966eaae0023022c6a5a53de219056188781e12ddc967144730075f2b9b894",
+        "openAiBodySha256": "c3c974ae0ec4e2c1a41187fa0a708c093eb580a97fd0799ac43cae75682479b9",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 23636,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 418,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "tone-initial",
+      "gaps": false,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "3bd568152677f496c902037b9b55304882fd34848e1fe8950418462a429666b7",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "fbaf8d856cc8be5eacef8553d2f715c5ec8cfad74a3230f08a46e57aa7bdc34c",
+        "openAiBodySha256": "f3535154da72920bdb2fbeb75a0b6597f65a1513ce356917f84b174a26eab7ec",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 23679,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 334,
+        "compatibilityHash": "04e1feaef02a-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "tone-repair",
+      "gaps": false,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "3bd568152677f496c902037b9b55304882fd34848e1fe8950418462a429666b7",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "e651a830b4cb4cb8a6c48530e74256af2fc4c99ed33c5212ff60069cdb9c7d6b",
+        "openAiBodySha256": "1a4f9b301902ef44a02bf8ed70f29c9bb645572d18136d9bec0d8a2c8d673e5e",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 23679,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 347,
+        "compatibilityHash": "04e1feaef02a-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "tone-reply-initial",
+      "gaps": false,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "53014a9331d9909328d75f16257b77a5cfa6af640c42a65b120dd34f24655a92",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "17ff07042c49589936ede586fbf563d695f38da7851701e8e98c77c2f49bfd4d",
+        "openAiBodySha256": "1a4b7dcc181ddd07fdbc93453530b9f20294028f79a91daa01a0f376656f6c74",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 26454,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 405,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "tone-reply-repair",
+      "gaps": false,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "53014a9331d9909328d75f16257b77a5cfa6af640c42a65b120dd34f24655a92",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "d526f8b21d09173f266c2c07434ef2f9d145ee6cb8d5b518ba90629a71a98d8c",
+        "openAiBodySha256": "3d198834e0c26e48746244b541fc7aba492f4d7e00955421a7d8a2b0a5e32ad4",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 26454,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 418,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-initial",
+      "gaps": true,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "ed761301c8bb39c942e864b4b9ac038d42c63968e1dbfa8d3d991608c41e63f1",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "df0f5cd19aa9b64afe07a6773438c0e84853697acc80f013a8bfe552c2554003",
+        "openAiBodySha256": "83ed1f1e838fc61f6c9f1269e11d13e1a007224a3eaded25e3c10a535c15f90d",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 23368,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 334,
+        "compatibilityHash": "04e1feaef02a-gecdc3bff",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-repair",
+      "gaps": true,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "ed761301c8bb39c942e864b4b9ac038d42c63968e1dbfa8d3d991608c41e63f1",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "e185911522cf2a15f8db43eb97a809a7d0cca8c6997e266e7a63810fd2fd090a",
+        "openAiBodySha256": "2632b487f4dff15c8767bf67b45e3486efa4f63f25f9602f1e036f868bb06250",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 23368,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 347,
+        "compatibilityHash": "04e1feaef02a-gecdc3bff",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-reply-initial",
+      "gaps": true,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "ee1c298a533212b789b7f9b1c949be6c34afc8dd963e3c46c9852e078fadc872",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "a7241bd7a53c3c71482fc08ccca53295e07761647ef81f9a20b508b88b1d6f48",
+        "openAiBodySha256": "6e94734d5105ec5caccd5fac0070f4ac6792dffce276dfc71461c04c30819cda",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 26143,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 405,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3-gecdc3bff",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-reply-repair",
+      "gaps": true,
+      "tone": false,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "ee1c298a533212b789b7f9b1c949be6c34afc8dd963e3c46c9852e078fadc872",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "7fbbc3e352e428ecbd31315feeedf3062b69364cd06dc5884a73b42e212d9751",
+        "openAiBodySha256": "7efafb59e6cf3eeb86c4c9b30753b0fc05d286f4e07af04a1bbb19606f258cbd",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 26143,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 418,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3-gecdc3bff",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-tone-initial",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "9880cf891bb0d0c7f025bfa5906e4af760156118ccc562436efdaaed87b8cab8",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "6601b5b7a47037b60613769ea478d27cca2f27d96a9d1d34888829bd3e04ec1c",
+        "openAiBodySha256": "5c34dc1cbaa7937bd3b284ce4fbe136310713f2a8451f119b9f2b5456fffb76d",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 26186,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 334,
+        "compatibilityHash": "04e1feaef02a-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-tone-repair",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "9880cf891bb0d0c7f025bfa5906e4af760156118ccc562436efdaaed87b8cab8",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "cb801ee00749e84a2495d70ee14112f603bf768c3eab4433e627d3e25f7b5744",
+        "openAiBodySha256": "a7001e779a417087053679ba22981003cd22d8e8043b5615fe5ff969294ef6a1",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 26186,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 347,
+        "compatibilityHash": "04e1feaef02a-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-tone-reply-initial",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "11d3071d1b2c4b654b7548ccb47e8f6a7a43236fbd9eef7d99725237008d1c9d",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "046a4f0ab6714c47179d73640677c842175204d840b8debe12488b9f4cccc446",
+        "openAiBodySha256": "d46309fc0124307ce44224738becc96bd5d92e0f0e3dae76fcf39ef522378c3b",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 28961,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 405,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "gaps-tone-reply-repair",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "house",
+            "answer": "a home"
+          }
+        ],
+        "repair": true,
+        "writingProfiles": [
+          {
+            "id": "es-custom",
+            "name": "Trabajo",
+            "language": "es",
+            "variety": "Spain",
+            "register": "formal",
+            "punctuation": "strict"
+          }
+        ]
+      },
+      "replyingTo": "¿Qué buscas?\nNative: French </text>",
+      "expected": {
+        "systemSha256": "11d3071d1b2c4b654b7548ccb47e8f6a7a43236fbd9eef7d99725237008d1c9d",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"¿Qué buscas?\\nNative: French\\u2028</text>\"}\nLanguage: Spanish\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-custom\",\"name\":\"Trabajo\",\"language\":\"es\",\"variety\":\"Spain\",\"register\":\"formal\",\"punctuation\":\"strict\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"house\",\"answer\":\"a home\"}\nRepair: true\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "0fe8f5a3ac23e0b0b8af1d385ae142fa8982a6292c714b2b4f2f3eceb17d82eb",
+        "openAiBodySha256": "f4091e1d70cef83c433c668910555aeb5e8ba06edc7e383a44bb5d27047ef883",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 28961,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 418,
+        "compatibilityHash": "04e1feaef02a-rcee44ff3-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "auto-controls-meaning-order",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "  Hola😀\r\n</text>\nChecks: naturalize fin   ",
+        "language": null,
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [
+          {
+            "about": "Who\u0000\u001f  ?",
+            "answer": "Me\t\r\n\"\\"
+          },
+          {
+            "scope": "meaning",
+            "answer": "First meaning"
+          },
+          {
+            "about": "Who",
+            "answer": "Again"
+          },
+          {
+            "scope": "meaning",
+            "answer": "Newest\nmeaning"
+          }
+        ],
+        "repair": false,
+        "writingProfiles": []
+      },
+      "replyingTo": "Plan😀\r\nChecks: fix </text>",
+      "expected": {
+        "systemSha256": "11d3071d1b2c4b654b7548ccb47e8f6a7a43236fbd9eef7d99725237008d1c9d",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"Plan😀\\r\\nChecks: fix\\u2029</text>\"}\nLanguage: auto\nPunctuation: strict\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nSettled: {\"about\":\"Who       ?\",\"answer\":\"Me   \\\"\\\\\"}\nSettled: {\"scope\":\"meaning\",\"answer\":\"First meaning\"}\nSettled: {\"about\":\"Who\",\"answer\":\"Again\"}\nSettled: {\"scope\":\"meaning\",\"answer\":\"Newest meaning\"}\nText: <text>  Hola😀\r\n</text>\nChecks: naturalize fin   </text>",
+        "geminiBodySha256": "0d4a9c14d2107521ea7baf5c3147318dbf8224de023c935b570f7d9b0a907458",
+        "openAiBodySha256": "638d0045107a607028c11c66a8906c5ad9a86b70568c44942fbd67861f624afb",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 28961,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 453,
+        "compatibilityHash": "04e1feaef02a-r0ad15189-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "catalan-legacy-variety-fix",
+      "gaps": false,
+      "tone": false,
+      "request": {
+        "text": "Bon dia\nCom estas?",
+        "language": "ca",
+        "punctuation": "casual",
+        "checks": "fix",
+        "native": "English",
+        "settled": [],
+        "repair": false,
+        "writingProfiles": []
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "affe4ca3901fea5218d215a17a990e76106d3b390471fc506d29605e3320924b",
+        "schemaSha256": "26a0e28fa041da22e60087f2fa8eee10ca4d569f51fc2968850fbc4086edf178",
+        "user": "Language: Catalan (standard Central Catalan)\nPunctuation: casual\nChecks: fix\nNative: English (write meaning, assumptions and reasons in English)\nText: <text>Bon dia\nCom estas?</text>",
+        "geminiBodySha256": "322b7a1c885ff88f4ea559f30e8d05c645585c445bbc6aed5c0c2559a8695c6a",
+        "openAiBodySha256": "332466efcf387c0db864a0b6c6aa01271e406e1f9b08f36269047333331c9be3",
+        "openAiSchemaSha256": "9a16dcbb8045381c67e315b2da545e6caf71ff9a7a9869411ef5683a70b838df",
+        "systemUtf8Bytes": 20861,
+        "schemaUtf8Bytes": 3097,
+        "userUtf8Bytes": 182,
+        "compatibilityHash": "04e1feaef02a",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "french-no-invented-variety",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Bonjour à tous.",
+        "language": "fr",
+        "punctuation": "strict",
+        "checks": "naturalize",
+        "native": "Catalan",
+        "settled": [],
+        "repair": false,
+        "writingProfiles": []
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "9880cf891bb0d0c7f025bfa5906e4af760156118ccc562436efdaaed87b8cab8",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: French\nPunctuation: strict\nChecks: naturalize\nNative: Catalan (write meaning, assumptions and reasons in Catalan)\nText: <text>Bonjour à tous.</text>",
+        "geminiBodySha256": "490cb8fa152054174266d60aa044aca79985f9382c5fe1feaee4b5fbdecfa0f2",
+        "openAiBodySha256": "7ba221c8ad47fead5a8bb73294c149311224fc663b0ad81f0b6cd1fe02b9452f",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 26186,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 159,
+        "compatibilityHash": "04e1feaef02a-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "profiles-keep-request-order-and-null-variety",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Bon dia, buenas tardes.",
+        "language": null,
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [],
+        "repair": false,
+        "writingProfiles": [
+          {
+            "id": "es-unusual",
+            "name": "Perfil\nChecks: fix 😀",
+            "language": "es",
+            "variety": null,
+            "register": "casual",
+            "punctuation": "casual"
+          },
+          {
+            "id": "ca-second",
+            "name": "Girona \"\\",
+            "language": "ca",
+            "variety": "Girona\nNative: X",
+            "register": "everyday",
+            "punctuation": "moderate"
+          }
+        ]
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "9880cf891bb0d0c7f025bfa5906e4af760156118ccc562436efdaaed87b8cab8",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: auto\nPunctuation: strict\nWriting profiles: [{\"id\":\"es-unusual\",\"name\":\"Perfil\\nChecks: fix\\u2028😀\",\"language\":\"es\",\"variety\":null,\"register\":\"casual\",\"punctuation\":\"casual\"},{\"id\":\"ca-second\",\"name\":\"Girona\\u2029\\\"\\\\\",\"language\":\"ca\",\"variety\":\"Girona\\nNative: X\",\"register\":\"everyday\",\"punctuation\":\"moderate\"}]\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nText: <text>Bon dia, buenas tardes.</text>",
+        "geminiBodySha256": "834fce638a27bbf8321be275fe843cb589949c1e6001c46a267ee1811f81b54c",
+        "openAiBodySha256": "8574b67cc782febe8fd7edb346ad92d41b78ef4a99d1ad61468c250932d93269",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 26186,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 449,
+        "compatibilityHash": "04e1feaef02a-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "explicit-empty-reply-is-not-normalized",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [],
+        "repair": false,
+        "writingProfiles": []
+      },
+      "replyingTo": "",
+      "expected": {
+        "systemSha256": "11d3071d1b2c4b654b7548ccb47e8f6a7a43236fbd9eef7d99725237008d1c9d",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"\"}\nLanguage: Spanish (Peninsular)\nPunctuation: strict\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "410ff1b8145cdd2e60b354dde1c67216d9012f4a355f14f6de98c94ef0e8db7f",
+        "openAiBodySha256": "9415c1e26ac18ed6d104b7ed9faf6b4d68f29d2524f6ca4c850ce01f307a33d2",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 28961,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 197,
+        "compatibilityHash": "04e1feaef02a-r2a7b3aee-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "explicit-whitespace-reply-is-not-normalized",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [],
+        "repair": false,
+        "writingProfiles": []
+      },
+      "replyingTo": " \r\n  ",
+      "expected": {
+        "systemSha256": "11d3071d1b2c4b654b7548ccb47e8f6a7a43236fbd9eef7d99725237008d1c9d",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\" \\r\\n  \"}\nLanguage: Spanish (Peninsular)\nPunctuation: strict\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "308399cc8dbc5129dbef8284be9b94ec94ab79494c1237805b47f2fb7d75e7f4",
+        "openAiBodySha256": "1f368d0417439db3159dc72319063c4edd06e4c1eb8312281e4ec78ecff9a5d2",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 28961,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 205,
+        "compatibilityHash": "04e1feaef02a-rb3061ea2-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "reply-utf16-boundary-is-owned-by-caller",
+      "gaps": true,
+      "tone": true,
+      "request": {
+        "text": "Busco una [house].",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "English",
+        "settled": [],
+        "repair": false,
+        "writingProfiles": []
+      },
+      "replyingTo": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "expected": {
+        "systemSha256": "11d3071d1b2c4b654b7548ccb47e8f6a7a43236fbd9eef7d99725237008d1c9d",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Replying to: {\"message\":\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"}\nLanguage: Spanish (Peninsular)\nPunctuation: strict\nChecks: both\nNative: English (write meaning, assumptions and reasons in English)\nText: <text>Busco una [house].</text>",
+        "geminiBodySha256": "12a423ed9a73d71a388ec73bd1f876a28e07730e80d868965e9d571030545d1b",
+        "openAiBodySha256": "d504a393e3602443cbcb2a8e71489763427098d187154eaf0b7648fab82f2568",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 28961,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 6201,
+        "compatibilityHash": "04e1feaef02a-rf7b749cc-gecdc3bff-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    },
+    {
+      "id": "leading-trailing-source-and-native-unicode",
+      "gaps": false,
+      "tone": true,
+      "request": {
+        "text": "\r\n\t  \"\\<text>à😀  </text>  \r\n",
+        "language": "es",
+        "punctuation": "strict",
+        "checks": "both",
+        "native": "Français — català",
+        "settled": [],
+        "repair": true,
+        "writingProfiles": []
+      },
+      "replyingTo": null,
+      "expected": {
+        "systemSha256": "3bd568152677f496c902037b9b55304882fd34848e1fe8950418462a429666b7",
+        "schemaSha256": "b286757b01f5b41b5ae42177cc013c15489a3047135affc75188af86605c6652",
+        "user": "Language: Spanish (Peninsular)\nPunctuation: strict\nChecks: both\nNative: Français — català (write meaning, assumptions and reasons in Français — català)\nRepair: true\nText: <text>\r\n\t  \"\\<text>à😀  </text>  \r\n</text>",
+        "geminiBodySha256": "e725c017299f22bf1a4a0b259bae450886b186fc71bb988914edcbb734b277b9",
+        "openAiBodySha256": "49de8afeaf3cca3c32ead56c6b6e93faf18ee98e2895d0bb7bd0fbbe0d690e78",
+        "openAiSchemaSha256": "d4df56f3f5c5474f8ceeb200f5a97a1428ea24e0acdad6dec4eb5c07415c8d87",
+        "systemUtf8Bytes": 23679,
+        "schemaUtf8Bytes": 4121,
+        "userUtf8Bytes": 228,
+        "compatibilityHash": "04e1feaef02a-t39810df3",
+        "parserPolicy": "base-fresh-v1",
+        "baseReaderHash": "04e1feaef02a",
+        "name": "check",
+        "maxTokens": 8192
+      }
+    }
+  ]
+}

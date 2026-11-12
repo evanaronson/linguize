@@ -20,6 +20,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -28,6 +30,54 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class NavigationStateTest {
+    @Test
+    fun switchingTabsKeepsTheStartsStateAndDropsTheTabLeft() = runBlocking(FrameClock) {
+        withTimeout(5_000) {
+            val recomposer = Recomposer(coroutineContext)
+            val runner = launch { recomposer.runRecomposeAndApplyChanges() }
+            var navigation by mutableStateOf(Navigation(Screen.Chat))
+            lateinit var currentValue: MutableState<Int>
+            val registry = SaveableStateRegistry(restoredValues = null) { true }
+            val composition = Composition(EmptyApplier(), recomposer).also { composition ->
+                composition.setContent {
+                    CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
+                        val saved = rememberNavigationStateHolder(navigation)
+                        saved.SaveableStateProvider(navigation.current.saveableKey) {
+                            currentValue = rememberSaveable { mutableStateOf(0) }
+                        }
+                    }
+                }
+            }
+            suspend fun settle() {
+                repeat(2) {
+                    Snapshot.sendApplyNotifications()
+                    yield()
+                    recomposer.awaitIdle()
+                }
+            }
+            try {
+                currentValue.value = 1
+                navigation = navigation.open(Screen.Progress)
+                settle()
+                currentValue.value = 2
+                navigation = navigation.open(Screen.History)
+                settle()
+                assertEquals(setOf("lab_chat", "history"), screenKeys(registry.performSave()))
+                navigation = navigation.open(Screen.Progress)
+                settle()
+                // Progress was left, so it starts fresh; the chat underneath kept its state.
+                assertEquals(0, currentValue.value)
+                navigation = navigation.back()
+                settle()
+                assertEquals(1, currentValue.value)
+            } finally {
+                composition.dispose()
+                recomposer.cancel()
+                runner.cancelAndJoin()
+            }
+        }
+    }
+
     @Test
     fun savingDropsVisitedDetailsAndRestoresOnlyTheLivePath() = runBlocking(FrameClock) {
         withTimeout(5_000) {
@@ -40,7 +90,7 @@ class NavigationStateTest {
                 composition.setContent {
                     CompositionLocalProvider(LocalSaveableStateRegistry provides registry) {
                         val saved = rememberNavigationStateHolder(navigation)
-                        saved.SaveableStateProvider(navigation.current.saved) {
+                        saved.SaveableStateProvider(navigation.current.saveableKey) {
                             currentValue = rememberSaveable { mutableStateOf(0) }
                         }
                     }
@@ -78,7 +128,7 @@ class NavigationStateTest {
                 settle()
                 currentValue.value = 33
                 val saved = registry.performSave()
-                assertEquals(setOf("home", "history", "detail:active"), screenKeys(saved))
+                assertEquals(setOf("notes", "history", "detail:active"), screenKeys(saved))
 
                 val savedNavigation = navigation.saved
                 composition.dispose()
@@ -91,12 +141,12 @@ class NavigationStateTest {
                 navigation = navigation.back()
                 settle()
                 assertEquals(22, currentValue.value)
-                assertEquals(setOf("home", "history"), screenKeys(restored.performSave()))
+                assertEquals(setOf("notes", "history"), screenKeys(restored.performSave()))
 
                 navigation = navigation.back()
                 settle()
                 assertEquals(11, currentValue.value)
-                assertEquals(setOf("home"), screenKeys(restored.performSave()))
+                assertEquals(setOf("notes"), screenKeys(restored.performSave()))
             } finally {
                 composition.dispose()
                 recomposer.cancel()

@@ -204,10 +204,12 @@ class CheckHistoryTest {
     fun turningHistoryOffAndOnWhileTheCardIsIdleNeverResumesItsRecording() = runBlocking<Unit> {
         history.open(rain, opening)
         history.flush()
+        assertEquals(history.session!!.id, history.pendingSessionId)
         environment.enabled = false
         environment.recordingEpoch++
         environment.enabled = true
 
+        assertNull(history.pendingSessionId)
         history.succeeded(emptyList(), "{}", result)
         closeAfterApplyingFix()
         history.flush()
@@ -753,7 +755,8 @@ class CheckHistoryTest {
 
     @Test
     fun onlyChecksFromOtherAppsAreRecorded() {
-        assertEquals(setOf(Origin.Menu, Origin.Button), Origin.entries.filter { it.recorded }.toSet())
+        // Lab Chat: a message sent in the chat is recorded too, like text sent to a person.
+        assertEquals(setOf(Origin.Menu, Origin.Button, Origin.Chat), Origin.entries.filter { it.recorded }.toSet())
     }
 
     @Test

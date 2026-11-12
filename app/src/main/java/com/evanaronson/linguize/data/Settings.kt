@@ -7,6 +7,7 @@ import com.evanaronson.linguize.core.Judgments
 import com.evanaronson.linguize.core.Punctuation
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.WritingProfile
+import com.evanaronson.linguize.data.language.MyLanguagesStore
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -36,21 +37,35 @@ class Settings(private val context: Context) : CheckPreferences {
         get() = read(PUNCTUATION, Punctuation.tokens, Punctuation.Moderate)
         set(value) = write(PUNCTUATION, value.token)
 
-    /** Migrates the former global punctuation once, then reads independent complete profiles. */
+    /**
+     * Lab, language-generic: the writer's languages, in Lab's own file. Before the writer edits
+     * them they are the languages of the profiles earlier builds used: always one Catalan and
+     * one Spanish profile ([Language.all]); a stored record in another language (written by a
+     * newer build) was never used, so it doesn't add a language by itself.
+     */
+    val myLanguages = MyLanguagesStore(context) { Language.all.map { it.code } }
+
+    /**
+     * Migrates the former global punctuation once, then reads independent complete profiles:
+     * one per language in [myLanguages], in its order. A language without a stored profile
+     * (one just added) gets the default everyday profile; it's stored on its first edit.
+     * Profiles of languages no longer in the list stay stored, unused.
+     */
     override val writingProfiles: List<WritingProfile>
         get() = synchronized(writingProfilesLock) {
             if (!prefs.contains(WRITING_PROFILES)) {
                 val migrated = Language.all.map { WritingProfile.defaultFor(it, punctuation) }
                 prefs.edit().putString(WRITING_PROFILES, profileJson.encodeToString(migrated)).apply()
-                migrated
-            } else readStoredWritingProfiles().take(Language.all.size)
+            }
+            val languages = myLanguages.codes
+            readStoredWritingProfiles(languages).take(languages.size)
         }
 
-    /** V1 edits one profile per supported language; identity and name survive every edit. */
+    /** V1 edits one profile per writer's language; identity and name survive every edit. */
     fun updateWritingProfile(profile: WritingProfile) = synchronized(writingProfilesLock) {
         require(Language.forCode(profile.language) != null) { "Unsupported writing language" }
         writingProfiles // Complete first-use migration before editing the stored records.
-        val existing = readStoredWritingProfiles()
+        val existing = readStoredWritingProfiles(myLanguages.codes)
         require(existing.any { it.id == profile.id && it.language == profile.language }) { "Unknown writing profile" }
         val records = readStoredWritingProfileRecords().orEmpty().toMutableList()
         // Change only the selected record. Opaque records must retain their order and
@@ -75,12 +90,12 @@ class Settings(private val context: Context) : CheckPreferences {
         }
     }
 
-    private fun readStoredWritingProfiles(): List<WritingProfile> {
+    private fun readStoredWritingProfiles(languages: List<String>): List<WritingProfile> {
         // A malformed entry cannot erase another language's usable profile.
         val decoded = readStoredWritingProfileRecords().orEmpty().mapNotNull { entry ->
             runCatching { profileJson.decodeFromJsonElement<WritingProfile>(entry) }.getOrNull()
         }.distinctBy { it.id }
-        val supported = Language.all.map { language ->
+        val supported = languages.mapNotNull(Language::forCode).map { language ->
             decoded.firstOrNull { it.language == language.code } ?: WritingProfile.defaultFor(language)
         }
         val selectedIds = supported.map { it.id }.toSet()

@@ -42,7 +42,8 @@ class Prompt(val system: String, schemaJson: String) {
     fun userMessage(request: CheckRequest) = buildString {
         val language = request.language?.let {
             // A supplied profile is the only variety source; older callers retain their language default.
-            if (request.writingProfiles.isEmpty()) "${it.name} (${it.variety})" else it.name
+            // A language with no standard variety of its own (any but Catalan and Spanish) is sent by name.
+            if (request.writingProfiles.isEmpty() && it.variety != null) "${it.name} (${it.variety})" else it.name
         } ?: "auto"
         appendLine("Language: $language")
         appendLine("Punctuation: ${request.punctuation.token}")

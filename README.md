@@ -1,6 +1,6 @@
 # Linguize
 
-Linguize is the gut check that your Spanish was Spanish enough. Or that your Catalan was Catalan enough.
+Linguize is the gut check that your Spanish was Spanish enough. Or that your French was French enough, your German German enough, your Japanese Japanese enough: whatever language you're writing in that isn't your first.
 
 Even when you're fluent or able to communicate in your target language, you often want to make sure before you hit send: does this make sense, is anything wrong, would a native speaker say it this way?
 
@@ -14,15 +14,21 @@ Checking your writing isn't a translation task. Linguize does just that one job.
 
 Replace what you want, in-line, and you're back where you were.
 
+### Any language
+
+Linguize checks any language the model reads, and it detects which one you wrote. Your writing preferences (register and punctuation) are kept per language, and the language selector at the top lists the languages you write in. Each has a name in the same pattern as the app's own: Catalanize, Castilianize, Gallicize, Germanize, Japanize, and so on for every ISO 639-1 language.
+
+A few views go deeper where the app has its own on-device data. Your conjugations and the bundled Words decks currently cover Spanish and Catalan; other languages get the same checks, chat, History and patterns, and can import a word deck.
+
 ## Install
 
 **[Download the latest APK](https://github.com/evanaronson/linguize/releases/latest/download/linguize.apk)**. Every push to `main` that changes the app builds a new one; older builds are under [Releases](https://github.com/evanaronson/linguize/releases).
 
 1. Open the link on your phone and open the downloaded file. When Android asks, allow your browser to install unknown apps.
 2. Open **Linguize**, tap the settings gear, pick Google Gemini or OpenAI, paste that provider's API key ([Gemini](https://aistudio.google.com/apikey), [OpenAI](https://platform.openai.com/api-keys)) and tap Save. Keys are stored encrypted on the phone and are never in the code.
-3. Try a sentence in **Try it** on Home. Then select text you've written in any app and look for **Linguize** in the selection menu (on Samsung it can be behind **⋮** in the menu).
+3. Write a sentence, in whatever language you're learning, in the editor on **Notes** and tap **Check**. Then select text you've written in any app and look for **Linguize** in the selection menu (on Samsung it can be behind **⋮** in the menu).
 
-Home, the screen Linguize opens to, has **Check your text** and, below it, **History**: your last five applied checks, newest first. A check is saved only after changed text is successfully returned to the other app. Analysis, Copy, and unapplied suggestions are not saved. Older unapplied entries remain stored but are hidden from History and its exports. When there are more, **View all** opens History, which loads older checks as you scroll. Tap any check to open it; Back returns to the list you came from, at your previous position. Swipe a row to delete it with Undo. Settings is behind the gear: each group is a card, and a row with several options (Service, Model, What to suggest, Writing in, Register, Punctuation, Position) opens a page of its own. The popup's wordmark button, to the left of **Auto Detect**, opens the app without closing the check or losing accepted changes. Meaning, the card's last row, stays inside the popup; Settings belongs to the app. Settings' **History** switch turns saving off (on by default; saved checks stay). The History page shows how much is saved and ends with **Export** (a JSON Lines file) and **Delete all**. History is stored on the phone; Export lets you share it with another app.
+The app has four places in a bottom bar: **Chat** (where it opens), **Notes** (an editor that keeps your notes, with **Check**), **Progress** and **History**, each with the same top bar (the wordmark, the language selector, Settings), which lists your applied checks, newest first. A check is saved only after changed text is successfully returned to the other app. Analysis, Copy, and unapplied suggestions are not saved. Older unapplied entries remain stored but are hidden from History and its exports. History loads older checks as you scroll. Tap any check to open it; Back returns to the list you came from, at your previous position. Swipe a row to delete it with Undo. Settings is behind the gear: each group is a card, and a row with several options (Service, Model, What to suggest, Writing in, Register, Punctuation, Position) opens a page of its own. The popup's wordmark button, to the left of **Auto-detect**, opens the app without closing the check or losing accepted changes. Meaning, the card's last row, stays inside the popup; Settings belongs to the app. Settings' **History** switch turns saving off (on by default; saved checks stay). The History page shows how much is saved and ends with **Export** (a JSON Lines file) and **Delete all**. History is stored on the phone; Export lets you share it with another app.
 
 That's all most apps need. Later builds install over the previous one because CI signs each one with the same private key.
 
@@ -40,7 +46,7 @@ Android makes this a few taps because the app wasn't installed from the Play Sto
 2. **Settings → Apps → Linguize → ⋮ (top right) → Allow restricted settings**, and confirm.
 3. Back in **Settings → Accessibility → Installed apps → Linguize**: turn it on, along with its shortcut. A floating Linguize button appears (on Samsung you can choose between the floating button and the navigation-bar button).
 
-**Set up the accessibility button**, under **When Linguize isn't in the menu** on Home, has the same steps and buttons straight to Accessibility settings and App info.
+**Accessibility button**, under **In other apps** in Settings, has the same steps and buttons straight to Accessibility settings and App info.
 
 ## Code layout
 
@@ -82,8 +88,8 @@ in `app/src/main/res/values/strings*.xml`; see [localization](docs/localization.
 and [copy style](docs/copy-style.md). Model IDs, stored tokens, and the prompt are
 separate contracts.
 
-History supplies stored evidence for later analysis. The [architecture guide](docs/architecture.md#evidence-first-derived-learning-later)
-explains what is still needed before those observations can support learning claims.
+History supplies stored evidence for analysis. The [architecture guide](docs/architecture.md#evidence-and-derived-learning)
+maps the current evidence sources, derived views, and limits on learning claims.
 
 ## Tuning the judgments
 
@@ -101,7 +107,7 @@ the [eval guide](eval/README.md) for running and interpreting these checks.
 
 ## Brand
 
-The wordmark is **lingu·ize**: the raised dot (the Catalan *punt volat*, as in col·legi) marks where *-ize* snaps onto a word, as in catalan·ize and castilian·ize. The launcher icon is "·ize", the wordmark cropped to its mark, with the proof line under "ize": ink on a paper tile, and paper on ink with the lighter line at night and in themed icons. In the app the wordmark is set in Newsreader Medium (SIL Open Font License), outlined into `wordmark.xml`, in ink. The interface follows the Proofmark system: ink on paper, neutral greys, and proof vermilion (`#C4321A`, lighter `#FF8A70` in dark mode) as the one colour, used for marks and destructive actions: a fix's underline, the fix count, the explanation's edge, a switch that is on, and destructive actions such as Delete key and swipe-to-delete. Primary buttons are ink. App screens sit on a grey ground with white section cards, as Android's own settings do.
+The wordmark is **lingu·ize**: the raised dot (the Catalan *punt volat*, as in col·legi) marks where *-ize* snaps onto a word, as in catalan·ize and castilian·ize, gallic·ize and german·ize: every language gets a name in that pattern. The launcher icon is "·ize", the wordmark cropped to its mark, with the proof line under "ize": ink on a paper tile, and paper on ink with the lighter line at night and in themed icons. In the app the wordmark is set in Newsreader Medium (SIL Open Font License), outlined into `wordmark.xml`, in ink. The interface follows the Proofmark system: ink on paper, neutral greys, and proof vermilion (`#C4321A`, lighter `#FF8A70` in dark mode) as the one colour, used for marks and destructive actions: a fix's underline, the fix count, the explanation's edge, a switch that is on, and destructive actions such as Delete key and swipe-to-delete. Primary buttons are ink. App screens sit on a grey ground with white section cards, as Android's own settings do.
 
 [brand/](brand/) holds the wordmarks, icon variants, and construction studies.
 Every letter is drawn in code from one geometric kit in `brand/source/`;

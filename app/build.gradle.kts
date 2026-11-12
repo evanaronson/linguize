@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application)
@@ -12,7 +13,8 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.evanaronson.linguize"
+        // Linguize X Claude: a separate app with its own data, installed beside Linguize.
+        applicationId = "com.evanaronson.linguize.xclaude"
         // Galaxy S21 runs Android 15; nothing older needs supporting.
         minSdk = 30
         targetSdk = 36
@@ -52,6 +54,18 @@ android {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.testLogging.exceptionFormat = TestExceptionFormat.FULL
+            // Desired contracts for confirmed Bonanza defects are deliberately red until fixed.
+            // Keep them executable without teaching the regression suite to expect broken behavior.
+            val knownDefects = providers.gradleProperty("bonanzaKnownDefects").isPresent
+            it.useJUnit {
+                val category = "com.evanaronson.linguize.testing.KnownBonanzaDefect"
+                if (knownDefects) includeCategories(category) else excludeCategories(category)
+            }
+            if (knownDefects) {
+                it.reports.junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/${it.name}-known-defects"))
+                it.reports.html.outputLocation.set(layout.buildDirectory.dir("reports/tests/${it.name}-known-defects"))
+                it.binaryResultsDirectory.set(layout.buildDirectory.dir("test-results/${it.name}-known-defects/binary"))
+            }
         }
     }
 }
@@ -76,4 +90,29 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// Offline eval tooling reuses the app's compiled preparation code. It does not run the test
+// suite or add a second production module. The Python bridge strips provider credentials.
+tasks.register<JavaExec>("prepareCheckEval") {
+    group = "verification"
+    description = "Export exact app/base check requests for an evaluation JSONL dataset"
+    val unitTests = tasks.named<Test>("testDebugUnitTest").get()
+    classpath = unitTests.classpath
+    dependsOn("compileDebugUnitTestKotlin")
+    mainClass.set("com.evanaronson.linguize.eval.CheckPreparationExport")
+    val cases = providers.gradleProperty("checkEvalCases").getOrElse(
+        rootProject.layout.projectDirectory.file("eval/cases.jsonl").asFile.absolutePath,
+    )
+    val output = providers.gradleProperty("checkEvalOutput").getOrElse(
+        layout.buildDirectory.file("eval/prepared-checks.jsonl").get().asFile.absolutePath,
+    )
+    val mode = providers.gradleProperty("checkEvalMode").getOrElse("app")
+    val assets = layout.projectDirectory.dir("src/main/assets").asFile
+    inputs.file(cases)
+    inputs.dir(assets)
+    inputs.property("mode", mode)
+    outputs.file(output)
+    args(assets.absolutePath, cases, output, mode)
 }

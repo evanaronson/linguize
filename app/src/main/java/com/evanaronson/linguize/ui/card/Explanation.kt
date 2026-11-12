@@ -1,7 +1,6 @@
 package com.evanaronson.linguize.ui.card
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,9 +39,13 @@ import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
 import com.evanaronson.linguize.core.SuggestionAssessment
+import com.evanaronson.linguize.core.teachme.LessonTopic
+import com.evanaronson.linguize.ui.teachme.TeachMe
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.ClarifyLink
 import com.evanaronson.linguize.ui.components.LinguizeButton
+import com.evanaronson.linguize.data.phrasebook.PhraseDraft
+import com.evanaronson.linguize.ui.phrasebook.SavePhraseButton
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
@@ -70,10 +73,14 @@ internal fun ExplanationPanel(
     onSettle: ((String, String) -> Unit)? = null,
     /** For spacing changes: the words around an otherwise invisible change. */
     context: String? = null,
-    /** Collapsed spacing panels show only the change until opened. */
-    expanded: Boolean = true,
-    onToggle: (() -> Unit)? = null,
-    onToggleLabel: String? = null,
+    /** Lab: the decision "Teach me" explains; null offers no lesson. */
+    lesson: LessonTopic? = null,
+    /** Lab Phrasebook: the phrase this change offers, saved with the star; null shows none. */
+    phrase: PhraseDraft? = null,
+    /** Lab, Review flow: leaves this change and moves to the next; shown beside Accept. */
+    onSkip: (() -> Unit)? = null,
+    /** Lab, Review flow: "Change 2 of 5", heard before the change. */
+    position: String? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -86,33 +93,42 @@ internal fun ExplanationPanel(
                 val width = 2.dp.toPx()
                 drawLine(accent, Offset(width / 2, 0f), Offset(width / 2, size.height), width)
             }
-            .then(if (onToggle != null) Modifier.clickable(onClickLabel = onToggleLabel, onClick = onToggle) else Modifier)
             // Read out as it opens, which matters when a screen reader's "Why" action opened it.
             .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(start = 14.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
     ) {
-        description?.let { ChangeLine(from, to, it) }
+        description?.let { ChangeLine(from, to, it, position) }
         if (!context.isNullOrBlank()) {
             Text(context, style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (expanded) {
-            why?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
-            }
+        why?.takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
         }
-        onAccept?.let {
+        val skip = onSkip?.takeIf { onAccept != null }
+        if (phrase != null || skip != null) {
+            Row(Modifier.align(Alignment.End).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                phrase?.let { SavePhraseButton(it) }
+                // Lab, Review flow: Skip moves on, leaving this change underlined.
+                skip?.let { LinguizeButton(stringResource(R.string.lab_review_flow_skip), it, ButtonKind.Text) }
+                onAccept?.let {
+                    LinguizeButton(stringResource(R.string.accept), onClick = it,
+                        kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal)
+                }
+            }
+        } else onAccept?.let {
             LinguizeButton(
                 stringResource(R.string.accept), onClick = it,
                 kind = if (clarifying != null) ButtonKind.Outlined else ButtonKind.Tonal,
                 modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
             )
         }
-        if (expanded) WeightMeters(assessment, Modifier.padding(top = 8.dp))
-        if (expanded && (assumptions.isNotEmpty() || answers.isNotEmpty())) {
+        WeightMeters(assessment, Modifier.padding(top = 8.dp))
+        TeachMe(lesson)
+        if (assumptions.isNotEmpty() || answers.isNotEmpty()) {
             HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             Column(Modifier.padding(top = 4.dp)) {
                 assumptions.forEach { assumption ->
@@ -145,9 +161,10 @@ internal fun ExplanationPanel(
 
 /** "vaig poder → podré", with the old words struck through; spoken in words. */
 @Composable
-private fun ChangeLine(from: String, to: String, description: String) {
+private fun ChangeLine(from: String, to: String, description: String, position: String? = null) {
     val display = if (from.isEmpty() || to.isEmpty()) description
         else stringResource(R.string.change_replacement, from, to)
+    val spoken = position?.let { stringResource(R.string.lab_review_flow_spoken, it, description) } ?: description
     Text(
         buildAnnotatedString {
             append(display)
@@ -160,7 +177,7 @@ private fun ChangeLine(from: String, to: String, description: String) {
         },
         style = MaterialTheme.typography.bodyLarge,
         // In words: the arrow would be read out as "right arrow".
-        modifier = Modifier.semantics { contentDescription = description },
+        modifier = Modifier.semantics { contentDescription = spoken },
     )
 }
 

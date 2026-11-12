@@ -147,8 +147,9 @@ internal object HistorySchema {
     /**
      * User-visible history is an applied change. Older unapplied checks remain stored,
      * but are hidden from every History read, including restored details and export.
+     * Lab Chat: a chat message sent unchanged ([Origin.keepsUnchanged]) is visible too.
      */
-    val VISIBLE_HISTORY = """"deletedAt" IS NULL AND "closedAt" IS NOT NULL AND "outcome" = '${Outcome.Applied.token}' AND "finalText" IS NOT NULL AND "finalText" != "text""""
+    val VISIBLE_HISTORY = """"deletedAt" IS NULL AND "closedAt" IS NOT NULL AND "outcome" = '${Outcome.Applied.token}' AND "finalText" IS NOT NULL AND ("finalText" != "text" OR "origin" IN (${Origin.entries.filter { it.keepsUnchanged }.joinToString { "'${it.token}'" }}))"""
 
     /** The number of applied changes History can show. */
     val COUNT = """SELECT COUNT(*) AS "n" FROM $SESSIONS WHERE $VISIBLE_HISTORY"""
@@ -192,6 +193,20 @@ internal object HistorySchema {
 
     const val SESSION_SUGGESTIONS =
         """SELECT * FROM $SUGGESTIONS WHERE "sessionId" = ? AND "deletedAt" IS NULL ORDER BY "attempt", "start", "end" """
+
+    /** The same visible/tied order as [recent], with full rows for one evidence window. */
+    fun evidenceSessions(limit: Int) =
+        """SELECT * FROM $SESSIONS WHERE $VISIBLE_HISTORY ORDER BY "startedAt" DESC, "id" DESC LIMIT ${limit.coerceAtLeast(0)}"""
+
+    /** A bounded subquery avoids SQLite's bind-parameter limit for the 3,000-check corpus. */
+    fun evidenceSuggestions(limit: Int) = """
+        SELECT * FROM $SUGGESTIONS
+        WHERE "deletedAt" IS NULL AND "sessionId" IN (
+            SELECT "id" FROM $SESSIONS WHERE $VISIBLE_HISTORY
+            ORDER BY "startedAt" DESC, "id" DESC LIMIT ${limit.coerceAtLeast(0)}
+        )
+        ORDER BY "sessionId", "attempt", "start", "end"
+    """.trimIndent()
 
     /** Raw retained records for migration and internal inspection, including hidden legacy checks. */
     const val ALL_SESSIONS = """SELECT * FROM $SESSIONS WHERE "deletedAt" IS NULL ORDER BY "startedAt" """

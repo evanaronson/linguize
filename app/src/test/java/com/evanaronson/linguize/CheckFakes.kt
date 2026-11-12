@@ -1,15 +1,22 @@
 package com.evanaronson.linguize
 
 import com.evanaronson.linguize.core.Judgments
+import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Punctuation
+import com.evanaronson.linguize.core.Settled
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.WritingProfile
 import com.evanaronson.linguize.data.CheckPreferences
-import com.evanaronson.linguize.llm.CheckRequest
+import com.evanaronson.linguize.llm.GenerationRequest
 import com.evanaronson.linguize.llm.ModelAnswer
 import com.evanaronson.linguize.llm.Prompt
 import com.evanaronson.linguize.llm.Provider
 import com.evanaronson.linguize.llm.ProviderClient
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.Collections
+import java.util.Locale
 
 /** Settings as a test sets them. */
 internal class FakePreferences : CheckPreferences {
@@ -23,16 +30,43 @@ internal class FakePreferences : CheckPreferences {
 }
 
 /** A provider that answers with [answer] (or throws what it throws) and remembers every request. */
-internal class FakeClient(@Volatile var answer: suspend (CheckRequest) -> ModelAnswer) : ProviderClient {
+internal class FakeClient(@Volatile var answer: suspend (RecordedCheck) -> ModelAnswer) : ProviderClient {
     /** The key, model and request of each check, in order. */
-    val checks: MutableList<Triple<String, String, CheckRequest>> = Collections.synchronizedList(mutableListOf())
+    val checks: MutableList<Triple<String, String, RecordedCheck>> = Collections.synchronizedList(mutableListOf())
 
-    override suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer {
-        checks += Triple(key, model, request)
-        return answer(request)
+    override suspend fun generate(key: String, model: String, request: GenerationRequest): String {
+        val recorded = RecordedCheck(request)
+        checks += Triple(key, model, recorded)
+        // The fixture's raw bytes are the provider boundary. Never synthesize a successful
+        // answer from its verdict: malformed wire fixtures must reach the real parser.
+        return answer(recorded).raw
     }
 
     override suspend fun models(key: String): List<String> = listOf("m-2", "m-1")
+}
+
+/** Read-only observations of the actual wire request for card and repair behavior tests. */
+internal class RecordedCheck(val generation: GenerationRequest) {
+    private val header = generation.user.substringBefore("\nText: <text>").split('\n')
+    private fun setting(name: String): String = header.first { it.startsWith("$name: ") }.substringAfter(": ")
+    val text: String get() = generation.user.substringAfter("\nText: <text>").removeSuffix("</text>")
+    val language: Language? get() {
+        val name = setting("Language").substringBefore(" (")
+        return if (name == "auto") null else Locale.getISOLanguages().asSequence()
+            .mapNotNull(Language::forCode).first { it.name == name }
+    }
+    val punctuation: Punctuation get() = Punctuation.tokens.decode(setting("Punctuation"))!!
+    val judgments: Judgments get() = Judgments.tokens.decode(setting("Checks"))!!
+    val native: String get() = setting("Native").substringBefore(" (write meaning, assumptions and reasons in ")
+    val repair: Boolean get() = "Repair: true" in header
+    val writingProfiles: List<WritingProfile> get() = header.firstOrNull { it.startsWith("Writing profiles: ") }
+        ?.substringAfter(": ")?.let { Json.decodeFromString<List<WritingProfile>>(it) }.orEmpty()
+    val settled: List<Settled> get() = header.filter { it.startsWith("Settled: ") }.map {
+        val fields = Json.parseToJsonElement(it.substringAfter(": ")).jsonObject
+        val answer = fields.getValue("answer").jsonPrimitive.content
+        if (fields["scope"]?.jsonPrimitive?.content == "meaning") Settled.meaning(answer)
+        else Settled(fields.getValue("about").jsonPrimitive.content, answer)
+    }
 }
 
 /** A checker on fakes: [keys] are the saved keys, every provider answers through [client]. */

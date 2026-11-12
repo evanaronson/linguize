@@ -1,13 +1,13 @@
 package com.evanaronson.linguize.data
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -54,6 +54,43 @@ class ExportsTest {
         exports.clear()
         exports.prune()
         assertFalse(folder.exists())
+    }
+
+    @Test
+    fun acknowledgedClearReportsFailureAndCanRetryWithoutChangingItsScope() = runBlocking {
+        val file = write(LocalDate.of(2026, 10, 9))
+        val unrelated = File(cache.root, "other-cache").apply { writeText("keep") }
+        val blocked = File(folder, "blocked").apply { mkdir() }
+        File(blocked, "child").writeText("prevents deleting the directory")
+
+        assertFalse(exports.clearAcknowledged())
+        assertFalse(file.exists())
+        assertFalse(exports.isCurrent(file))
+        assertTrue(blocked.exists())
+        assertEquals("keep", unrelated.readText())
+
+        val newer = write(LocalDate.of(2026, 10, 10))
+        exports.clear() // Best-effort replacement/clear still succeed around an undeletable entry.
+        assertFalse(newer.exists())
+        assertTrue(blocked.exists())
+
+        assertTrue(blocked.deleteRecursively())
+        assertTrue(exports.clearAcknowledged())
+        assertTrue(folder.listFiles()!!.isEmpty())
+    }
+
+    @Test
+    fun acknowledgedClearDistinguishesMissingFolderFromUnreadableDirectory() = runBlocking {
+        assertTrue(exports.clearAcknowledged())
+        folder.writeText("unexpected file obstructing the export directory")
+
+        assertFalse(exports.clearAcknowledged())
+        assertEquals("unexpected file obstructing the export directory", folder.readText())
+        exports.clear()
+        exports.prune()
+
+        assertTrue(folder.delete())
+        assertTrue(exports.clearAcknowledged())
     }
 
     @Test
@@ -119,17 +156,15 @@ class ExportsTest {
                     finish.await()
                     it.write("private history".toByteArray())
                     true
-                }!!
+                }
             }
             started.await()
-            val clearing = async { exports.clear() }
-            yield()
+            val clearing = async(start = CoroutineStart.UNDISPATCHED) { exports.clear() }
             assertFalse("clear cannot finish before the writer", clearing.isCompleted)
             finish.complete(Unit)
-            val file = writing.await()
+            assertNull("the retired writer must not publish its file", writing.await())
             clearing.await()
-            assertFalse(file.exists())
-            assertFalse(exports.isCurrent(file))
+            assertTrue(folder.listFiles()!!.isEmpty())
         }
     }
 

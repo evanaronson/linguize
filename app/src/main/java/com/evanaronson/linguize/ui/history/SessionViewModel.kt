@@ -11,8 +11,11 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Verdict
+import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.Replayed
+import com.evanaronson.linguize.ui.tonecheck.withLanding
 import com.evanaronson.linguize.history.SessionDetail
 import com.evanaronson.linguize.history.SessionDetailResult
 import com.evanaronson.linguize.history.SessionRecord
@@ -45,6 +48,8 @@ sealed interface SessionPage {
         /** Why the last attempt failed, if it did. */
         val failure: CheckFailure.Reason?,
         val suggestions: List<SuggestionRecord> = emptyList(),
+        /** Lab Chat: the conversation a chat message was sent in; null for other sources or when it's gone. */
+        val chat: ChatThreadInfo? = null,
     ) : SessionPage {
         /** Replay validates contradictory answers; saved status survives unavailable replay. */
         val warning: Verdict.Status?
@@ -70,6 +75,8 @@ class SessionViewModel internal constructor(
     private val labels: AppLabels,
     private val appScope: CoroutineScope,
     private val retireExports: suspend () -> Unit,
+    /** Lab Chat: the conversation of a saved chat message, for "Open conversation". */
+    private val chatOf: suspend (String) -> ChatThreadInfo? = { null },
 ) : ViewModel() {
     private var id: String? = null
     private var job: Job? = null
@@ -103,8 +110,10 @@ class SessionViewModel internal constructor(
                     // Replay supplies optional read-only context. Never attach a different revision
                     // when saved rows survive a missing raw answer.
                     val sameAttempt = rows.isEmpty() || detail.decidedAttempt() == rows.first().attempt
-                    val replayed = if (sameAttempt) replay(detail, prompt()::parseVerdict) else null
-                    shown(detail, rows, replayed)
+                    // Lab, How it lands: the same raw answer's optional reading, read-only.
+                    val replayed = if (sameAttempt) replay(detail, prompt()::parseVerdict)?.withLanding(detail) else null
+                    val chat = if (detail.session.origin == Origin.Chat) runCatching { chatOf(id) }.getOrNull() else null
+                    shown(detail, rows, replayed, chat)
                 }
             }
         }
@@ -137,17 +146,18 @@ class SessionViewModel internal constructor(
     }
 
     /** [replayed] is the card the session ended with ([replay]); null when there's none to show. */
-    private fun shown(detail: SessionDetail, rows: List<SuggestionRecord>, replayed: Replayed?): SessionPage.Shown {
+    private fun shown(detail: SessionDetail, rows: List<SuggestionRecord>, replayed: Replayed?, chat: ChatThreadInfo?): SessionPage.Shown {
         val session = detail.session
         val failure = CheckFailure.Reason.tokens.decode(session.attempts.lastOrNull()?.failure)
-        return SessionPage.Shown(session, labels.of(session.hostApp), replayed?.let(::readOnlyCard), failure, rows)
+        return SessionPage.Shown(session, labels.of(session.hostApp), replayed?.let(::readOnlyCard), failure, rows, chat)
     }
 
     companion object {
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 SessionViewModel(app.history, prompt = { app.prompt }, AppLabels(app.packageManager), app.appScope,
-                    retireExports = { app.exports.clear() })
+                    retireExports = { app.exports.clear() },
+                    chatOf = { id -> app.chatStore.threads(listOf(id))[id] })
             }
         }
     }

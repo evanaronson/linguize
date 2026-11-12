@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "properties": {
+    "language": {"type": "string"},
+    "rule": {"type": "string"},
+    "your_version": {"type": "string"},
+    "examples": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "properties": {
+          "sentence": {"type": "string"},
+          "translation": {"type": "string"}
+        },
+        "required": ["sentence", "translation"],
+        "additionalProperties": false
+      }
+    },
+    "trap": {"type": "string"},
+    "quiz": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {"type": "string"},
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {"type": "string"}
+          },
+          "correct": {"type": "integer"},
+          "feedback": {"type": "string"}
+        },
+        "required": ["question", "options", "correct", "feedback"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["language", "rule", "your_version", "examples", "trap", "quiz"],
+  "additionalProperties": false
+}

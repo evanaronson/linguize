@@ -90,6 +90,32 @@ class CheckerTest {
     }
 
     @Test
+    fun aFreshCheckMustParseTheRawAnswerEvenWhenAFakeProvidesAUsableVerdict() {
+        client.answer = { ModelAnswer(QUESTION_VERDICT, "{broken") }
+
+        val failure = failure { checker.check(QUESTION, null) }
+
+        assertEquals(CheckFailure.Message.InvalidReply, failure.userMessage)
+        assertEquals("{broken", failure.raw)
+        assertEquals(1, client.checks.size)
+    }
+
+    @Test
+    fun aBaseCheckRequiresFreshScoresWhileReplayKeepsTheLegacyAnswer() = runBlocking<Unit> {
+        val legacy = """{"status":"ok","has_errors":true,"corrected":"Com estàs?","fixes":[{"from":"estas","to":"estàs","why":"Accent"}]}"""
+        client.answer = { ModelAnswer(prompt.parseVerdict(legacy), legacy) }
+        val context = checker.context()
+
+        val failure = failure { checker.check(QUESTION, null, context = context) }
+
+        assertEquals(CheckFailure.Message.InvalidReply, failure.userMessage)
+        assertEquals(legacy, failure.raw)
+        assertEquals(1, client.checks.size)
+        assertTrue(checker.reuse(QUESTION, null, legacy, context).result is CheckResult.Reviewed)
+        assertEquals(1, client.checks.size)
+    }
+
+    @Test
     fun aMissingKeyFailsBeforeAnyRequest() {
         keys.remove(Provider.Gemini)
         assertEquals(Reason.NoKey, failure { checker.check(QUESTION, null) }.reason)
@@ -136,11 +162,12 @@ class CheckerTest {
 
     @Test
     fun oversizedAnswersFromAnyProviderAreRefusedBeforeInterpretation() {
-        client.answer = { ModelAnswer(QUESTION_VERDICT.copy(corrected = "x".repeat(Prompt.MAX_REWRITE_CHARS + 1)), "oversized") }
+        val oversized = answer(QUESTION_VERDICT.copy(corrected = "x".repeat(Prompt.MAX_REWRITE_CHARS + 1)))
+        client.answer = { oversized }
         val failure = failure { checker.check(QUESTION, null) }
         assertEquals(Reason.BadResponse, failure.reason)
         assertEquals(CheckFailure.Message.ReplyTooLarge, failure.userMessage)
-        assertEquals("oversized", failure.raw)
+        assertEquals(oversized.raw, failure.raw)
     }
 
     @Test
@@ -197,7 +224,8 @@ class CheckerTest {
             val first = client.checks[0]
             val second = client.checks[1]
             assertEquals(originalKey to context.model, second.first to second.second)
-            assertEquals(first.third.copy(repair = true), second.third)
+            assertEquals(first.third.generation.copy(user = first.third.generation.user.replace(
+                "\nText: <text>", "\nRepair: true\nText: <text>")), second.third.generation)
             assertTrue(!first.third.repair)
             assertSame(context, checked.context)
             assertEquals(answer(QUESTION_VERDICT).raw, checked.raw)
@@ -207,10 +235,12 @@ class CheckerTest {
 
     @Test
     fun aRepeatedPartialAnswerStopsAfterTwoCallsAndKeepsItsRawEvidence() = runBlocking<Unit> {
-        client.answer = { answer(partial).copy(raw = if (it.repair) "second" else "first") }
+        val first = answer(partial).raw + "\n"
+        val second = answer(partial).raw + "\n\n"
+        client.answer = { answer(partial).copy(raw = if (it.repair) second else first) }
         val checked = checker.check(QUESTION, null)
         assertEquals(2, client.checks.size)
-        assertEquals("first", checked.raw)
+        assertEquals(first, checked.raw)
         assertTrue((checked.result as CheckResult.Reviewed).withheld.isNotEmpty())
     }
 
@@ -243,6 +273,18 @@ class CheckerTest {
         }
         client.answer = { answer(if (it.repair) partial.copy(corrected = "x".repeat(Prompt.MAX_REWRITE_CHARS + 1)) else partial) }
         assertEquals(answer(partial).raw, checker.check(QUESTION, null).raw)
+    }
+
+    @Test
+    fun anInvalidRawRepairCannotReplaceTheUsableFirstAnswer() = runBlocking<Unit> {
+        val first = answer(partial)
+        client.answer = { if (it.repair) ModelAnswer(QUESTION_VERDICT, "{broken repair") else first }
+
+        val checked = checker.check(QUESTION, null)
+
+        assertEquals(first.raw, checked.raw)
+        assertTrue((checked.result as CheckResult.Reviewed).withheld.isNotEmpty())
+        assertEquals(2, client.checks.size)
     }
 
     @Test

@@ -28,7 +28,7 @@ data class CheckRequest(
 /** The model's answer: [raw], the text exactly as it came back, and the [verdict] read from it. */
 data class ModelAnswer(val verdict: Verdict, val raw: String)
 
-/** One provider's API. Every client sends the same [Prompt] and returns the same [ModelAnswer]. */
+/** A provider-independent structured generation; parsing belongs to the requesting feature. */
 data class GenerationRequest(
     val system: String,
     val user: String,
@@ -42,11 +42,7 @@ internal fun Prompt.generation(request: CheckRequest) =
 
 interface ProviderClient {
     /** Raw structured answer; shared transport, with no correction interpretation or history. */
-    suspend fun generate(key: String, model: String, request: GenerationRequest): String =
-        throw UnsupportedOperationException("This client does not support generation")
-
-    /** Throws [CheckFailure]; one about an answer that couldn't be read carries it as [CheckFailure.raw]. */
-    suspend fun check(key: String, model: String, request: CheckRequest): ModelAnswer
+    suspend fun generate(key: String, model: String, request: GenerationRequest): String
 
     /** Models this key can use for checks, ordered by extracted numeric version descending, then ID ascending. Throws [CheckFailure]. */
     suspend fun models(key: String): List<String>

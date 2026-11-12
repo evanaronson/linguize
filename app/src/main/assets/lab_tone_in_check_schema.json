@@ -1,0 +1,35 @@
+{
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "overall": {
+          "type": "string",
+          "enum": ["lands_well", "could_land_differently", "could_land_badly"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "One short line in the Native language, such as \"friendly, a bit direct\"."
+        },
+        "warmth": {"type": "integer", "minimum": 1, "maximum": 5, "description": "1 cold, 3 neutral, 5 very warm."},
+        "directness": {"type": "integer", "minimum": 1, "maximum": 5, "description": "1 very indirect, 3 plain, 5 blunt."},
+        "formality": {"type": "integer", "minimum": 1, "maximum": 5, "description": "1 very casual, 3 neutral, 5 very formal."},
+        "drivers": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {"type": "string"},
+          "description": "Exact excerpts of the corrected text that most shape how it lands."
+        },
+        "notes": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {"type": "string"},
+          "description": "Short pragmatic or cultural notes in the Native language."
+        }
+      },
+      "required": ["overall", "summary", "warmth", "directness", "formality", "drivers", "notes"],
+      "additionalProperties": false
+    },
+    {"type": "null"}
+  ]
+}

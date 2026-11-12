@@ -11,6 +11,7 @@ from pathlib import Path
 import random
 import re
 import sys
+import tempfile
 import time
 import threading
 import unicodedata
@@ -26,6 +27,8 @@ REPLACEMENTS = {
     "Catalan": ("ahir", "demà", "avi", "carrer", "taula", "veure", "menjar", "però", "mai"),
     "Spanish": ("ayer", "mañana", "abuelo", "calle", "mesa", "ver", "comer", "pero", "nunca"),
 }
+PREPARATION_FIELDS = ("mode", "preparation_version", "contract_sha256", "request_sha256",
+                      "repair_contract_sha256", "repair_request_sha256", "parser")
 
 
 def digest(text):
@@ -143,11 +146,32 @@ def load_runner():
     return runner
 
 
+def prepare_requests(cases):
+    """The Kotlin boundary owns both initial and repair app requests."""
+    from prepared import prepare_cases
+    with tempfile.TemporaryDirectory(prefix="linguize-fuzz-") as folder:
+        path = Path(folder) / "requests.jsonl"
+        path.write_text("".join(json.dumps(case, ensure_ascii=False) + "\n" for case in cases), encoding="utf-8")
+        return prepare_cases(path, mode="app")
+
+
+def preparation_identity(record):
+    initial, repair = record["initial"], record["repair"]
+    return {
+        "mode": record["mode"], "preparation_version": record["version"],
+        "contract_sha256": initial["contract_sha256"], "request_sha256": initial["request_sha256"],
+        "repair_contract_sha256": repair["contract_sha256"], "repair_request_sha256": repair["request_sha256"],
+        "parser": initial["parser"], "prompt_sha256": initial["contract_sha256"],
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "eval/fuzz/generated.jsonl")
     parser.add_argument("--seed", type=int, default=20261013)
     parser.add_argument("--live", action="store_true")
+    parser.add_argument("--mode", choices=("app", "base"), default="app",
+                        help="app prepares the shipping Check in Kotlin; base explicitly resumes legacy prompt-only captures")
     parser.add_argument("--provider", choices=("gemini", "openai"), default="gemini")
     parser.add_argument("--model")
     parser.add_argument("--fallback", action="append", default=[], metavar="PROVIDER:MODEL",
@@ -166,7 +190,7 @@ def main(argv=None):
     records = generate(args.seed)
     corpus = "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(corpus)
+    args.output.write_text(corpus, encoding="utf-8")
     operations = collections.Counter(c["operation"] for r in records for c in r["mutations"])
     print(json.dumps({"passages": len(records), "requests": 200,
                       "languages": collections.Counter(r["source_language"] for r in records),
@@ -195,10 +219,27 @@ def main(argv=None):
             payload = json.load(response)
         return payload, time.monotonic() - started
     runner.post = diagnostic_post
-    system = (runner.ASSETS / "check_prompt.md").read_text()
-    schema_text = (runner.ASSETS / "check_schema.json").read_text()
-    schema = json.loads(schema_text)
-    prompt_hash = digest(system + "\0" + schema_text)
+    cases = list(requests(records))
+    expected_cases = {case["request_id"]: case for case in cases}
+    preparations = {}
+    if args.mode == "app":
+        prepared = prepare_requests(cases)
+        if len(prepared) != len(cases) or any(
+                row["case"] != case or row["mode"] != "app" or row["case_index"] != index or row["version"] != 1
+                for index, (row, case) in enumerate(zip(prepared, cases))):
+            parser.error("Prepared app requests do not match the current corpus")
+        preparations = {row["case"]["request_id"]: row for row in prepared}
+        identities = {identity: preparation_identity(row) for identity, row in preparations.items()}
+    else:
+        # Historical captures used these exact assets and this formatter. They are
+        # intentionally not labelled as a prepared shipping Check.
+        system = (runner.ASSETS / "check_prompt.md").read_text(encoding="utf-8")
+        schema_text = (runner.ASSETS / "check_schema.json").read_text(encoding="utf-8")
+        schema = json.loads(schema_text)
+        identities = {identity: {"mode": "base", "prompt_sha256": digest(system + "\0" + schema_text)}
+                      for identity in expected_cases}
+    prompt_hashes = sorted({identity["prompt_sha256"] for identity in identities.values()})
+    prompt_hash = prompt_hashes[0] if len(prompt_hashes) == 1 else None
     args.replies.parent.mkdir(parents=True, exist_ok=True)
     existing = {}
     if args.replies.exists():
@@ -206,22 +247,31 @@ def main(argv=None):
             if not line:
                 continue
             item = json.loads(line)
-            if (item["prompt_sha256"], item["corpus_sha256"]) != (prompt_hash, digest(corpus)) or \
+            identity = item["case"]["request_id"]
+            if identity not in expected_cases or item["case"] != expected_cases[identity]:
+                parser.error("Resume file case differs from the current corpus request")
+            expected = identities[identity]
+            if item.get("mode", "base") != args.mode or \
+                    (args.mode == "app" and type(item.get("preparation_version")) is not int) or any(
+                    item.get(field) != value for field, value in expected.items() if field != "mode"):
+                parser.error("Resume file belongs to a different mode, preparation contract, parser or request")
+            if args.mode == "base" and any(field in item for field in PREPARATION_FIELDS if field != "mode"):
+                parser.error("Base archive rows cannot contain app preparation metadata")
+            if item["corpus_sha256"] != digest(corpus) or \
                     (not args.repair_from and
                      (item.get("requested_provider", item["provider"]), item.get("requested_model", item["model"])) !=
                      (args.provider, model)):
                 parser.error("Resume file belongs to a different provider, model, prompt or corpus")
-            identity = item["case"]["request_id"]
             if identity in existing:
                 parser.error(f"Duplicate reply request ID: {identity}")
             existing[identity] = item
     def save():
         saved = "".join(json.dumps(existing[k], ensure_ascii=False) + "\n" for k in sorted(existing))
         temporary = args.replies.with_suffix(".tmp")
-        temporary.write_text(saved)
+        temporary.write_text(saved, encoding="utf-8")
         temporary.replace(args.replies)
 
-    pending = [case for case in requests(records) if case["request_id"] not in existing or
+    pending = [case for case in cases if case["request_id"] not in existing or
                (args.retry_errors and "error" in existing[case["request_id"]])]
     if args.repair_from:
         from fuzz_report import complete_evidence
@@ -245,6 +295,13 @@ def main(argv=None):
                 time.sleep(wait)
             next_start[0] = time.monotonic() + args.interval
 
+    def invoke(case, provider, target_model, repair=False):
+        if args.mode == "app":
+            generation = preparations[case["request_id"]]["repair" if repair else "initial"]["generation"]
+            return runner.check_prepared(provider, target_model, credentials[provider], generation)
+        return runner.PROVIDERS[provider][0](target_model, credentials[provider], system, schema,
+                                            runner.user_message({**case, "repair": True} if repair else case))
+
     def execute(case):
         if args.repair_from:
             entry = dict(existing[case["request_id"]])
@@ -253,8 +310,7 @@ def main(argv=None):
             paced_start()
             started = time.monotonic()
             try:
-                verdict, _ = runner.PROVIDERS[provider][0](target_model, credentials[provider], system, schema,
-                                                        runner.user_message({**case, "repair": True}))
+                verdict, _ = invoke(case, provider, target_model, repair=True)
                 repair["verdict"] = verdict
             except Exception as error:
                 repair["error"] = type(error).__name__
@@ -265,20 +321,19 @@ def main(argv=None):
         entry = {"case": case, "provider": args.provider, "model": model,
                  "requested_provider": args.provider, "requested_model": model,
                  "timeout_seconds": args.timeout,
-                 "prompt_sha256": prompt_hash, "corpus_sha256": digest(corpus)}
+                 **identities[case["request_id"]], "corpus_sha256": digest(corpus)}
         previous = existing.get(case["request_id"], {})
         failures = list(previous.get("failures", []))
         if "error" in previous and not failures:
             failures.append({k: previous[k] for k in ("provider", "model", "error", "http_status", "attempts") if k in previous})
         attempts = 0
         for provider, target_model in targets:
-            check = runner.PROVIDERS[provider][0]
             for attempt in range(1, args.tries + 1):
                 attempts += 1
                 paced_start()
                 try:
                     started = time.monotonic()
-                    verdict, elapsed = check(target_model, credentials[provider], system, schema, runner.user_message(case))
+                    verdict, elapsed = invoke(case, provider, target_model)
                     elapsed = time.monotonic() - started
                     entry.update(provider=provider, model=target_model, verdict=verdict,
                                  latency_seconds=elapsed, attempts=attempts, failures=failures)
@@ -318,7 +373,8 @@ def main(argv=None):
             save()
             print(f"pending {number}/{len(pending)} {item['case']['request_id']} {'ERROR' if 'error' in item else 'answered'}", flush=True)
     summary = {
-        "provider": args.provider, "model": model, "prompt_sha256": prompt_hash,
+        "provider": args.provider, "model": model, "mode": args.mode, "prompt_sha256": prompt_hash,
+        "prompt_sha256s": prompt_hashes,
         "corpus_sha256": digest(corpus), "requests": len(existing),
         "answered": sum("verdict" in item for item in existing.values()),
         "errors": sum("error" in item for item in existing.values()),

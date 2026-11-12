@@ -57,6 +57,16 @@ interface HistoryStore {
     suspend fun detail(id: String): SessionDetailResult
 
     /**
+     * The newest [limit] visible checks with their suggestions, in the same order as [page].
+     * SQLite reads the whole window in one transaction; the default paging adapter supplies
+     * no revision guarantee. Failed reads are explicit, and cancellation propagates.
+     */
+    suspend fun evidence(limit: Int): HistoryEvidenceResult = readEvidencePages(limit)
+
+    /** Process-local committed revision, without I/O; null when the store cannot provide one. */
+    fun evidenceRevision(): Long? = null
+
+    /**
      * The most recent closed session matching [key], started at or after [since], whose
      * last attempt succeeded, with its suggestions: the answer of its
      * [decided attempt][SessionDetail.decidedAttempt] can be shown again without asking the model.
@@ -132,6 +142,11 @@ internal class Forgotten {
         gone += id
         open -= id
     }
+
+    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
+    /** Whether a transferred session may be added: not one cleared or deleted in this process. */
+    @Synchronized
+    fun transferable(id: String): Boolean = id !in gone
 
     /** The sessions this process opened that are still open: not abandoned. */
     @Synchronized

@@ -7,19 +7,11 @@ import com.evanaronson.linguize.ui.settings.SettingsPage
 
 class NavigationTest {
     @Test
-    fun aCheckOpenedFromRecentReturnsDirectlyHome() {
-        val navigation = Navigation().open(Screen.Detail("recent"))
-        assertEquals(Screen.Home, navigation.parent)
-        assertEquals(Screen.Home, navigation.back().current)
-        assertNull(navigation.back().parent)
-    }
-
-    @Test
-    fun aCheckOpenedFromHistoryReturnsThroughAllThreeLevels() {
+    fun aCheckOpenedFromHistoryReturnsToHistoryThenTheStart() {
         val navigation = Navigation().open(Screen.History).open(Screen.Detail("older"))
         assertEquals(Screen.History, navigation.parent)
         assertEquals(Screen.History, navigation.back().current)
-        assertEquals(Screen.Home, navigation.back().back().current)
+        assertEquals(Screen.Notes, navigation.back().back().current)
         assertEquals(Navigation(), navigation.back().back().back())
     }
 
@@ -29,12 +21,12 @@ class NavigationTest {
         assertEquals(original, Navigation.restore(original.saved))
         val settings = original.back().open(Screen.Settings)
         assertEquals(Screen.History, Navigation.restore(settings.saved).back().current)
-        assertEquals(Screen.Home, Navigation().open(Screen.Settings).back().current)
+        assertEquals(Screen.Notes, Navigation().open(Screen.Settings).back().current)
     }
 
     @Test
     fun legacyStateAndInvalidStateHaveASafeRoot() {
-        assertEquals(Screen.Home, Navigation.restore(listOf("detail:legacy")).parent)
+        assertEquals(Screen.Notes, Navigation.restore(listOf("detail:legacy")).parent)
         assertEquals(Navigation(), Navigation.restore(listOf("unknown", "detail:")))
         assertEquals(Navigation(), Navigation.restore(null))
     }
@@ -44,12 +36,24 @@ class NavigationTest {
         val choice = Navigation().open(Screen.Settings).open(Screen.SettingsChoice(SettingsPage.Register))
         assertEquals(choice, Navigation.restore(choice.saved))
         assertEquals(Screen.Settings, choice.back().current)
-        val assumptions = Navigation().open(Screen.History).open(Screen.Detail("older"))
-            .open(Screen.DetailAssumptions("older"))
-        assertEquals(assumptions, Navigation.restore(assumptions.saved))
-        assertEquals(Screen.Detail("older"), assumptions.back().current)
-        val setup = Navigation().open(Screen.AccessibilitySetup)
+        val saved = Navigation().open(Screen.History).open(Screen.Detail("older"))
+        assertEquals(saved, Navigation.restore(saved.saved))
+        assertEquals(Screen.History, saved.back().current)
+        // The separate Assumptions page is gone; an old saved one opens its check.
+        assertEquals(Screen.Detail("older"), Screen.restore("assumptions:older"))
+        val setup = Navigation().open(Screen.Settings).open(Screen.AccessibilitySetup)
         assertEquals(setup, Navigation.restore(setup.saved))
-        assertEquals(Navigation().open(Screen.Settings), Navigation.restore(listOf("settings", "settings:unknown")))
+        assertEquals(Screen.Settings, setup.back().current)
+        assertEquals(Navigation().open(Screen.Settings), Navigation.restore(listOf("home", "settings", "settings:unknown")))
+    }
+
+    @Test
+    fun notesSavesItsNewNameAndOldNamesStillRestore() {
+        assertEquals("notes", Screen.Notes.saved)
+        assertEquals(Screen.Notes, Screen.restore("notes"))
+        // Saved while it was Write (and before that Home).
+        assertEquals(Screen.Notes, Screen.restore("home"))
+        assertEquals(Navigation().open(Screen.Progress), Navigation.restore(listOf("home", "progress")))
+        assertNull(Navigation().parent)
     }
 }

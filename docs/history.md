@@ -37,6 +37,18 @@ permission to save; switching it on again does not resume that card.
 Older unapplied records remain stored, but are hidden from History, its counts,
 detail pages and exports. No migration deletes those records.
 
+**Origins.** `menu` and `button` are checks of text from other apps; `tester` (Try
+it) is never recorded. Lab adds `chat`: a message written to the Lab Chat partner,
+checked before it was sent. It is saved through the same path as an applied check,
+with the sent text as its final text, and it stays visible even when sent unchanged
+(clean, or sent as written), because correct writing is evidence too. This needs no
+schema change (`origin` is text); the visibility rule and `Origin.keepsUnchanged` name
+the one exception. Which conversation a chat session belongs to is kept by the chat
+(`lab_chat`). History shows a chat message like any other: one row, labelled with its
+conversation, opening its saved check, which links to the conversation. Deleting a
+conversation deletes its sessions; deleting a chat message's session from History leaves
+the conversation and its message in place.
+
 One card is one session, including retries, language changes, and settings changes.
 A session keeps the original text, source package when known, timestamps, app
 version, and a random installation ID. Each completed attempt keeps its raw answer
@@ -112,7 +124,7 @@ acceptance or suggestion order.
 A session stores the latest attempt's complete `writingProfiles` list, and each
 attempt preserves its own list. An empty historical list means the preferences
 were not captured, not today's defaults. Profiles do not inherit, and editing a
-profile never rewrites old attempts. Auto Detect requests retain every profile
+profile never rewrites old attempts. Auto-detect requests retain every profile
 sent to the provider. Cache matching includes these exact request-time values.
 
 Unassessed historical rows remain null and missing profile lists remain empty.
@@ -139,7 +151,7 @@ A saved page always shows the exact checked text as Before, and the recorded
 from proposals. Legacy copy-only sessions remain stored but are hidden from History.
 Suggestions come directly from the final non-superseded revision's
 saved rows, including applied proposals. Tapping a row reveals its recorded reason
-and assessment; ignored/undone means Not applied, not rejected. Retired means
+and assessment; ignored/undone means Not accepted, not rejected. Retired means
 Covered by a rewording, which may have been applied or copied.
 When same-attempt replay has one exact structural match for a row, its explanation
 can also show the unresolved assumptions that change depends on, without clarification
@@ -176,9 +188,12 @@ including old enum names and language names, and removes old Try it sessions.
 Keep these migrations and stable tokens when reorganizing code.
 
 Recent shows five applied checks; History pages through older applied checks by
-timestamp and ID. Counts, oldest date, detail lookup, and export use the same
+timestamp and ID. The History page shows one row per session, whatever its origin, under
+day headers (Today, Yesterday, then a short date), with an optional source filter (All,
+each app among the loaded rows, Chat). Headers and the filter are built from the loaded
+rows; a filter that hides most of them keeps loading pages until the list fills or ends. Counts, oldest date, detail lookup, and export use the same
 eligibility rule: closed, undeleted, outcome `applied`, and a non-null final text
-different from the original. An empty final text is valid when the applied change
+different from the original (or, for origin `chat`, any final text). An empty final text is valid when the applied change
 deleted the original text. A later failed recheck does not exclude a session if
 the host successfully applied its retained accepted changes.
 
@@ -220,22 +235,22 @@ Cancelled requests, failures before a history session opens, unsaved decisions,
 and storage failures leave gaps. Reused answers and repeated checks are not
 independent mistakes. The data contains no full measure of the writer's writing
 or correctness, so it cannot by itself establish learning progress or an error
-rate. See [Architecture](architecture.md#evidence-first-derived-learning-later)
-for the prerequisites for deriving learning from these observations.
+rate. See [Architecture](architecture.md#evidence-and-derived-learning)
+for the current evidence paths and limits of derived learning.
 
 ## Language keys
 
 Row schema 5 (database version 6) adds explicit ISO 639-1 language codes to sessions
-and attempts. `requestedLanguage` remains the user's choice (`null` means Auto Detect).
+and attempts. `requestedLanguage` remains the user's choice (`null` means Auto-detect).
 `detectedLanguage` records a readable successful answer's detected language; it is
 `null` for failures, unclear text, or an unrecognized language. Raw answers remain
 unchanged evidence. `targetLanguage` is the explicit request when present, otherwise
 the detection. For example, requesting Spanish on Catalan text records target `es`
-and detected `ca`; Auto Detect on Catalan records target/detected `ca`.
+and detected `ca`; Auto-detect on Catalan records target/detected `ca`.
 
 The session's target and detection describe its latest completed attempt, including
 a failed retry; they never silently retain a previous attempt's detection. An open
-explicit-language session knows its target before any answer; an Auto Detect session
+explicit-language session knows its target before any answer; an Auto-detect session
 does not. Requested language and settings remain the reuse key: a detection is an
 answer, not a new input.
 

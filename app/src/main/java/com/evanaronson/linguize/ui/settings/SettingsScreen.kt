@@ -31,6 +31,7 @@ enum class SettingsPage(val token: String, @param:StringRes val title: Int) {
     Register("register", R.string.writing_register),
     Punctuation("punctuation", R.string.punctuation),
     Position("position", R.string.popup_position),
+    StartOn("start", R.string.lab_settings_start_title),
     ;
 
     companion object {
@@ -43,7 +44,19 @@ enum class SettingsPage(val token: String, @param:StringRes val title: Int) {
  * a few options opens a [SettingsPage]. The activity owns the navigation bar and insets.
  */
 @Composable
-fun SettingsScreen(settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) {
+fun SettingsScreen(
+    settings: SettingsViewModel,
+    onOpen: (SettingsPage) -> Unit,
+    appVoiceRow: @Composable () -> Unit = {},
+    /** Lab: What Linguize knows. */
+    memoryRow: @Composable () -> Unit = {},
+    /** How to set up the accessibility button, in "In other apps". */
+    onSetUpAccessibility: (() -> Unit)? = null,
+    /** Lab, lang-selector: the writer's languages, first under Writing preferences. */
+    languagesRow: @Composable () -> Unit = {},
+    /** Lab, lang-selector: About, at the end (Open-source notices). */
+    aboutSection: @Composable () -> Unit = {},
+) {
     // The saved settings load in a moment; showing defaults first would flash the wrong choices.
     val state = settings.state ?: return
     LaunchedEffect(Unit) { settings.showModels() }
@@ -52,17 +65,13 @@ fun SettingsScreen(settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) 
         ModelCard(state, settings, onOpen)
 
         SectionHeader(stringResource(R.string.checking))
-        val separator = stringResource(R.string.list_separator)
-        val menu = MenuEntry.entries.filter { it in state.menu }.map { stringResource(it.label) }.joinToString(separator)
         val suggest = stringResource(state.judgments.labelResource)
-        ListCard(
-            { ListRow(stringResource(R.string.selection_menu_label), menu, onClick = { onOpen(SettingsPage.Menu) }) },
-            { ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) },
-        )
+        ListCard({ ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) })
 
         SectionHeader(stringResource(R.string.writing_preferences))
+        languagesRow()
         val profile = state.writingProfile
-        val language = Language.forCode(state.writingLanguage) ?: Language.Catalan
+        val language = Language.forCode(state.writingProfile.language) ?: Language.Catalan
         val register = stringResource(profile.register.labelResource)
         val punctuation = stringResource(profile.punctuation.labelResource)
         ListCard(
@@ -70,13 +79,29 @@ fun SettingsScreen(settings: SettingsViewModel, onOpen: (SettingsPage) -> Unit) 
             { ListRow(stringResource(R.string.writing_register), register, onClick = { onOpen(SettingsPage.Register) }) },
             { ListRow(stringResource(R.string.punctuation), punctuation, onClick = { onOpen(SettingsPage.Punctuation) }) },
         )
+        appVoiceRow()
+        memoryRow()
 
-        SectionHeader(stringResource(R.string.popup))
+        // Where Linguize shows up outside the app: the selection menu, the accessibility button and the popup.
+        SectionHeader(stringResource(R.string.lab_home_ia_in_other_apps))
+        val separator = stringResource(R.string.list_separator)
+        val menu = MenuEntry.entries.filter { it in state.menu }.map { stringResource(it.label) }.joinToString(separator)
         val position = stringResource(state.popupPosition.labelResource)
-        ListCard({ ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) })
+        ListCard(
+            { ListRow(stringResource(R.string.selection_menu_label), menu, onClick = { onOpen(SettingsPage.Menu) }) },
+            onSetUpAccessibility?.let { open ->
+                {
+                    ListRow(stringResource(R.string.accessibility_button), stringResource(R.string.accessibility_row_summary), onClick = open)
+                }
+            },
+            { ListRow(stringResource(R.string.popup_position), position, onClick = { onOpen(SettingsPage.Position) }) },
+        )
+
+        StartOnSection(onOpen)
 
         SectionHeader(stringResource(R.string.history))
         HistorySwitch(state, settings)
+        aboutSection()
     }
 }
 
@@ -91,7 +116,7 @@ fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
         )
         SettingsPage.Model -> ModelPage(state, settings)
         SettingsPage.Menu -> ChoicePage(
-            MenuEntry.entries, { it in state.menu }, { stringResource(it.label) },
+            state.menuEntries, { it in state.menu }, { stringResource(it.label) },
             { it.language?.displayName() ?: stringResource(R.string.detect_language) },
             settings::toggleMenuEntry, note = stringResource(R.string.menu_note), multiple = true,
         )
@@ -101,7 +126,7 @@ fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
             settings::setJudgments,
         )
         SettingsPage.WritingIn -> ChoicePage(
-            Language.all, { it.code == state.writingLanguage }, { it.displayName() },
+            state.writingLanguages, { it.code == state.writingLanguage }, { it.displayName() },
             { language ->
                 stringResource(
                     if (language.code == state.writingLanguage) R.string.writing_language_current else R.string.writing_language_other,
@@ -122,5 +147,6 @@ fun SettingsChoiceScreen(settings: SettingsViewModel, page: SettingsPage) {
             PopupPosition.entries, { it == state.popupPosition }, { stringResource(it.labelResource) },
             { it.descriptionResource?.let { id -> stringResource(id) } }, settings::setPopupPosition,
         )
+        SettingsPage.StartOn -> StartOnPage()
     }
 }

@@ -26,7 +26,10 @@ ALLOWED = {
     "history": {"history", "core", "codec"},
     "data": {"data", "core", "codec", "llm", "resources"},
     "root": {"root", "core", "codec", "llm", "history", "data", "resources"},
-    "ui": {"ui", "root", "core", "codec", "llm", "history", "data", "resources"},
+    # TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. ui may import transfer only
+    # for the Settings row; remove "transfer" here and its entry below when the bridge goes.
+    "ui": {"ui", "root", "core", "codec", "llm", "history", "data", "resources", "transfer"},
+    "transfer": {"transfer", "ui", "root", "core", "codec", "llm", "history", "data", "resources"},
     "menu": {"menu", "ui", "root", "core", "codec", "llm", "history", "data", "resources"},
     "accessibility": {"accessibility", "ui", "root", "core", "codec", "llm", "history", "data", "resources"},
 }

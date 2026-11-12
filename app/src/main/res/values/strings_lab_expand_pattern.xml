@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: the shared expand-in-place pattern (Disclosure). Defaults when a section names no action of its own. -->
+    <string name="lab_expand_pattern_show">Show details</string>
+    <string name="lab_expand_pattern_hide">Hide details</string>
+    <!-- Read by screen readers after the header, as the section's state. -->
+    <string name="lab_expand_pattern_expanded">Expanded</string>
+    <string name="lab_expand_pattern_collapsed">Collapsed</string>
+</resources>

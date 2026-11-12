@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.history.SessionSummary
 import com.evanaronson.linguize.ui.forgetExports
 import kotlinx.coroutines.Dispatchers
@@ -29,8 +30,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-/** A history row: the session, and the name of the app it came from when that's known. */
-data class RecentRow(val summary: SessionSummary, val appLabel: String?)
+/**
+ * A history row: one recorded message, and the name of the app it came from when that's known.
+ * Lab Chat: [chat] is the conversation a chat message was sent in, for its source label only;
+ * every row has the same shape and opens its saved check (see HistoryList.kt).
+ */
+data class RecentRow(
+    val summary: SessionSummary,
+    val appLabel: String?,
+    val chat: com.evanaronson.linguize.core.chat.ChatThreadInfo? = null,
+) {
+    val key: String get() = summary.id
+}
 
 /**
  * The Recent preview and full History list. Deleting hides the row at once; the row is
@@ -43,6 +54,9 @@ data class RecentRow(val summary: SessionSummary, val appLabel: String?)
 class HistoryViewModel internal constructor(
     private val app: App,
     private val history: HistoryStore = app.history,
+    /** Lab Chat: the conversation of each saved chat message, for its row's label. */
+    private val threads: suspend (Collection<String>) -> Map<String, com.evanaronson.linguize.core.chat.ChatThreadInfo> =
+        { app.chatStore.threads(it) },
 ) : ViewModel() {
     private val labels = AppLabels(app.packageManager)
 
@@ -62,8 +76,7 @@ class HistoryViewModel internal constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val recent: StateFlow<List<RecentRow>?> = hidden.flatMapLatest { excluded ->
         history.recent(PREVIEW_SIZE + excluded.size).map { rows ->
-            rows.filterNot { it.id in excluded }.take(PREVIEW_SIZE)
-                .map { RecentRow(it, labels.of(it.hostApp)) }
+            withChats(rows.filterNot { it.id in excluded }.take(PREVIEW_SIZE).map { RecentRow(it, labels.of(it.hostApp)) })
         }
     }.flowOn(Dispatchers.IO)
         // No replay of a stale list once Home comes back (after Clear, say): null until read again.
@@ -75,8 +88,19 @@ class HistoryViewModel internal constructor(
 
     /** Retained while a check is open, so returning doesn't collapse the loaded list. */
     internal val historyList = combine(pager.state, hidden) { page, excluded ->
-        page.copy(rows = page.rows.filterNot { it.summary.id in excluded })
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, HistoryListState())
+        page.copy(rows = withChats(page.rows.filterNot { it.summary.id in excluded }))
+    }.flowOn(Dispatchers.IO).stateIn(viewModelScope, SharingStarted.Eagerly, HistoryListState())
+
+    /**
+     * Lab Chat: notes each chat message's conversation, for its "Chat · title" label. Rows stay
+     * one per message; a failed lookup leaves them labelled "Chat".
+     */
+    private suspend fun withChats(rows: List<RecentRow>): List<RecentRow> {
+        val ids = rows.filter { it.summary.origin == Origin.Chat }.map { it.summary.id }
+        if (ids.isEmpty()) return rows
+        val chats = runCatching { threads(ids) }.getOrDefault(emptyMap())
+        return rows.map { row -> chats[row.summary.id]?.let { row.copy(chat = it) } ?: row }
+    }
 
     fun showHistory(minimumRows: Int) = pager.start(minimumRows)
     fun loadMore() = pager.loadMore()
@@ -103,6 +127,8 @@ class HistoryViewModel internal constructor(
     /**
      * Takes [id] off the list at once and deletes it for good unless [undoDelete] comes
      * first. A deletion still pending is committed now: there's one Undo at a time.
+     * For a chat message this deletes only its History record: the conversation and the
+     * message in it stay in the chat.
      */
     fun delete(id: String) {
         commitDelete()

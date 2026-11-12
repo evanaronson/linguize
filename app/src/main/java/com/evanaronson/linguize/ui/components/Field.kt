@@ -31,7 +31,7 @@ import com.evanaronson.linguize.ui.theme.Linguize
 /**
  * The one text field: a 12dp-rounded box with a hairline outline that turns into a 2dp ink
  * border while focused. [label] sits above the box, [supporting] below it. [large] is for
- * the writer's own text (16sp, as in Check your text and Say what you meant); otherwise
+ * the writer's own text (16sp, as in Check your text and Clarify what you mean); otherwise
  * 14sp. The placeholder is upright and muted, never a floating label.
  */
 @Composable

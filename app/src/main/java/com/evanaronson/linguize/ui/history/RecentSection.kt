@@ -47,49 +47,10 @@ import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.theme.Linguize
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DecimalStyle
-
-/**
- * The checks made before, newest first. Tap one to open it; swipe it away to delete
- * it, with a moment to undo. [historyOn] is null until the setting has been read.
- */
-@Composable
-fun RecentSection(
-    history: HistoryViewModel,
-    historyOn: Boolean?,
-    snackbar: SnackbarHostState,
-    onOpen: (String) -> Unit,
-    onOpenSettings: () -> Unit,
-    onViewAll: () -> Unit,
-) {
-    val rows by history.recent.collectAsState()
-    val time = rememberTimeFormat()
-    HistoryDeletionFeedback(history, snackbar)
-
-    SectionHeader(stringResource(R.string.history)) {
-        LinguizeButton(stringResource(R.string.view_all_history), onViewAll, ButtonKind.Text)
-    }
-    val shown = rows
-    SectionCard {
-        if (historyOn == false) HistoryOff(onOpenSettings)
-        if (shown == null) return@SectionCard
-        if (shown.isEmpty()) {
-            if (historyOn == true) Quiet(stringResource(R.string.recent_empty), Modifier.padding(vertical = 14.dp))
-            return@SectionCard
-        }
-        val now = System.currentTimeMillis()
-        shown.take(HistoryViewModel.PREVIEW_SIZE).forEachIndexed { index, row ->
-            key(row.summary.id) {
-                if (index > 0 || historyOn == false) RowDivider()
-                val delete = { history.delete(row.summary.id) }
-                SwipeToDelete(onDelete = delete) {
-                    SessionRow(row, now, time, onClick = { onOpen(row.summary.id) }, onDelete = delete)
-                }
-            }
-        }
-    }
-}
 
 /** The visible list owns deletion feedback; the operation itself stays in the view model. */
 @Composable
@@ -128,8 +89,19 @@ internal fun HistoryDeletionFeedback(history: HistoryViewModel, snackbar: Snackb
     }
 }
 
+/**
+ * One recorded message, the same for every source: time, where it was written ("WhatsApp",
+ * "Chat · Weekend plans"), language; the text; what came of it. The day is in the header above.
+ */
 @Composable
-internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onClick: () -> Unit, onDelete: () -> Unit) {
+internal fun SessionRow(
+    row: RecentRow,
+    time: DateTimeFormatter,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    /** Lab, IA History: false when the list is in one language, so every row would repeat it. */
+    showLanguage: Boolean = true,
+) {
     val summary = row.summary
     val resources = LocalResources.current
     val deleteLabel = stringResource(R.string.delete_check)
@@ -151,7 +123,11 @@ internal fun SessionRow(row: RecentRow, now: Long, time: DateTimeFormatter, onCl
             .padding(vertical = 12.dp),
     ) {
         Text(
-            listOfNotNull(relativeDate(resources, summary.startedAt, now, time), row.appLabel, targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage)).joinToString(stringResource(R.string.status_separator)),
+            listOfNotNull(
+                time.format(Instant.ofEpochMilli(summary.startedAt).atZone(ZoneId.systemDefault())),
+                row.sourceLabel(resources),
+                targetLanguageLabel(resources, summary.targetLanguage, summary.requestedLanguage).takeIf { showLanguage },
+            ).joinToString(stringResource(R.string.status_separator)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

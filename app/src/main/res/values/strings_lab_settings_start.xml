@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings: the tab the app opens to. The row and its page share the title. -->
+    <string name="lab_settings_start_header">App</string>
+    <string name="lab_settings_start_title">Start on</string>
+    <string name="lab_settings_start_chat">Your current conversation, with the list one Back away</string>
+    <string name="lab_settings_start_notes">The editor and your notes</string>
+    <string name="lab_settings_start_progress">Your words, patterns and time spent</string>
+    <string name="lab_settings_start_history">Everything you wrote, newest first</string>
+    <string name="lab_settings_start_note">Back from any other tab returns here.</string>
+</resources>

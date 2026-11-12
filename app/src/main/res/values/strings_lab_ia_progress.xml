@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, Progress IA: the Progress tab's hierarchy and the pages it opens. -->
+
+    <!-- The headline: this week's time, across the tab's language. -->
+    <string name="lab_ia_progress_this_week">This week</string>
+    <plurals name="lab_ia_progress_time_caption">
+        <item quantity="one">Writing and reviewing, %1$d message</item>
+        <item quantity="other">Writing and reviewing, %1$d messages</item>
+    </plurals>
+    <string name="lab_ia_progress_time_empty">Time you spend writing and reviewing shows here.</string>
+    <!-- Screen readers: the headline card as one sentence. -->
+    <string name="lab_ia_progress_time_description">%1$s this week. %2$s</string>
+
+    <!-- Words row: what changed lately, not which language (the selector or the block says that). -->
+    <plurals name="lab_ia_progress_words">
+        <item quantity="one">%1$d word you\'ve written</item>
+        <item quantity="other">%1$d words you\'ve written</item>
+    </plurals>
+    <plurals name="lab_ia_progress_words_new">
+        <item quantity="one">%1$s, %2$d new this month</item>
+        <item quantity="other">%1$s, %2$d new this month</item>
+    </plurals>
+
+    <!-- The Phrasebook's group: things you kept, not a view of your writing. -->
+    <string name="lab_ia_progress_saved">Saved by you</string>
+
+    <!-- The pages Progress opens: one header naming the language, one explanation heading. -->
+    <string name="lab_ia_progress_all_languages">Auto-detect</string>
+    <string name="lab_ia_progress_how">How it\'s counted</string>
+
+    <!-- Summary tiles. -->
+    <string name="lab_ia_progress_stat_patterns">patterns</string>
+    <string name="lab_ia_progress_stat_checks">checks counted</string>
+    <string name="lab_ia_progress_stat_forms">forms used</string>
+    <string name="lab_ia_progress_stat_verbs">verbs</string>
+    <string name="lab_ia_progress_stat_of">%1$d of %2$d</string>
+    <string name="lab_ia_progress_since">Since %1$s</string>
+    <string name="lab_ia_progress_stat_this_week">this week</string>
+    <!-- Two parallel facts: "this week, 12 messages". -->
+    <string name="lab_ia_progress_pair">%1$s, %2$s</string>
+
+    <!-- Empty states: a title and what to do. -->
+    <string name="lab_ia_progress_conjugations_empty">No verb forms yet</string>
+    <string name="lab_ia_progress_phrasebook_empty">No phrases yet</string>
+    <string name="lab_ia_progress_phrasebook_empty_hint">Tap the star on a fix or rewording to save it.</string>
+
+</resources>

@@ -42,6 +42,8 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
+import com.evanaronson.linguize.ui.appvoice.AppVoiceChip
+import com.evanaronson.linguize.ui.appvoice.CardVoiceViewModel
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
 import com.evanaronson.linguize.ui.components.LanguagePicker
@@ -191,15 +193,18 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val window = OverlayWindow(this, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         val understand = ViewModelProvider(window, UnderstandViewModel.factory(App.of(this)))[UnderstandViewModel::class.java]
+        val voice = ViewModelProvider(window, CardVoiceViewModel.factory(App.of(this)))[CardVoiceViewModel::class.java]
+        voice.attach(check)
         var understanding by mutableStateOf(selection == null)
         var retainedCheck by mutableStateOf(false)
         var popupPosition by mutableStateOf(App.of(this).settings.popupPosition)
         var language by mutableStateOf<Language?>(null)
         // The app opens in a separate task. Hide this overlay until it returns, keeping
-        // the same view model, Meaning page, source field and accepted changes.
+        // the same view model, Meaning section, source field and accepted changes.
         val backFromApp: () -> Unit = {
             popupPosition = App.of(this).settings.popupPosition
             window.hidden = false
+            check.timing.visible(true)
             if (understanding) {
                 understand.recheckIfStale()
             } else check.recheckIfStale()
@@ -207,6 +212,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         fun openAppAt(settings: Boolean) {
             val returnToken = PopupReturn.await(backFromApp)
             window.hidden = true
+            check.timing.visible(false)
             try {
                 startActivity(PopupAppActivity.intent(this, returnToken, openSettings = settings))
             } catch (_: RuntimeException) {
@@ -275,6 +281,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
                                     language = it
                                     check.changeLanguage(it)
                                 }, modifier = Modifier.weight(1f, fill = false))
+                                AppVoiceChip(voice, onChanged = check::recheck, Modifier.weight(1f, fill = false))
                             }
                         },
                     ) { modifier ->
@@ -302,6 +309,8 @@ class LinguizeAccessibilityService : AccessibilityService() {
         }
         card = Card(window, field.takeIf { selection != null }, restore = backFromApp, discard = { end { false } })
         if (selection != null) {
+            // The source app's voice rule may pin the language; the card's picker still wins.
+            language = voice.start(field?.packageName?.toString(), language)
             check.check(selection.text, language, Origin.Button, field?.packageName?.toString())
         } else {
             captureClipboard()

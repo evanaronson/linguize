@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Beside Accept on the open change: moves to the next change without accepting this one. -->
+    <string name="lab_review_flow_skip">Skip</string>
+    <!-- Screen-reader action on the text while a change is open. -->
+    <string name="lab_review_flow_skip_action">Skip this change</string>
+    <!-- Spoken before the open change, e.g. "Change 2 of 5". Counts all of the check's changes. -->
+    <string name="lab_review_flow_position">Change %1$d of %2$d</string>
+    <!-- Position, then the change in words: "Change 2 of 5. estas becomes estàs". -->
+    <string name="lab_review_flow_spoken">%1$s. %2$s</string>
+</resources>

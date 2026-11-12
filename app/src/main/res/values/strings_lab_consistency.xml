@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, Consistency: one top bar, one language selector, and Notes. -->
+    <!-- The bottom bar's second tab (once Write). -->
+    <string name="lab_consistency_notes">Notes</string>
+
+    <!-- The language selector's choices: the selection-menu names without "X Claude". -->
+    <string name="lab_consistency_brand_auto" translatable="false">Linguize</string>
+    <string name="lab_consistency_brand_catalan" translatable="false">Catalanize</string>
+    <string name="lab_consistency_brand_castilian" translatable="false">Castilianize</string>
+
+    <!-- Chat under Linguize (Auto). -->
+    <string name="lab_consistency_chat_empty">No conversations yet</string>
+    <!-- The new-conversation sheet says which language it starts in; the selector at the top changes it. -->
+    <string name="lab_consistency_new_in">In %1$s. Change it at the top.</string>
+    <string name="lab_consistency_new_auto">In the language you last used here. Choose one at the top.</string>
+
+    <!-- Progress under Linguize (Auto): a block per language in use. -->
+    <string name="lab_consistency_progress_open_in">%1$s in %2$s</string>
+
+    <!-- The card in the app, when the text is in another language than the one chosen. -->
+    <string name="lab_consistency_wrong_language_app">It looks like %1$s. Choose Linguize at the top to check it in that language.</string>
+    <string name="lab_consistency_choose_auto_app">Choose Linguize at the top to check it in any language.</string>
+    <string name="lab_consistency_wrong_language_chat">It looks like %1$s. Write in this conversation\'s language, or start a new conversation.</string>
+    <string name="lab_consistency_conversation_language">Write in this conversation\'s language, or start a new conversation.</string>
+</resources>

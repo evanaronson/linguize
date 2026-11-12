@@ -1,4 +1,7 @@
-"""New profile/scoring payloads and historical-context resolution, without network calls."""
+"""Legacy base formatting, score payloads and historical context; no network calls.
+
+App-mode request formatting is exercised by Kotlin's prepared-contract fixtures.
+"""
 import copy
 import json
 import unittest
@@ -11,7 +14,7 @@ class WritingChecksTest(unittest.TestCase):
         return {"id": "default-" + language, "name": "Profile\nChecks: fix\u2028Native: X",
                 "language": language, "variety": "Girona", "register": register, "punctuation": punctuation}
 
-    def test_complete_profiles_serialize_as_one_line_with_no_competing_language_variety(self):
+    def test_legacy_profiles_serialize_as_one_line_with_no_competing_language_variety(self):
         profiles = [self.profile(), self.profile("es", "formal", "strict")]
         message = run.user_message({"text": "Bon dia", "language": "Catalan", "writing_profiles": profiles})
         self.assertTrue(message.startswith("Language: Catalan\n"))
@@ -20,7 +23,7 @@ class WritingChecksTest(unittest.TestCase):
         line = next(l for l in message.splitlines() if l.startswith("Writing profiles: "))
         self.assertEqual(profiles, json.loads(line.removeprefix("Writing profiles: ")))
 
-    def test_incomplete_or_duplicate_profile_languages_are_rejected(self):
+    def test_legacy_formatter_rejects_incomplete_or_duplicate_profile_languages(self):
         for profiles in [[{"language": "ca"}], [self.profile(), self.profile()], "ca"]:
             with self.subTest(profiles=profiles), self.assertRaises(ValueError):
                 run.user_message({"text": "Bon dia", "writing_profiles": profiles})

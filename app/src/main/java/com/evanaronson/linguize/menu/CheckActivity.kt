@@ -18,10 +18,13 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.core.Selection
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.llm.CheckFailure.Reason
+import com.evanaronson.linguize.ui.appvoice.AppVoiceChip
+import com.evanaronson.linguize.ui.appvoice.CardVoiceViewModel
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
-import com.evanaronson.linguize.ui.card.FloatingCard
+import com.evanaronson.linguize.ui.card.FloatingPopup
+import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.home.HomeActivity
 import com.evanaronson.linguize.ui.theme.AppTheme
@@ -33,6 +36,7 @@ import com.evanaronson.linguize.ui.theme.AppTheme
  */
 class CheckActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
+    private val voice: CardVoiceViewModel by viewModels { CardVoiceViewModel.factory(App.of(this)) }
     private var selection: Selection? = null
     private var readOnly = true
     private val canReplace: Boolean get() = !readOnly && callingActivity != null
@@ -63,6 +67,9 @@ class CheckActivity : ComponentActivity() {
         // Which menu entry was tapped decides the language: Catalanize, Castilianize, or Linguize to detect it.
         val entry = App.of(this).menu.entryFor(intent.component)
         language = if (savedInstanceState == null) entry.language else Language.forCode(savedInstanceState.getString(KEY_LANGUAGE))
+        // The calling app's voice rule (when Android names the caller) pins the language for Auto Detect.
+        voice.attach(check)
+        if (check.state == null) language = voice.start(callingPackage, language)
 
         // Any app can open this entry, so each one gets only a few checks a minute. A card already
         // limited stays limited when it's recreated, without counting again.
@@ -83,15 +90,14 @@ class CheckActivity : ComponentActivity() {
             AppTheme {
                 val state = if (limited) CardState.Failed(Reason.TooMany, getString(R.string.menu_check_not_sent)) else check.state
                 state?.let {
-                    FloatingCard(it, actions,
-                        onDismiss = ::finish,
-                        onOpenApp = ::openApp,
-                        position = popupPosition,
-                    ) {
+                    FloatingPopup(::finish, ::openApp, popupPosition, header = {
                         LanguagePicker(language, onSelect = { selected ->
                             language = selected
                             if (!limited) check.changeLanguage(selected)
                         }, modifier = Modifier.weight(1f, fill = false))
+                        AppVoiceChip(voice, onChanged = { if (!limited) check.recheck() }, Modifier.weight(1f, fill = false))
+                    }) { modifier ->
+                        ResultCard(it, actions, modifier)
                     }
                 }
             }
@@ -111,6 +117,17 @@ class CheckActivity : ComponentActivity() {
             returningFromApp = false
             check.recheckIfStale()
         }
+    }
+
+    // Lab, Time spent: the card's review time doesn't count while it's off screen.
+    override fun onStart() {
+        super.onStart()
+        check.timing.visible(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        check.timing.visible(false)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

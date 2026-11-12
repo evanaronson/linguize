@@ -36,6 +36,9 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         return
     }
 
+    // Lab, Review flow: one selection walks every change in order (see ReviewQueue.kt).
+    val flow = rememberReviewFlow(result, actions.review != null)
+
     val incomplete = result.withheld.isNotEmpty()
     if (incomplete) {
         val title = when {
@@ -55,13 +58,14 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
             (kind in result.withheld || kind == EditKind.Natural && EditKind.Fix in result.withheld)
     }.forEachIndexed { index, kind ->
         if (incomplete || index > 0) SectionDivider()
-        EditSection(kind, result, settled, actions)
+        EditSection(kind, result, settled, actions, flow.selection)
     }
 
     val review = actions.review
     if (review != null && result.revision.canUndo) {
         SectionDivider()
-        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply)
+        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel,
+            modifier = flow.finalAction)
     }
 }
 
@@ -71,10 +75,11 @@ private fun looksGoodDetail(kinds: List<EditKind>) = when {
     else -> R.string.sounds_natural
 }
 
-/** "3 changes accepted   Undo  [Apply]": Apply is the card's one filled action. */
+/** "3 changes accepted   Undo  [Replace]" (Send in the chat): the card's one filled action. */
 @Composable
-internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?, applyLabel: Int = R.string.apply,
+    modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             pluralStringResource(R.plurals.changes_accepted_count, count, count),
             style = MaterialTheme.typography.labelLarge,
@@ -82,12 +87,13 @@ internal fun AcceptedRow(count: Int, onUndo: () -> Unit, onApply: (() -> Unit)?)
             modifier = Modifier.weight(1f),
         )
         LinguizeButton(stringResource(R.string.undo), onUndo, ButtonKind.Text)
-        onApply?.let { LinguizeButton(stringResource(R.string.apply), it, ButtonKind.Filled) }
+        onApply?.let { LinguizeButton(stringResource(applyLabel), it, ButtonKind.Filled) }
     }
 }
 
 @Composable
-private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
+private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions,
+    selection: ReviewSelection? = null) {
     val revision = result.revision
     val review = actions.review
     val fix = kind == EditKind.Fix
@@ -121,6 +127,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
         onSettle = actions.onSettle,
         dotted = !fix,
         edge = Linguize.colors.proof,
+        selection = selection,
     )
     Spacer(Modifier.height(10.dp))
     if (remaining.isEmpty()) {
@@ -143,7 +150,7 @@ internal fun SectionDivider() {
 internal fun RetainedChanges(revision: Revision?, review: ReviewActions?, canApply: Boolean = false) {
     if (revision == null || !revision.canUndo) return
     SectionDivider()
-    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply })
+    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply }, applyLabel = review.applyLabel)
     else Text(
         pluralStringResource(R.plurals.changes_accepted_count, revision.acceptedCount, revision.acceptedCount),
         style = MaterialTheme.typography.labelLarge,

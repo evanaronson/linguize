@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lab_chat_saving_message">Saving message…</string>
+    <string name="lab_chat_message_save_failed">Couldn\'t save your message. Your draft is still here.</string>
+    <string name="lab_chat_reply_save_failed">Couldn\'t save the reply. Try again.</string>
+    <string name="lab_chat_saving_conversation">Saving conversation…</string>
+    <string name="lab_chat_create_failed">Couldn\'t save the new conversation. Try again.</string>
+    <string name="lab_chat_rename_failed">Couldn\'t save the conversation\'s name. Try again.</string>
+    <string name="lab_chat_delete_failed">Couldn\'t delete the conversation. Try again.</string>
+    <string name="lab_chat_load_failed">Couldn\'t load conversations. Try again.</string>
+</resources>

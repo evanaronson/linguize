@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -21,44 +22,69 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
- * The full app's navigation: the wordmark and settings at the root, a back arrow and the
- * page title on child pages. The activity owns the destination and back action. Cards
- * keep their own local drill-down navigation, including Meaning inside a popup.
+ * What the app's top bar shows. There are exactly two kinds, so every page looks the same:
+ * a root tab ([Root]: Chat, Notes, Progress, History) has the wordmark on the left and, on
+ * the right, the one language selector then the Settings gear; a page opened from a tab
+ * ([Page]) has Back and its own title (a conversation: its title, and who the partner plays
+ * under it). The bottom bar already names the tab, so a tab never repeats its name here.
+ */
+sealed interface TopBar {
+    data object Root : TopBar
+    /**
+     * [languageSelector]: the page keeps the language selector on its right (a note, whose
+     * checks follow the app's language; Lab, Notes navigation). No other page has it.
+     */
+    data class Page(val title: String, val subtitle: String? = null, val languageSelector: Boolean = false) : TopBar
+}
+
+/**
+ * The full app's navigation bar for [bar]. The activity owns the destination and back
+ * action. [languageSelector] and [onOpenSettings] are drawn only on a [TopBar.Root] (a note's
+ * page keeps the selector, see [TopBar.Page.languageSelector]); Back
+ * ([onBack], said as "Back to [backLabel]") only on a [TopBar.Page]. Cards keep their own
+ * local drill-down navigation, including Meaning inside a popup.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AppNavigation(
-    title: String?,
-    onBack: (() -> Unit)?,
+    bar: TopBar,
+    onBack: () -> Unit,
     backLabel: String,
-    onOpenSettings: (() -> Unit)?,
+    onOpenSettings: () -> Unit,
+    languageSelector: @Composable () -> Unit,
 ) {
     TopAppBar(
         title = {
-            if (title == null) {
-                Image(
+            when (bar) {
+                TopBar.Root -> Image(
                     painterResource(R.drawable.wordmark),
                     contentDescription = stringResource(R.string.app_name),
                     modifier = Modifier.height(29.dp).semantics { heading() },
                 )
-            } else {
-                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.semantics { heading() })
+                is TopBar.Page -> Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
+                    Text(bar.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge)
+                    bar.subtitle?.let {
+                        Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         },
         navigationIcon = {
-            onBack?.let { back ->
-                IconButton(onClick = back) {
+            if (bar is TopBar.Page) {
+                IconButton(onClick = onBack) {
                     Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back_to, backLabel))
                 }
             }
         },
         actions = {
-            onOpenSettings?.let { openSettings ->
-                IconButton(onClick = openSettings) {
+            if (bar == TopBar.Root) {
+                languageSelector()
+                IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
                 }
+            } else if (bar is TopBar.Page && bar.languageSelector) {
+                languageSelector()
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

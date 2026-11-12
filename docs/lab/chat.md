@@ -38,11 +38,14 @@ point forces the check, because there is no selection menu to choose it from.
 - **Sent messages** say how they were checked in a quiet line at the bubble's bottom end,
   where a messaging app puts the time: "Looks good", "Sent as written", "Corrected, 2
   changes", or "Reworded, 2 changes" when every accepted change was a rewording, not a fix.
-  Tap a corrected bubble to open its corrections under it, and tap again to close them, the
-  way a tap on a reply flips it to its translation. The corrections are History's own: what
-  you wrote under **Before**, then each change under **Suggestions** (the bubble is the
-  after), each opening its reason, Teach me and the Phrasebook star in place. One message's
-  corrections are open at a time.
+  Tap a corrected bubble to open its changes under it, and tap again to close them, the
+  way a tap on a reply flips it to its translation. They open as one compact block in the
+  card's own marks: what you typed, with every change written in place (the removed words
+  struck through, then what replaced them, underlined solid for a fix and dotted for a
+  rewording; the bubble above is the sent text), then one line per change in reading
+  order, "estas → estàs". The reasons are folded away: tap a line, or its underline in the
+  text, to open the card's explanation under that line, with the reason, Teach me and the
+  Phrasebook star. One change's reason is open at a time, and one message's changes.
 - **Translations.** Every reply comes with its translation into your own language, in the
   same answer. Tap a reply to flip it to the translation (tinted, with a short crossfade);
   tap again to flip back. "Tap to translate" shows under the latest reply until you first
@@ -101,13 +104,21 @@ point forces the check, because there is no selection menu to choose it from.
   the two can't drift apart. It cancels the check, keeps the draft, and sets `focusDraft`;
   the composer takes focus and shows the keyboard once, then clears it (`draftFocused`).
   With the keyboard up (a clarify field on the card), Back closes the keyboard first.
-- **Corrections** (`ui/chat/ChatCorrections.kt`): an adapter, not a UI. `chatSuggestionRows`
-  turns a message's accepted changes into History's `SuggestionRecord`s (Accepted, so they
-  read as History's "Accepted"), and `ChatCorrections` shows them with History's
-  `SavedBefore` and `SavedSuggestions`, with the conversation's language as the lesson
-  source and phrase origin. `checkStatus` gives the bubble's check line. The bubble's tap is
+- **Corrections** (`ui/chat/ChatCorrections.kt`): the card's pieces, not History's.
+  `readingOrder` sorts the accepted changes by place in the typed text; `changedText` (pure)
+  writes each one in place, before then after, with spacing shown as the card's ¶ and ‸
+  marks (a change overlapping an earlier one is only listed). `ChatCorrections` draws that
+  text with the card's underline (`drawChangeMark` and `lineBoxes` from `HighlightedText`,
+  `nearest` for taps), then one `Disclosure` row per change whose header is the card's
+  `ChangeLine` and whose content is the card's read-only `ExplanationPanel` (reason, Teach me
+  in the conversation's language, the Phrasebook star). Which row is open is one saveable
+  index per message, shared with the text's underlines. Screen readers hear "You wrote: …"
+  with a "Why estas becomes estàs" action per change, and each row as "estas becomes
+  estàs" with Show explanation or Hide explanation. Until this, the block reused History's
+  `SavedBefore` and `SavedSuggestions`, one heavy row per change; a message with many
+  changes became a long page inside the chat. `checkStatus` gives the bubble's check line. The bubble's tap is
   `onToggle` (corrected) or `onFlip` (reply); clean messages have no tap. The open bubble
-  gets the proof border a flipped reply has, and the corrections open with the expand
+  gets the proof border a flipped reply has, and the block opens with the expand
   pattern's motion.
 - **Saving**: the writer message must be saved in Chat before the draft is cleared,
   the check is finished, or the partner is asked to reply. A failed save keeps the

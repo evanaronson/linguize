@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -124,7 +125,7 @@ fun HighlightedText(
     val boxes = remember(layout, visible) {
         visible.map { change -> layout?.let { lineBoxes(it, change.range) }.orEmpty() }
     }
-    val tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSystemInDarkTheme()) 0.1f else 0.06f)
+    val tint = selectedChangeTint()
     val struckColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     // Links keep their identity (and keyboard focus) as the selection moves.
@@ -213,26 +214,8 @@ fun HighlightedText(
                     }
                 }
                 .drawBehind {
-                    val offset = 3.dp.toPx()
-                    val stroke = (if (dotted) 1.5.dp else 2.dp).toPx()
-                    val dots = if (dotted) PathEffect.dashPathEffect(floatArrayOf(0.01f, 2.5.dp.toPx())) else null
-                    val pad = 2.dp.toPx()
                     boxes.forEachIndexed { index, segments ->
-                        for (box in segments) {
-                            if (index == selected) {
-                                drawRoundRect(
-                                    color = tint,
-                                    topLeft = Offset(box.left - pad, box.top),
-                                    size = Size(box.right - box.left + 2 * pad, box.bottom - box.top),
-                                    cornerRadius = CornerRadius(3.dp.toPx()),
-                                )
-                            }
-                            val y = box.baseline + offset
-                            drawLine(
-                                accent, Offset(box.left, y), Offset(box.right, y), stroke,
-                                cap = if (dotted) StrokeCap.Round else StrokeCap.Butt, pathEffect = dots,
-                            )
-                        }
+                        drawChangeMark(segments, accent, dotted, selected = index == selected, tint = tint)
                     }
                 }
                 .pointerInput(visible) {
@@ -291,6 +274,37 @@ fun HighlightedText(
                 )
             }
         }
+    }
+}
+
+/** The faint tint behind the open change. */
+@Composable
+internal fun selectedChangeTint(): Color =
+    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSystemInDarkTheme()) 0.1f else 0.06f)
+
+/**
+ * One change's mark under its text [segments]: the [tint] behind it when [selected], then its
+ * underline, solid [accent] for a fix or [dotted] for a rewording. Also draws Chat's corrections.
+ */
+internal fun DrawScope.drawChangeMark(segments: List<LineBox>, accent: Color, dotted: Boolean, selected: Boolean, tint: Color) {
+    val offset = 3.dp.toPx()
+    val stroke = (if (dotted) 1.5.dp else 2.dp).toPx()
+    val dots = if (dotted) PathEffect.dashPathEffect(floatArrayOf(0.01f, 2.5.dp.toPx())) else null
+    val pad = 2.dp.toPx()
+    for (box in segments) {
+        if (selected) {
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(box.left - pad, box.top),
+                size = Size(box.right - box.left + 2 * pad, box.bottom - box.top),
+                cornerRadius = CornerRadius(3.dp.toPx()),
+            )
+        }
+        val y = box.baseline + offset
+        drawLine(
+            accent, Offset(box.left, y), Offset(box.right, y), stroke,
+            cap = if (dotted) StrokeCap.Round else StrokeCap.Butt, pathEffect = dots,
+        )
     }
 }
 

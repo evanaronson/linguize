@@ -97,8 +97,8 @@ internal const val CHECK_META_TAG = "lab_chat_check_meta"
 /**
  * One message: the writer's on the right in ink, the partner's on the left on paper. A tap on
  * a bubble shows more of it in place: a partner bubble flips to its translation (tinted, with a
- * short crossfade) and back; a corrected writer bubble opens its corrections under it, the same
- * rows History shows for a saved check, and closes them again. How the writer's message was
+ * short crossfade) and back; a corrected writer bubble opens its changes under it, marked in
+ * the typed text and listed one line each ([ChatCorrections]), and closes them again. How the writer's message was
  * checked sits at the bubble's bottom end, like a messaging app's time. The text is selectable
  * (long-press, with the system's Copy and other apps' actions); a long-press on the bubble's
  * edge opens Copy message (and Copy translation while it shows). Screen readers get the same as

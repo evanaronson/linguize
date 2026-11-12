@@ -295,6 +295,34 @@ class ChatCorrectionsTest {
         }
     }
 
+    @Test fun onlyTheWritersOwnBubbleOffersEditMessageAndOnlyBetweenTurns() {
+        var edits = 0
+        var canEdit by mutableStateOf(true)
+        show({
+            Column {
+                MessageBubble(clean, false, onToggle = {}, flipped = null, onFlip = {}, hint = false,
+                    onEdit = { edits++ }, canEdit = canEdit)
+                MessageBubble(reply, false, onToggle = {}, flipped = null, onFlip = {}, hint = false,
+                    onEdit = { error("replies are not editable") }, canEdit = canEdit)
+            }
+        }) { root, activity, flush ->
+            val label = activity.getString(R.string.lab_chat_edit_sent)
+            fun actions(description: String) = bubble(root, description).config[SemanticsActions.CustomActions].map { it.label }
+            val mine = activity.getString(R.string.lab_chat_you_said, "Bé") + ". " + activity.getString(R.string.lab_chat_looks_good)
+            val theirs = activity.getString(R.string.lab_chat_partner_said, "Què fem?")
+            assertTrue(actions(mine).contains(label))
+            assertFalse(actions(theirs).contains(label))
+            bubble(root, mine).config[SemanticsActions.CustomActions].single { it.label == label }.action()
+            assertEquals(1, edits)
+
+            // Mid-turn: no Edit action for screen readers (the menu item is dimmed).
+            canEdit = false
+            flush()
+            assertFalse(actions(mine).contains(label))
+            assertTrue(actions(mine).contains(activity.getString(R.string.lab_chat_copy)))
+        }
+    }
+
     @Test fun editMessageAndSystemBackBothGoBackToTheDraft() {
         var backs = 0
         show({ BackToDraft({ backs++ }) }) { root, activity, flush ->

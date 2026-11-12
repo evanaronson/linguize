@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -56,6 +57,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -101,8 +103,9 @@ internal const val CHECK_META_TAG = "lab_chat_check_meta"
  * the typed text and listed one line each ([ChatCorrections]), and closes them again. How the writer's message was
  * checked sits at the bubble's bottom end, like a messaging app's time. The text is selectable
  * (long-press, with the system's Copy and other apps' actions); a long-press on the bubble's
- * edge opens Copy message (and Copy translation while it shows). Screen readers get the same as
- * actions, and the corrections' state.
+ * edge opens Copy message (and Copy translation while it shows), and on the writer's own
+ * message Edit message ([onEdit]; dimmed while [canEdit] is false, mid-turn). Screen readers get
+ * the same as actions (Edit message only while it can be used), and the corrections' state.
  */
 @Composable
 internal fun MessageBubble(
@@ -113,6 +116,8 @@ internal fun MessageBubble(
     onFlip: () -> Unit,
     hint: Boolean,
     language: String? = null,
+    onEdit: (() -> Unit)? = null,
+    canEdit: Boolean = true,
 ) {
     val context = LocalContext.current
     val mine = message.fromWriter
@@ -128,6 +133,9 @@ internal fun MessageBubble(
     val spoken = listOfNotNull(said, status).joinToString(". ")
     val copyLabel = stringResource(R.string.lab_chat_copy)
     val copyTranslationLabel = stringResource(R.string.lab_chat_copy_translation)
+    val editLabel = stringResource(R.string.lab_chat_edit_sent)
+    // Only the writer's own messages can be edited.
+    val edit = onEdit?.takeIf { mine }
     // One tap per bubble, named for what it does: flip a reply, or open a corrected message.
     val tapLabel = when {
         !mine -> stringResource(if (flipped != null) R.string.lab_chat_show_original else R.string.lab_chat_show_translation)
@@ -177,6 +185,7 @@ internal fun MessageBubble(
                             if (onTap != null && tapLabel != null) CustomAccessibilityAction(tapLabel) { onTap(); true } else null,
                             CustomAccessibilityAction(copyLabel) { copy(); true },
                             shownText?.let { text -> CustomAccessibilityAction(copyTranslationLabel) { context.copyToClipboard(text); true } },
+                            edit?.takeIf { canEdit }?.let { action -> CustomAccessibilityAction(editLabel) { action(); true } },
                         )
                     }
                     // A long-press on the text selects it; one on the bubble's edge opens the menu.
@@ -215,6 +224,9 @@ internal fun MessageBubble(
                 DropdownMenuItem(text = { Text(copyLabel) }, onClick = { menu = false; copy() })
                 shownText?.let { text ->
                     DropdownMenuItem(text = { Text(copyTranslationLabel) }, onClick = { menu = false; context.copyToClipboard(text) })
+                }
+                edit?.let { action ->
+                    DropdownMenuItem(text = { Text(editLabel) }, onClick = { menu = false; action() }, enabled = canEdit)
                 }
             }
         }
@@ -300,8 +312,24 @@ internal fun ConversationSaveFailure(chat: ChatViewModel, conversationId: String
         is ConversationWriteFailure.Create -> R.string.lab_chat_create_failed
         is ConversationWriteFailure.Rename -> R.string.lab_chat_rename_failed
         is ConversationWriteFailure.Delete -> R.string.lab_chat_delete_failed
+        is ConversationWriteFailure.Rewind -> R.string.lab_chat_edit_failed
     }
     ChatSaveFailure(message, chat::retryConversationWrite)
+}
+
+/**
+ * Editing a sent message would delete later messages of the writer's too: how many checks go,
+ * and why, with Delete and Cancel. The app's confirmation dialog, as for deleting a conversation.
+ */
+@Composable
+internal fun EditConfirmationDialog(confirmation: EditConfirmation, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(pluralStringResource(R.plurals.lab_chat_edit_confirm_title, confirmation.checks, confirmation.checks)) },
+        text = { Text(stringResource(R.string.lab_chat_edit_confirm_body)) },
+        confirmButton = { LinguizeButton(stringResource(R.string.lab_chat_delete), onConfirm, ButtonKind.Destructive) },
+        dismissButton = { LinguizeButton(stringResource(R.string.lab_chat_cancel), onCancel, ButtonKind.Text) },
+    )
 }
 
 /** Where the writer types. Send checks the message first. */

@@ -46,6 +46,18 @@ point forces the check, because there is no selection menu to choose it from.
   order, "estas → estàs". The reasons are folded away: tap a line, or its underline in the
   text, to open the card's explanation under that line, with the reason, Teach me and the
   Phrasebook star. One change's reason is open at a time, and one message's changes.
+- **Edit a sent message.** A long-press on the edge of one of your own bubbles opens Copy
+  message and **Edit message**. Editing rewinds the conversation to just before that
+  message: it and everything after it (the partner's replies, and any later messages of
+  yours) leave the conversation, and its text comes back into the composer, focused, with
+  the keyboard. Send it as any new message: it is checked first, and the partner replies
+  afresh. Each of your messages that goes is deleted from History too, with its time and its
+  check. Editing the last message you sent (only replies after it) happens straight away.
+  When later messages of yours would go too, a dialog asks first: "Delete 3 checks?",
+  "Editing this message deletes it and the messages after it from the chat. Their checks are
+  deleted from History.", Delete or Cancel. Cancel changes nothing. Partner replies have no
+  Edit. While a message is being checked or reviewed, or the partner is writing, Edit
+  message is dimmed in the menu (and not offered to screen readers) until the turn ends.
 - **Translations.** Every reply comes with its translation into your own language, in the
   same answer. Tap a reply to flip it to the translation (tinted, with a short crossfade);
   tap again to flip back. "Tap to translate" shows under the latest reply until you first
@@ -56,7 +68,8 @@ point forces the check, because there is no selection menu to choose it from.
   message (and Copy translation while it shows). Screen readers hear the message and its
   check line together, and get the bubble's tap as its click action (Show translation or
   Show original on a reply; Show corrections or Hide corrections, with the state Expanded or
-  Collapsed, on a corrected message), plus Copy message and Copy translation as actions.
+  Collapsed, on a corrected message), plus Copy message and Copy translation as actions, and
+  Edit message on your own messages between turns.
 - **Language.** The app's one language selector, in the top bar of the Chat list (and the
   other three tabs), sets the current language for the whole app
   ([Language scope](language-scope.md)). Under **Linguize** (Auto, the default) the list
@@ -139,13 +152,46 @@ point forces the check, because there is no selection menu to choose it from.
   the authoritative stored thread. Store-side guards reject stale partner appends and
   renames; an automatic title updates only an eligible conversation and cannot replace
   a manual title. Failed list/thread reads preserve the current screen and offer Retry.
-- **Links.** The chat's database (`lab_chat`, version 4) notes each message's History
+- **Editing a sent message** (`ChatViewModel.edit`, `confirmEdit`, `cancelEdit`;
+  `ChatStore.rewind`). `edit` counts the writer's messages from the edited one to the end:
+  more than one sets `editConfirmation` (the dialog, `EditConfirmationDialog`, the same
+  `AlertDialog` with a destructive Delete and a text Cancel as deleting a conversation);
+  one rewinds at once. `ChatStore.rewind` deletes the message and every message after it in
+  thread order (`at`, `seq`), sets `learned_count` to 0 and queues the removed messages'
+  History session ids in `pending_rewinds`, all in one transaction, and returns what
+  remains. The view model shows that, puts the message's sent text (what the bubble
+  showed) in the composer with the cursor at the end and `focusDraft` set, and asks memory to
+  forget `chat:<id>` before draining the cleanup queue. `ChatDeletions.drain` handles a
+  rewind exactly like a deleted conversation, through the same calls: `UserMemory.forget`,
+  `HistoryStore.delete` per session, `TimeStore.deleteAcknowledged`, the exports, then also
+  resets `learned_count` (the conversation stays); failed work stays queued for the next
+  startup or Chat visit. History's delete moves its revision, so the corpus (Words,
+  Conjugations, practice targets) and Patterns drop the messages on their next read. The
+  re-sent message is a new check with a new History session and time record. A failed
+  rewind changes nothing and shows "Couldn't edit the message. Try again." with Retry
+  (`ConversationWriteFailure.Rewind`).
+  - **When.** `canEdit` is true only between turns: the composer is showing (not
+    checking, reviewing, saving or a failed save), the partner isn't writing, the
+    conversation isn't still being created and no other edit is under way. `edit` and
+    `confirmEdit` check it again. The rewind waits for any in-flight message commit and
+    stops any partner request before its transaction.
+  - **Memory.** Facts cite the conversation, not a message, so there is no telling which
+    facts came from the removed messages. The simplest honest rule: forget the conversation
+    (`forget("chat:<id>")`, which keeps facts that other sources or the writer also
+    hold) and learn it again from what remains, the next time it goes quiet or is left.
+  - **No Undo.** History deletes for good, as deleting a conversation does; the
+    confirmation is the guard when more than the edited message goes. The edited text is
+    still in the composer, so sending it unchanged gets the message back, checked again.
+  - **Time spent.** The removed messages' time records go with their History sessions.
+    The restored draft starts a new writing measurement at the next keystroke.
+- **Links.** The chat's database (`lab_chat`, version 5) notes each message's History
   session (`messages.session_id`) and each reply's translation (`messages.translation`).
   `ChatStore.threads` maps sessions to conversations; History uses it for a chat row's
   label and the saved check's Open conversation. Deleting a conversation stores its
   raw session links in `pending_deletions` in the same transaction that deletes the
   chat rows. `ChatDeletions` retries Memory, History, time and export cleanup on
-  startup and when Chat is used, retiring the work only after acknowledgement.
+  startup and when Chat is used, retiring the work only after acknowledgement. Version 5
+  adds `pending_rewinds`, one row per edited message, for the same cleanup after a rewind.
   History doesn't group rows by conversation, and its schema is unchanged.
 - **Corpus.** There is no separate chat source any more: the History-based `check` source
   covers chat messages (raw text, flagged fixes as `corrected` regardless of acceptance, rewordings not), with
@@ -173,7 +219,8 @@ point forces the check, because there is no selection menu to choose it from.
   before version 3 fall back to `Understander`, once, kept in memory.
 - **Memory**: once a conversation has new messages and has been quiet for 20 minutes, or
   the writer leaves it, Chat calls `App.userMemory.learnFrom("chat:<id>", messages)`.
-  Deleting a conversation calls `forget("chat:<id>")`.
+  Deleting a conversation calls `forget("chat:<id>")`; so does editing a sent message, which
+  also resets what was learned so the conversation is learned again from what remains.
 - **Start**: `ui/home/ChatStart.kt` makes the chat's list the navigation root when Open to
   chat is on, with `ChatThread(null)` (the current conversation) above it; the other tabs
   open above the list. `ChatListScreen` and `ChatThreadScreen` (`ui/chat/ChatScreen.kt`)
@@ -237,5 +284,11 @@ third way to finish); a swipe down on the card (hidden, and it fights the card's
 - Deleting a chat message's row in History deletes only that History session: the
   conversation and the message in it stay, and the message keeps a note of the deleted
   session that nothing reads any more.
+- Editing a sent message replaces whatever unsent text was in the composer.
+- Editing the only message you sent in a conversation leaves it with no messages of yours.
+  If you leave it without sending, it is treated like an untouched conversation: it drops
+  out of the list and goes when you next start a new one.
+- The confirmation's wording follows the [copy style](../copy-style.md): it says "Delete",
+  not "Clear", since deleting is what happens to the checks.
 - Check as I type, the inline review, Send as written and Skip were removed: the chat
   checks exactly like any other message.

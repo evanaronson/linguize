@@ -203,6 +203,8 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
                         onFlip = { chat.flip(message) },
                         hint = chat.translateHint && message.id == lastReply,
                         language = thread?.conversation?.language,
+                        onEdit = if (message.fromWriter) ({ chat.edit(message.id) }) else null,
+                        canEdit = chat.canEdit,
                     )
                 }
             }
@@ -216,6 +218,7 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
             }
         }
     }
+    chat.editConfirmation?.let { EditConfirmationDialog(it, onConfirm = chat::confirmEdit, onCancel = chat::cancelEdit) }
 }
 
 private const val CHECK_KEY = "lab_chat_check"

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab, Chat: editing a sent message (docs/lab/chat.md). -->
+    <!-- In a writer bubble's long-press menu, and its screen-reader action: takes the message back into the composer. -->
+    <string name="lab_chat_edit_sent">Edit message</string>
+    <!-- Confirmation title when editing would also delete later messages. The count includes the edited message. Always pass the count as a format argument as well as the quantity. -->
+    <plurals name="lab_chat_edit_confirm_title">
+        <item quantity="one">Delete %1$d check?</item>
+        <item quantity="other">Delete %1$d checks?</item>
+    </plurals>
+    <string name="lab_chat_edit_confirm_body">Editing this message deletes it and the messages after it from the chat. Their checks are deleted from History.</string>
+    <string name="lab_chat_edit_failed">Couldn\'t edit the message. Try again.</string>
+</resources>

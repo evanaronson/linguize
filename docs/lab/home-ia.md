@@ -99,7 +99,7 @@ returns to it.
 - **History**: the list in the current language (every language under Linguize), with a
   source dropdown above it when there is more than one source (see
   [One list of messages](history-flat.md)).
-- **Settings** (gear): AI service; Checking (What to suggest); Writing
+- **Settings** (gear): AI service; Checking (What to suggest, Type to accept); Writing
   preferences and Per-app voice; About you (What Linguize knows); **In other apps**:
   Selection menu, Accessibility button, Popup position; App (Start on); History.
 

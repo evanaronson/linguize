@@ -66,7 +66,11 @@ fun SettingsScreen(
 
         SectionHeader(stringResource(R.string.checking))
         val suggest = stringResource(state.judgments.labelResource)
-        ListCard({ ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) })
+        ListCard(
+            { ListRow(stringResource(R.string.what_to_suggest), suggest, onClick = { onOpen(SettingsPage.Suggest) }) },
+            // Lab, Type to accept: how the card's changes are accepted.
+            { TypeToAcceptSwitch() },
+        )
 
         SectionHeader(stringResource(R.string.writing_preferences))
         languagesRow()

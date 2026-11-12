@@ -288,6 +288,8 @@ fun HighlightedText(
                     rewording = dotted,
                     onSkip = selection?.onSkip?.takeIf { onReplace != null },
                     position = selection?.position?.takeIf { selection.selected == change.id },
+                    typeToAccept = selection?.takeIf { it.typeToAccept && onReplace != null }
+                        ?.let { TypeToAccept.target(replacement) }?.let { TypeTarget(change.id, it) },
                 )
             }
         }
@@ -316,6 +318,8 @@ private fun ChangeExplanation(
     onSkip: (() -> Unit)? = null,
     /** Lab, Review flow: "Change 2 of 5", spoken with the change. */
     position: String? = null,
+    /** Lab, Type to accept: what to type in place of Accept; null keeps the button. */
+    typeToAccept: TypeTarget? = null,
 ) {
     val from = change.from.visibleValue()
     val to = replacement.visibleValue()
@@ -338,6 +342,7 @@ private fun ChangeExplanation(
         context = context,
         onSkip = onSkip,
         position = position,
+        typeToAccept = typeToAccept,
         lesson = lessonTopic(change.from, replacement, change.why, LocalLessonSource.current?.language, sentence),
         phrase = phraseCandidate(change.from, replacement, change.why,
             if (rewording) EditKind.Natural else EditKind.Fix, LocalPhraseOrigin.current),

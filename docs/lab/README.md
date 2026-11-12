@@ -31,6 +31,7 @@ Settings behind the gear.
 | Everywhere | [Expand pattern](expand-pattern.md): secondary detail opens in place with one shared Disclosure; pages only for destinations | History, Chat, the card |
 | Everywhere | [Any language](language-generic.md): any ISO 639-1 language works end to end; the writer's languages are the selector's short list, with one writing profile each | Top bar; Settings; card picker |
 | Before sending | [Meaning](meaning-lands.md): what the text says and how it lands, as one section that opens in place at the card's foot | Card, History |
+| Learning over time | [Type to accept](type-to-accept.md): off by default; when on, the open change's Accept becomes a field, and typing the change exactly accepts it | Settings › Checking; the card everywhere |
 
 ## Language scope
 

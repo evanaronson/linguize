@@ -1,9 +1,7 @@
 # Linguize Lab
 
-Linguize Lab began as the experimental build on `feature/bonanza`, installed as a separate
-app, "Linguize X Claude" (`com.evanaronson.linguize.xclaude`), beside Linguize. It is now
-merged into Linguize. A temporary [transfer bridge](transfer-bridge.md) brings data over from
-Linguize X Claude, and is to be deleted once that's done.
+Linguize Lab is the set of experiments now part of Linguize. They were built and tried
+on a separate branch and merged into `main`, which is the source of truth.
 
 Each experiment has its own page in this folder. [Home and navigation](home-ia.md)
 explains where things are: a bottom bar with Chat, Notes, Progress and History, and
@@ -33,7 +31,6 @@ Settings behind the gear.
 | Everywhere | [Expand pattern](expand-pattern.md): secondary detail opens in place with one shared Disclosure; pages only for destinations | History, Chat, the card |
 | Everywhere | [Any language](language-generic.md): any ISO 639-1 language works end to end; the writer's languages are the selector's short list, with one writing profile each | Top bar; Settings; card picker |
 | Before sending | [Meaning](meaning-lands.md): what the text says and how it lands, as one section that opens in place at the card's foot | Card, History |
-| Moving to Linguize | **Temporary.** [Transfer bridge](transfer-bridge.md): Linguize pulls this app's data in once, additively, after the merge; delete it once the owner has migrated | Settings (Linguize only, while Linguize X Claude is installed) |
 
 ## Language scope
 

@@ -3,24 +3,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!--
-        TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. One fixed permission that
-        both Linguize and Linguize X Claude declare and hold. Signature level: only an app signed
-        with the same key gets it, so only the other build can read the transfer snapshot.
-    -->
-    <permission
-        android:name="com.evanaronson.linguize.permission.LAB_TRANSFER"
-        android:protectionLevel="signature" />
-    <uses-permission android:name="com.evanaronson.linguize.permission.LAB_TRANSFER" />
-
     <!-- Lets Recent name the app a check came from (package visibility, Android 11+). -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <!-- TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. The app data comes from. -->
-        <package android:name="com.evanaronson.linguize.xclaude" />
     </queries>
 
     <application
@@ -172,16 +160,5 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
-        <!--
-            TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md. A read-only snapshot
-            of this app's data for the other build, guarded by the signature permission above.
-        -->
-        <provider
-            android:name=".transfer.LabTransferProvider"
-            android:authorities="${applicationId}.labtransfer"
-            android:exported="true"
-            android:grantUriPermissions="false"
-            android:permission="com.evanaronson.linguize.permission.LAB_TRANSFER" />
     </application>
 </manifest>

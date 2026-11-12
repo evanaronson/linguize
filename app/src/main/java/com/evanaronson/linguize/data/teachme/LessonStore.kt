@@ -83,43 +83,6 @@ class LessonStore(private val file: File, private val capacity: Int = DEFAULT_CA
     @Synchronized
     fun size(): Int = entries().size
 
-    // TEMPORARY: lab transfer bridge, see docs/lab/transfer-bridge.md
-    /**
-     * Adds the lessons saved in [saved] (another install's file, as text) whose key isn't here
-     * yet, oldest first, up to [capacity]: none here is replaced or pushed out. Throws when
-     * [saved] or this store's own file can't be read, or the file can't be written.
-     */
-    @Synchronized
-    fun addIfAbsent(saved: String): LessonTransfer {
-        val incoming = json.decodeFromString<Saved>(saved).takeIf { it.version == VERSION }?.lessons
-            ?: throw IllegalArgumentException("Unknown lessons version")
-        // An unreadable file here would read as empty; adding to it would replace it.
-        if (file.exists() && json.decodeFromString<Saved>(file.readText()).version != VERSION) {
-            throw IllegalStateException("Saved lessons are in another version")
-        }
-        val entries = entries()
-        val known = entries.map { it.key }.toMutableSet()
-        var added = 0
-        var here = 0
-        var full = 0
-        val merged = entries.toMutableList()
-        for (entry in incoming.sortedBy { it.savedAt }) {
-            when {
-                entry.key in known -> here++
-                merged.size >= capacity -> full++
-                else -> { merged += entry; known += entry.key; added++ }
-            }
-        }
-        if (added > 0) {
-            writeAtomically(file, json.encodeToString(Saved.serializer(), Saved(lessons = merged)))
-            loaded = merged
-        }
-        return LessonTransfer(added, here, full)
-    }
-
-    // TEMPORARY: lab transfer bridge. What [addIfAbsent] did.
-    data class LessonTransfer(val added: Int, val here: Int, val overCapacity: Int)
-
     private fun entries(): MutableList<Entry> = loaded ?: read().toMutableList().also { loaded = it }
 
     private fun read(): List<Entry> = try {

@@ -75,7 +75,7 @@ fun LanguageIcon(option: LanguageOption?, modifier: Modifier = Modifier, size: D
 
 /**
  * What the selector calls a choice: **Linguize** for Auto (null), **Catalanize** and
- * **Castilianize** for Catalan and Spanish (the selection-menu names, without "X Claude"),
+ * **Castilianize** for Catalan and Spanish (the selection-menu names),
  * the language catalog's brand name for any other ([Languages.names]: "Gallicize"), and the
  * language's own name for a code the catalog doesn't know.
  */

@@ -51,7 +51,7 @@ Languages**: it is the same page.
   `Languages.names` in `App.onCreate` (the catalog is read on first use), so the selector, the
   card's picker, Settings' writing profiles, Progress headings, History and chat rows show
   catalog names and brands. The card's picker (popups) says "Auto-detect" for detection, as
-  copy style asks, and brand names ("Catalanize", not "Catalanize X Claude") with the same
+  copy style asks, and brand names ("Catalanize") with the same
   icons for Auto and the writer's languages.
 - **Icons at 80 % opacity.** Every language icon (flags, emblems, the speech bubble and
   Linguize's "A") is drawn at `LanguageIconAlpha` (0.8) in `ui/language/catalog/LanguageIcon.kt`,

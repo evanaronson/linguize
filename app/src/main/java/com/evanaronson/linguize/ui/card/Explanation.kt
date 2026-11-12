@@ -171,9 +171,9 @@ internal fun ExplanationPanel(
     }
 }
 
-/** "vaig poder → podré", with the old words struck through; spoken in words. */
+/** "vaig poder → podré", with the old words struck through; spoken in words. Also Chat's correction rows. */
 @Composable
-private fun ChangeLine(from: String, to: String, description: String, position: String? = null) {
+internal fun ChangeLine(from: String, to: String, description: String, position: String? = null) {
     val display = if (from.isEmpty() || to.isEmpty()) description
         else stringResource(R.string.change_replacement, from, to)
     val spoken = position?.let { stringResource(R.string.lab_review_flow_spoken, it, description) } ?: description

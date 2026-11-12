@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -81,6 +82,8 @@ internal fun ExplanationPanel(
     onSkip: (() -> Unit)? = null,
     /** Lab, Review flow: "Change 2 of 5", heard before the change. */
     position: String? = null,
+    /** Lab, Type to accept: what to type in place of Accept; null shows the Accept button. */
+    typeToAccept: TypeTarget? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -109,7 +112,16 @@ internal fun ExplanationPanel(
                 modifier = Modifier.padding(top = if (description != null) 2.dp else 0.dp))
         }
         val skip = onSkip?.takeIf { onAccept != null }
-        if (phrase != null || skip != null) {
+        if (typeToAccept != null && onAccept != null) {
+            // Lab, Type to accept: the field stands in for Accept; Skip and the star stay beside it.
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Top) {
+                key(typeToAccept.key) {
+                    TypeToAcceptField(typeToAccept.text, onAccept, Modifier.weight(1f))
+                }
+                phrase?.let { SavePhraseButton(it) }
+                skip?.let { LinguizeButton(stringResource(R.string.lab_review_flow_skip), it, ButtonKind.Text) }
+            }
+        } else if (phrase != null || skip != null) {
             Row(Modifier.align(Alignment.End).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 phrase?.let { SavePhraseButton(it) }
                 // Lab, Review flow: Skip moves on, leaving this change underlined.

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Checking: the switch's title. -->
+    <string name="lab_type_to_accept_title">Type to accept</string>
+    <!-- Settings › Checking: under the switch's title, why it exists. -->
+    <string name="lab_type_to_accept_summary">Type each change yourself to accept it, so you learn it</string>
+    <!-- On the card, the empty field that stands in for Accept. -->
+    <string name="lab_type_to_accept_placeholder">Type the change</string>
+    <!-- Screen readers: the field's label, with the exact text to type, e.g. "Type estàs to accept it". -->
+    <string name="lab_type_to_accept_label">Type %1$s to accept it</string>
+    <!-- Under the field once the typed text stops matching the change. Read out as it appears. -->
+    <string name="lab_type_to_accept_off">Not quite: check the change above</string>
+</resources>

@@ -127,4 +127,6 @@ class ReviewSelection(
     val onSkip: (() -> Unit)?,
     /** "Change 2 of 5" for the open change, for screen readers. */
     val position: String?,
+    /** Lab, Type to accept: the open change is accepted by typing it, not with a button. */
+    val typeToAccept: Boolean = false,
 )

@@ -26,7 +26,7 @@ internal class ReviewFlowUi(
  * left, bringing Replace (Send in the chat) into view.
  */
 @Composable
-internal fun rememberReviewFlow(result: CheckResult.Reviewed, canAccept: Boolean): ReviewFlowUi {
+internal fun rememberReviewFlow(result: CheckResult.Reviewed, canAccept: Boolean, typeToAccept: Boolean = false): ReviewFlowUi {
     val revision = result.revision
     val flow = remember(revision.original, revision.edits, result.kinds) { ReviewFlow(result.kinds, revision) }
     val focus = flow.focus(revision)
@@ -43,7 +43,7 @@ internal fun rememberReviewFlow(result: CheckResult.Reviewed, canAccept: Boolean
         }
     }
     return ReviewFlowUi(
-        ReviewSelection(focus.selected, flow::select, if (canAccept) flow::skip else null, position),
+        ReviewSelection(focus.selected, flow::select, if (canAccept) flow::skip else null, position, typeToAccept),
         Modifier.bringIntoViewRequester(finalAction),
     )
 }

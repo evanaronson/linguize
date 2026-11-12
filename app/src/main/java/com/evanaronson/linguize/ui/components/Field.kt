@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -52,6 +54,8 @@ fun LinguizeTextField(
     fieldModifier: Modifier = Modifier,
     /** The editable node's label; defaults to the visible label when there is one. */
     accessibleLabel: String? = label,
+    /** Reads [supporting] out as it appears or changes, for a message that follows typing. */
+    announceSupporting: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val interaction = remember { MutableInteractionSource() }
@@ -113,7 +117,9 @@ fun LinguizeTextField(
                 supporting,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isError) colors.error else colors.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .then(if (announceSupporting) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
             )
         }
     }

@@ -37,7 +37,9 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
     }
 
     // Lab, Review flow: one selection walks every change in order (see ReviewQueue.kt).
-    val flow = rememberReviewFlow(result, actions.review != null)
+    // Lab, Type to accept: when on, the open change is accepted by typing it (TypeToAccept.kt).
+    val flow = rememberReviewFlow(result, actions.review != null,
+        typeToAccept = rememberTypeToAccept(result.revision.original))
 
     val incomplete = result.withheld.isNotEmpty()
     if (incomplete) {

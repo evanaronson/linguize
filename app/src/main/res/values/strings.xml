@@ -1,11 +1,11 @@
 <resources>
-    <string name="app_name" translatable="false">Linguize X Claude</string>
+    <string name="app_name" translatable="false">Linguize</string>
     <!-- The UI language, written in English for the AI prompt. For example: Catalan. -->
     <string name="native_language">English</string>
     <!-- Text-selection menu entries: auto-detect, then one per language. -->
-    <string name="menu_auto" translatable="false">Linguize X Claude</string>
-    <string name="menu_catalan" translatable="false">Catalanize X Claude</string>
-    <string name="menu_castilian" translatable="false">Castilianize X Claude</string>
+    <string name="menu_auto" translatable="false">Linguize</string>
+    <string name="menu_catalan" translatable="false">Catalanize</string>
+    <string name="menu_castilian" translatable="false">Castilianize</string>
     <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 
 

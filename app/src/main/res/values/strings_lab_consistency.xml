@@ -4,7 +4,7 @@
     <!-- The bottom bar's second tab (once Write). -->
     <string name="lab_consistency_notes">Notes</string>
 
-    <!-- The language selector's choices: the selection-menu names without "X Claude". -->
+    <!-- The language selector's choices: the selection-menu names. -->
     <string name="lab_consistency_brand_auto" translatable="false">Linguize</string>
     <string name="lab_consistency_brand_catalan" translatable="false">Catalanize</string>
     <string name="lab_consistency_brand_castilian" translatable="false">Castilianize</string>

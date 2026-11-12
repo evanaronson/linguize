@@ -13,8 +13,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        // Linguize X Claude: a separate app with its own data, installed beside Linguize.
-        applicationId = "com.evanaronson.linguize.xclaude"
+        applicationId = "com.evanaronson.linguize"
         // Galaxy S21 runs Android 15; nothing older needs supporting.
         minSdk = 30
         targetSdk = 36

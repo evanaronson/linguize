@@ -1,10 +1,9 @@
 # Linguize Lab
 
-Linguize Lab is the experimental build on `feature/bonanza`. It installs as a
-separate app, "Linguize X Claude" (`com.evanaronson.linguize.xclaude`), beside
-Linguize. Android gives each app its own private storage, so Lab never reads,
-migrates or deletes Linguize's history, settings or encrypted API keys. Removing
-Lab removes only Lab's data. `main` is unchanged.
+Linguize Lab began as the experimental build on `feature/bonanza`, installed as a separate
+app, "Linguize X Claude" (`com.evanaronson.linguize.xclaude`), beside Linguize. It is now
+merged into Linguize. A temporary [transfer bridge](transfer-bridge.md) brings data over from
+Linguize X Claude, and is to be deleted once that's done.
 
 Each experiment has its own page in this folder. [Home and navigation](home-ia.md)
 explains where things are: a bottom bar with Chat, Notes, Progress and History, and

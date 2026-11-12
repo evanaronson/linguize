@@ -7,6 +7,31 @@ import org.junit.Test
 
 /** Edge cases in turning the model's texts into edits, each one a bug that was found and fixed. */
 class EditsTest {
+    /**
+     * Two separate reports, "adaptar" -> "adaptar-se" and "en moment" -> "al moment", align as
+     * one change ("adaptar en" -> "adaptar-se al"). Every fix used to be withheld, the unrelated
+     * ones too; now the pair is one fix and the rest stay separate.
+     */
+    @Test
+    fun reportsDividingOneAlignedChangeBecomeOneFixAndKeepTheOthers() {
+        val original = "Els dues. És millor adaptar en moment. Ho he escrit saps"
+        val corrected = "Les dues. És millor adaptar-se al moment. Ho he escrit, saps?"
+        val result = interpret(original, Verdict(Verdict.Status.Ok, hasErrors = true, corrected = corrected, fixes = listOf(
+            VerdictChange("Els", "Les", "Feminine article"),
+            VerdictChange("adaptar", "adaptar-se", "Pronominal verb"),
+            VerdictChange("en moment", "al moment", "Set phrase"),
+            VerdictChange("escrit saps", "escrit, saps?", "Tag question"),
+        ))) as CheckResult.Reviewed
+        assertTrue(result.withheld.isEmpty())
+        val edits = result.revision.edits.map { it.from to it.replacement }
+        assertTrue(("Els" to "Les") in edits)
+        val joined = result.revision.edits.single { it.replacement.contains("adaptar-se") }
+        assertEquals("adaptar en", joined.from)
+        assertEquals("adaptar-se al", joined.replacement)
+        assertEquals("Pronominal verb; Set phrase", joined.why)
+        assertEquals(corrected, render(original, result.revision.edits).text)
+    }
+
     @Test
     fun adjacentContractionAndVerbReportsBecomeOneCompleteFix() {
         val original = "Pues... potser haurem de experimentat viure com abans"

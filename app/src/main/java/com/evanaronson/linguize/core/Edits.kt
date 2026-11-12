@@ -14,7 +14,8 @@ internal object Edits {
                 cuts(corrected, span.targetStart, span.targetEnd, part.targetStart, part.targetEnd)
         }
         val declared = (located(original, corrected, reported)
-            ?: located(original, corrected, reported, joinWords = true))?.takeIf { it.all(::ownsComponents) }
+            ?: located(original, corrected, reported, joinWords = true))
+            ?.let { united(original, corrected, it, components) }?.takeIf { it.all(::ownsComponents) }
             ?.map { span -> trimUnchangedContext(span).takeIf(::ownsComponents) ?: span }
             ?.takeIf { spans ->
                 val sourceSentences = Sentences.ranges(original)
@@ -74,6 +75,45 @@ internal object Edits {
         while (left < right && text[left].isWhitespace()) left++
         while (right > left && text[right - 1].isWhitespace()) right--
         return left < start && start < right || left < end && end < right
+    }
+
+    /**
+     * Neighbouring reports can divide one mechanical component between them: "adaptar" ->
+     * "adaptar-se" next to "en moment" -> "al moment" aligns as one change, "adaptar en" ->
+     * "adaptar-se al". Each report is a real decision, so offer their union as one edit
+     * rather than rejecting the whole answer. Only reports that touch the same component
+     * are joined, with the unchanged text between them, within one sentence; nothing is
+     * guessed or extended.
+     */
+    private fun united(original: String, corrected: String, spans: List<Span>, components: List<Span>): List<Span> {
+        var merged = spans.sortedBy { it.start }
+        while (true) {
+            val part = components.firstOrNull { part ->
+                merged.any { cuts(original, it.start, it.end, part.start, part.end) ||
+                    cuts(corrected, it.targetStart, it.targetEnd, part.targetStart, part.targetEnd) }
+            } ?: return merged
+            fun touches(span: Span) = span.start < part.end && part.start < span.end ||
+                span.targetStart < part.targetEnd && part.targetStart < span.targetEnd
+            val first = merged.indexOfFirst(::touches)
+            val last = merged.indexOfLast(::touches)
+            // A single report cutting a component isn't a division between reports.
+            if (first < 0 || first == last) return merged
+            val group = merged.subList(first, last + 1)
+            val start = group.first().start
+            val end = group.last().end
+            val targetStart = group.first().targetStart
+            val targetEnd = group.last().targetEnd
+            // Joining stays within a sentence: a union that adds or removes a sentence stop
+            // would merge decisions about different sentences, so the answer stays withheld.
+            if (sentenceStops(original.substring(start, end)).isNotEmpty() ||
+                sentenceStops(corrected.substring(targetStart, targetEnd)).isNotEmpty()) return merged
+            val union = Span(start, end, original.substring(start, end), corrected.substring(targetStart, targetEnd),
+                why = group.mapNotNull { it.why }.distinct().joinToString("; ").ifEmpty { null },
+                targetStart = targetStart, targetEnd = targetEnd,
+                // No single report's rating assesses the combined decision.
+                assumptionIndices = group.flatMap { it.assumptionIndices }.distinct())
+            merged = merged.subList(0, first) + union + merged.subList(last + 1, merged.size)
+        }
     }
 
     /** Split mechanical repairs, keeping a sentence stop with its required initial case. */

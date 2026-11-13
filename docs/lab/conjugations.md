@@ -123,6 +123,27 @@ four genders and numbers.
   as it is.
 - **Unknown verbs**: if a word isn't in the table, regular endings of 4+ letters on a stem of
   3+ are guessed ("programaron" → programar) and marked `guessed`.
+- **A guess needs evidence the verb exists.** An ending alone isn't enough: Catalan
+  "maneres" ends like "perderes" (simple past, tu) but is the plural of "manera"; there is
+  no verb "manre". The same goes for many feminine plurals (-eres, -ares, -ires, -ries in
+  Catalan; -aras, -amos, -ías in Spanish). `App.morphology` is given the bundled frequency
+  lists (`BundledDecks.verbEvidence`, passed in as plain `VerbEvidence` data), and keeps a
+  guessed verb only when the list
+  - tags its infinitive as a verb (Spanish), or lists the infinitive as a word form, or
+  - lists another regular form of it that couldn't be a noun: not the word itself, not a
+    form that looks plural, not the word's own singular. "trigaran" is evidence for
+    "trigarem"; "maneres" and "manera" are not evidence for "manre".
+
+  Otherwise the guessed noun or adjective reading stands alone. Known (lexicon) readings
+  are never filtered. A `Morphology` built without a list (tests) keeps a guessed verb only
+  when no guessed noun competes for the word ("programaron" stays a verb, "maneres" doesn't).
+  Measured on the bundled lists: of the 95 frequent Catalan forms read only by guessing
+  with a verb reading, 42 were nouns or adjectives and 7 real verbs under a wrong
+  infinitive; the rule drops 41 of the 42 and 2 of the 7, and keeps 38 of the 46 real verbs
+  (losing 8 whose infinitive and other non-plural forms aren't in the list). Spanish nouns
+  and adjectives in the list that got a guessed verb went from 38 to 2 (batería, baterías:
+  "bater" is listed), and every listed form of a verb outside the lexicon that was read as
+  that verb still is.
 - **Nouns and adjectives**: about 150 common adjectives per language are inflected into the
   table (buenas → bueno, grogues → groc). Other words that look plural fold to a singular by
   rule (ciudades → ciudad, canciones → canción, cases → casa, cançons → cançó, pares → pare).
@@ -143,7 +164,8 @@ four genders and numbers.
   plurals `Pos.Noun`; -mente adverbs (and Catalan -ment ones built on a feminine adjective)
   are their own lemma, `Pos.Adverb`.
 - Known readings win over guesses. A guessed verb counts only as a finite form ("comando"
-  is not taken as a gerund of "comar").
+  is not taken as a gerund of "comar"), and only when the frequency list attests the verb
+  (see Morphology): "maneres" is manera/n, not also a verb "manre".
 - Words that are verbs on paper but nearly always something else ("como", "para", "casa")
   drop the verb reading; common nouns that are also verb forms ("trabajo", "dona") keep both.
 - A word nothing is known about is itself, `Pos.Unknown`.
@@ -189,6 +211,11 @@ four genders and numbers.
 - Verbs outside the lexicon are only guessed from long regular endings; irregular verbs
   that aren't listed are missed. Voseo (tenés) and the future subjunctive (hablare) are not
   generated.
+- A guessed verb counts only if the bundled frequency list attests it (the top 5,000
+  Spanish lemmas, the top 15,000 Catalan forms). Rarer regular verbs ("chatear" when the
+  list doesn't have it) aren't counted; a word that is both a listed verb's form and a
+  plural noun ("baterías" from "bater") keeps both readings. The guess can still pick the
+  wrong infinitive for a real verb ("mereixo" read as "merir", not merèixer).
 - Spanish accents matter: "se" is a pronoun, not "sé". Text with missing accents may not be
   counted, or be read as another form.
 - Words with no language in the corpus are skipped; the analyser doesn't detect language.
@@ -203,6 +230,10 @@ four genders and numbers.
   guessing, adjective and plural folding.
 - `core/morphology/MorphologyLemmatizerTest`: lexemes, homographs, function words, -ment
   adverbs, guesses and the extra table.
+- `core/morphology/GuessedVerbEvidenceTest` (a small made-up list, and no list) and
+  `data/vocabgaps/BundledVerbEvidenceTest` (the bundled lists): feminine plurals in
+  -eres/-ares/-ires and Spanish -aras/-amos are nouns, attested unknown verbs are still
+  guessed, known readings are unchanged, and the conjugation map lists no "manre".
 - `core/morphology/VocabularyListCrossCheckTest` and `CatalanFormListCoverageTest`: compare
   with an external frequency list when one is present on the machine (skipped otherwise).
   Against the Spanish list, 99% of the listed forms of known verbs analyse to the right verb;

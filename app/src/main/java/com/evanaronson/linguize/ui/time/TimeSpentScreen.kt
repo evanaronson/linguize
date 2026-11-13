@@ -135,6 +135,7 @@ fun TimeSpentScreen(historyOn: Boolean?, language: String? = null) {
                 stringResource(R.string.lab_time_spent_how_writing),
                 stringResource(R.string.lab_time_spent_how_review),
                 stringResource(R.string.lab_time_spent_how_estimate),
+                stringResource(R.string.lab_time_spent_how_averages),
                 stringResource(R.string.lab_time_spent_how_limits),
             ),
         )
@@ -150,7 +151,7 @@ private fun Report(report: TimeReport) {
     SectionHeader(stringResource(R.string.lab_time_spent_averages))
     val notYet = stringResource(R.string.lab_time_spent_not_yet)
     ListCard(
-        { ListRow(stringResource(R.string.lab_time_spent_per_message), report.allTime.perMessageMs?.let { duration(it) } ?: notYet) },
+        { ListRow(stringResource(R.string.lab_time_spent_per_message), report.msPerMessage?.let { duration(it) } ?: notYet) },
         { ListRow(stringResource(R.string.lab_time_spent_per_word), report.msPerWord?.let { perWord(it) } ?: notYet) },
         { ListRow(stringResource(R.string.lab_time_spent_per_change), report.msPerChange?.let { duration(it) } ?: notYet) },
     )
@@ -277,12 +278,13 @@ private fun basisLabel(basis: EstimateBasis): String = stringResource(
     },
 )
 
-/** "45 s", "12 min", "2 h 5 min". */
+/** "45 s", "12 min", "2 h 5 min"; [precise] keeps the seconds under an hour: "1 min 20 s". */
 @Composable
-internal fun duration(ms: Long): String {
-    val parts = DurationParts.of(ms)
+internal fun duration(ms: Long, precise: Boolean = false): String {
+    val parts = if (precise) DurationParts.precise(ms) else DurationParts.of(ms)
     return when {
         parts.hours > 0 -> stringResource(R.string.lab_time_spent_hours, parts.hours, parts.minutes)
+        parts.minutes > 0 && parts.seconds > 0 -> stringResource(R.string.lab_time_spent_minutes_seconds, parts.minutes, parts.seconds)
         parts.minutes > 0 -> stringResource(R.string.lab_time_spent_minutes, parts.minutes)
         else -> stringResource(R.string.lab_time_spent_seconds, parts.seconds)
     }
@@ -305,6 +307,13 @@ internal data class DurationParts(val hours: Int, val minutes: Int, val seconds:
             if (clamped < 60_000L) return DurationParts(0, 0, ((clamped + 500) / 1000).toInt().coerceAtMost(59))
             val totalMinutes = ((clamped + 30_000L) / 60_000L).toInt()
             return DurationParts(totalMinutes / 60, totalMinutes % 60, 0)
+        }
+
+        /** Like [of], but minutes and seconds under an hour: one message's time, "1 min 20 s". */
+        fun precise(ms: Long): DurationParts {
+            val totalSeconds = (ms.coerceAtLeast(0L) + 500L) / 1000L
+            if (totalSeconds >= 3_600L) return of(ms)
+            return DurationParts(0, (totalSeconds / 60).toInt(), (totalSeconds % 60).toInt())
         }
     }
 }

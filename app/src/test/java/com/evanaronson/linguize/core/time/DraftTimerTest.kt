@@ -47,6 +47,15 @@ class DraftTimerTest {
         assertEquals(2_000 + ActiveTimer.WRITING_IDLE_CAP_MS, draft.writingMs())
     }
 
+    @Test fun aFiveMinutePauseBetweenKeystrokesCountsAsThirtySeconds() {
+        assertEquals(30_000L, ActiveTimer.WRITING_IDLE_CAP_MS)
+        draft.typed("H")
+        now += 5 * 60_000
+        draft.typed("Ho")
+        now += 1_000
+        assertEquals(DraftTiming(31_000, 0), draft.sent())
+    }
+
     @Test fun resetDropsTheDraft() {
         draft.typed("H")
         now += 3_000

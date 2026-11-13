@@ -20,9 +20,6 @@ data class TimeTotals(
     val measuredMs: Long get() = measuredWritingMs + reviewMs
     val isEmpty: Boolean get() = messages == 0
 
-    /** Average writing and review per message; null with no messages. */
-    val perMessageMs: Long? get() = if (messages == 0) null else totalMs / messages
-
     operator fun plus(other: TimeTotals) = TimeTotals(
         messages + other.messages,
         measuredWritingMs + other.measuredWritingMs,
@@ -47,10 +44,14 @@ data class LanguageTime(
 /**
  * Lab, Time spent: everything the Time page shows, from the stored measurements. Pure.
  *
- * - **Time per message**: writing (measured or estimated) plus review, over messages.
- * - **Seconds per word**: measured chat writing time over its words. Nothing estimated enters it.
- * - **Time per change**: review time over changes offered, counting only messages whose card
- *   offered at least one change (a clean message has nothing to review per change).
+ * Totals are true sums. The averages are medians ([Median]), so one unusually slow message
+ * (left open within the idle caps) barely moves them:
+ * - **Time per message**: the median of each message's writing (measured or estimated) plus review.
+ * - **Seconds per word**: each measured chat message's writing time per word, as the
+ *   word-weighted median. Nothing estimated enters it.
+ * - **Time per change**: each message's review time per change offered, as the change-weighted
+ *   median, counting only messages whose card offered at least one change (a clean message has
+ *   nothing to review per change).
  * - **Weeks**: the last [WEEKS] calendar weeks, Monday first, in the phone's time zone.
  */
 data class TimeReport(
@@ -58,9 +59,11 @@ data class TimeReport(
     val thisWeek: TimeTotals,
     val weeks: List<WeekTime>,
     val languages: List<LanguageTime>,
-    /** Measured chat writing, ms per word; null with no measured words. */
+    /** Median writing plus review per message; null with no messages. */
+    val msPerMessage: Long?,
+    /** Measured chat writing, ms per word (word-weighted median); null with no measured words. */
     val msPerWord: Long?,
-    /** Review time per change offered; null when no card offered a change. */
+    /** Review time per change offered (change-weighted median); null when no card offered a change. */
     val msPerChange: Long?,
     /** Changes offered and accepted, for the explanation. */
     val changesShown: Int,
@@ -94,26 +97,24 @@ data class TimeReport(
                     LanguageTime(language, totals(group), msPerWord(group), estimator.speed(language).second)
                 }
                 .sortedByDescending { it.totals.totalMs }
-            val reviewed = records.filter { it.changesShown > 0 }
-            val shown = reviewed.sumOf { it.changesShown }
+            val shown = records.sumOf { it.changesShown }
             return TimeReport(
                 allTime = totals(records),
                 thisWeek = totals(byWeek[thisMonday].orEmpty()),
                 weeks = weeks,
                 languages = languages,
+                msPerMessage = Median.of(records.map { it.totals(estimator).totalMs }),
                 msPerWord = msPerWord(records),
-                msPerChange = if (shown == 0) null else reviewed.sumOf { it.reviewMs } / shown,
+                msPerChange = Median.rate(records, { it.reviewMs }, { it.changesShown }),
                 changesShown = shown,
                 changesAccepted = records.sumOf { it.changesAccepted },
                 defaultBasis = estimator.speed(null).second,
             )
         }
 
-        private fun msPerWord(records: List<TimeRecord>): Long? {
-            val measured = records.filter { it.writingMs != null }
-            val words = measured.sumOf { it.words }
-            return if (words == 0) null else measured.sumOf { it.writingMs!! } / words
-        }
+        /** Measured chat writing only: each message's ms per word, word-weighted median. */
+        private fun msPerWord(records: List<TimeRecord>): Long? =
+            Median.rate(records.filter { it.writingMs != null }, { it.writingMs!! }, { it.words })
 
         private fun weekOf(at: Long, zone: ZoneId): LocalDate =
             Instant.ofEpochMilli(at).atZone(zone).toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

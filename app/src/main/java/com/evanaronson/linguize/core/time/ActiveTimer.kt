@@ -82,8 +82,8 @@ class ActiveTimer(
     private fun gap(): Long = (clock() - lastMark).coerceIn(0L, idleCapMs)
 
     companion object {
-        /** A pause between keystrokes longer than this counts as this long. */
-        const val WRITING_IDLE_CAP_MS = 60_000L
+        /** A pause between keystrokes longer than this counts as this long (60 s before rules version 2). */
+        const val WRITING_IDLE_CAP_MS = 30_000L
 
         /** A stretch on the card with nothing changing longer than this counts as this long. */
         const val REVIEW_IDLE_CAP_MS = 120_000L

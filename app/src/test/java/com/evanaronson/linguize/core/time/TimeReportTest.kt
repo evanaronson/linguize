@@ -63,7 +63,7 @@ class TimeReportTest {
         assertTrue(report.isEmpty)
         assertNull(report.msPerWord)
         assertNull(report.msPerChange)
-        assertNull(report.allTime.perMessageMs)
+        assertNull(report.msPerMessage)
         assertEquals(TimeReport.WEEKS, report.weeks.size)
         assertEquals(EstimateBasis.Default, report.defaultBasis)
     }
@@ -81,11 +81,13 @@ class TimeReportTest {
         assertEquals(30_000L, all.reviewMs)
         assertEquals(1, all.estimatedMessages)
         assertEquals(70_000L + 20_000L, all.totalMs)
-        assertEquals(45_000L, all.perMessageMs)
+        // The median of 60 s and 30 s.
+        assertEquals(45_000L, report.msPerMessage)
         // Seconds per word come from measured writing only.
         assertEquals(4_000L, report.msPerWord)
-        // Review time per change offered, over cards that offered any.
-        assertEquals(6_000L, report.msPerChange)
+        // Review time per change offered, over cards that offered any: 10 s a change over 2
+        // changes and 3.3 s over 3, change-weighted median.
+        assertEquals(3_333L, report.msPerChange)
         assertEquals(5, report.changesShown)
         assertEquals(2, report.changesAccepted)
     }

@@ -61,6 +61,7 @@ import com.evanaronson.linguize.ui.teachme.LocalLessonSource
 import com.evanaronson.linguize.ui.teachme.lessonTopic
 import com.evanaronson.linguize.ui.teachme.sentenceAround
 import com.evanaronson.linguize.ui.theme.Linguize
+import com.evanaronson.linguize.ui.time.messageTimeLine
 
 /** Marks the block a corrected bubble opens, for tests of its size. */
 internal const val CHANGES_TAG = "lab_chat_changes"
@@ -169,7 +170,22 @@ internal fun ChatCorrections(message: ChatMessage, language: String?, modifier: 
                 }
             }
         }
+        // Lab, Time spent: the message's time, last and quiet; nothing when none was recorded.
+        messageTimeLine(message.sessionId)?.let { time ->
+            RowDivider()
+            MessageTimeText(time, Modifier.padding(top = 8.dp, bottom = 10.dp))
+        }
     }
+}
+
+/** Marks a message's time line, for tests. */
+internal const val MESSAGE_TIME_TAG = "lab_chat_message_time"
+
+/** One message's time ([messageTimeLine]), in quiet type. */
+@Composable
+internal fun MessageTimeText(time: String, modifier: Modifier = Modifier) {
+    Text(time, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.semantics { testTag = MESSAGE_TIME_TAG })
 }
 
 /** The typed text with its changes marked; a tap on one opens its row. */

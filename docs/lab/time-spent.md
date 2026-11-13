@@ -25,7 +25,9 @@ from what they already do, not a timer they have to start.
   clarify), not while waiting for the model or looking at a failure: waiting isn't language
   work.
 - **Writing in other apps can't be seen**, so it's estimated, and always labelled so. The
-  estimate is the message's words times the writer's own chat speed: in that language once
+  estimate is the message's words times the writer's own chat speed (the word-weighted median
+  of each measured message's seconds per word, so one slow message doesn't slow every
+  estimate; estimator version 2, before which it was total time over total words): in that language once
   there are 5 measured messages of at least 3 words (30 words in all), else all languages
   pooled (same thresholds), else a typical 4 s a word (about 15 words a minute, a careful
   writer composing on a phone in a second language). One- and two-word chat replies don't
@@ -37,9 +39,11 @@ from what they already do, not a timer they have to start.
 
 ### Active-time rules
 
-- **Idle cap.** A pause between keystrokes counts at most 60 s; a card with nothing changing
+- **Idle cap.** A pause between keystrokes counts at most 30 s; a card with nothing changing
   (accepting, undoing, answering) counts at most 2 minutes. A draft or card left open stops
-  costing time.
+  costing time. The writing cap was 60 s until rules version 2 (`TimeRecord.RULES_VERSION`);
+  each row keeps the version it was recorded with, and times already recorded under the 60 s
+  cap are not recomputed.
 - **Off screen.** Nothing counts while the chat isn't on screen (another tab, the app in the
   background, screen off: `onStop`), while the selection-menu popup is stopped, or while the
   accessibility popup is hidden behind the app it opened.
@@ -57,14 +61,28 @@ from what they already do, not a timer they have to start.
 
 ### Metrics
 
+Totals are true sums: every message counts in full, however long it took. The averages are
+medians, so one unusually slow message (a phone put down mid-draft, still within the idle
+caps, can take ten times the usual) barely moves them. A mean of ten messages moves by a tenth
+of the outlier; a median doesn't move unless half the messages are slow.
+
 - **Total**: measured (chat writing + all review) plus estimated (writing elsewhere), shown
-  separately: this week (Monday first) and all time.
-- **Per message**: (writing + review) / messages.
-- **Per word**: measured chat writing time / its words. Nothing estimated enters it.
-- **Per change reviewed**: review time / changes the card offered (fixes and rewordings in
-  its last result), over messages whose card offered at least one. Per change *offered*,
-  not per accepted: reviewing a change you decline is work too, and accepted counts would
-  make careful writers look slow.
+  separately: this week (Monday first) and all time. A sum.
+- **Per message**: the median of each message's writing (measured or estimated) + review.
+- **Per word**: each measured chat message's writing time per word, as the *word-weighted*
+  median: half the words were written at that speed or faster. Weighted by words, not one
+  vote per message, because a two-word reply's speed is mostly reaction time and a 40-word
+  message says much more; and a rate, not a plain median of messages, so it agrees with
+  total time / total words when the writer is steady. One message moves it only if it
+  carries half the words. Nothing estimated enters it.
+- **Per change reviewed**: each message's review time / the changes its card offered (fixes
+  and rewordings in its last result), as the *change-weighted* median, over messages whose
+  card offered at least one. Per change *offered*, not per accepted: reviewing a change you
+  decline is work too, and accepted counts would make careful writers look slow.
+- **By language**: totals are sums; per word is the same word-weighted median, in that language.
+- How it's counted on the page says the averages show a typical message (the median).
+- **One message**: its own writing and review, shown where the message is already looked at
+  (below).
 - **By language**, and the **last 8 weeks** as bars: measured solid, estimated lighter.
 
 ## How to use it
@@ -72,6 +90,15 @@ from what they already do, not a timer they have to start.
 Progress shows, at the top as its headline (**This week**), for the app's current language ([Language scope](language-scope.md)), this week's total with a small chart; tap it for the page: This week,
 All time (writing and reviewing, with the measured/estimated split), Averages, By language
 (with what other apps' writing is estimated from), Last 8 weeks, and How it's counted.
+
+Each message's own time shows where it's already looked at, as one quiet line:
+**Writing 1 min 20 s, reviewing 35 s** (seconds kept under an hour), or for a check from
+another app **Writing about 40 s (estimated), reviewing 35 s**. In the chat it ends the
+corrections block a tap on a corrected bubble opens; a message sent clean (Looks good, Sent
+as written) has no block, so it sits at the foot of the bubble's long-press menu, under Copy
+message and Edit message. On a saved check's page in History it's the last line of the
+details card (source and language). Nothing shows when no time was recorded (checks from
+before Time spent, or with History off).
 
 ## How it works
 
@@ -89,7 +116,12 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
 - `data/time/TimeStore.kt`: SQLite `lab_time_spent`, one row per History session: session
   and chat message id, origin, language, `writing_ms` (null when not measured), `review_ms`,
   words, changes offered and accepted, time, and the rules version. Only measurements.
-- `core/time/WritingEstimator.kt` (version 1) and `TimeReport.kt` derive everything on read.
+- `core/time/WritingEstimator.kt` (version 2) and `TimeReport.kt` derive everything on read;
+  `core/time/Median.kt` holds the median and the weighted median of per-message rates.
+- **One message's time**: `core/time/MessageTime.kt` (measured, or estimated with the same
+  estimator), read by `TimeStore.messageTime(sessionId)`; `ui/time/MessageTimeLine.kt`
+  (`messageTimeLine`, with `LocalMessageTimes` for tests) gives the line. Read when shown:
+  the corrections block, the menu, the History page.
 - `TimeSpentViewModel` captures the requested language with each refresh. A newer refresh
   cancels the old one; an obsolete History read cannot sweep measurements or publish its
   report. Changing language clears the previous scope's report while the new one loads.
@@ -113,3 +145,7 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
   behind it still counts as review (capped).
 - A row whose History session is deleted stays up to 10 minutes, and until Time is next opened.
 - Timings started before this build don't exist; totals start from now.
+- Rows recorded under rules version 1 counted writing pauses up to 60 s, not 30 s; they're
+  kept as recorded.
+- A median ignores how slow the slow messages were: if half the messages get slower, it moves;
+  if one does, only the totals show it.

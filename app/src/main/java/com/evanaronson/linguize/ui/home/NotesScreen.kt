@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -15,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -26,6 +28,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.LocalCardTyping
+import com.evanaronson.linguize.ui.card.rememberCardTyping
 import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.ScreenColumn
@@ -97,13 +101,18 @@ internal fun NotePage(
         if (write.open(noteId) { resolved(it) }) check.dismiss(applied = false)
     }
     ResolveSavedNoteRoute(write) { resolved(it) }
-    ScreenColumn {
+    // Lab, Type to accept: while a change is typed on the card, the page ends above the keyboard,
+    // so the card can keep the change and the field in view together.
+    val typing = rememberCardTyping()
+    ScreenColumn(if (typing.active) Modifier.imePadding() else Modifier) {
         NotesStorageError(write)
         // Order and grouping: docs/lab/ia-notes.md.
         for (part in noteParts(needsKey = needsKey, checking = check.state != null)) when (part) {
             NotePart.AddKey -> AddKeyStrip(onOpenSettings)
             NotePart.Editor -> NoteEditor(write, check, appLanguage = language)
-            NotePart.CheckCard -> NoteCheckCard(write, check, onOpenSettings)
+            NotePart.CheckCard -> CompositionLocalProvider(LocalCardTyping provides typing) {
+                NoteCheckCard(write, check, onOpenSettings)
+            }
             NotePart.Footer -> NotesFooter()
         }
     }

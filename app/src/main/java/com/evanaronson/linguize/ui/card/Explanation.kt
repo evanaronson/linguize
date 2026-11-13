@@ -15,7 +15,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -25,6 +24,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -115,9 +116,8 @@ internal fun ExplanationPanel(
         if (typeToAccept != null && onAccept != null) {
             // Lab, Type to accept: the field stands in for Accept; Skip and the star stay beside it.
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Top) {
-                key(typeToAccept.key) {
-                    TypeToAcceptField(typeToAccept.text, onAccept, Modifier.weight(1f))
-                }
+                // One field for every change typed here, so focus (and the keyboard) stays between them.
+                TypeToAcceptField(typeToAccept.text, onAccept, Modifier.weight(1f), key = typeToAccept.key)
                 phrase?.let { SavePhraseButton(it) }
                 skip?.let { LinguizeButton(stringResource(R.string.lab_review_flow_skip), it, ButtonKind.Text) }
             }
@@ -139,7 +139,13 @@ internal fun ExplanationPanel(
             )
         }
         WeightMeters(assessment, Modifier.padding(top = 8.dp))
-        TeachMe(lesson)
+        // Lab, Type to accept: the lesson gets the room; the typed text stays, and a tap on the field brings the keyboard back.
+        val keyboard = LocalSoftwareKeyboardController.current
+        val focus = LocalFocusManager.current
+        TeachMe(lesson, onOpen = if (typeToAccept != null && onAccept != null) ({
+            keyboard?.hide()
+            focus.clearFocus()
+        }) else ({}))
         if (assumptions.isNotEmpty() || answers.isNotEmpty()) {
             HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             Column(Modifier.padding(top = 4.dp)) {

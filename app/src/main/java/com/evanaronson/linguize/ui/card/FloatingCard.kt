@@ -23,7 +23,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.PopupPosition
+import com.evanaronson.linguize.ui.components.DisclosureMotion
 
 /**
  * The card floating over a dimmed view of the app the text came from. Tapping
@@ -70,6 +76,7 @@ fun FloatingPopup(
     val appName = stringResource(R.string.app_name)
     // Over another app too, Back closes the keyboard (the card's text fields) before the card.
     com.evanaronson.linguize.ui.components.KeyboardBackHandler()
+    val typing = rememberCardTyping()
     Box(Modifier.fillMaxSize().semantics { paneTitle = appName }) {
         Box(
             Modifier
@@ -93,8 +100,14 @@ fun FloatingPopup(
                 PopupPosition.Top -> Alignment.TopCenter
             },
         ) {
-            // Long text scrolls inside the card; keep some of the app visible to tap away.
-            val cardMaxHeight = maxHeight * 0.8f
+            // Long text scrolls inside the card; keep some of the app visible to tap away. While a
+            // change is typed (Type to accept), the card takes the room above the keyboard.
+            val share by animateFloatAsState(
+                if (typing.active) 1f else 0.8f,
+                tween(if (typing.active) DisclosureMotion.EXPAND_MILLIS else DisclosureMotion.COLLAPSE_MILLIS, easing = FastOutSlowInEasing),
+                label = "cardShare",
+            )
+            val cardMaxHeight = maxHeight * share
             Column(
                 Modifier
                     .widthIn(max = 520.dp)
@@ -111,7 +124,7 @@ fun FloatingPopup(
                     header()
                 }
                 val cardModifier = Modifier.fillMaxWidth().heightIn(max = cardMaxHeight)
-                content(cardModifier)
+                CompositionLocalProvider(LocalCardTyping provides typing) { content(cardModifier) }
             }
         }
     }

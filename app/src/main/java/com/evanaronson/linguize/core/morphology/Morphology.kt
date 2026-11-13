@@ -12,11 +12,20 @@ import com.evanaronson.linguize.core.corpus.Pos
  * guessed for verbs not in the lexicon, and plurals are folded for nouns. Ambiguity is kept:
  * "fui" is both ir and ser.
  */
-class Morphology {
+class Morphology(
+    /**
+     * What a frequency list says about which verbs exist in a language, or null when there is
+     * no list. Read once per language, on the first guess. See [keepGuessedVerbs].
+     */
+    evidence: (language: String) -> VerbEvidence? = { null },
+) {
     private val tables = mapOf(
         "es" to lazy { build("es") },
         "ca" to lazy { build("ca") },
     )
+    private val evidence = tables.keys.associateWith { language ->
+        lazy { evidence(language)?.takeUnless { it.isEmpty } }
+    }
 
     fun supports(language: String): Boolean = language in tables
 
@@ -32,7 +41,8 @@ class Morphology {
         }
         if (clitic != null) return clitic
         val host = if (language == "ca") catalanHost(w) else w
-        return guessVerb(host, language) + guessNominal(host, language)
+        val nominal = guessNominal(host, language)
+        return keepGuessedVerbs(guessVerb(host, language), host, nominal, language) + nominal
     }
 
     /** Verb readings only, from [analyse]. */
@@ -161,6 +171,40 @@ class Morphology {
         return out
     }
 
+    /**
+     * A regular ending alone doesn't make a verb: "maneres" ends like "perderes" but is the
+     * plural of "manera", and there is no verb "manre". A guessed verb is kept only when there
+     * is evidence the verb exists:
+     *
+     * - with a frequency list ([VerbEvidence]): the list tags the infinitive as a verb, lists
+     *   the infinitive as a word form, or lists another regular form of it that couldn't be a
+     *   noun: not the word itself, not a plural, not the word's own singular ("programaba" is
+     *   evidence for "programaron"; neither "maneres" nor "manera" is evidence for "manre");
+     * - without one: no guessed noun or adjective competes for the word ("programaron" stays a
+     *   verb; "maneres", which folds to "manera", doesn't).
+     */
+    private fun keepGuessedVerbs(guesses: Set<Analysis>, word: String, nominal: Set<Analysis>, language: String): Set<Analysis> {
+        if (guesses.isEmpty()) return guesses
+        val evidence = evidence[language]?.value
+            ?: return if (nominal.isEmpty()) guesses else emptySet()
+        val notEvidence = nominal.mapTo(mutableSetOf(word)) { it.lemma }
+        val attested = guesses.mapTo(mutableSetOf()) { it.lemma }
+            .filterTo(mutableSetOf()) { attests(evidence, it, notEvidence, language) }
+        return guesses.filterTo(mutableSetOf()) { it.lemma in attested }
+    }
+
+    private fun attests(evidence: VerbEvidence, infinitive: String, notEvidence: Set<String>, language: String): Boolean {
+        if (evidence.isVerb(infinitive) || evidence.hasForm(infinitive)) return true
+        val endings = GUESS_ENDINGS[language]?.value ?: return false
+        val stem = infinitive.dropLast(2)
+        val verbClass = infinitive.takeLast(2)
+        return endings.any { (ending, readings) ->
+            val form = stem + ending
+            form !in notEvidence && readings.any { it.first == verbClass } &&
+                evidence.hasForm(form) && Nominal.singular(form, language) == null
+        }
+    }
+
     private fun guessNominal(word: String, language: String): Set<Analysis> {
         val singular = Nominal.singular(word, language) ?: return emptySet()
         return setOf(Analysis(singular, PartOfSpeech.Noun, guessed = true))
@@ -199,6 +243,22 @@ class Morphology {
                 .sortedByDescending { it.first.length }
         }
     }
+}
+
+/**
+ * Lab: what a frequency list says about which verbs exist, for checking guessed verbs. [verbs]
+ * are lemmas the list tags as verbs (none for a list of bare word forms); [forms] are the word
+ * forms it lists, of any part of speech. Plain data, so core needn't know where the list lives.
+ */
+class VerbEvidence(verbs: Collection<String>, forms: Collection<String>) {
+    private val verbs = verbs.toHashSet()
+    private val forms = forms.toHashSet()
+
+    val isEmpty: Boolean get() = verbs.isEmpty() && forms.isEmpty()
+
+    fun isVerb(lemma: String): Boolean = lemma in verbs
+
+    fun hasForm(form: String): Boolean = form in forms
 }
 
 /**

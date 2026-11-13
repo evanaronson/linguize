@@ -24,6 +24,9 @@ OpenSubtitles2018 corpus, and are shared under **CC BY-SA 4.0**:
   Its docstring lists the filters (Spanish: no DUPLICATE rows, proper nouns or lemmas
   that aren't lowercase Spanish letters; forms with a count of 50 or more, at most 40.
   Catalan: forms of Catalan letters only).
+- The morphology also reads both whole lists (`BundledDecks.verbEvidence`) as evidence that
+  a guessed verb exists, so "maneres" isn't read as a verb "manre"
+  ([Your conjugations](conjugations.md#morphology)).
 - `app/src/main/assets/lab_vocab_SOURCES.md` ships with them. Words shows the
   attribution under "About these lists".
 

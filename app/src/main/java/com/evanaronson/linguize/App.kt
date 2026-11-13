@@ -116,8 +116,11 @@ class App : Application() {
         com.evanaronson.linguize.core.morphology.MorphologyLemmatizer(morphology)
     }
 
-    /** Lab: Spanish and Catalan morphology; its tables are built on first use, off the main thread. */
-    val morphology by lazy { com.evanaronson.linguize.core.morphology.Morphology() }
+    /**
+     * Lab: Spanish and Catalan morphology; its tables are built on first use, off the main thread.
+     * Guessed verbs are kept only when the bundled frequency lists attest them (docs/lab/conjugations.md).
+     */
+    val morphology by lazy { com.evanaronson.linguize.core.morphology.Morphology { bundledDecks.verbEvidence(it) } }
 
     /** Immutable bundled vocabulary, parsed and grouped once for Words and Chat. */
     val bundledDecks by lazy {

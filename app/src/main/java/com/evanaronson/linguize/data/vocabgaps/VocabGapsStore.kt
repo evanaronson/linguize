@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.data.vocabgaps
 
 import com.evanaronson.linguize.core.corpus.Lemmatizer
+import com.evanaronson.linguize.core.corpus.Pos
+import com.evanaronson.linguize.core.morphology.VerbEvidence
 import com.evanaronson.linguize.core.vocab.DeckEntry
 import com.evanaronson.linguize.core.vocab.DeckParse
 import com.evanaronson.linguize.core.vocab.DeckParser
@@ -157,6 +159,31 @@ class BundledDecks(private val load: (String) -> String) {
                 VocabDeck(idFor(language), "", language, entries, bundled = true)
             }.top(SIZE)
         }
+
+    private val evidence = HashMap<String, VerbEvidence?>()
+
+    /**
+     * The whole bundled list for [language] as evidence for guessed verbs (`Morphology`): its
+     * verb lemmas and every word form it lists. Null when there is no list or it can't be read.
+     * It reads the asset itself, under its own lock, because [deck] groups Catalan forms with
+     * a lemmatizer that may ask for this.
+     */
+    fun verbEvidence(language: String): VerbEvidence? = synchronized(evidence) {
+        evidence.getOrPut(language) {
+            val asset = ASSETS[language] ?: return@getOrPut null
+            val entries = try {
+                (DeckParser.parse(load(asset), language) as? DeckParse.Parsed)?.entries
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            } ?: return@getOrPut null
+            VerbEvidence(
+                verbs = entries.filter { it.pos == Pos.Verb.token }.map { it.lemma },
+                forms = entries.flatMap { it.forms + it.lemma },
+            )
+        }
+    }
 
     companion object {
         val ASSETS = mapOf("es" to "lab_vocab_es.csv", "ca" to "lab_vocab_ca.csv")

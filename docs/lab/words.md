@@ -46,7 +46,11 @@ of Progress; under Linguize each language in use has its own Words row
   - *Lemmas*: every lexeme with the same dictionary form. The deck is viewed by lemma.
   - *Word forms*: spellings as written ("vaig", "la"). Each form shows the best deck rank
     it reached. Deck rows no form reached appear as Not yet.
-  With `Lemmatizer.Identity` (every word unknown) only word forms show.
+  With `Lemmatizer.Identity` (every word unknown) only word forms show. A word the
+  morphology only guesses is a verb lexeme only when the bundled frequency list attests the
+  verb ([Your conjugations](conjugations.md#morphology)), so a plural such as "maneres" is
+  one lexeme (manera/n), not also a made-up verb: lexeme counts and the Catalan deck's
+  grouped rows drop those false verbs.
 - **The list.** One list over the deck and the writer's own words. Filters: **All**,
   **Used** (used right at least once), **Not yet** (deck words not yet used right) and
   **Used wrong** (Linguize flagged it at least once), each with its count. Each row shows the

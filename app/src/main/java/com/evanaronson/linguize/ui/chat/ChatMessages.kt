@@ -89,7 +89,9 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.NavigationBackHandler
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.text.titleResource
+import com.evanaronson.linguize.ui.components.RowDivider
 import com.evanaronson.linguize.ui.theme.Linguize
+import com.evanaronson.linguize.ui.time.messageTimeLine
 
 private val BubbleMax = 300.dp
 
@@ -104,7 +106,9 @@ internal const val CHECK_META_TAG = "lab_chat_check_meta"
  * checked sits at the bubble's bottom end, like a messaging app's time. The text is selectable
  * (long-press, with the system's Copy and other apps' actions); a long-press on the bubble's
  * edge opens Copy message (and Copy translation while it shows), and on the writer's own
- * message Edit message ([onEdit]; dimmed while [canEdit] is false, mid-turn). Screen readers get
+ * message Edit message ([onEdit]; dimmed while [canEdit] is false, mid-turn). Lab, Time spent: a
+ * clean writer message's time sits quietly at the foot of that menu (a corrected one's ends its
+ * corrections block), when one was recorded. Screen readers get
  * the same as actions (Edit message only while it can be used), and the corrections' state.
  */
 @Composable
@@ -227,6 +231,14 @@ internal fun MessageBubble(
                 }
                 edit?.let { action ->
                     DropdownMenuItem(text = { Text(editLabel) }, onClick = { menu = false; action() }, enabled = canEdit)
+                }
+                // Lab, Time spent: a clean message has no corrections block, so its time sits
+                // here, under the actions, quiet (a corrected one shows it in its block).
+                if (mine && !corrections) {
+                    messageTimeLine(message.sessionId)?.let { time ->
+                        RowDivider()
+                        MessageTimeText(time, Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                    }
                 }
             }
         }

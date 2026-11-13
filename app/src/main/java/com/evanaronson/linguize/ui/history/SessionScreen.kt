@@ -50,6 +50,7 @@ import com.evanaronson.linguize.ui.components.TextBlock
 import com.evanaronson.linguize.ui.text.titleResource
 import com.evanaronson.linguize.ui.phrasebook.PhraseOrigin
 import com.evanaronson.linguize.ui.phrasebook.ProvidePhraseOrigin
+import com.evanaronson.linguize.ui.time.messageTimeLine
 
 private val BlockPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 
@@ -189,9 +190,12 @@ private fun SessionDetails(session: SessionRecord, appLabel: String?, onOpenConv
         stringResource(R.string.history_detected_language, detectedLanguageLabel(resources, it))
     }
     val details = listOfNotNull(target, detected).joinToString("\n")
+    // Lab, Time spent: the message's time as one more quiet line; nothing when none was recorded.
+    val spent = messageTimeLine(session.id)
+    val summary = listOfNotNull(details.takeIf { appLabel != null }, spent).joinToString("\n").ifEmpty { null }
     // A chat message also offers its conversation: an extra, not a different kind of page.
     ListCard(
-        { ListRow(appLabel ?: details, if (appLabel != null) details else null) },
+        { ListRow(appLabel ?: details, summary) },
         onOpenConversation?.let { open ->
             {
                 ListRow(stringResource(R.string.lab_chat_open_conversation), onClick = open,

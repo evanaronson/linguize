@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.ComposeView
@@ -17,6 +18,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.chat.ChatThreadInfo
+import com.evanaronson.linguize.core.time.MessageTime
 import com.evanaronson.linguize.history.HistoryStore
 import com.evanaronson.linguize.history.Opening
 import com.evanaronson.linguize.history.Origin
@@ -26,6 +28,8 @@ import com.evanaronson.linguize.history.SessionRecording
 import com.evanaronson.linguize.history.SessionSettings
 import com.evanaronson.linguize.history.SqliteHistoryStore
 import com.evanaronson.linguize.llm.Prompt
+import com.evanaronson.linguize.ui.time.LocalMessageTimes
+import com.evanaronson.linguize.ui.time.MessageTimes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -79,6 +83,33 @@ class SessionChatLinkTest {
         }
     }
 
+    // Lab, Time spent: the message's time is one more quiet line under its details.
+
+    @Test fun aChatMessagesPageShowsItsMeasuredTime() {
+        val times = MessageTimes { if (it == "check") MessageTime(80_000, writingEstimated = false, reviewMs = 35_000) else null }
+        show(Origin.Chat, mutableListOf(), times = times) { root, _, _ ->
+            assertTrue(textContains(root, "Writing 1 min 20 s, reviewing 35 s"))
+        }
+    }
+
+    @Test fun anotherAppsPageSaysItsWritingIsEstimated() {
+        val times = MessageTimes { if (it == "check") MessageTime(40_000, writingEstimated = true, reviewMs = 35_000) else null }
+        show(Origin.Menu, mutableListOf(), times = times) { root, _, _ ->
+            assertTrue(textContains(root, "Writing about 40 s (estimated), reviewing 35 s"))
+        }
+    }
+
+    @Test fun aPageWithNoRecordedTimeShowsNone() {
+        show(Origin.Menu, mutableListOf(), times = MessageTimes { null }) { root, _, _ ->
+            assertTrue(hasText(root, "Saved text"))
+            assertFalse(textContains(root, "Writing"))
+        }
+    }
+
+    private fun textContains(root: View, part: String): Boolean = nodes(root).any { node ->
+        node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.contains(part) } == true
+    }
+
     private var currentModel: SessionViewModel? = null
     private fun pageOf(@Suppress("UNUSED_PARAMETER") root: View) = currentModel?.page
 
@@ -86,6 +117,7 @@ class SessionChatLinkTest {
         origin: Origin,
         opened: MutableList<String>,
         conversation: ChatThreadInfo? = weekend,
+        times: MessageTimes? = null,
         check: (View, ComponentActivity, AtomicInteger) -> Unit,
     ) {
         val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible().windowFocusChanged(true)
@@ -107,7 +139,11 @@ class SessionChatLinkTest {
         uiScope.launch { recomposer.runRecomposeAndApplyChanges() }
         val root = ComposeView(activity).apply {
             setParentCompositionContext(recomposer)
-            setContent { MaterialTheme { SessionScreen(model, onDeleted = {}, onOpenConversation = { opened += it }) } }
+            setContent {
+                CompositionLocalProvider(LocalMessageTimes provides times) {
+                    MaterialTheme { SessionScreen(model, onDeleted = {}, onOpenConversation = { opened += it }) }
+                }
+            }
         }
         var frameTime = 0L
         fun settle() {

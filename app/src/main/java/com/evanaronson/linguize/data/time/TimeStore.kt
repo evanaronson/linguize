@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
+import com.evanaronson.linguize.core.time.MessageTime
 import com.evanaronson.linguize.core.time.TimeLog
 import com.evanaronson.linguize.core.time.TimeRecord
 import com.evanaronson.linguize.core.time.TimeSweep
@@ -52,6 +53,12 @@ class TimeStore(
             buildList { while (cursor.moveToNext()) cursor.record()?.let(::add) }
         }
     }
+
+    /**
+     * One message's time, for the line under it (null when none was recorded). Reads every
+     * record: another app's writing is estimated from the writer's measured speed.
+     */
+    suspend fun messageTime(sessionId: String): MessageTime? = MessageTime.of(sessionId, all())
 
     /** Deletes the records of these History sessions. */
     suspend fun delete(sessionIds: Collection<String>): Int {

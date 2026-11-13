@@ -35,8 +35,12 @@ data class TimeRecord(
     val measuredWriting: Boolean get() = writingMs != null
 
     companion object {
-        /** Version 1: the idle caps in [ActiveTimer], review only while a result shows. */
-        const val RULES_VERSION = 1
+        /**
+         * Version 1: the idle caps in [ActiveTimer] (60 s writing, 2 min review), review only while
+         * a result shows. Version 2: the writing cap is 30 s. Rows keep the version they were
+         * recorded with; they aren't recomputed.
+         */
+        const val RULES_VERSION = 2
 
         /** Words as Your words splits them (names included: they were typed too). */
         fun countWords(text: String): Int = WordTokenizer.tokenize(text).size

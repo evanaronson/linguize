@@ -20,8 +20,10 @@ data class WritingEstimate(val ms: Long, val basis: EstimateBasis, val msPerWord
  * the writer's own measured chat writing speed (per word, per language). Pure; computed on
  * read, so old estimates improve as more is measured.
  *
- * Speed is total measured writing time over total words, from messages of at least
- * [MIN_WORDS_PER_MESSAGE] words (one-word replies are mostly reaction time). A language needs
+ * Speed is each message's measured writing time per word, from messages of at least
+ * [MIN_WORDS_PER_MESSAGE] words (one-word replies are mostly reaction time), as the word-weighted
+ * median ([Median.rate]): half the words were written at that speed or faster, so one message
+ * left open within the idle caps doesn't slow every estimate. A language needs
  * [MIN_MESSAGES] such messages and [MIN_WORDS] words; otherwise all languages pooled, under the
  * same thresholds; otherwise [DEFAULT_MS_PER_WORD].
  */
@@ -48,12 +50,12 @@ class WritingEstimator(measured: List<TimeRecord>) {
     private fun speed(records: List<TimeRecord>): Long? {
         val words = records.sumOf { it.words }
         if (records.size < MIN_MESSAGES || words < MIN_WORDS) return null
-        return records.sumOf { it.writingMs ?: 0L } / words
+        return Median.rate(records, { it.writingMs ?: 0L }, { it.words })
     }
 
     companion object {
-        /** Bump when the rules above change; shown in the explanation. */
-        const val VERSION = 1
+        /** Bump when the rules above change; shown in the explanation. 2: the word-weighted median, not the pooled mean. */
+        const val VERSION = 2
         const val MIN_MESSAGES = 5
         const val MIN_WORDS = 30
         const val MIN_WORDS_PER_MESSAGE = 3

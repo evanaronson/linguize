@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,13 +52,23 @@ import com.evanaronson.linguize.ui.theme.Linguize
  * Draws nothing when there's no [topic], or outside the Linguize app (previews and tests).
  */
 @Composable
-fun TeachMe(topic: LessonTopic?, modifier: Modifier = Modifier) {
+fun TeachMe(
+    topic: LessonTopic?,
+    modifier: Modifier = Modifier,
+    /** Called as the lesson opens, before it asks for anything (Type to accept closes the keyboard). */
+    onOpen: () -> Unit = {},
+) {
     if (topic == null) return
-    val teacher = (LocalContext.current.applicationContext as? App)?.teacher ?: return
+    val teach = LocalLessonTeacher.current
+        ?: (LocalContext.current.applicationContext as? App)?.teacher?.let { teacher -> teacher::teach }
+        ?: return
     val scope = rememberCoroutineScope()
-    val controller = remember(topic) { LessonController(topic, scope) { teacher.teach(it) } }
-    TeachMeContent(controller, modifier)
+    val controller = remember(topic) { LessonController(topic, scope) { teach(it) } }
+    TeachMeContent(controller, modifier, onOpen)
 }
+
+/** Who writes lessons; null uses the app's teacher. Lets tests give the card a fake one. */
+val LocalLessonTeacher = staticCompositionLocalOf<(suspend (LessonTopic) -> Lesson)?> { null }
 
 /**
  * The lesson's states, for [TeachMe] and for tests with a fake teacher. "Teach me" is a
@@ -65,13 +76,18 @@ fun TeachMe(topic: LessonTopic?, modifier: Modifier = Modifier) {
  * the loading line, the failure with Retry, or the lesson. Collapsing it is Hide.
  */
 @Composable
-internal fun TeachMeContent(controller: LessonController, modifier: Modifier = Modifier) {
+internal fun TeachMeContent(controller: LessonController, modifier: Modifier = Modifier, onOpen: () -> Unit = {}) {
     Column(modifier.fillMaxWidth()) {
         HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
         val state = controller.state
         Disclosure(
             expanded = state != LessonState.Closed,
-            onExpandedChange = { open -> if (open) controller.open() else controller.close() },
+            onExpandedChange = { open ->
+                if (open) {
+                    onOpen()
+                    controller.open()
+                } else controller.close()
+            },
             header = {
                 Text(stringResource(R.string.lab_teach_me_open), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface)

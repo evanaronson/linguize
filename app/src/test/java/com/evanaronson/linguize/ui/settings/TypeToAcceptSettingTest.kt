@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.key
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
@@ -75,8 +76,43 @@ class TypeToAcceptSettingTest {
         assertFalse(TypeToAcceptPreferences(context).enabled)
     }
 
+    @Test fun feedbackSwitchesShowUnderItAndPersist() {
+        val preferences = TypeToAcceptPreferences(context)
+        assertTrue("Vibrate is on by default", preferences.vibrate)
+        assertFalse("Sound is off by default", preferences.sound)
+        show()
+        assertFalse("Only while Type to accept is on", hasText(activity.getString(R.string.lab_type_to_accept_vibrate)))
+
+        preferences.enabled = true
+        show()
+        assertEquals(ToggleableState.On, switch(R.string.lab_type_to_accept_vibrate).config[SemanticsProperties.ToggleableState])
+        assertEquals(ToggleableState.Off, switch(R.string.lab_type_to_accept_sound).config[SemanticsProperties.ToggleableState])
+        toggle(R.string.lab_type_to_accept_vibrate)
+        toggle(R.string.lab_type_to_accept_sound)
+        assertFalse("Saved in the same file", stored.getBoolean("vibrate", true))
+        assertTrue(stored.getBoolean("sound", false))
+
+        show()
+        assertEquals(ToggleableState.Off, switch(R.string.lab_type_to_accept_vibrate).config[SemanticsProperties.ToggleableState])
+        assertEquals(ToggleableState.On, switch(R.string.lab_type_to_accept_sound).config[SemanticsProperties.ToggleableState])
+    }
+
+    private fun switch(title: Int) = nodes().single {
+        it.config.getOrNull(SemanticsProperties.ToggleableState) != null &&
+            it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text == activity.getString(title) } == true
+    }
+
+    private fun toggle(title: Int) {
+        assertTrue(requireNotNull(switch(title).config[SemanticsActions.OnClick].action).invoke())
+        settle()
+    }
+
+    private var shows = 0
+
     private fun show() {
-        activity.setContent { MaterialTheme { TypeToAcceptSwitch() } }
+        // Keyed, so each show is a freshly composed screen that reads what was saved.
+        val generation = ++shows
+        activity.setContent { MaterialTheme { key(generation) { TypeToAcceptSwitch() } } }
         settle()
     }
 

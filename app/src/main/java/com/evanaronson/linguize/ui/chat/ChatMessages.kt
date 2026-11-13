@@ -434,7 +434,8 @@ internal fun ReviewPanel(chat: ChatViewModel, check: CheckViewModel, maxHeight: 
             return@Column
         }
         if (state != null) {
-            ResultCard(state, actions, Modifier.fillMaxWidth().heightIn(max = maxHeight), scrollable = true)
+            // Weighted, so Send as written below keeps its place when the card takes the room.
+            ResultCard(state, actions, Modifier.fillMaxWidth().heightIn(max = maxHeight).weight(1f, fill = false), scrollable = true)
         } else {
             Progress(stringResource(R.string.lab_chat_checking))
         }

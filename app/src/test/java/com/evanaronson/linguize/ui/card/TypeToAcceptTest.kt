@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.card
 import com.evanaronson.linguize.ui.card.TypeToAccept.Progress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Lab, Type to accept: what counts as typing the change. */
@@ -60,5 +61,35 @@ class TypeToAcceptTest {
         assertEquals(target, TypeToAccept.target(target))
         assertEquals(Progress.OnTrack, TypeToAccept.progress(target.dropLast(3), target))
         assertEquals(Progress.Match, TypeToAccept.progress(target, target))
+    }
+
+    @Test fun theSwitchesGateTheFeedback() {
+        var vibrate = true
+        var sound = false
+        val calls = mutableListOf<String>()
+        val output = object : FeedbackOutput {
+            override fun haptic() { calls += "haptic" }
+            override fun sound() { calls += "sound" }
+        }
+        val feedback = CorrectFeedback({ vibrate }, { sound }, output)
+        feedback.correct()
+        assertEquals(listOf("haptic"), calls)
+        vibrate = false
+        sound = true
+        feedback.correct()
+        assertEquals("Read as each change matches", listOf("haptic", "sound"), calls)
+        sound = false
+        feedback.correct()
+        assertEquals(listOf("haptic", "sound"), calls)
+    }
+
+    @Test fun theChangeSettlesWithinTheHold() {
+        assertTrue("Resolved before it is accepted", SETTLE_MILLIS < CORRECT_HOLD_MILLIS)
+        assertTrue(CORRECT_HOLD_MILLIS in 400L..1000L)
+        assertEquals(1f to 0f, settleStep(0f))
+        val (underline, glow) = settleStep(0.5f)
+        assertEquals("The mark has let go", 0f, underline, 0f)
+        assertEquals("The new words glow", 1f, glow, 0f)
+        assertEquals(0f to 0f, settleStep(1f))
     }
 }

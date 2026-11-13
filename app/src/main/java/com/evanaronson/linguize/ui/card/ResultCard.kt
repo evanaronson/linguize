@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,67 +78,73 @@ fun ResultCard(
         meaningOpenFor = checked
         meaningOpen = false
     }
-    ResultSurface(
-        modifier,
-        scrollable,
-        footer = if (reviewed != null || onUnderstandCopiedText != null) {
-            {
-                if (reviewed != null) {
-                    MeaningFooter(reviewed, settled, actions, meaningOpen) { meaningOpen = it }
+    // Lab, Type to accept: whether the writer is typing a change here, shared with the host
+    // when it provides one, so the text and the field get the room (TypeToAccept.kt).
+    val typing = LocalCardTyping.current ?: rememberCardTyping()
+    TrackTyping(typing)
+    CompositionLocalProvider(LocalCardTyping provides typing) {
+        ResultSurface(
+            modifier,
+            scrollable,
+            footer = if (reviewed != null || onUnderstandCopiedText != null) {
+                {
+                    if (reviewed != null) {
+                        MeaningFooter(reviewed, settled, actions, meaningOpen) { meaningOpen = it }
+                    }
+                    onUnderstandCopiedText?.let { open ->
+                        FooterRow(
+                            stringResource(R.string.understand_copied_text),
+                            stringResource(R.string.understand_copied_text_subtitle),
+                            onClick = open,
+                        )
+                    }
                 }
-                onUnderstandCopiedText?.let { open ->
-                    FooterRow(
-                        stringResource(R.string.understand_copied_text),
-                        stringResource(R.string.understand_copied_text_subtitle),
-                        onClick = open,
-                    )
+            } else null,
+        ) {
+            when (state) {
+                is CardState.Loading -> {
+                    if (state.retainedRevision?.canUndo == true) {
+                        Progress(stringResource(R.string.checking))
+                        RetainedChanges(state.retainedRevision, actions.review)
+                    } else {
+                        Loading(state.text)
+                    }
                 }
-            }
-        } else null,
-    ) {
-        when (state) {
-            is CardState.Loading -> {
-                if (state.retainedRevision?.canUndo == true) {
-                    Progress(stringResource(R.string.checking))
+                is CardState.Failed -> {
+                    Failure(state.reason, state.userMessage, state.detail, actions.onRetry, actions.onOpenSettings)
                     RetainedChanges(state.retainedRevision, actions.review)
-                } else {
-                    Loading(state.text)
                 }
-            }
-            is CardState.Failed -> {
-                Failure(state.reason, state.userMessage, state.detail, actions.onRetry, actions.onOpenSettings)
-                RetainedChanges(state.retainedRevision, actions.review)
-            }
-            is CardState.Done -> when (val result = state.result) {
-                is CheckResult.Reviewed -> ProvidePhraseOrigin(actions.phraseOrigin) {
-                    Suggestions(result, state.settled, actions)
-                }
-                CheckResult.Unclear -> {
-                    Outcome(
-                        stringResource(R.string.ai_could_not_understand),
-                        stringResource(if (actions.onClarify != null) R.string.unclear_hint else R.string.unclear_hint_read_only),
-                    )
-                    state.sourceText?.let { text ->
-                        Spacer(Modifier.height(16.dp))
-                        Text(stringResource(R.string.original_text), style = MaterialTheme.typography.labelLarge)
-                        Spacer(Modifier.height(6.dp))
-                        TextBlock(text)
+                is CardState.Done -> when (val result = state.result) {
+                    is CheckResult.Reviewed -> ProvidePhraseOrigin(actions.phraseOrigin) {
+                        Suggestions(result, state.settled, actions)
                     }
-                    if (actions.onClarify != null || state.settled.any { it.isMeaning }) {
-                        Spacer(Modifier.height(8.dp))
-                        MeaningSection(state.settled, actions.onClarify, actions.onRemoveClarification,
-                            editorTitle = stringResource(R.string.meaning),
-                            submitKind = if (state.retainedRevision?.canUndo == true && actions.review != null)
-                                ButtonKind.Tonal else ButtonKind.Filled)
+                    CheckResult.Unclear -> {
+                        Outcome(
+                            stringResource(R.string.ai_could_not_understand),
+                            stringResource(if (actions.onClarify != null) R.string.unclear_hint else R.string.unclear_hint_read_only),
+                        )
+                        state.sourceText?.let { text ->
+                            Spacer(Modifier.height(16.dp))
+                            Text(stringResource(R.string.original_text), style = MaterialTheme.typography.labelLarge)
+                            Spacer(Modifier.height(6.dp))
+                            TextBlock(text)
+                        }
+                        if (actions.onClarify != null || state.settled.any { it.isMeaning }) {
+                            Spacer(Modifier.height(8.dp))
+                            MeaningSection(state.settled, actions.onClarify, actions.onRemoveClarification,
+                                editorTitle = stringResource(R.string.meaning),
+                                submitKind = if (state.retainedRevision?.canUndo == true && actions.review != null)
+                                    ButtonKind.Tonal else ButtonKind.Filled)
+                        }
+                        RetainedChanges(state.retainedRevision, actions.review, canApply = true)
                     }
-                    RetainedChanges(state.retainedRevision, actions.review, canApply = true)
-                }
-                is CheckResult.WrongLanguage -> {
-                    Outcome(
-                        stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
-                        wrongLanguageHint(LocalLanguageHint.current, result.found?.let { languageDisplayName(it) }),
-                    )
-                    RetainedChanges(state.retainedRevision, actions.review, canApply = true)
+                    is CheckResult.WrongLanguage -> {
+                        Outcome(
+                            stringResource(R.string.wrong_language, languageDisplayName(result.expected)),
+                            wrongLanguageHint(LocalLanguageHint.current, result.found?.let { languageDisplayName(it) }),
+                        )
+                        RetainedChanges(state.retainedRevision, actions.review, canApply = true)
+                    }
                 }
             }
         }

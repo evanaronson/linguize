@@ -3,6 +3,7 @@ package com.evanaronson.linguize.ui.chat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,7 +11,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -19,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -30,7 +36,11 @@ import com.evanaronson.linguize.core.chat.ChatStart
 import com.evanaronson.linguize.core.chat.SendState
 import com.evanaronson.linguize.core.time.DraftTiming
 import com.evanaronson.linguize.history.Origin
+import com.evanaronson.linguize.ui.card.CardTyping
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.LocalCardTyping
+import com.evanaronson.linguize.ui.card.rememberCardTyping
+import com.evanaronson.linguize.ui.components.DisclosureMotion
 import com.evanaronson.linguize.ui.card.Progress
 import androidx.compose.ui.res.stringResource
 import com.evanaronson.linguize.R
@@ -175,9 +185,10 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
     LaunchedEffect(messages.size, chat.replying, chat.send) {
         if (list.layoutInfo.totalItemsCount > 0) list.animateScrollToItem(0)
     }
-    BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
-        val reviewMax = maxHeight * 0.62f
-        Column(Modifier.fillMaxSize()) {
+    val typing = rememberCardTyping()
+    ConversationAndReview(
+        typing,
+        conversation = {
             if (chat.needsKey) NoKeyStrip(onOpenSettings)
             LazyColumn(
                 state = list,
@@ -208,6 +219,8 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
                     )
                 }
             }
+        },
+        bottom = { reviewMax ->
             val creating = chat.creatingConversationId == thread?.conversation?.id ||
                 (chat.conversationSaveFailure as? ConversationWriteFailure.Create)?.id == thread?.conversation?.id
             if (!creating) {
@@ -216,9 +229,39 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
                     else -> ReviewPanel(chat, check, reviewMax, onOpenSettings)
                 }
             }
-        }
-    }
+        },
+    )
     chat.editConfirmation?.let { EditConfirmationDialog(it, onConfirm = chat::confirmEdit, onCancel = chat::cancelEdit) }
 }
+
+/**
+ * The conversation above, the composer or the review below, over the keyboard. The review is
+ * at most [REVIEW_SHARE] of the height, so the conversation stays in view; while a change is
+ * typed on its card (Type to accept, [typing]), it takes the whole height above the keyboard,
+ * and the conversation yields its height (it stays in place, scrolled, and comes back as the
+ * keyboard closes), with the expand pattern's motion.
+ */
+@Composable
+internal fun ConversationAndReview(
+    typing: CardTyping,
+    conversation: @Composable ColumnScope.() -> Unit,
+    bottom: @Composable (reviewMax: Dp) -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
+        // The share animates, not the height, so the review follows the keyboard as it moves.
+        val share by animateFloatAsState(
+            if (typing.active) 1f else REVIEW_SHARE,
+            tween(if (typing.active) DisclosureMotion.EXPAND_MILLIS else DisclosureMotion.COLLAPSE_MILLIS, easing = FastOutSlowInEasing),
+            label = "reviewShare",
+        )
+        val reviewMax = maxHeight * share
+        Column(Modifier.fillMaxSize()) {
+            conversation()
+            CompositionLocalProvider(LocalCardTyping provides typing) { bottom(reviewMax) }
+        }
+    }
+}
+
+internal const val REVIEW_SHARE = 0.62f
 
 private const val CHECK_KEY = "lab_chat_check"

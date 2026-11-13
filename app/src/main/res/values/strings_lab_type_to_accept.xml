@@ -8,6 +8,16 @@
     <string name="lab_type_to_accept_placeholder">Type the change</string>
     <!-- Screen readers: the field's label, with the exact text to type, e.g. "Type estàs to accept it". -->
     <string name="lab_type_to_accept_label">Type %1$s to accept it</string>
-    <!-- Under the field once the typed text stops matching the change. Read out as it appears. -->
-    <string name="lab_type_to_accept_off">Not quite: check the change above</string>
+    <!-- Under the field once the typed text stops matching the change. Short: it sits beside Skip on a phone. -->
+    <string name="lab_type_to_accept_off">Not quite</string>
+    <!-- Screen readers: the same message, read out as it appears and as the field's error. -->
+    <string name="lab_type_to_accept_off_spoken">Not quite. Check the change above</string>
+    <!-- Screen readers: read out as the typed change matches, just before it is accepted. -->
+    <string name="lab_type_to_accept_correct">Correct</string>
+    <!-- Settings › Checking, under Type to accept: a light vibration when a typed change matches. -->
+    <string name="lab_type_to_accept_vibrate">Vibrate when correct</string>
+    <!-- Settings › Checking, under Type to accept: a short sound when a typed change matches. -->
+    <string name="lab_type_to_accept_sound">Sound when correct</string>
+    <!-- Settings › Checking: under Sound when correct. -->
+    <string name="lab_type_to_accept_sound_summary">Not when your phone is on silent or vibrate</string>
 </resources>

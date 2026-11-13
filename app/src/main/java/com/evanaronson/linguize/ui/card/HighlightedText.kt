@@ -1,6 +1,27 @@
 package com.evanaronson.linguize.ui.card
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import com.evanaronson.linguize.ui.components.DisclosureMotion
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.roundToInt
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -188,7 +209,59 @@ fun HighlightedText(
     // Screen readers hear the real text: the marks only stand in for what a tap can't reach.
     val spokenText = text.takeIf { marked.hasMarks }
 
-    Column {
+    // Lab, Type to accept: while the writer types the open change here, the text around it and
+    // the field share the room above the keyboard. A long text narrows to the lines around the
+    // change (the rest stays in the text, for screen readers too), and the card or screen
+    // scrolls so the change, its line and the field are in view together.
+    val typing = LocalCardTyping.current
+    // Lab, Type to accept: the change typed correctly resolves in place during its hold.
+    val resolvingId = typing?.resolving
+    val resolvingIndex = visible.indexOfFirst { it.id == resolvingId }.takeIf { it >= 0 }
+    val settle = remember { Animatable(0f) }
+    LaunchedEffect(resolvingIndex != null, resolvingId) {
+        settle.snapTo(0f)
+        if (resolvingIndex != null) settle.animateTo(1f, tween(SETTLE_MILLIS, easing = LinearEasing))
+    }
+    val open = selected?.let { visible[it] }
+    val typingHere = typing?.active == true && open != null && selection?.typeToAccept == true &&
+        onReplace != null && TypeToAccept.target(text.substring(changes[selected].range)) != null
+    val window = remember(layout, open?.range) { layout?.let { l -> open?.let { typingWindow(l, it.range) } } }
+    val lastWindow = remember { arrayOfNulls<ClosedFloatingPointRange<Float>>(1) }
+    if (typingHere && window != null) lastWindow[0] = window
+    val crop by animateFloatAsState(
+        if (typingHere && window != null) 1f else 0f,
+        tween(if (typingHere) DisclosureMotion.EXPAND_MILLIS else DisclosureMotion.COLLAPSE_MILLIS, easing = FastOutSlowInEasing),
+        label = "typingWindow",
+    )
+    val fade = with(LocalDensity.current) { WINDOW_FADE.toPx() }
+    val anchor = remember { BringIntoViewRequester() }
+    val column = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val ime = WindowInsets.ime
+    val density = LocalDensity.current
+    val currentLayout by rememberUpdatedState(layout)
+    val currentOpen by rememberUpdatedState(open)
+    LaunchedEffect(typingHere, open?.id) {
+        if (!typingHere) return@LaunchedEffect
+        // Once the panel has opened and the keyboard has settled (and again if it resizes).
+        snapshotFlow { ime.getBottom(density) }.collectLatest {
+            frameDelay(EXPAND_MILLIS)
+            val box = column[0]?.takeIf { it.isAttached } ?: return@collectLatest
+            val field = typing.field?.takeIf { it.isAttached } ?: return@collectLatest
+            val result = currentLayout ?: return@collectLatest
+            val range = currentOpen?.range ?: return@collectLatest
+            val bottom = box.localBoundingBoxOf(field, clipBounds = false).bottom
+            val shift = (lastWindow[0]?.start ?: 0f) * crop
+            val line = result.getLineForOffset(range.first)
+            val changeTop = result.getLineTop(line) - shift
+            val contextTop = (result.getLineTop((line - TYPING_CONTEXT_LINES).coerceAtLeast(0)) - shift).coerceAtLeast(0f)
+            val width = box.size.width.toFloat()
+            // The change with a line before it; failing that, at least the change and the field.
+            anchor.bringIntoView(Rect(0f, contextTop, width, bottom))
+            anchor.bringIntoView(Rect(0f, changeTop, width, bottom))
+        }
+    }
+
+    Column(Modifier.bringIntoViewRequester(anchor).onGloballyPositioned { column[0] = it }) {
         Text(
             annotated,
             style = MaterialTheme.typography.bodyLarge,
@@ -206,6 +279,37 @@ fun HighlightedText(
                 }
             }),
             modifier = Modifier
+                // Lab, Type to accept: the lines around the open change, while typing it.
+                .graphicsLayer {
+                    clip = crop > 0f
+                    compositingStrategy = if (crop > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+                }
+                .drawWithContent {
+                    drawContent()
+                    val shown = lastWindow[0]
+                    val edge = fade * crop
+                    if (shown == null || edge <= 0f) return@drawWithContent
+                    // Faded where the text goes on above or below.
+                    if (shown.start > 0f) drawRect(
+                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black), 0f, edge),
+                        blendMode = BlendMode.DstIn,
+                    )
+                    if (shown.endInclusive < (layout?.size?.height ?: 0) - 1) drawRect(
+                        Brush.verticalGradient(listOf(Color.Black, Color.Transparent), size.height - edge, size.height),
+                        blendMode = BlendMode.DstIn,
+                    )
+                }
+                .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val shown = lastWindow[0]
+                        if (shown == null || crop == 0f) {
+                            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                        } else {
+                            val top = (shown.start * crop).roundToInt()
+                            val bottom = (placeable.height + (shown.endInclusive - placeable.height) * crop).roundToInt()
+                            layout(placeable.width, (bottom - top).coerceAtLeast(0)) { placeable.place(0, -top) }
+                        }
+                    }
                 .semantics {
                     spokenText?.let { contentDescription = it }
                     customActions = actions +CustomAccessibilityAction(copyDescription) {
@@ -215,7 +319,14 @@ fun HighlightedText(
                 }
                 .drawBehind {
                     boxes.forEachIndexed { index, segments ->
-                        drawChangeMark(segments, accent, dotted, selected = index == selected, tint = tint)
+                        if (index == resolvingIndex) {
+                            // Typed correctly: the mark lets go and the new words glow briefly, then settle.
+                            val (underline, glow) = settleStep(settle.value)
+                            drawChangeMark(segments, accent.copy(alpha = accent.alpha * underline), dotted,
+                                selected = true, tint = accent.copy(alpha = SETTLE_GLOW * glow))
+                        } else {
+                            drawChangeMark(segments, accent, dotted, selected = index == selected, tint = tint)
+                        }
                     }
                 }
                 .pointerInput(visible) {
@@ -241,7 +352,8 @@ fun HighlightedText(
             arrived[0] = true
             if (shown != null && !(first && selection != null)) {
                 delay(EXPAND_MILLIS)
-                explanation.bringIntoView()
+                // While typing, the text and the field are kept in view together instead (above).
+                if (typing?.active != true) explanation.bringIntoView()
             }
         }
         // Keeps showing the last explanation while it animates away. Its replacement is kept
@@ -425,3 +537,50 @@ private val TOUCH_RADIUS = 24.dp
 
 /** Long enough for the explanation panel's expand animation to finish. */
 private const val EXPAND_MILLIS = 320L
+
+/**
+ * Lab, Type to accept: how a correctly typed change resolves in the text, within the hold
+ * before it is accepted: the underline fades over the expand time, the soft highlight rises
+ * with it, stays, then fades over the expand time again, ending before the accept.
+ */
+internal const val SETTLE_MILLIS = 2 * DisclosureMotion.EXPAND_MILLIS + DisclosureMotion.COLLAPSE_MILLIS
+
+private const val SETTLE_GLOW = 0.22f
+
+/** The underline's and the highlight's strength at [progress] (0 to 1) of [SETTLE_MILLIS]. */
+internal fun settleStep(progress: Float): Pair<Float, Float> {
+    val rise = DisclosureMotion.EXPAND_MILLIS.toFloat() / SETTLE_MILLIS
+    val underline = 1f - (progress / rise).coerceIn(0f, 1f)
+    val glow = when {
+        progress < rise -> progress / rise
+        progress < 1f - rise -> 1f
+        else -> ((1f - progress) / rise).coerceIn(0f, 1f)
+    }
+    return underline to glow
+}
+
+/** Lab, Type to accept: a text this long or shorter is shown whole while typing. */
+internal const val TYPING_FULL_LINES = 4
+
+/** Lab, Type to accept: lines kept above and below the change while typing in a longer text. */
+internal const val TYPING_CONTEXT_LINES = 1
+
+/** How far the narrowed text fades out where it goes on. */
+private val WINDOW_FADE = 12.dp
+
+/**
+ * Lab, Type to accept: the part of a long text to show while the change at [range] is typed,
+ * from the top of the line before it to the bottom of the line after it, in pixels of the
+ * laid-out text; null when the text is short enough to show whole.
+ */
+internal fun typingWindow(layout: TextLayoutResult, range: IntRange): ClosedFloatingPointRange<Float>? {
+    val lines = layout.lineCount
+    val length = layout.layoutInput.text.length
+    if (lines <= TYPING_FULL_LINES || length == 0) return null
+    val first = layout.getLineForOffset(range.first.coerceIn(0, length - 1))
+    val last = layout.getLineForOffset(maxOf(range.first, range.last).coerceIn(0, length - 1))
+    val from = (first - TYPING_CONTEXT_LINES).coerceAtLeast(0)
+    val to = (last + TYPING_CONTEXT_LINES).coerceAtMost(lines - 1)
+    if (from == 0 && to == lines - 1) return null
+    return layout.getLineTop(from)..layout.getLineBottom(to)
+}

@@ -5,7 +5,15 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Recomposer
+import androidx.compose.ui.platform.ComposeView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +48,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
 
+private const val SETTLE_FRAMES = 64
+
 /** Lab, Type to accept: on the shared card, the open change's Accept becomes a field to type it in. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -63,6 +73,8 @@ class TypeToAcceptCardTest {
 
     @After fun tearDown() {
         TypeToAcceptPreferences(activity).enabled = false
+        recomposer.cancel()
+        uiScope.cancel()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -88,10 +100,29 @@ class TypeToAcceptCardTest {
             ),
             onRetry = {}, onOpenSettings = null, onSettle = { _, _ -> },
         )
-        activity.setContent {
-            MaterialTheme { ResultCard(state.value, actions, Modifier.fillMaxWidth().heightIn(max = 600.dp)) }
-        }
+        // Its own frame clock: the correct-answer hold waits in frames, and the shared clock
+        // can stall in a full run (see LanguagesScreenTest).
+        uiScope.launch { recomposer.runRecomposeAndApplyChanges() }
+        activity.setContentView(ComposeView(activity).apply {
+            setParentCompositionContext(recomposer)
+            setContent {
+                MaterialTheme {
+                    CompositionLocalProvider(LocalFeedbackOutput provides silent) {
+                        ResultCard(state.value, actions, Modifier.fillMaxWidth().heightIn(max = 600.dp))
+                    }
+                }
+            }
+        })
         settle()
+    }
+
+    private val frames = BroadcastFrameClock()
+    private val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + frames)
+    private val recomposer = Recomposer(uiScope.coroutineContext)
+    private var frameTime = 0L
+    private val silent = object : FeedbackOutput {
+        override fun haptic() = Unit
+        override fun sound() = Unit
     }
 
     @Test fun offTheCardIsUnchanged() {
@@ -130,7 +161,9 @@ class TypeToAcceptCardTest {
         assertFalse(hasText(activity.getString(R.string.lab_type_to_accept_off)))
 
         type(label, "amix")
-        assertEquals(activity.getString(R.string.lab_type_to_accept_off),
+        // Short on screen, so it fits beside Skip; screen readers hear where to look.
+        assertEquals("Not quite", activity.getString(R.string.lab_type_to_accept_off))
+        assertEquals(activity.getString(R.string.lab_type_to_accept_off_spoken),
             field(label)?.config?.getOrNull(SemanticsProperties.Error))
         assertTrue(hasText(activity.getString(R.string.lab_type_to_accept_off)))
         assertEquals(listOf(deletion), revision.acceptedEdits)
@@ -164,16 +197,19 @@ class TypeToAcceptCardTest {
         assertTrue(accepted.isEmpty())
     }
 
+    /** About a second of frames: past every animation and the correct-answer hold. */
     private fun settle() {
-        repeat(2) {
+        repeat(SETTLE_FRAMES) {
             Snapshot.sendApplyNotifications()
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(16))
+            frameTime += 16_000_000L
+            frames.sendFrame(frameTime)
             root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
             root.layout(0, 0, 1080, 1920)
         }
         Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     private fun hasText(text: String) = nodes().any {

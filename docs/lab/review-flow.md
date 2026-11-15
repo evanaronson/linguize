@@ -18,18 +18,60 @@ Writing pad's "Next change" showed how much calmer a sequence is. Now the card l
   explanation (Accept, the reason, the meters) under the text.
 - **Accept moves on.** The next open change is selected, in the same frame. After the last
   one the walk wraps once to any earlier change still open (one the writer jumped past).
-- **Skip moves on without accepting.** Skip sits beside Accept. The skipped change keeps
-  its underline and can be tapped later; the walk doesn't come back to it on its own.
+- **Skip moves on without accepting.** Skip sits beside Accept. The skipped change shows
+  its original words again, unmarked, and can be tapped later; the walk doesn't come back
+  to it on its own.
 - **Done.** When every change is accepted or skipped the selection clears and the card
   scrolls its last row, "2 changes accepted, Undo, Replace", into view.
 - **Undo goes back.** Undo reopens the change it brought back, ready to decide again.
 - **Tap to jump.** Tapping (or a keyboard link, or a screen reader's "Why" action) selects
   any change; Accept then continues from there. Tapping the open change closes it.
-- **Deletions and spacing in place.** A deleted word stays in the text, struck through and
-  underlined, where it was. A line break shows as ¶ (struck through when it goes), other
-  spacing as a caret ‸. These marks are tapped, tinted and walked like any other change.
-  The separate block that used to hold them is gone. Copy and Replace never include the
-  marks: only the drawing changes.
+- **Every change in place.** A replaced word shows its old words struck through, then the
+  new words, with the change's underline under both (see One change view, below). A deleted
+  word stays in the text, struck through and underlined, where it was. A line break shows
+  as ¶ (struck through when it goes), other spacing as a caret ‸. These marks are tapped,
+  tinted and walked like any other change. The separate block that used to hold them is
+  gone. Copy and Replace never include the old words or the marks: only the drawing changes.
+
+## One change view
+
+The owner, on a past chat message: it "looks better, but why is it not used normally". The
+past message wrote each change in place, old words struck through and then the new ones,
+and listed every change under the text; the card showed only the new words, underlined,
+and the explanation of the open change only. Now there is one way, everywhere: the
+past message's drawing and the card's interaction.
+
+How each change looks in the card's text:
+
+| State | Looks like |
+|---|---|
+| **Pending** | The old words struck through in grey, then the proposed new words, with the change's underline under both: solid proof vermilion for a fix, dotted grey for a rewording. A deletion is just its struck word; an insertion just its new words; spacing its ¶ or ‸. |
+| **Current** (selected, open) | The same, on the faint selected tint. Its explanation is the only one open, under the text. |
+| **Accepted** | Just the new words, plain, as they will be sent. No strike, no underline. Undo brings the change back as pending. |
+| **Skipped** | The original words, plain, as they will be sent: no strike, no proposed words, no underline. A skipped change with nothing visible to keep (an insertion, added spacing) leaves a quiet grey ‸ (or ¶) in its place. A tap on the words (or the caret) brings the change back, proposed again; the screen reader's "Why" action and Accept all still reach it. |
+| **Typed correctly** (Type to accept) | During the hold the struck old words fade out, the underline lets go and the new words glow briefly; then it is accepted. See [Type to accept](type-to-accept.md). |
+
+**Why accepted shows only the new words.** The text converges on what will be sent: as
+each change is decided, the sentence reads more like the final message. Keeping the struck
+old words, lighter, would leave every accepted change looking almost like a pending one,
+and "what will be sent" would need reading twice. Undo, under the text, still shows that
+something was accepted ("2 changes accepted"). It also makes the Type to accept beat honest:
+the old words fading out is the change becoming accepted.
+
+**Why skipped shows the original.** It's what will be sent for it. A skip isn't a decision
+(Accept all still takes it), so it stays reachable: the words are still a link, and a
+skipped insertion keeps a caret to tap.
+
+**Read-only everywhere else.** A sent chat message ([Chat](chat.md)) and a saved check in
+History ([History](../history.md)) show the same component, `HighlightedText`, read-only
+through `ChangeRecord`: what was written, each change in the pending look (the old words
+struck, then the new), nothing to accept or copy, and a tap on a change opens its
+explanation in the card's own `ExplanationPanel` (the change, the reason, the meters when
+saved, Teach me, the Phrasebook star). One open at a time, and no list of every change. In
+History the panel also says what became of the change ("Accepted", "Not accepted",
+"Covered by a rewording") on a quiet line. A record shows both kinds in one text; where a
+fix and a rewording overlap (a fix, then the rewording that replaced it), it shows the
+card's two texts, fixes then rewordings on the corrected text, each with its count.
 
 ## Decisions
 
@@ -59,7 +101,9 @@ accepted rewording leaves the count.
   out with its position.
 - Per-change actions stay on the text ("Why remove yo", "Remove yo", ...), plus "Skip
   this change" while a change is open.
-- When the text carries marks, screen readers hear the real suggested text, not the marks.
+- Screen readers hear the real suggested text, not the struck old words or the marks; each
+  change is described in words in its actions ("Why estas becomes estàs") and in its
+  explanation ("estas becomes estàs"). A past chat message is heard as "You wrote: …".
 
 ## How it's built
 
@@ -70,10 +114,21 @@ accepted rewording leaves the count.
 - `ui/card/ReviewFlowCard.kt`: `rememberReviewFlow` for the suggestions page; keyed on the
   check's text and edits, so a new answer (after a clarification or retry) starts again at
   its first change, with accepted changes carried over as before.
-- `ui/card/ChangeMarkers.kt`: `markChanges` draws deletions and spacing as marks and maps
-  each change's range into the drawn text.
-- `HighlightedText` takes an optional shared `ReviewSelection`; without one it keeps its
-  own selection, as before. `ExplanationPanel` takes `onSkip` and a spoken `position`.
+- `ui/card/ChangeMarkers.kt`: `markChanges` writes every change into the drawn text (old
+  words struck, then the new; deletions and spacing as marks; skipped changes as their
+  original words) and maps each change's range into it, with its struck part and its new
+  words (for the Type to accept beat).
+- `HighlightedText` takes an optional shared `ReviewSelection` (with the skipped changes);
+  without one it keeps its own selection, as before. `ExplanationPanel` takes `onSkip`, a
+  spoken `position` and, for History, a `status` line. With `onReplace` and `onCopy` null it
+  is read-only; a `Highlight` can carry its own `kind`, so one text can hold fixes and
+  rewordings.
+- `ui/card/ChangeRecord.kt`: `recordPassages` turns a past check's changes (spans in the text
+  as written) into one text, or the card's two when they overlap, and `ChangeRecord` shows
+  them read-only with one shared selection. Chat's `ChatCorrections` and History's
+  `SavedSuggestions` both use it, so they can't drift from the card.
+- `Revision.previewOnCorrected(kind, skipped)`: the rewordings' text leaves skipped fixes as
+  written, so both texts show what will be sent. Copy still takes every remaining change.
 
 Every host (popup over other apps, the selection-menu card, Chat, Notes, the clipboard
 card) shows the same `ResultCard`, so the flow is identical everywhere. Nothing new is
@@ -84,7 +139,9 @@ A skip is not a decision and isn't saved.
 
 - The selection is UI state: it resets when the card is recreated (rotation, process
   death), opening on the first open change again.
-- Skipped changes aren't revisited automatically; the writer taps them.
-- A deleted word's mark adds a space next to a neighbouring word, so the drawn line can
-  wrap differently from the final text.
+- Skipped changes aren't revisited automatically; the writer taps them. Unmarked, they are
+  easy to forget; Accept all and the count above the text still include them.
+- The struck old words and a deleted word's mark take room, so the drawn line can wrap
+  differently from the final text, and the text reflows as a change is accepted, skipped or
+  brought back.
 - Read-only cards (no Replace) still open on the first change, but can only be tapped.

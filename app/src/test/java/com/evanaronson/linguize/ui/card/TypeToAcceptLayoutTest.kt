@@ -27,6 +27,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.style.TextDecoration
+import com.evanaronson.linguize.ui.components.DisclosureMotion
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
@@ -293,6 +295,26 @@ class TypeToAcceptLayoutTest {
         assertEquals("The field keeps focus, so the keyboard stays", true, next?.config?.getOrNull(SemanticsProperties.Focused))
         millis(1000)
         assertEquals(listOf(fix.id), accepted)
+    }
+
+    @Test fun theStruckOldWordsFadeOutDuringTheBeatAndAreGoneOnceAccepted() {
+        show(typeToAccept = true)
+        keyboard(up = true)
+        fun drawn() = textNode().config[SemanticsProperties.Text].first()
+        fun struckAlpha() = drawn().spanStyles.single {
+            it.item.textDecoration == TextDecoration.LineThrough && it.start == middle
+        }.item.color.alpha
+        assertTrue("Pending: the old words struck, then the new", drawn().text.contains("numero 30 amb amb la unes"))
+        assertEquals(1f, struckAlpha(), 0.01f)
+        type(label("amb la"), "amb la")
+        assertEquals(fix.id, typing.resolving)
+        millis(DisclosureMotion.EXPAND_MILLIS.toLong() + 50)
+        assertEquals("The old words have faded out", 0f, struckAlpha(), 0.05f)
+        assertTrue("Still in the text until the accept", accepted.isEmpty())
+        millis(CORRECT_HOLD_MILLIS)
+        assertEquals(listOf(fix.id), accepted)
+        assertTrue("Accepted: just the new words", drawn().text.contains("numero 30 amb la unes"))
+        assertFalse(drawn().text.contains("numero 30 amb amb la"))
     }
 
     @Test fun leavingDuringTheHoldStillAcceptsOnce() {

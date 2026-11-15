@@ -42,12 +42,15 @@ finger, which "feels like a bug". Now an exact match first shows that it's right
   polite live region). The theme has one colour, proof vermilion, kept for marks and
   errors; success is ink with a check, as elsewhere on the card ("Looks good", "All
   accepted"). No overlay, no banner.
-- **The text above.** The change resolves in place: its underline fades and the new words
-  get a brief soft highlight in the mark's colour, which rises, holds and fades
-  (`SETTLE_MILLIS`, 600 ms: twice the expand time plus the collapse time of the
-  [expand pattern](expand-pattern.md)), so the writer sees their sentence fixed. The card's
-  text already shows the new words, so for a replacement there are no struck-through old
-  words to remove; deletions keep Accept.
+- **The text above.** The change resolves in place. The card writes a pending change as its
+  old words struck through, then the new ones ([one change view](review-flow.md#one-change-view));
+  on a match the struck old words fade out and the underline lets go, over the expand time,
+  while the new words alone get a brief soft highlight in the mark's colour, which rises,
+  holds and fades (`SETTLE_MILLIS`, 600 ms: twice the expand time plus the collapse time of
+  the [expand pattern](expand-pattern.md)). The writer sees their sentence fixed: by the
+  accept, only the new words are left, which is how an accepted change looks. (The faded
+  old words still take their room until the accept, so the line closes up then.) Deletions
+  keep Accept.
 - **The hold.** `CORRECT_HOLD_MILLIS` is 700 ms from the match: under about 400 ms the
   success isn't registered before it's gone; over a second it feels sluggish across many
   changes. Then the change is accepted through the same `onAccept`, exactly once, and the
@@ -184,7 +187,8 @@ and its clearing, accepting and moving on; Skip), `TypeToAcceptLayoutTest` (real
 and its own frame clock: the change and the field in the card's viewport together, in a
 long text and in a lower section; the rest stays below the field; the layout relaxes when
 the keyboard closes or focus leaves; off is unchanged; Correct, then one accept after the
-hold, with focus kept into the next change; leaving mid-hold accepts once; the switches;
+hold, with focus kept into the next change; the struck old words fade out during the hold and
+only the new words are left after it; leaving mid-hold accepts once; the switches;
 Teach me leaves the field and keeps what was typed), `ChatTypingRoomTest` (the review takes
 the height and the conversation yields it, then gets it back), `TypeToAcceptSettingTest`
 (off by default, persists; the two switches under it, their defaults, persisting).

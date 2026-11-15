@@ -65,15 +65,15 @@ class HighlightKeyboardTest {
             }
         }
         settle()
-        tabToHighlight(0, 5)
+        tabToHighlight(0, 11)
         assertTrue("Existing highlight receives keyboard focus",
             nodes().any { it.config.getOrNull(SemanticsProperties.Focused) == true })
         assertTrue("Keyboard focus visibly underlines the existing word", textLayout().second.layoutInput.text.spanStyles.any {
-            it.start == 0 && it.end == 5 && it.item.textDecoration == TextDecoration.Underline
+            it.start == 0 && it.end == 11 && it.item.textDecoration == TextDecoration.Underline
         })
         key(KeyEvent.KEYCODE_ENTER)
         assertTrue("Enter opens first explanation", hasText("First explanation"))
-        tabToHighlight(6, 12)
+        tabToHighlight(12, 25)
         key(KeyEvent.KEYCODE_SPACE)
         assertTrue("Space opens second explanation", hasText("Second explanation"))
         // The existing Accept control remains reachable through standard Tab traversal.
@@ -99,7 +99,7 @@ class HighlightKeyboardTest {
             }
         }
         settle()
-        tabToHighlight(0, 5)
+        tabToHighlight(0, 11)
         key(KeyEvent.KEYCODE_ENTER)
         tabToText("Accept")
         key(KeyEvent.KEYCODE_ENTER)
@@ -133,7 +133,7 @@ class HighlightKeyboardTest {
         editable.value = false
         settle()
         assertEquals("Revoked acceptance: ${customActions().map { it.label }}", 3, customActions().size) // two Why, Copy
-        tabToHighlight(0, 5)
+        tabToHighlight(0, 11)
         key(KeyEvent.KEYCODE_ENTER)
         assertTrue(hasText("First explanation"))
         assertFalse(hasText("Accept"))
@@ -183,7 +183,7 @@ class HighlightKeyboardTest {
         }
         settle()
         val (node, layout) = textLayout()
-        val glyph = layout.getBoundingBox(5)
+        val glyph = layout.getBoundingBox(6) // "Hello;,": the struck ; then the new ,
         tap(node, glyph.center)
         assertTrue("Direct link tap opens the existing panel once", hasText("Comma explanation"))
         tap(node, glyph.center)
@@ -211,16 +211,19 @@ class HighlightKeyboardTest {
             }
         }
         settle()
+        // Old words are drawn before the new ones, so each link sits at its drawn range.
+        val marked = markChanges(text, listOf(first, second, spacing))
+        fun drawn(change: Highlight) = marked.ranges.getValue(change.id)
         assertEquals(4, customActions().size) // three Why, Copy; no acceptance in read-only mode
         val (node, layout) = textLayout()
         assertTrue("Exercise wrapped shaping", layout.lineCount > 1)
         for (change in listOf(first, second)) {
-            tap(node, layout.getBoundingBox(change.range.last).center)
+            tap(node, layout.getBoundingBox(drawn(change).last).center)
             assertTrue("Wrapped RTL glyph opens its own explanation", hasText(change.why!!))
-            tap(node, layout.getBoundingBox(change.range.last).center)
+            tap(node, layout.getBoundingBox(drawn(change).last).center)
         }
         for (change in listOf(first, second)) {
-            tabToHighlight(change.range.first, change.range.last + 1)
+            tabToHighlight(drawn(change).first, drawn(change).last + 1)
             key(KeyEvent.KEYCODE_ENTER)
             assertTrue("Keyboard opens the selected wrapped RTL link", hasText(change.why!!))
         }

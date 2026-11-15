@@ -2,7 +2,14 @@ package com.evanaronson.linguize.ui.history
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import com.evanaronson.linguize.ui.card.ChangeRecord
+import com.evanaronson.linguize.ui.card.RecordedChange
+import com.evanaronson.linguize.ui.card.recordPassages
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +43,10 @@ import com.evanaronson.linguize.ui.teachme.savedLessonTopic
 import com.evanaronson.linguize.ui.phrasebook.LocalPhraseOrigin
 import com.evanaronson.linguize.ui.phrasebook.phraseCandidate
 
-/** History-only recovery: saved decisions remain readable without raw answers or valid spans. */
+/** Marks a saved check's change view, for tests. */
+internal const val SAVED_CHANGES_TAG = "history_saved_changes"
+
+/** History-only recovery:saved decisions remain readable without raw answers or valid spans. */
 internal fun savedSuggestions(detail: SessionDetail): List<SuggestionRecord> {
     val rows = detail.suggestions.filter { it.decision != Decision.Superseded }
     val attempt = rows.maxOfOrNull { it.attempt } ?: return emptyList()
@@ -66,7 +76,13 @@ internal fun savedSuggestionAssumptions(
     return linkedAssumptions(edit.assumptionIndices, reviewed.assumptions, settled)
 }
 
-/** The saved suggestions as rows of one card; each opens its explanation in place. */
+/**
+ * The saved suggestions, the way the card showed them: [text] (as written) with every
+ * suggestion written in place, old words struck through, then the new ([ChangeRecord], the
+ * card's own change view, read-only). A tap on one opens its explanation, with what became of
+ * it ("Accepted", "Not accepted"). Rows that no longer fit the text (an old or damaged record)
+ * keep the literal list instead: one row per suggestion, each opening its explanation in place.
+ */
 @Composable
 internal fun SavedSuggestions(
     sessionId: String,
@@ -74,8 +90,23 @@ internal fun SavedSuggestions(
     hasFinalText: Boolean,
     reviewed: CheckResult.Reviewed? = null,
     settled: List<Settled> = emptyList(),
+    text: String? = null,
 ) {
     SectionHeader(stringResource(R.string.history_suggestions))
+    val none = stringResource(R.string.history_no_explanation)
+    val changes = rows.map { row ->
+        RecordedChange(row.kind, row.start, row.end, row.fromText, row.toText,
+            row.why?.takeIf { it.isNotBlank() } ?: none, row.assessment,
+            savedSuggestionAssumptions(row, reviewed, settled),
+            stringResource(savedSuggestionState(row.decision, hasFinalText)))
+    }
+    val passages = remember(text, changes) { text?.let { recordPassages(it, changes) } }
+    if (!passages.isNullOrEmpty()) {
+        SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
+            ChangeRecord(passages, Modifier.semantics { testTag = SAVED_CHANGES_TAG })
+        }
+        return
+    }
     SectionCard {
         if (rows.isEmpty()) {
             Quiet(stringResource(R.string.history_no_suggestions), Modifier.padding(vertical = 12.dp))

@@ -85,6 +85,8 @@ internal fun ExplanationPanel(
     position: String? = null,
     /** Lab, Type to accept: what to type in place of Accept; null shows the Accept button. */
     typeToAccept: TypeTarget? = null,
+    /** A saved check's quiet line under the change: what became of it ("Accepted"). */
+    status: String? = null,
 ) {
     var clarifying by rememberSaveable(assumptions) { mutableStateOf<String?>(null) }
     val edge = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
@@ -102,6 +104,9 @@ internal fun ExplanationPanel(
             .padding(start = 14.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
     ) {
         description?.let { ChangeLine(from, to, it, position) }
+        status?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         if (!context.isNullOrBlank()) {
             Text(context, style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

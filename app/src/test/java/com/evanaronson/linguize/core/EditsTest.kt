@@ -270,6 +270,11 @@ class EditsTest {
         // Accepting a rewording still takes only the rewording.
         val rewording = revision.remaining(EditKind.Natural).first()
         assertEquals(1, revision.accept(rewording.id).acceptedCount)
+        // A skipped fix stays as written under the rewordings, unless a rewording replaces it anyway.
+        val dema = revision.remaining(EditKind.Fix).single { it.from == "dema" }
+        val estas = revision.remaining(EditKind.Fix).single { it.from == "estas" }
+        assertEquals("Hola, com va? Fins dema", revision.previewOnCorrected(EditKind.Natural, setOf(dema.id)).text)
+        assertEquals(shown, revision.previewOnCorrected(EditKind.Natural, setOf(estas.id)))
     }
 
     @Test

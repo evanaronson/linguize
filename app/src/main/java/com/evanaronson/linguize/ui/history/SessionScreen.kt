@@ -145,7 +145,7 @@ private fun Shown(page: SessionPage.Shown, onOpenConversation: ((String) -> Unit
     CompositionLocalProvider(LocalLessonSource provides LessonSource(session.targetLanguage ?: session.detectedLanguage, session.text)) {
         ProvidePhraseOrigin(PhraseOrigin.of(session)) {
             SavedSuggestions(session.id, page.suggestions, hasFinalText = session.finalText != null,
-                reviewed = reviewed, settled = settled)
+                reviewed = reviewed, settled = settled, text = session.text)
         }
     }
 
@@ -154,10 +154,7 @@ private fun Shown(page: SessionPage.Shown, onOpenConversation: ((String) -> Unit
     if (reviewed != null) SavedMeaning(session.id, reviewed, settled)
 }
 
-/**
- * "Before": the text exactly as written. A saved check's page and a corrected chat message
- * (`ui/chat/ChatCorrections.kt`) both show it this way; [notes] go under the text.
- */
+/** "Before": the text exactly as written; [notes] go under the text. */
 @Composable
 internal fun SavedBefore(text: String, notes: @Composable ColumnScope.() -> Unit = {}) {
     SectionHeader(stringResource(R.string.history_before))

@@ -79,6 +79,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.SuggestionAssessment
 import com.evanaronson.linguize.ui.phrasebook.LocalPhraseOrigin
 import com.evanaronson.linguize.ui.phrasebook.phraseCandidate
+import com.evanaronson.linguize.ui.theme.Linguize
 import kotlinx.coroutines.delay
 
 /** One change shown in the text: where it sits, what it replaced, and why. */
@@ -92,6 +93,13 @@ data class Highlight(
     val assumptions: List<Assumption> = emptyList(),
     /** The writer's answers to readings the change rests on. */
     val answers: List<String> = emptyList(),
+    /**
+     * Its own section, where one text shows fixes and rewordings together (a past message);
+     * null takes the text's (`dotted`).
+     */
+    val kind: EditKind? = null,
+    /** A quiet line under the change in its explanation: what became of it ("Accepted"), in History. */
+    val status: String? = null,
 )
 
 /** Deletions and spacing have no visible text to underline; they get a mark (see [markChanges]). */
@@ -108,13 +116,17 @@ internal fun Highlight.context(text: String): String {
 }
 
 /**
- * Suggested text with each change underlined: a solid [accent] line for a fix, a dotted
- * one ([dotted]) for a rewording. An underline is always something to accept. Tapping
- * one shows why, in an [ExplanationPanel] under the text, with Accept when [onReplace]
- * is set; the tapped change gets a faint tint, not a heavier line.
+ * The one change view: text with each change written in place ([markChanges]), its old words
+ * struck through and then its new words, underlined: a solid [accent] line for a fix, a
+ * dotted one ([dotted]) for a rewording. Tapping one shows why, in an [ExplanationPanel]
+ * under the text, with Accept when [onReplace] is set; the tapped change gets a faint tint,
+ * not a heavier line. Only the tapped (or current) change's explanation shows.
  * The same changes are keyboard links that open the existing explanation.
- * Screen readers, which can't aim a tap at a change, get the same as actions
- * on the text: "Why" for each change, and "Replace" when [onReplace] is set.
+ * Screen readers, which can't aim a tap at a change, hear the real text and get the same as
+ * actions on the text: "Why" for each change, and "Replace" when [onReplace] is set.
+ *
+ * Live on the check card, and read-only ([onReplace] and [onCopy] null) for a past chat message
+ * and a saved check in History ([ChangeRecord]), so every place shows changes the same way.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -123,14 +135,17 @@ fun HighlightedText(
     changes: List<Highlight>,
     accent: Color,
     onReplace: ((Int) -> Unit)?,
-    onCopy: () -> Unit,
-    copyDescription: String,
+    /** Null for a read-only record, which has no copy button. */
+    onCopy: (() -> Unit)?,
+    copyDescription: String?,
     onSettle: ((String, String) -> Unit)? = null,
     dotted: Boolean = false,
     /** The explanation's edge; the fix colour even when the mark itself is grey. */
     edge: Color = accent,
     /** Lab, Review flow: a selection shared with the card's other sections; null keeps its own. */
     selection: ReviewSelection? = null,
+    /** What screen readers hear for the text; null is the real text. */
+    spoken: String? = null,
 ) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var ownSelectedId by remember { mutableStateOf<Int?>(null) }
@@ -139,25 +154,56 @@ fun HighlightedText(
     // Accepting from a shared selection lets the flow move on; on its own the text just closes it.
     val afterAccept: () -> Unit = if (selection != null) ({}) else ({ ownSelectedId = null })
     val explanation = remember { BringIntoViewRequester() }
-    // Every change is drawn in the text: deletions and spacing as a mark at their place.
-    val marked = remember(text, changes) { markChanges(text, changes) }
+    // Every change is written in the text: old words struck, then the new; a skipped one (and
+    // not open again) as its original words.
+    val skipped = selection?.skipped.orEmpty() - setOfNotNull(selectedId)
+    val marked = remember(text, changes, skipped) { markChanges(text, changes, skipped) }
     val visible = remember(marked, changes) { changes.map { it.copy(range = marked.ranges.getValue(it.id)) } }
     val selected = visible.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
     val boxes = remember(layout, visible) {
         visible.map { change -> layout?.let { lineBoxes(it, change.range) }.orEmpty() }
     }
+    // The new words alone, for the glow of a change typed correctly.
+    val newBoxes = remember(layout, visible, marked) {
+        visible.map { change -> marked.added[change.id]?.let { range -> layout?.let { lineBoxes(it, range) } }.orEmpty() }
+    }
     val tint = selectedChangeTint()
     val struckColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val fixMark = Linguize.colors.proof
+    val rewordingMark = Linguize.colors.rewording
+    fun dottedFor(change: Highlight) = change.kind?.let { it == EditKind.Natural } ?: dotted
+    fun accentFor(change: Highlight) = when (change.kind) {
+        null -> accent
+        EditKind.Fix -> fixMark
+        EditKind.Natural -> rewordingMark
+    }
+
+    // Lab, Type to accept: the change typed correctly resolves in place during its hold: its
+    // struck old words fade out, its underline lets go, its new words glow briefly.
+    val typing = LocalCardTyping.current
+    val resolvingId = typing?.resolving
+    val resolvingIndex = visible.indexOfFirst { it.id == resolvingId }.takeIf { it >= 0 }
+    val settle = remember { Animatable(0f) }
+    LaunchedEffect(resolvingIndex != null, resolvingId) {
+        settle.snapTo(0f)
+        if (resolvingIndex != null) settle.animateTo(1f, tween(SETTLE_MILLIS, easing = LinearEasing))
+    }
+    val fading = resolvingId?.takeIf { resolvingIndex != null }?.let { marked.struckBy[it] }
+    val fade = if (fading != null) settleStep(settle.value).first else 1f
 
     // Links keep their identity (and keyboard focus) as the selection moves.
     val currentSelected by rememberUpdatedState(selectedId)
     val currentSelect by rememberUpdatedState(select)
-    val annotated = remember(marked, visible, accent, struckColor) {
+    val annotated = remember(marked, visible, accent, struckColor, fading, fade, onCopy != null) {
         buildAnnotatedString {
             append(marked.text)
             for (range in marked.struck) {
-                addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough, color = struckColor),
+                val color = if (range == fading) struckColor.copy(alpha = struckColor.alpha * fade) else struckColor
+                addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough, color = color),
                     range.first, range.last + 1)
+            }
+            for (range in marked.quietMarks) {
+                addStyle(SpanStyle(color = struckColor), range.first, range.last + 1)
             }
             for (change in visible) {
                 addLink(
@@ -172,8 +218,10 @@ fun HighlightedText(
                     change.range.last + 1,
                 )
             }
-            append(" ")
-            appendInlineContent("copy", "\uFFFC")
+            if (onCopy != null) {
+                append(" ")
+                appendInlineContent("copy", "\uFFFC")
+            }
         }
     }
 
@@ -206,22 +254,13 @@ fun HighlightedText(
             true
         }
     })
-    // Screen readers hear the real text: the marks only stand in for what a tap can't reach.
-    val spokenText = text.takeIf { marked.hasMarks }
+    // Screen readers hear the real text: the old words and marks are only drawn.
+    val spokenText = spoken ?: text.takeIf { marked.hasMarks }
 
     // Lab, Type to accept: while the writer types the open change here, the text around it and
     // the field share the room above the keyboard. A long text narrows to the lines around the
     // change (the rest stays in the text, for screen readers too), and the card or screen
     // scrolls so the change, its line and the field are in view together.
-    val typing = LocalCardTyping.current
-    // Lab, Type to accept: the change typed correctly resolves in place during its hold.
-    val resolvingId = typing?.resolving
-    val resolvingIndex = visible.indexOfFirst { it.id == resolvingId }.takeIf { it >= 0 }
-    val settle = remember { Animatable(0f) }
-    LaunchedEffect(resolvingIndex != null, resolvingId) {
-        settle.snapTo(0f)
-        if (resolvingIndex != null) settle.animateTo(1f, tween(SETTLE_MILLIS, easing = LinearEasing))
-    }
     val open = selected?.let { visible[it] }
     val typingHere = typing?.active == true && open != null && selection?.typeToAccept == true &&
         onReplace != null && TypeToAccept.target(text.substring(changes[selected].range)) != null
@@ -233,7 +272,7 @@ fun HighlightedText(
         tween(if (typingHere) DisclosureMotion.EXPAND_MILLIS else DisclosureMotion.COLLAPSE_MILLIS, easing = FastOutSlowInEasing),
         label = "typingWindow",
     )
-    val fade = with(LocalDensity.current) { WINDOW_FADE.toPx() }
+    val windowFade = with(LocalDensity.current) { WINDOW_FADE.toPx() }
     val anchor = remember { BringIntoViewRequester() }
     val column = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val ime = WindowInsets.ime
@@ -266,7 +305,7 @@ fun HighlightedText(
             annotated,
             style = MaterialTheme.typography.bodyLarge,
             onTextLayout = { layout = it },
-            inlineContent = mapOf("copy" to InlineTextContent(
+            inlineContent = if (onCopy == null) emptyMap() else mapOf("copy" to InlineTextContent(
                 Placeholder(width = 2.em, height = 1.5.em, placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter),
             ) {
                 IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
@@ -287,7 +326,7 @@ fun HighlightedText(
                 .drawWithContent {
                     drawContent()
                     val shown = lastWindow[0]
-                    val edge = fade * crop
+                    val edge = windowFade * crop
                     if (shown == null || edge <= 0f) return@drawWithContent
                     // Faded where the text goes on above or below.
                     if (shown.start > 0f) drawRect(
@@ -312,20 +351,30 @@ fun HighlightedText(
                     }
                 .semantics {
                     spokenText?.let { contentDescription = it }
-                    customActions = actions +CustomAccessibilityAction(copyDescription) {
-                        onCopy()
-                        true
-                    }
+                    customActions = actions + listOfNotNull(onCopy?.let { copy ->
+                        CustomAccessibilityAction(copyDescription.orEmpty()) {
+                            copy()
+                            true
+                        }
+                    })
                 }
                 .drawBehind {
                     boxes.forEachIndexed { index, segments ->
-                        if (index == resolvingIndex) {
-                            // Typed correctly: the mark lets go and the new words glow briefly, then settle.
-                            val (underline, glow) = settleStep(settle.value)
-                            drawChangeMark(segments, accent.copy(alpha = accent.alpha * underline), dotted,
-                                selected = true, tint = accent.copy(alpha = SETTLE_GLOW * glow))
-                        } else {
-                            drawChangeMark(segments, accent, dotted, selected = index == selected, tint = tint)
+                        val change = visible[index]
+                        val mark = accentFor(change)
+                        when {
+                            index == resolvingIndex -> {
+                                // Typed correctly: the old words fade (above), the mark lets go and
+                                // the new words glow briefly, then settle.
+                                val (underline, glow) = settleStep(settle.value)
+                                drawChangeMark(segments, mark.copy(alpha = mark.alpha * underline), dottedFor(change),
+                                    selected = false, tint = tint)
+                                drawChangeMark(newBoxes[index].ifEmpty { segments }, Color.Transparent, false,
+                                    selected = true, tint = mark.copy(alpha = SETTLE_GLOW * glow))
+                            }
+                            // Skipped: the original words as they'll be sent, no mark.
+                            change.id in marked.quiet -> Unit
+                            else -> drawChangeMark(segments, mark, dottedFor(change), selected = index == selected, tint = tint)
                         }
                     }
                 }
@@ -380,7 +429,7 @@ fun HighlightedText(
                     context = lastContext[0],
                     onSettle = onSettle,
                     sentence = lastSentence[0],
-                    rewording = dotted,
+                    rewording = dottedFor(change),
                     onSkip = selection?.onSkip?.takeIf { onReplace != null },
                     position = selection?.position?.takeIf { selection.selected == change.id },
                     typeToAccept = selection?.takeIf { it.typeToAccept && onReplace != null }
@@ -398,9 +447,11 @@ internal fun selectedChangeTint(): Color =
 
 /**
  * One change's mark under its text [segments]: the [tint] behind it when [selected], then its
- * underline, solid [accent] for a fix or [dotted] for a rewording. Also draws Chat's corrections.
+ * underline, solid [accent] for a fix or [dotted] for a rewording; a transparent [accent]
+ * draws only the tint.
  */
 internal fun DrawScope.drawChangeMark(segments: List<LineBox>, accent: Color, dotted: Boolean, selected: Boolean, tint: Color) {
+    val underline = accent.alpha > 0f
     val offset = 3.dp.toPx()
     val stroke = (if (dotted) 1.5.dp else 2.dp).toPx()
     val dots = if (dotted) PathEffect.dashPathEffect(floatArrayOf(0.01f, 2.5.dp.toPx())) else null
@@ -415,7 +466,7 @@ internal fun DrawScope.drawChangeMark(segments: List<LineBox>, accent: Color, do
             )
         }
         val y = box.baseline + offset
-        drawLine(
+        if (underline) drawLine(
             accent, Offset(box.left, y), Offset(box.right, y), stroke,
             cap = if (dotted) StrokeCap.Round else StrokeCap.Butt, pathEffect = dots,
         )
@@ -458,6 +509,7 @@ private fun ChangeExplanation(
         from = if (change.from.isEmpty() || replacement.isEmpty()) "" else from,
         to = if (change.from.isEmpty() || replacement.isEmpty()) "" else to,
         description = description,
+        status = change.status,
         why = change.why,
         assessment = change.assessment,
         assumptions = change.assumptions,

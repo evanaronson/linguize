@@ -101,7 +101,7 @@ class WithheldReviewTest {
         val detail = textNode(activity.getString(R.string.withheld_detail))
         val again = buttons(R.string.check_again).single()
         val preview = nodes().first {
-            it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text.startsWith("Com estàs?\n") } == true
+            it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text.startsWith("Com estas estàs?\n") } == true
         }
         val detailBottom = detail.positionInRoot.y + detail.size.height
         val againBottom = again.positionInRoot.y + again.size.height

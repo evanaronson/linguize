@@ -150,15 +150,25 @@ A saved page always shows the exact checked text as Before, and the recorded
 `finalText` as After when a result was handed back. It never reconstructs After
 from proposals. Legacy copy-only sessions remain stored but are hidden from History.
 Suggestions come directly from the final non-superseded revision's
-saved rows, including applied proposals. Tapping a row reveals its recorded reason
-and assessment; ignored/undone means Not accepted, not rejected. Retired means
-Covered by a rewording, which may have been applied or copied.
+saved rows, including applied proposals. They are shown the way the card showed them,
+with the card's own change view, read-only (`ChangeRecord`, see
+[Review flow](lab/review-flow.md#one-change-view)): the Before text with every saved
+suggestion written in place, its old words struck through, then the new words, underlined
+solid for a fix and dotted for a rewording. Where a fix and a rewording overlap, the card's
+two texts (fixes, then rewordings on the corrected text). Tapping a suggestion opens its
+recorded reason and assessment in the card's explanation panel, with what became of it on a
+quiet line under the change; one at a time, no list. Ignored/undone means Not accepted, not
+rejected. Retired means Covered by a rewording, which may have been applied or copied.
+When a row doesn't fit the saved text (its span is outside it, or its old words aren't
+there), the section keeps the literal list instead: one row per suggestion, each opening
+its explanation in place.
 When same-attempt replay has one exact structural match for a row, its explanation
 can also show the unresolved assumptions that change depends on, without clarification
 controls. Ambiguous matches and replay built from rows alone omit this optional context;
 the saved reason and assessment remain authoritative.
 
-This comparison does not depend on replay, raw answers, or valid source spans.
+This comparison does not depend on replay, raw answers, or valid source spans (the
+in-place view needs valid spans, and falls back to the list without them).
 Its local selection preserves saved decision rows even when missing raw data
 prevents the shared decided-attempt helper from selecting that revision. Separate
 row identities are retained. Missing details are labelled as missing, never as a

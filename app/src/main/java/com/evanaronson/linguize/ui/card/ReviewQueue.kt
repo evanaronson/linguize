@@ -129,4 +129,6 @@ class ReviewSelection(
     val position: String?,
     /** Lab, Type to accept: the open change is accepted by typing it, not with a button. */
     val typeToAccept: Boolean = false,
+    /** Changes the writer skipped: drawn as their original words, unmarked, until opened again. */
+    val skipped: Set<Int> = emptySet(),
 )

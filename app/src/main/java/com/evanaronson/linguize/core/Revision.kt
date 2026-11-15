@@ -86,11 +86,13 @@ data class Revision(
     /**
      * What the card shows for [kind]: rewordings are read on the corrected text, so the
      * remaining fixes are applied under them too; a rewording that touches a fix replaces it.
-     * Accepting still takes only that kind's edits.
+     * Accepting still takes only that kind's edits. Fixes in [skipped] (the writer passed them
+     * by) stay as written under the rewordings, unless a rewording replaces them anyway.
      */
-    fun previewOnCorrected(kind: EditKind): Rendered = when (kind) {
+    fun previewOnCorrected(kind: EditKind, skipped: Set<Int> = emptySet()): Rendered = when (kind) {
         EditKind.Fix -> preview(kind)
-        EditKind.Natural -> render(original, shown(acceptedEdits + remaining(EditKind.Fix) + remaining(EditKind.Natural)))
+        EditKind.Natural -> render(original, shown(acceptedEdits + remaining(EditKind.Fix).filterNot { it.id in skipped } +
+            remaining(EditKind.Natural)))
     }
 
     /** Whether edit [id] is accepted and shows in the working text: not a fix an accepted rewording replaced. */

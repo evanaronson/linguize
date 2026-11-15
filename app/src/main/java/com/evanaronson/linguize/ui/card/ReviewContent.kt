@@ -107,7 +107,10 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
 
     val mark = if (fix) Linguize.colors.proof else Linguize.colors.rewording
     val count = revision.edits(kind).size
-    val preview = revision.previewOnCorrected(kind)
+    // One change view: what the text shows is what will be sent, so a skipped fix stays as
+    // written under the rewordings too. Copy still takes every remaining change.
+    val preview = revision.previewOnCorrected(kind, selection?.let { it.skipped - setOfNotNull(it.selected) }.orEmpty())
+    val copyText = revision.previewOnCorrected(kind).text
     val highlights = remaining.mapNotNull { edit ->
         preview.ranges[edit.id]?.let {
             Highlight(edit.id, it, edit.from, edit.why, edit.assessment,
@@ -124,7 +127,7 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
     Spacer(Modifier.height(8.dp))
     HighlightedText(
         preview.text, highlights, mark, review?.onAccept,
-        onCopy = { actions.onCopy(preview.text, kind) },
+        onCopy = { actions.onCopy(copyText, kind) },
         copyDescription = if (fix) stringResource(R.string.copy_with_fixes) else stringResource(R.string.copy_with_rewordings),
         onSettle = actions.onSettle,
         dotted = !fix,

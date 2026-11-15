@@ -39,13 +39,14 @@ point forces the check, because there is no selection menu to choose it from.
   where a messaging app puts the time: "Looks good", "Sent as written", "Corrected, 2
   changes", or "Reworded, 2 changes" when every accepted change was a rewording, not a fix.
   Tap a corrected bubble to open its changes under it, and tap again to close them, the
-  way a tap on a reply flips it to its translation. They open as one compact block in the
-  card's own marks: what you typed, with every change written in place (the removed words
-  struck through, then what replaced them, underlined solid for a fix and dotted for a
-  rewording; the bubble above is the sent text), then one line per change in reading
-  order, "estas → estàs". The reasons are folded away: tap a line, or its underline in the
-  text, to open the card's explanation under that line, with the reason, Teach me and the
-  Phrasebook star. One change's reason is open at a time, and one message's changes.
+  way a tap on a reply flips it to its translation. They open as one compact block, the
+  card's own change view, read-only: what you typed, with every change written in place
+  (the removed words struck through, then what replaced them, underlined solid for a fix and
+  dotted for a rewording; the bubble above is the sent text). There is no list of changes,
+  as on the card: tap a change in the text to open its explanation under the text, the
+  card's panel with "estas → estàs", the reason, Teach me and the Phrasebook star, and
+  nothing to accept. One change's reason is open at a time, and one message's changes. The
+  message's time ends the block, on a quiet line.
 - **Edit a sent message.** A long-press on the edge of one of your own bubbles opens Copy
   message and **Edit message**. Editing rewinds the conversation to just before that
   message: it and everything after it (the partner's replies, and any later messages of
@@ -117,22 +118,23 @@ point forces the check, because there is no selection menu to choose it from.
   the two can't drift apart. It cancels the check, keeps the draft, and sets `focusDraft`;
   the composer takes focus and shows the keyboard once, then clears it (`draftFocused`).
   With the keyboard up (a clarify field on the card), Back closes the keyboard first.
-- **Corrections** (`ui/chat/ChatCorrections.kt`): the card's pieces, not History's.
-  `readingOrder` sorts the accepted changes by place in the typed text; `changedText` (pure)
-  writes each one in place, before then after, with spacing shown as the card's ¶ and ‸
-  marks (a change overlapping an earlier one is only listed). `ChatCorrections` draws that
-  text with the card's underline (`drawChangeMark` and `lineBoxes` from `HighlightedText`,
-  `nearest` for taps), then one `Disclosure` row per change whose header is the card's
-  `ChangeLine` and whose content is the card's read-only `ExplanationPanel` (reason, Teach me
-  in the conversation's language, the Phrasebook star). Which row is open is one saveable
-  index per message, shared with the text's underlines. Screen readers hear "You wrote: …"
-  with a "Why estas becomes estàs" action per change, and each row as "estas becomes
-  estàs" with Show explanation or Hide explanation. Until this, the block reused History's
-  `SavedBefore` and `SavedSuggestions`, one heavy row per change; a message with many
-  changes became a long page inside the chat. `checkStatus` gives the bubble's check line. The bubble's tap is
-  `onToggle` (corrected) or `onFlip` (reply); clean messages have no tap. The open bubble
-  gets the proof border a flipped reply has, and the block opens with the expand
-  pattern's motion.
+- **Corrections** (`ui/chat/ChatCorrections.kt`): the card's own change view, not a copy
+  of it. `chatPassages` turns the accepted changes (spans in the typed text) into the card's
+  text through `recordPassages` (`ui/card/ChangeRecord.kt`): one text with both kinds, or,
+  when a fix and the rewording that later replaced it overlap, the card's two texts (fixes,
+  then rewordings on the corrected text). A change that no longer fits the typed text is
+  left out, never misplaced. `ChatCorrections` shows them with `ChangeRecord`, the card's
+  `HighlightedText` read-only: `markChanges` writes each change in place, `ExplanationPanel`
+  opens for the tapped one (reason, Teach me in the conversation's language, the Phrasebook
+  star), with no Accept or Skip. Which change is open is one saveable selection per message.
+  Screen readers hear "You wrote: …" with a "Why estas becomes estàs" action per change;
+  the open explanation says "estas becomes estàs". Earlier versions reused History's
+  `SavedBefore` and `SavedSuggestions` (one heavy row per change), then drew their own copy
+  of the card's marks with a `Disclosure` row per change; the owner asked for one pattern
+  (see [Review flow](review-flow.md#one-change-view)). `checkStatus` gives the bubble's
+  check line. The bubble's tap is `onToggle` (corrected) or `onFlip` (reply); clean messages
+  have no tap. The open bubble gets the proof border a flipped reply has, and the block
+  opens with the expand pattern's motion.
 - **Saving**: the writer message must be saved in Chat before the draft is cleared,
   the check is finished, or the partner is asked to reply. A failed save keeps the
   checked message available for retry. Partner messages also wait for their save

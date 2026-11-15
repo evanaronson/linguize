@@ -43,7 +43,8 @@ internal fun rememberReviewFlow(result: CheckResult.Reviewed, canAccept: Boolean
         }
     }
     return ReviewFlowUi(
-        ReviewSelection(focus.selected, flow::select, if (canAccept) flow::skip else null, position, typeToAccept),
+        ReviewSelection(focus.selected, flow::select, if (canAccept) flow::skip else null, position, typeToAccept,
+            skipped = if (canAccept) focus.skipped else emptySet()),
         Modifier.bringIntoViewRequester(finalAction),
     )
 }

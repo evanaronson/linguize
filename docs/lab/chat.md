@@ -63,7 +63,9 @@ point forces the check, because there is no selection menu to choose it from.
   same answer. Tap a reply to flip it to the translation (tinted, with a short crossfade);
   tap again to flip back. "Tap to translate" shows under the latest reply until you first
   do. Replies saved before this have no translation of their own: tapping one asks
-  Understand once and keeps it. Translations never reach History or the corpus.
+  Understand once and keeps it. Translations never reach History or the corpus. A
+  translation that stays readable for 2.5 s counts as needed, once per reply; Progress shows
+  how often ([Translation reliance](translation-reliance.md)).
 - **Select and copy.** Long-press any message text to select part of it, with the
   system's Copy and other apps' text actions. A long-press on the bubble's edge opens Copy
   message (and Copy translation while it shows). Screen readers hear the message and its
@@ -186,7 +188,7 @@ point forces the check, because there is no selection menu to choose it from.
     still in the composer, so sending it unchanged gets the message back, checked again.
   - **Time spent.** The removed messages' time records go with their History sessions.
     The restored draft starts a new writing measurement at the next keystroke.
-- **Links.** The chat's database (`lab_chat`, version 5) notes each message's History
+- **Links.** The chat's database (`lab_chat`, version 6) notes each message's History
   session (`messages.session_id`) and each reply's translation (`messages.translation`).
   `ChatStore.threads` maps sessions to conversations; History uses it for a chat row's
   label and the saved check's Open conversation. Deleting a conversation stores its
@@ -194,6 +196,9 @@ point forces the check, because there is no selection menu to choose it from.
   chat rows. `ChatDeletions` retries Memory, History, time and export cleanup on
   startup and when Chat is used, retiring the work only after acknowledgement. Version 5
   adds `pending_rewinds`, one row per edited message, for the same cleanup after a rewind.
+  Version 6 adds `reply_reads` ([Translation reliance](translation-reliance.md)): one row per
+  reply that arrived with its translation, and when that translation was needed. It references
+  its message with `ON DELETE CASCADE`, so deleting a conversation or rewinding it removes it.
   History doesn't group rows by conversation, and its schema is unchanged.
 - **Corpus.** There is no separate chat source any more: the History-based `check` source
   covers chat messages (raw text, flagged fixes as `corrected` regardless of acceptance, rewordings not), with
@@ -218,7 +223,9 @@ point forces the check, because there is no selection menu to choose it from.
   The prompt asks for natural openings (plans for the future, "what would you do if…",
   topics that need the words), one at a time, never announced, never quizzed.
 - **Flipping** (`ui/chat/Flips.kt`) shows the stored translation; only replies saved
-  before version 3 fall back to `Understander`, once, kept in memory.
+  before version 3 fall back to `Understander`, once, kept in memory. Each flip, the chat's
+  visibility and the bubbles on screen also feed `TranslationDwell`
+  ([Translation reliance](translation-reliance.md)).
 - **Memory**: once a conversation has new messages and has been quiet for 20 minutes, or
   the writer leaves it, Chat calls `App.userMemory.learnFrom("chat:<id>", messages)`.
   Deleting a conversation calls `forget("chat:<id>")`; so does editing a sent message, which

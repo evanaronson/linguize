@@ -26,6 +26,7 @@ Settings behind the gear.
 | Every day | [Chat](chat.md): the app opens to a conversation (Settings › Start on can pick another tab); each message is checked before it goes, saved in History, and the partner steers toward your gaps or stands in for someone real | App start; bottom bar; History; Settings |
 | Learning over time | [Your conjugations](conjugations.md): the tenses and persons you use, from your own text; Spanish and Catalan morphology | Progress |
 | Learning over time | [Time spent](time-spent.md): time writing and reviewing, measured in the chat and on the card, estimated for other apps | Progress |
+| Learning over time | [Translation reliance](translation-reliance.md): how often a chat reply's translation was needed (shown 2.5 s or more, not an accidental tap), per language, by week, with a trend | Progress › Translations |
 | Looking back | [One list of messages](history-flat.md): History is every message you wrote, chat or app alike, one row each under day headers, filterable by source | History tab |
 | Everywhere | [Language scope](language-scope.md): one language selector in the top bar (Linguize, then the writer's languages by brand name, such as Catalanize or Gallicize); Chat, Notes, Progress and History follow it. [Home and navigation](home-ia.md): one top bar on every tab | Top bar |
 | Everywhere | [Expand pattern](expand-pattern.md): secondary detail opens in place with one shared Disclosure; pages only for destinations | History, Chat, the card |

@@ -13,7 +13,7 @@ class ProgressLayoutTest {
         assertEquals(
             listOf(
                 ProgressSection.Headline,
-                ProgressSection.Views("ca", labelled = false, views = listOf(ProgressView.Words, ProgressView.Conjugations, ProgressView.Patterns)),
+                ProgressSection.Views("ca", labelled = false, views = listOf(ProgressView.Words, ProgressView.Conjugations, ProgressView.Patterns, ProgressView.Translations)),
                 ProgressSection.Saved,
             ),
             layout,
@@ -39,11 +39,11 @@ class ProgressLayoutTest {
     }
 
     @Test fun conjugationsOnlyWhereThereIsMorphology() {
-        assertEquals(listOf(ProgressView.Words, ProgressView.Conjugations, ProgressView.Patterns), progressViews("es"))
+        assertEquals(listOf(ProgressView.Words, ProgressView.Conjugations, ProgressView.Patterns, ProgressView.Translations), progressViews("es"))
         // Chosen or under Linguize, a language without morphology has no row that only says so.
-        assertEquals(listOf(ProgressView.Words, ProgressView.Patterns), progressViews("en"))
+        assertEquals(listOf(ProgressView.Words, ProgressView.Patterns, ProgressView.Translations), progressViews("en"))
         val chosen = progressLayout("en", emptyList()).filterIsInstance<ProgressSection.Views>().single()
-        assertEquals(listOf(ProgressView.Words, ProgressView.Patterns), chosen.views)
+        assertEquals(listOf(ProgressView.Words, ProgressView.Patterns, ProgressView.Translations), chosen.views)
     }
 
     @Test fun nothingYetStillShowsEveryPlace() {

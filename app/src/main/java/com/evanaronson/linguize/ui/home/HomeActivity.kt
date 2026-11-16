@@ -200,6 +200,7 @@ class HomeActivity : ComponentActivity() {
                                     )
                                 }
                                 Screen.TimeSpent -> com.evanaronson.linguize.ui.time.TimeSpentScreen(settings.state?.historyEnabled, scopedLanguage)
+                                Screen.Translations -> com.evanaronson.linguize.ui.reliance.TranslationRelianceScreen(scopedLanguage)
                                 Screen.Languages -> com.evanaronson.linguize.ui.language.LanguagesScreen(appLanguage)
                                 Screen.Notices -> com.evanaronson.linguize.ui.settings.OpenSourceNoticesScreen()
                                 is Screen.ConjugationVerbs -> com.evanaronson.linguize.ui.conjugations.ConjugationVerbsScreen(
@@ -312,6 +313,7 @@ private fun Screen.title(): String = when (this) {
         ?.let { com.evanaronson.linguize.ui.conjugations.conjugationCellTitle(language, it) }
         ?: stringResource(R.string.lab_conjugations_title)
     Screen.TimeSpent -> stringResource(R.string.lab_time_spent_title)
+    Screen.Translations -> stringResource(R.string.lab_reliance_title)
     is Screen.ChatThread -> stringResource(R.string.lab_chat_title)
     Screen.Languages -> stringResource(R.string.lab_lang_selector_title)
     Screen.Notices -> stringResource(R.string.lab_lang_selector_notices)

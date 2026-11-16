@@ -26,6 +26,7 @@ import com.evanaronson.linguize.core.chat.Effect
 import com.evanaronson.linguize.core.chat.Outgoing
 import com.evanaronson.linguize.core.chat.SendEvent
 import com.evanaronson.linguize.core.chat.SendState
+import com.evanaronson.linguize.core.chat.TranslationDwell
 import com.evanaronson.linguize.core.chat.deriveTitle
 import com.evanaronson.linguize.core.chat.on
 import com.evanaronson.linguize.core.memory.FactCategory
@@ -48,6 +49,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -126,6 +128,8 @@ class ChatViewModel(
     private val currentLanguage: () -> String? = { null },
     /** Lab, Language scope: a conversation in this language opened; the app follows it unless it is on Linguize (Auto). */
     private val onLanguage: (String) -> Unit = {},
+    /** Lab, Translation reliance: a monotonic clock in milliseconds, for how long a translation shows. */
+    monotonic: () -> Long = { System.nanoTime() / 1_000_000L },
 ) : ViewModel() {
     var conversations by mutableStateOf<List<ConversationSummary>>(emptyList())
         private set
@@ -196,6 +200,10 @@ class ChatViewModel(
     /** Bubbles flipped to their translation; an older reply saved without one gets it from Understand when tapped. */
     private val flips = Flips(translate)
     private var flipVersion by mutableIntStateOf(0)
+
+    /** Lab, Translation reliance: which translations stayed readable long enough to have been needed. */
+    private val dwell = TranslationDwell(monotonic)
+    private var dwellJob: Job? = null
 
     /** Set by the screen that hosts the card. */
     var draftCheck: DraftCheck? = null
@@ -654,10 +662,42 @@ class ChatViewModel(
             translateHint = false
             preferences.translateHintSeen = true
         }
+        followDwell(message)
         if (!fetch) return
         viewModelScope.launch {
             flips.load(message)
             flipVersion++
+            followDwell(message)
+        }
+    }
+
+    /** Lab, Translation reliance: the bubbles on screen now, by message id (from the conversation's list). */
+    fun onScreen(messageIds: Set<String>) {
+        dwell.onScreen(messageIds)
+        recordDwell()
+    }
+
+    /** A translation counts only while its text shows (not while one is being fetched or failed). */
+    private fun followDwell(message: ChatMessage) {
+        if (message.fromWriter) return
+        dwell.shown(message.id, flips.view(message) is Flipped.Text)
+        recordDwell()
+    }
+
+    /** Notes the translations that became needed, and wakes again when the next one could. */
+    private fun recordDwell() {
+        val needed = dwell.drain()
+        if (needed.isNotEmpty()) {
+            val at = clock()
+            appScope.launch { needed.forEach { store.markTranslationNeeded(it, at) } }
+        }
+        dwellJob?.cancel()
+        dwellJob = dwell.remainingMs()?.let { wait ->
+            viewModelScope.launch {
+                delay(wait)
+                dwellJob = null
+                recordDwell()
+            }
         }
     }
 
@@ -679,7 +719,12 @@ class ChatViewModel(
     }
 
     /** Lab, Time spent: the chat is on screen, or isn't. Nothing is counted while it isn't. */
-    fun visible(visible: Boolean) = drafting.visible(visible)
+    fun visible(visible: Boolean) {
+        drafting.visible(visible)
+        // Lab, Translation reliance: a translation isn't being read while the chat is off screen.
+        dwell.visible(visible)
+        recordDwell()
+    }
 
     /** What the check of the draft did; the screen reports the card's state. */
     fun onCardState(state: CardState?) {

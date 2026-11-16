@@ -74,6 +74,8 @@ internal sealed interface Screen {
     data object Progress : Screen
     /** Lab: Time spent writing and reviewing. */
     data object TimeSpent : Screen
+    /** Lab: how often the writer needed a chat reply's translation. */
+    data object Translations : Screen
 
     /**
      * Lab: one conversation, above the Chat tab's list of conversations. [id] null is "the
@@ -122,6 +124,7 @@ internal sealed interface Screen {
             is ConjugationCell -> "conjugation:$language:$cell"
             Progress -> "progress"
             TimeSpent -> "lab_time_spent"
+            Translations -> "lab_translation_reliance"
             is ChatThread -> if (id == null) CHAT_THREAD else "$CHAT_THREAD:$id"
             Languages -> "lab_lang_selector"
             Notices -> "lab_lang_selector_notices"
@@ -182,6 +185,7 @@ internal sealed interface Screen {
                 .takeIf { it.size == 2 && it.all(String::isNotEmpty) }?.let { ConjugationCell(it[0], it[1]) }
             saved == "progress" -> Progress
             saved == "lab_time_spent" -> TimeSpent
+            saved == "lab_translation_reliance" -> Translations
             saved == CHAT_THREAD -> ChatThread(null)
             saved.startsWith("$CHAT_THREAD:") && saved.length > CHAT_THREAD.length + 1 -> ChatThread(saved.removePrefix("$CHAT_THREAD:"))
             saved == "lab_lang_selector" -> Languages
@@ -198,7 +202,7 @@ internal sealed interface Screen {
 }
 
 private val Screen.acceptsScope: Boolean
-    get() = this in listOf(Screen.Patterns, Screen.Words, Screen.Conjugations, Screen.Phrasebook, Screen.TimeSpent) ||
+    get() = this in listOf(Screen.Patterns, Screen.Words, Screen.Conjugations, Screen.Phrasebook, Screen.TimeSpent, Screen.Translations) ||
         this is Screen.PatternDetail
 
 /** The view to draw; its scope remains part of the route's saved identity. */
@@ -234,6 +238,7 @@ internal fun progressDestination(view: ProgressView, appLanguage: String?, block
         ProgressView.Patterns -> Screen.Patterns
         ProgressView.Phrasebook -> Screen.Phrasebook
         ProgressView.Time -> Screen.TimeSpent
+        ProgressView.Translations -> Screen.Translations
     }
     return if (appLanguage == null && block != null) page.inScope(RouteScope.Block(block)) else page
 }

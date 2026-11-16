@@ -136,6 +136,7 @@ fun TimeSpentScreen(historyOn: Boolean?, language: String? = null) {
                 stringResource(R.string.lab_time_spent_how_review),
                 stringResource(R.string.lab_time_spent_how_estimate),
                 stringResource(R.string.lab_time_spent_how_averages),
+                stringResource(R.string.lab_time_spent_how_speed),
                 stringResource(R.string.lab_time_spent_how_limits),
             ),
         )
@@ -177,6 +178,9 @@ private fun Report(report: TimeReport) {
 
     SectionHeader(stringResource(R.string.lab_time_spent_weeks))
     Weeks(report.weeks)
+
+    SectionHeader(stringResource(R.string.lab_time_spent_speed))
+    SpeedOverTime(report.speed)
 }
 
 /** One period: the total, then writing (measured and estimated) and reviewing. */
@@ -292,7 +296,7 @@ internal fun duration(ms: Long, precise: Boolean = false): String {
 
 /** Seconds a word, one decimal: "3.8 s". */
 @Composable
-private fun perWord(ms: Long): String {
+internal fun perWord(ms: Long): String {
     val locale = LocalResources.current.uiLocale
     return stringResource(R.string.lab_time_spent_per_word_value, String.format(locale, "%.1f", ms / 1000.0))
 }

@@ -84,12 +84,66 @@ of the outlier; a median doesn't move unless half the messages are slow.
 - **One message**: its own writing and review, shown where the message is already looked at
   (below).
 - **By language**, and the **last 8 weeks** as bars: measured solid, estimated lighter.
+- **Speed over time** (below): writing seconds per word and review per change, by week, in one
+  language, with the trend in words.
+
+### Speed over time
+
+"Am I getting faster or slower in this language?" The page's last chart answers it, for one
+language, from measurements only (`core/time/SpeedTrend.kt`, part of `TimeReport`).
+
+- **What counts.** Writing: measured chat messages of at least 3 words, the same messages the
+  estimator learns from. Writing in other apps is left out: it's *estimated from* chat speed,
+  so plotting it would only echo the chat line. Review: every message whose card offered a
+  change, from the chat or another app, since review is measured everywhere.
+- **Seconds per word, lower is faster.** Not words a minute: the page's averages are already
+  seconds per word and per change, and review has no "per minute" reading, so both lines use
+  the same unit and the same direction. Each chart's title says it: **Writing: seconds per
+  word, lower is faster** and **Reviewing: seconds per change, lower is faster**, with the
+  latest point's value beside it. The charts start at zero, so a change looks as big as it is.
+- **Periods.** The last 8 calendar weeks, Monday first, one point a week. When fewer than half
+  the weeks with any chat writing have enough for a point, each point is two weeks instead
+  (four points, the last one being last week and this week), and the card says **Each point
+  is two weeks: most weeks had too few messages.**
+- **The minimum.** A writing point needs 5 such messages and 30 words in its period (the
+  estimator's thresholds); a review point needs 5 cards that offered a change. A thin period
+  is a grey mark on the baseline (**Too few messages to tell**), never a plotted value, and
+  the line isn't drawn across it.
+- **Each point** is the same median as the averages: word-weighted for writing, change-weighted
+  for review, so one message left open in a week barely moves its point.
+- **The summary**, one line above the charts, compares the earliest and the latest writing
+  points with enough data: **You're writing about 20% faster than 6 weeks ago**, **You're
+  writing about 15% slower than 3 weeks ago**, or **About the same speed as 4 weeks ago**
+  (within 10% either way: a median of a handful of messages moves about that much from week
+  to week). The percentage is how much less (or more) time a word takes, rounded to 5. It
+  says nothing when there aren't two such points, when they're less than 2 weeks apart, or
+  when the latest doesn't reach last week or this week ("You're writing" is about now). So
+  each side always rests on at least 5 messages and 30 words.
+- **The cap change.** Rows recorded under rules version 1 counted writing pauses up to 60 s;
+  they can't be re-capped (the pauses weren't kept), so their writing is left out of the
+  trend: only rows of rules version 2 or later (`SpeedTrend.WRITING_RULES`) are plotted, and
+  the summary compares version-2 points only, never a 60 s-cap week against a 30 s-cap one.
+  When any of the language's messages in the window were left out for this, the card says
+  **Messages timed before pauses were capped at 30 seconds are left out.** Review's rules
+  didn't change, so review uses every row. Whoever changes the writing rules again raises
+  `WRITING_RULES`.
+- **Language.** One line never mixes languages: a week in Catalan after a week in Spanish
+  would look like a change of speed. With a language chosen at the top, it's that language.
+  Under Linguize it's the language with the most counted words in the 8 weeks, named in a line
+  under the summary: **Catalan, the language you write most in the chat. Choose a language at
+  the top to see another.** Messages with no known language never count.
+- **Empty.** With no point at all: **Not enough to tell yet** / **Send 5 messages of 3 words
+  or more in a week, in the chat.**
+- **Screen readers.** Each chart's description reads every point: "Writing, seconds per word
+  by week, lower is faster: 21 Sep: 4.0 s, 28 Sep: too few messages, …". The summary is
+  plain text.
 
 ## How to use it
 
 Progress shows, at the top as its headline (**This week**), for the app's current language ([Language scope](language-scope.md)), this week's total with a small chart; tap it for the page: This week,
 All time (writing and reviewing, with the measured/estimated split), Averages, By language
-(with what other apps' writing is estimated from), Last 8 weeks, and How it's counted.
+(with what other apps' writing is estimated from), Last 8 weeks, Speed over time, and How
+it's counted.
 
 Each message's own time shows where it's already looked at, as one quiet line:
 **Writing 1 min 20 s, reviewing 35 s** (seconds kept under an hour), or for a check from
@@ -116,6 +170,10 @@ before Time spent, or with History off).
 - `data/time/TimeStore.kt`: SQLite `lab_time_spent`, one row per History session: session
   and chat message id, origin, language, `writing_ms` (null when not measured), `review_ms`,
   words, changes offered and accepted, time, and the rules version. Only measurements.
+- `core/time/SpeedTrend.kt`: Speed over time, pure, built by `TimeReport.of` for its
+  language; `ui/time/SpeedOverTime.kt` draws it (a Canvas line in the style of Words over
+  time and the weekly bars, no chart library). No schema change: rows already keep their
+  rules version.
 - `core/time/WritingEstimator.kt` (version 2) and `TimeReport.kt` derive everything on read;
   `core/time/Median.kt` holds the median and the weighted median of per-message rates.
 - **One message's time**: `core/time/MessageTime.kt` (measured, or estimated with the same
@@ -147,5 +205,9 @@ before Time spent, or with History off).
 - Timings started before this build don't exist; totals start from now.
 - Rows recorded under rules version 1 counted writing pauses up to 60 s, not 30 s; they're
   kept as recorded.
+- Speed over time starts empty after the cap change: rows timed under the 60 s cap stay out
+  of it, so the first trend needs a few weeks of new writing.
+- A week's speed also depends on what was written: long careful messages one week and quick
+  replies the next look like a change of speed.
 - A median ignores how slow the slow messages were: if half the messages get slower, it moves;
   if one does, only the totals show it.

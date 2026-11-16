@@ -42,7 +42,8 @@ class TypeToAcceptTest {
     @Test fun spacingInsideCountsButNotAtTheEnds() {
         assertEquals("de la", TypeToAccept.target(" de la "))
         assertEquals(Progress.Off, TypeToAccept.progress("dela", "de la"))
-        assertEquals(Progress.Off, TypeToAccept.progress(" de", "de la"))
+        // A keyboard's space before the word doesn't count; see keyboardSpacesDontCountAsWrong.
+        assertEquals(Progress.OnTrack, TypeToAccept.progress(" de", "de la"))
         assertEquals("ens veiem demà", TypeToAccept.target("ens veiem\ndemà"))
     }
 
@@ -91,5 +92,16 @@ class TypeToAcceptTest {
         assertEquals("The mark has let go", 0f, underline, 0f)
         assertEquals("The new words glow", 1f, glow, 0f)
         assertEquals(0f to 0f, settleStep(1f))
+    }
+
+    @Test fun keyboardSpacesDontCountAsWrong() {
+        // A keyboard's space after the word, or before it, or doubled between words.
+        assertEquals(Progress.Match, TypeToAccept.progress("d'una ", "d'una"))
+        assertEquals(Progress.Match, TypeToAccept.progress(" d'una", "d'una"))
+        assertEquals(Progress.OnTrack, TypeToAccept.progress("es ", "es difondrà"))
+        assertEquals(Progress.Match, TypeToAccept.progress("es  difondrà ", "es difondrà"))
+        assertEquals(Progress.Empty, TypeToAccept.progress("  ", "amigos"))
+        // A wrong letter is still wrong.
+        assertEquals(Progress.Off, TypeToAccept.progress("d'uno ", "d'una"))
     }
 }

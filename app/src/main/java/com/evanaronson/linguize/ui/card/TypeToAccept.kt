@@ -53,9 +53,12 @@ internal object TypeToAccept {
 
     /** How [typed] compares with [target]. */
     fun progress(typed: String, target: String): Progress {
-        if (typed.isEmpty()) return Progress.Empty
-        val have = comparable(typed)
-        val want = comparable(target)
+        // Keyboards add a space after a word (and sometimes two, or one before it), so
+        // whitespace at either end is ignored and runs of it count as one space.
+        val cleaned = spaced(typed)
+        if (cleaned.isEmpty()) return Progress.Empty
+        val have = comparable(cleaned)
+        val want = comparable(spaced(target))
         return when {
             have == want -> Progress.Match
             want.startsWith(have) -> Progress.OnTrack
@@ -70,11 +73,14 @@ internal object TypeToAccept {
     private fun comparable(text: String): String =
         Normalizer.normalize(text, Normalizer.Form.NFD).map { if (it in APOSTROPHES) '\'' else it }.joinToString("")
 
+    private fun spaced(text: String): String = text.trim().replace(SPACES, " ")
+
     enum class Progress { Empty, OnTrack, Off, Match }
 
     private const val LINE_BREAK_CHARS = "\r\n\u0085  "
     private val LINE_BREAKS = Regex("\\s*[$LINE_BREAK_CHARS]+\\s*")
     private const val APOSTROPHES = "’ʼ"
+    private val SPACES = Regex("\\s+")
 }
 
 /** One open change to type: [key] is its id, so each change starts with an empty field. */

@@ -110,7 +110,8 @@ and the space comes from what can give it up.
 
 **What to type.** The change's new text as the card shows it: line breaks inside it read
 as one space, and spaces at either end are dropped. Spaces inside count ("de la", not
-"dela").
+"dela"). What's typed gets the same treatment: keyboards add a space after a word (or two),
+so spaces at either end of the typing are ignored and a run of spaces counts as one.
 
 **Exact characters.** Case, accents and punctuation all count: accents are often the
 lesson, so *estas* and *estás* are both "not quite" for *estàs*. Two exceptions, both

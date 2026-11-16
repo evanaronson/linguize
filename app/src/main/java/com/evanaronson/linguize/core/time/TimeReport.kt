@@ -53,6 +53,7 @@ data class LanguageTime(
  *   median, counting only messages whose card offered at least one change (a clean message has
  *   nothing to review per change).
  * - **Weeks**: the last [WEEKS] calendar weeks, Monday first, in the phone's time zone.
+ * - **Speed**: [SpeedTrend], measured chat writing only, in one language.
  */
 data class TimeReport(
     val allTime: TimeTotals,
@@ -70,6 +71,8 @@ data class TimeReport(
     val changesAccepted: Int,
     /** What a message from another app with no language is estimated with. */
     val defaultBasis: EstimateBasis,
+    /** Writing and review speed by week, in one language ([SpeedTrend]). */
+    val speed: SpeedTrend,
 ) {
     val isEmpty: Boolean get() = allTime.isEmpty
 
@@ -82,6 +85,7 @@ data class TimeReport(
          */
         fun of(records: List<TimeRecord>, now: Long, zone: ZoneId = ZoneId.systemDefault(), language: String? = null): TimeReport {
             val estimator = WritingEstimator(records)
+            val speed = SpeedTrend.of(records, now, zone, language)
             @Suppress("NAME_SHADOWING")
             val records = if (language == null) records else records.filter { it.language == language }
             fun totals(of: List<TimeRecord>) = of.fold(TimeTotals()) { sum, record -> sum + record.totals(estimator) }
@@ -109,6 +113,7 @@ data class TimeReport(
                 changesShown = shown,
                 changesAccepted = records.sumOf { it.changesAccepted },
                 defaultBasis = estimator.speed(null).second,
+                speed = speed,
             )
         }
 

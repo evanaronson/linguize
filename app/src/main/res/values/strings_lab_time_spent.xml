@@ -38,6 +38,36 @@
     <string name="lab_time_spent_weeks">Last 8 weeks</string>
     <string name="lab_time_spent_weeks_description">Time by week, from %1$s to %2$s this week</string>
 
+    <!-- Speed over time: measured chat writing speed, and review time per change, by week, in one language. -->
+    <string name="lab_time_spent_speed">Speed over time</string>
+    <plurals name="lab_time_spent_speed_faster">
+        <item quantity="one">You\'re writing about %1$d%% faster than %2$d week ago</item>
+        <item quantity="other">You\'re writing about %1$d%% faster than %2$d weeks ago</item>
+    </plurals>
+    <plurals name="lab_time_spent_speed_slower">
+        <item quantity="one">You\'re writing about %1$d%% slower than %2$d week ago</item>
+        <item quantity="other">You\'re writing about %1$d%% slower than %2$d weeks ago</item>
+    </plurals>
+    <plurals name="lab_time_spent_speed_same">
+        <item quantity="one">About the same speed as %1$d week ago</item>
+        <item quantity="other">About the same speed as %1$d weeks ago</item>
+    </plurals>
+    <string name="lab_time_spent_speed_dominant">%1$s, the language you write most in the chat. Choose a language at the top to see another.</string>
+    <string name="lab_time_spent_speed_writing">Writing: seconds per word, lower is faster</string>
+    <string name="lab_time_spent_speed_review">Reviewing: seconds per change, lower is faster</string>
+    <string name="lab_time_spent_speed_writing_weeks">Writing, seconds per word by week, lower is faster: %1$s</string>
+    <string name="lab_time_spent_speed_writing_two_weeks">Writing, seconds per word by two weeks, lower is faster: %1$s</string>
+    <string name="lab_time_spent_speed_review_weeks">Reviewing, seconds per change by week, lower is faster: %1$s</string>
+    <string name="lab_time_spent_speed_review_two_weeks">Reviewing, seconds per change by two weeks, lower is faster: %1$s</string>
+    <string name="lab_time_spent_speed_point">%1$s: %2$s</string>
+    <string name="lab_time_spent_speed_thin">too few messages</string>
+    <string name="lab_time_spent_speed_thin_legend">Too few messages to tell</string>
+    <string name="lab_time_spent_speed_two_weeks">Each point is two weeks: most weeks had too few messages.</string>
+    <string name="lab_time_spent_speed_left_out">Messages timed before pauses were capped at 30 seconds are left out.</string>
+    <string name="lab_time_spent_speed_empty_title">Not enough to tell yet</string>
+    <string name="lab_time_spent_speed_empty">Send 5 messages of 3 words or more in a week, in the chat.</string>
+    <string name="lab_time_spent_how_speed">Speed over time uses only messages written in the chat, of 3 words or more, never estimates. A week needs 5 of them and 30 words to show a point. Under Linguize it shows the language you write most.</string>
+
     <string name="lab_time_spent_how_writing">Writing in the chat is measured from your first keystroke to Send. Pauses count up to 30 seconds, and nothing counts while the app isn\'t on screen.</string>
     <string name="lab_time_spent_how_review">Reviewing is measured while a result is on the card, in the chat or over another app, until you send or put the text back. Waiting for the check doesn\'t count, and a card left alone counts up to two minutes.</string>
     <string name="lab_time_spent_how_estimate">Writing in other apps can\'t be seen, so it\'s estimated: its words times your own speed in the chat, in that language when there\'s enough, or a typical 4 s a word until there is.</string>

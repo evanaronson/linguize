@@ -3,7 +3,9 @@
 Reviewing a check is a walk through its changes, in order: read, tap Accept, tap Accept,
 tap Accept. The card opens on the first change, Accept moves to the next one, and when
 every change is decided the selection clears and Replace (Send in the chat) is the next
-thing to tap. Tapping any underline still jumps straight to that change.
+thing to tap. Tapping any underline still jumps straight to that change. Rewordings come
+first, then the fixes they didn't already include; once everything is accepted the card is
+just the final text, "5 changes accepted" with Undo, and Replace.
 
 ## The user moment
 
@@ -15,14 +17,23 @@ Writing pad's "Next change" showed how much calmer a sequence is. Now the card l
 ## How it works for the writer
 
 - **First change open on arrival.** A result opens with its first change selected and its
-  explanation (Accept, the reason, the meters) under the text.
+  explanation (Accept, the reason, the meters) under the text. That is the first rewording
+  when there is one: rewordings are walked first, then the fixes still on offer (see
+  Order, below).
 - **Accept moves on.** The next open change is selected, in the same frame. After the last
   one the walk wraps once to any earlier change still open (one the writer jumped past).
 - **Skip moves on without accepting.** Skip sits beside Accept. The skipped change shows
   its original words again, unmarked, and can be tapped later; the walk doesn't come back
   to it on its own.
 - **Done.** When every change is accepted or skipped the selection clears and the card
-  scrolls its last row, "2 changes accepted, Undo, Replace", into view.
+  scrolls its last row, "2 changes accepted, Undo, Replace", into view. When every change
+  is accepted (or covered by an accepted rewording), the card is in its finished state (see
+  Finished, below).
+- **Partly done.** A kind with nothing left to decide becomes one quiet line with a check:
+  "2 rewordings accepted", "3 fixes accepted", "1 fix covered by a rewording", or "2 fixes
+  accepted, 1 covered by a rewording". Its accepted changes already show, plain, in the
+  other kind's text, so its own text would only repeat it. A kind with a skipped change
+  keeps its text: the skipped change is still there to tap.
 - **Undo goes back.** Undo reopens the change it brought back, ready to decide again.
 - **Tap to jump.** Tapping (or a keyboard link, or a screen reader's "Why" action) selects
   any change; Accept then continues from there. Tapping the open change closes it.
@@ -73,16 +84,81 @@ History the panel also says what became of the change ("Accepted", "Not accepted
 fix and a rewording overlap (a fix, then the rewording that replaced it), it shows the
 card's two texts, fixes then rewordings on the corrected text, each with its count.
 
-## Decisions
+## Order: rewordings first
 
-**Order: screen order.** Fixes first, then rewordings, each in reading order (the edit
-engine's text order: by position in the original, an insertion before a replacement at
-the same place). The card shows fixes and rewordings as two passages of text, so walking
-strictly by position would jump between the passages at every step and open explanations
-above and below the reader's eye. Fixes-first also matches how the engine resolves
-overlap: rewordings are written on top of the corrected text, so a fix comes before the
-rewording that overlaps it, and accepting the fix never loses the rewording (accepting the
-rewording instead retires the fix, which then drops out of the walk).
+The owner, after real use: you correct a fix, maybe typing it with
+[Type to accept](type-to-accept.md), and then a later rewording rewrites that same stretch,
+so the fix was work for nothing. The walk used to go fixes first, then rewordings.
+
+**The rule.** Rewordings first, then the fixes still on offer, each kind in reading order
+(the edit engine's text order: by position in the original, an insertion before a
+replacement at the same place). The card shows the two kinds as two passages, in the same
+order, rewordings on top, so the walk still goes down the card and moves between passages
+once. Walking strictly by position would jump between the passages at every step.
+
+**Why it is safe.** The data model already worked this way round. A rewording is written on
+top of the corrected text and records the fixes it includes (`Edit.includes`, from
+`Edits.naturalResult`); a rewording and a fix that overlap or share an included fix
+"touch". Accepting a rewording *retires* the fixes it touches (`Revision.isRetired`): they
+leave `remaining`, so they leave the walk, the counts and Accept all. So:
+
+- **A fix inside an accepted rewording** is never offered: the rewording already has it.
+- **A fix outside every accepted rewording** is offered after the rewordings, as before.
+- **A fix inside a skipped rewording** is offered: skipping isn't a decision, the rewording
+  stays on offer, and the fix is the writer's way to repair those words without taking the
+  rewording.
+- **Both, out of order.** If the writer taps ahead and accepts a fix, then goes back and
+  accepts the rewording that includes it, the rewording wins and the fix is retired, as
+  before. Rewordings never overlap each other (the engine withholds both), so a fix is
+  covered by at most one.
+- **Undo** of a rewording brings it back open, and the fixes it covered come back on offer
+  after it. Undo of Accept all on the rewordings reopens the first one.
+- **Accept all** on the rewordings retires every fix they cover and moves the walk to the
+  first fix still on offer. Accept all on the fixes while a rewording is open leaves it open.
+
+**Spoken position.** "Change 1 of 5" counts every change, in the walk's order. Accepting a
+rewording takes the fixes it covers out of the total ("Change 3 of 4" next), the same rule
+as before: only a fix retired by an accepted rewording leaves the count. The fixes heading
+counts the same way ("1 fix" once the other one is covered).
+
+**History stays honest.** Nothing new is recorded and the schema is unchanged. What the
+writer accepted is Accepted; a fix covered by an accepted rewording is Retired, which History
+shows as "Covered by a rewording", exactly as when a rewording was accepted over a fix
+before; a fix inside a skipped rewording is decided on its own (Accepted, or Not accepted).
+
+**The rewordings' text.** It is still read on the corrected text: the fixes still on offer
+are applied under it, unmarked, as Copy with rewordings takes them, and a fix the writer
+skipped stays as written. The fixes' text, below, marks them. Once the rewordings are
+decided, the fixes' text carries the accepted rewordings, plain, and the rewordings' section
+is one line.
+
+## Finished
+
+The owner, after accepting everything: the card showed the fixes section and the
+rewordings section, each with "All changes accepted", the cleaned-up text twice (once in
+each section), and "3 changes accepted" under them. Several ways of saying one thing.
+
+At that moment the writer needs four things: what will be sent (or put back), one short
+summary, a way back (Undo), and the next step (Replace; Send in the chat; in Notes, Replace
+puts it in the note, with Copy and Share above). So the finished card is:
+
+- **The final text, once**, as it will be sent, with the copy button at its end ("Copy
+  text" for screen readers).
+- **One row**: "5 changes accepted", Undo, and Replace (Send). The count is the accepted
+  changes that show in the text: a covered fix is part of its rewording, not a change of
+  its own.
+- **No per-kind sections**: no counts, no "All changes accepted", no Accept all.
+- **Meaning** stays at the card's foot, collapsed, as always.
+
+Finished means every change is accepted or covered. If the walk ended with something
+skipped, the card is only partly done: the kind with the skipped change keeps its text, so
+the change can be tapped, and a fully decided kind is its one line. The incomplete-check
+notice ("Some fixes are unavailable", Check again) stays above the finished text when there
+is one. Undo from the finished state brings the last change back, open, and the sections
+with it. While a new check runs, or after it failed, the accepted changes show the same way
+(the text, then the row).
+
+## Decisions
 
 **"Skip", not "Not now".** Copy style asks buttons for a verb. Skip says exactly what
 happens (move on, nothing accepted) and leaves "Not accepted" as History's word.
@@ -107,7 +183,8 @@ accepted rewording leaves the count.
 
 ## How it's built
 
-- `ui/card/ReviewQueue.kt`: `reviewOrder`/`reviewQueue` (the order), `ReviewFocus` (a pure
+- `ui/card/ReviewQueue.kt`: `reviewOrder`/`reviewQueue` (the order: `walkOrder` puts
+  rewordings before fixes, whatever order the check lists its kinds in), `ReviewFocus` (a pure
   state machine: `start`, `select`, `skip`, `follow` a revision change, `position`,
   `isDone`), and `ReviewFlow`, which keeps one focus per check and follows the revision as
   it is read, so the next change opens in the same frame as the accept.
@@ -129,6 +206,18 @@ accepted rewording leaves the count.
   `SavedSuggestions` both use it, so they can't drift from the card.
 - `Revision.previewOnCorrected(kind, skipped)`: the rewordings' text leaves skipped fixes as
   written, so both texts show what will be sent. Copy still takes every remaining change.
+- `ui/card/ReviewContent.kt`: `Suggestions` shows the sections in `walkOrder`; a section with
+  nothing left (`remaining` empty) is its one line (`resolvedSummary`); when nothing is left
+  in any, the finished card (`AcceptedText`: the working text with its copy button, then
+  `AcceptedRow`). `RetainedChanges` (checking again, failed) uses the same `AcceptedText`.
+
+Tests: `ReviewQueueTest` (the order, covered fixes never offered, a fix inside a skipped
+rewording offered, Undo and Accept all, the spoken position), `ReviewOrderRecordingTest` (a
+walk recorded as History records it: Accepted, Retired for a covered fix, a fix inside a
+skipped rewording on its own), `ReviewFlowCardTest` (the walk in every host),
+`ReviewFinishTest` (the finished card in every host, the partial lines, the sections' order;
+each state composed fresh), `OneChangeViewTest`, `TypeToAcceptCardTest`,
+`TypeToAcceptLayoutTest`, `WithheldReviewTest`.
 
 Every host (popup over other apps, the selection-menu card, Chat, Notes, the clipboard
 card) shows the same `ResultCard`, so the flow is identical everywhere. Nothing new is
@@ -141,6 +230,10 @@ A skip is not a decision and isn't saved.
   death), opening on the first open change again.
 - Skipped changes aren't revisited automatically; the writer taps them. Unmarked, they are
   easy to forget; Accept all and the count above the text still include them.
+- While the rewordings are walked, their text has the fixes still on offer applied unmarked
+  (it's read on the corrected text); the fixes are marked only in the fixes' text below.
+- When the rewordings are decided their passage folds into one line, so the fixes' text moves
+  up as the walk reaches it.
 - The struck old words and a deleted word's mark take room, so the drawn line can wrap
   differently from the final text, and the text reflows as a change is accepted, skipped or
   brought back.

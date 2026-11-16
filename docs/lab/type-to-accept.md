@@ -15,7 +15,7 @@ card, Chat's review panel, Notes, the clipboard card: they all share `ResultCard
 like this:
 
 - The [review flow](review-flow.md) still opens on the first change and walks them in
-  order. On the open change, the **Accept** button is replaced by a field. The field takes
+  order, rewordings first, so a fix is never typed only to be replaced by a rewording. On the open change, the **Accept** button is replaced by a field. The field takes
   focus and the keyboard opens.
 - The writer types the change's new text, the bold part of "estas → **estàs**".
 - The field compares as they type. While the text is still the start of the change,
@@ -55,7 +55,7 @@ finger, which "feels like a bug". Now an exact match first shows that it's right
   success isn't registered before it's gone; over a second it feels sluggish across many
   changes. Then the change is accepted through the same `onAccept`, exactly once, and the
   card moves on with the existing motion. After the last change it's the same beat, then
-  the card's usual finished state ("2 changes accepted, Undo, Replace").
+  the card's usual finished state (the final text, then "2 changes accepted, Undo, Replace").
 - **Leaving during the hold** (the card closes, Edit message, Skip, rotation) still accepts
   the matched change, once: the writer typed it right.
 - **Motion.** The hold and the other waits are counted in frames, like animations, so they
@@ -202,8 +202,9 @@ the height and the conversation yields it, then gets it back), `TypeToAcceptSett
   have been checked in tests (Robolectric, with IME insets sent to the view), not yet on a
   device: not on the popup over other apps, where the keyboard and the card share the
   screen, and not with each keyboard's own animation.
-- Moving from a fix to a rewording changes passage, so a new field takes focus a frame
-  later and the keyboard may blink there. Within a passage the field stays.
+- Moving from the rewordings to the fixes changes passage (rewordings are walked first), so
+  a new field takes focus a frame later and the keyboard may blink there. Within a passage
+  the field stays.
 - The sound loads when a card first shows with it on, so the very first match after turning
   it on in Settings may be silent.
 - Keyboard autocorrect is asked to stay off in the field; some keyboards ignore that.

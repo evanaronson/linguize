@@ -10,15 +10,22 @@ import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.editOrder
 
 /**
- * Lab, Review flow: the order the card walks its changes in. Screen order: the sections
- * in the order the card shows them ([kinds], fixes before rewordings), and within each
- * section reading order, the same text order the edit engine renders in. Deletions and
- * insertions sit at their own place, like any other change. Fixes therefore come before
- * the rewordings that overlap them, which is how rewordings are written: on top of the
- * corrected text, so accepting the fix first never loses the rewording.
+ * Lab, Review flow: the order the card walks its changes in, and the order it shows its
+ * sections in. Rewordings first, then the fixes still on offer, each in reading order (the
+ * text order the edit engine renders in; deletions and insertions sit at their own place).
+ *
+ * Rewordings come first because a rewording is written on top of the corrected text and
+ * already includes the fixes it touches: deciding a fix first, maybe typing it, and then
+ * accepting the rewording over the same words made that fix pointless. Accepting a
+ * rewording retires the fixes it covers ([Revision.isRetired]), so they leave the walk;
+ * a fix outside every accepted rewording, or inside a skipped one, is still walked.
  */
 internal fun Revision.reviewOrder(kinds: List<EditKind>): List<Edit> =
-    kinds.distinct().flatMap { kind -> edits(kind).sortedWith(editOrder) }
+    kinds.walkOrder().flatMap { kind -> edits(kind).sortedWith(editOrder) }
+
+/** [this] kinds in the order the card shows and walks them: rewordings, then fixes. */
+internal fun List<EditKind>.walkOrder(): List<EditKind> =
+    distinct().sortedBy { if (it == EditKind.Natural) 0 else 1 }
 
 /** The changes still on offer, in [reviewOrder]. */
 internal fun Revision.reviewQueue(kinds: List<EditKind>): List<Edit> {

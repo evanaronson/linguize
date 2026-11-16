@@ -25,9 +25,10 @@ import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.theme.Linguize
 
 /**
- * The suggestions page: one section per judgment (its count, the text with its changes
- * marked, Accept all), then the accepted changes with Undo and Apply. Meaning is the
- * card's footer row (see [ResultCard]).
+ * The suggestions page: one section per judgment, rewordings first as they are walked (its
+ * count, the text with its changes marked, Accept all; one line once nothing is left in it),
+ * then the accepted changes with Undo and Replace. Once every change is accepted, only the
+ * final text and that row. Meaning is the card's footer row (see [ResultCard]).
  */
 @Composable
 internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
@@ -52,21 +53,33 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         LinguizeButton(stringResource(R.string.check_again), actions.onRetry, ButtonKind.Text)
     }
 
+    val review = actions.review
+    val revision = result.revision
+    // Finished: every change is accepted (or covered by an accepted rewording). The writer
+    // needs what will be sent, once, one summary with Undo, and the final action; the
+    // per-kind sections would only restate the same text.
+    if (review != null && revision.canUndo && result.kinds.all { revision.remaining(it).isEmpty() }) {
+        if (incomplete) SectionDivider()
+        val copyKind = result.kinds.walkOrder().first()
+        AcceptedText(revision, review, canApply = true, onCopy = { actions.onCopy(revision.workingText, copyKind) },
+            modifier = flow.finalAction)
+        return
+    }
+
     // Empty withheld sections are covered by the notice. Naturalness was judged on
     // the model's corrected text, so it cannot reassure the writer about the original
-    // when required corrections were withheld.
-    result.kinds.filterNot { kind ->
-        result.revision.edits(kind).isEmpty() &&
+    // when required corrections were withheld. Sections follow the walk: rewordings first.
+    result.kinds.walkOrder().filterNot { kind ->
+        revision.edits(kind).isEmpty() &&
             (kind in result.withheld || kind == EditKind.Natural && EditKind.Fix in result.withheld)
     }.forEachIndexed { index, kind ->
         if (incomplete || index > 0) SectionDivider()
         EditSection(kind, result, settled, actions, flow.selection)
     }
 
-    val review = actions.review
-    if (review != null && result.revision.canUndo) {
+    if (review != null && revision.canUndo) {
         SectionDivider()
-        AcceptedRow(result.revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel,
+        AcceptedRow(revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel,
             modifier = flow.finalAction)
     }
 }
@@ -105,10 +118,18 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
         return
     }
 
+    // Partly done: a kind with nothing left to decide is one quiet line. Its accepted changes
+    // already show, plain, in the other section's text, so its own would only repeat it.
+    if (remaining.isEmpty() && review != null) {
+        SuccessLine(resolvedSummary(kind, revision), quiet = true)
+        return
+    }
+
     val mark = if (fix) Linguize.colors.proof else Linguize.colors.rewording
-    val count = revision.edits(kind).size
-    // One change view: what the text shows is what will be sent, so a skipped fix stays as
-    // written under the rewordings too. Copy still takes every remaining change.
+    // A fix covered by an accepted rewording is part of the rewording now: not counted here.
+    val count = revision.edits(kind).count { !revision.isRetired(it.id) }
+    // One change view: rewordings are read on the corrected text (the fixes still on offer
+    // applied under them, as Copy takes them), but a fix the writer skipped stays as written.
     val preview = revision.previewOnCorrected(kind, selection?.let { it.skipped - setOfNotNull(it.selected) }.orEmpty())
     val copyText = revision.previewOnCorrected(kind).text
     val highlights = remaining.mapNotNull { edit ->
@@ -142,6 +163,26 @@ private fun EditSection(kind: EditKind, result: CheckResult.Reviewed, settled: L
     }
 }
 
+/**
+ * A kind with nothing left to decide, in one line: "2 rewordings accepted", "3 fixes
+ * accepted", "1 fix covered by a rewording", "2 fixes accepted, 1 covered by a rewording".
+ * Covered is History's word for a fix that an accepted rewording already includes.
+ */
+@Composable
+private fun resolvedSummary(kind: EditKind, revision: Revision): String {
+    val edits = revision.edits(kind)
+    val accepted = edits.count { revision.isApplied(it.id) }
+    val covered = edits.count { revision.isRetired(it.id) }
+    return when {
+        kind == EditKind.Natural -> pluralStringResource(R.plurals.lab_review_rewordings_accepted, accepted, accepted)
+        covered == 0 -> pluralStringResource(R.plurals.lab_review_fixes_accepted, accepted, accepted)
+        accepted == 0 -> pluralStringResource(R.plurals.lab_review_fixes_covered, covered, covered)
+        else -> stringResource(R.string.lab_review_fixes_summary,
+            pluralStringResource(R.plurals.lab_review_fixes_accepted, accepted, accepted),
+            pluralStringResource(R.plurals.lab_review_covered, covered, covered))
+    }
+}
+
 /** 14dp, a hairline, 14dp: between a card's sections. */
 @Composable
 internal fun SectionDivider() {
@@ -155,12 +196,33 @@ internal fun SectionDivider() {
 internal fun RetainedChanges(revision: Revision?, review: ReviewActions?, canApply: Boolean = false) {
     if (revision == null || !revision.canUndo) return
     SectionDivider()
-    if (review != null) AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply }, applyLabel = review.applyLabel)
-    else Text(
-        pluralStringResource(R.plurals.changes_accepted_count, revision.acceptedCount, revision.acceptedCount),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(4.dp))
-    Text(revision.workingText, style = MaterialTheme.typography.bodyLarge)
+    AcceptedText(revision, review, canApply)
+}
+
+/**
+ * What will be sent, once, then "5 changes accepted   Undo  [Replace]" (Send in the chat):
+ * the finished card, and the accepted changes kept while a new check runs or after it failed.
+ * [onCopy] adds the text's copy button.
+ */
+@Composable
+private fun AcceptedText(revision: Revision, review: ReviewActions?, canApply: Boolean, onCopy: (() -> Unit)? = null,
+    modifier: Modifier = Modifier) {
+    if (onCopy != null) {
+        HighlightedText(revision.workingText, emptyList(), MaterialTheme.colorScheme.onSurface, null,
+            onCopy = onCopy, copyDescription = stringResource(R.string.lab_review_copy_text))
+    } else {
+        Text(revision.workingText, style = MaterialTheme.typography.bodyLarge)
+    }
+    Spacer(Modifier.height(10.dp))
+    if (review != null) {
+        AcceptedRow(revision.acceptedCount, review.onUndo, onApply = review.onApply.takeIf { canApply },
+            applyLabel = review.applyLabel, modifier = modifier)
+    } else {
+        Text(
+            pluralStringResource(R.plurals.changes_accepted_count, revision.acceptedCount, revision.acceptedCount),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier,
+        )
+    }
 }

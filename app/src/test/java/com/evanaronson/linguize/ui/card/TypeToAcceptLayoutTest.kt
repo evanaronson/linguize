@@ -212,11 +212,12 @@ class TypeToAcceptLayoutTest {
     }
 
     @Test fun inALowerSectionTheCardScrollsToTheChangeAndTheField() {
-        // A deletion keeps Accept; Skip moves on to a rewording in the second passage, whose
-        // text sits under the whole first passage, far below the card's first screen.
-        val deletion = Edit(3, EditKind.Fix, 0, 6, "Frase ", "", "Why not Frase")
-        val rewording = Edit(4, EditKind.Natural, middle, middle + 3, "amb", "amb la", "Why amb la")
-        show(typeToAccept = true, reviewed = CheckResult.Reviewed(Revision(text, listOf(deletion, rewording)),
+        // A rewording that deletes keeps Accept; Skip moves on to a fix in the second passage
+        // (rewordings come first), whose text sits under the whole first passage, far below the
+        // card's first screen.
+        val deletion = Edit(3, EditKind.Natural, 0, 6, "Frase ", "", "Why not Frase")
+        val lower = Edit(4, EditKind.Fix, middle, middle + 3, "amb", "amb la", "Why amb la")
+        show(typeToAccept = true, reviewed = CheckResult.Reviewed(Revision(text, listOf(deletion, lower)),
             listOf(EditKind.Fix, EditKind.Natural)))
         assertTrue(buttons(R.string.accept).isNotEmpty())
         assertTrue(requireNotNull(buttons(R.string.lab_review_flow_skip).single().config[SemanticsActions.OnClick].action).invoke())

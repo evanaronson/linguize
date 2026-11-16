@@ -8,4 +8,27 @@
     <string name="lab_review_flow_position">Change %1$d of %2$d</string>
     <!-- Position, then the change in words: "Change 2 of 5. estas becomes estàs". -->
     <string name="lab_review_flow_spoken">%1$s. %2$s</string>
+    <!-- Finished card: the copy button at the end of the final text, for screen readers. -->
+    <string name="lab_review_copy_text">Copy text</string>
+    <!-- A section with nothing left to decide, in one quiet line. -->
+    <plurals name="lab_review_rewordings_accepted">
+        <item quantity="one">%1$d rewording accepted</item>
+        <item quantity="other">%1$d rewordings accepted</item>
+    </plurals>
+    <plurals name="lab_review_fixes_accepted">
+        <item quantity="one">%1$d fix accepted</item>
+        <item quantity="other">%1$d fixes accepted</item>
+    </plurals>
+    <!-- Every fix was included in a rewording the writer accepted. -->
+    <plurals name="lab_review_fixes_covered">
+        <item quantity="one">%1$d fix covered by a rewording</item>
+        <item quantity="other">%1$d fixes covered by rewordings</item>
+    </plurals>
+    <!-- Second half of "2 fixes accepted, 1 covered by a rewording". -->
+    <plurals name="lab_review_covered">
+        <item quantity="one">%1$d covered by a rewording</item>
+        <item quantity="other">%1$d covered by rewordings</item>
+    </plurals>
+    <!-- "2 fixes accepted" and "1 covered by a rewording", as one line. -->
+    <string name="lab_review_fixes_summary">%1$s, %2$s</string>
 </resources>

@@ -110,17 +110,17 @@ class ReviewFlowCardTest {
     @Test fun theCardWalksEveryChangeInOrderInEveryHost() {
         for (host in Host.entries) {
             show(host)
-            // The first change in reading order is open on arrival: the deletion, in its place.
-            assertTrue("$host opens on the first change", hasText("Why yo"))
-            assertFalse(hasText("Why amigos"))
-            click(R.string.accept)
-            assertEquals("$host accepted the deletion", listOf(deletion), revision.acceptedEdits)
-            assertTrue("$host moves to the next fix", hasText("Why amigos"))
+            // Rewordings first: the rewording is open on arrival.
+            assertTrue("$host opens on the rewording", hasText("Why cinema"))
             assertFalse(hasText("Why yo"))
             click(R.string.accept)
-            assertTrue("$host moves on to the rewordings", hasText("Why cinema"))
+            assertEquals("$host accepted the rewording", listOf(rewording), revision.acceptedEdits)
+            assertTrue("$host moves on to the fixes, in reading order", hasText("Why yo"))
+            assertFalse(hasText("Why cinema"))
             click(R.string.accept)
-            assertFalse("$host clears the selection when done", hasText("Why cinema"))
+            assertTrue("$host moves to the next fix", hasText("Why amigos"))
+            click(R.string.accept)
+            assertFalse("$host clears the selection when done", hasText("Why amigos"))
             assertTrue(buttons(R.string.accept).isEmpty())
             click(host.applyLabel)
         }
@@ -130,11 +130,11 @@ class ReviewFlowCardTest {
     @Test fun skipMovesOnAndLeavesTheChangeToTapLater() {
         show(Host.Popup)
         click(R.string.lab_review_flow_skip)
-        assertTrue(hasText("Why amigos"))
+        assertTrue(hasText("Why yo"))
         assertTrue(revision.acceptedEdits.isEmpty())
         click(R.string.lab_review_flow_skip)
         click(R.string.lab_review_flow_skip)
-        assertFalse("Skipping the last change ends the walk", hasText("Why cinema"))
+        assertFalse("Skipping the last change ends the walk", hasText("Why amigos"))
         assertTrue(revision.acceptedEdits.isEmpty())
         // The skipped deletion is still a change to tap.
         customAction(activity.getString(R.string.change_why_remove, "yo"))
@@ -144,30 +144,30 @@ class ReviewFlowCardTest {
     @Test fun undoGoesBackToTheChangeItBringsBack() {
         show(Host.Popup)
         click(R.string.accept)
-        assertTrue(hasText("Why amigos"))
+        assertTrue(hasText("Why yo"))
         click(R.string.undo)
         assertTrue(revision.acceptedEdits.isEmpty())
-        assertTrue("Undo reopens the deletion", hasText("Why yo"))
+        assertTrue("Undo reopens the rewording", hasText("Why cinema"))
     }
 
     @Test fun tappingAnotherChangeJumpsThereAndAcceptContinuesFromIt() {
         show(Host.Popup)
-        customAction(activity.getString(R.string.change_why_replace, "cine", "cinema"))
-        assertTrue(hasText("Why cinema"))
-        assertFalse(hasText("Why yo"))
+        customAction(activity.getString(R.string.change_why_replace, "amigo", "amigos"))
+        assertTrue(hasText("Why amigos"))
+        assertFalse(hasText("Why cinema"))
         click(R.string.accept)
         // Past the end, the walk wraps to the first open change.
-        assertTrue(hasText("Why yo"))
+        assertTrue(hasText("Why cinema"))
     }
 
     @Test fun screenReadersHearThePositionAndCanSkip() {
         show(Host.Popup)
         val spoken = activity.getString(R.string.lab_review_flow_spoken,
             activity.getString(R.string.lab_review_flow_position, 1, 3),
-            activity.getString(R.string.change_remove, "yo"))
+            activity.getString(R.string.change_becomes, "cine", "cinema"))
         assertTrue("Heard: ${descriptions()}", descriptions().contains(spoken))
         customAction(activity.getString(R.string.lab_review_flow_skip_action))
-        assertTrue(hasText("Why amigos"))
+        assertTrue(hasText("Why yo"))
         // The deletion's own actions stay on the text.
         assertTrue(customActions().any { it == activity.getString(R.string.change_remove, "yo") })
     }

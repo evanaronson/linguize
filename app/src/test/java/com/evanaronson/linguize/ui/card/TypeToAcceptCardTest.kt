@@ -127,11 +127,11 @@ class TypeToAcceptCardTest {
 
     @Test fun offTheCardIsUnchanged() {
         show(typeToAccept = false)
-        assertTrue(hasText("Why yo"))
+        assertTrue("Rewordings first", hasText("Why cinema"))
         assertEquals(1, buttons(R.string.accept).size)
         assertTrue("No field to type in", fields().isEmpty())
         click(R.string.accept)
-        assertTrue(hasText("Why amigos"))
+        assertTrue(hasText("Why yo"))
         assertEquals("Accept stays a button for every change", 1, buttons(R.string.accept).size)
         assertTrue(fields().isEmpty())
         assertEquals(1, buttons(R.string.lab_review_flow_skip).size)
@@ -139,6 +139,7 @@ class TypeToAcceptCardTest {
 
     @Test fun aDeletionKeepsItsAcceptButton() {
         show(typeToAccept = true)
+        click(R.string.lab_review_flow_skip) // the rewording
         assertTrue(hasText("Why yo"))
         assertEquals(1, buttons(R.string.accept).size)
         assertTrue("Nothing to type for a deletion", fields().isEmpty())
@@ -148,11 +149,19 @@ class TypeToAcceptCardTest {
 
     @Test fun typingTheChangeAcceptsItAndMovesOn() {
         show(typeToAccept = true)
+        assertTrue(hasText("Why cinema"))
+        assertTrue("The field stands in for Accept", buttons(R.string.accept).isEmpty())
+        val rewordingLabel = activity.getString(R.string.lab_type_to_accept_label, "cinema")
+        assertEquals("Focus goes to the field", true, field(rewordingLabel)?.config?.getOrNull(SemanticsProperties.Focused))
+        type(rewordingLabel, "cinema")
+        assertEquals("Accepted through the same Accept action", listOf(3), accepted)
+        assertTrue("Moves on to the fixes", hasText("Why yo"))
         click(R.string.accept) // the deletion
         assertTrue(hasText("Why amigos"))
         assertTrue("The field stands in for Accept", buttons(R.string.accept).isEmpty())
         val label = activity.getString(R.string.lab_type_to_accept_label, "amigos")
         assertNotNull(field(label))
+        assertEquals("The next field starts empty", "", field(label)?.config?.getOrNull(SemanticsProperties.EditableText)?.text)
         assertEquals("Focus goes to the field", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
         assertEquals("Skip stays beside the field", 1, buttons(R.string.lab_review_flow_skip).size)
 
@@ -166,33 +175,25 @@ class TypeToAcceptCardTest {
         assertEquals(activity.getString(R.string.lab_type_to_accept_off_spoken),
             field(label)?.config?.getOrNull(SemanticsProperties.Error))
         assertTrue(hasText(activity.getString(R.string.lab_type_to_accept_off)))
-        assertEquals(listOf(deletion), revision.acceptedEdits)
+        assertEquals(setOf(rewording, deletion), revision.acceptedEdits.toSet())
 
         type(label, "amig")
         assertNull("Fixing the character clears the error", field(label)?.config?.getOrNull(SemanticsProperties.Error))
 
         type(label, "amigos")
-        assertEquals("Accepted through the same Accept action", listOf(1, 2), accepted)
-        assertEquals(setOf(deletion, fix), revision.acceptedEdits.toSet())
-        assertTrue("Moves on to the next change", hasText("Why cinema"))
-        assertFalse(hasText("Why amigos"))
-        val next = field(activity.getString(R.string.lab_type_to_accept_label, "cinema"))
-        assertNotNull(next)
-        assertEquals("The next change starts empty", "", next?.config?.getOrNull(SemanticsProperties.EditableText)?.text)
-
-        type(activity.getString(R.string.lab_type_to_accept_label, "cinema"), "cinema")
-        assertEquals(listOf(1, 2, 3), accepted)
-        assertFalse("The walk ends", hasText("Why cinema"))
+        assertEquals(listOf(3, 1, 2), accepted)
+        assertEquals(setOf(deletion, fix, rewording), revision.acceptedEdits.toSet())
+        assertFalse("The walk ends", hasText("Why amigos"))
         assertTrue(fields().isEmpty())
     }
 
     @Test fun skipStillMovesOnWithoutAccepting() {
         show(typeToAccept = true)
-        click(R.string.lab_review_flow_skip) // the deletion
-        assertTrue(hasText("Why amigos"))
-        type(activity.getString(R.string.lab_type_to_accept_label, "amigos"), "ami")
+        type(activity.getString(R.string.lab_type_to_accept_label, "cinema"), "cin")
+        click(R.string.lab_review_flow_skip) // the rewording
+        assertTrue(hasText("Why yo"))
         click(R.string.lab_review_flow_skip)
-        assertTrue(hasText("Why cinema"))
+        assertTrue(hasText("Why amigos"))
         assertTrue(revision.acceptedEdits.isEmpty())
         assertTrue(accepted.isEmpty())
     }

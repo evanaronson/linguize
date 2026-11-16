@@ -102,7 +102,8 @@ class OneChangeViewTest {
     @Composable private fun Card() = ResultCard(state.value, actions, Modifier.fillMaxWidth().heightIn(max = 3000.dp))
 
     @Test fun theLiveCardWritesEachPendingChangeAsItsStruckOldWordsThenTheNew() = show({ Card() }) { page ->
-        val (fixes, rewordings) = page.passages()
+        // Rewordings first, as they are walked.
+        val (rewordings, fixes) = page.passages()
         // The fixes: the deleted word struck in its place, the old word struck before the new one.
         assertEquals("Ayer yo fui al cine con mis amigo amigos", fixes.text.removeSuffix(" ￼"))
         assertEquals(listOf("yo", "amigo"), fixes.struck())
@@ -115,36 +116,42 @@ class OneChangeViewTest {
     }
 
     @Test fun selectingAChangeShowsOnlyItsExplanation() = show({ Card() }) { page ->
-        // Arrives on the first change, the deletion: its explanation alone.
-        assertEquals(listOf("Why yo"), page.reasons())
-        page.tapOn("amigos", passage = 0)
+        // Arrives on the first change, the rewording: its explanation alone.
+        assertEquals(listOf("Why cinema"), page.reasons())
+        page.tapOn("amigos", passage = 1)
         assertEquals(listOf("Why amigos"), page.reasons())
-        page.tapOn("cinema", passage = 1)
+        page.tapOn("cinema", passage = 0)
         assertEquals(listOf("Why cinema"), page.reasons())
         // Tapping the open change closes it.
-        page.tapOn("cinema", passage = 1)
+        page.tapOn("cinema", passage = 0)
         assertTrue(page.reasons().isEmpty())
     }
 
     @Test fun anAcceptedChangeShowsJustItsNewWordsAndASkippedOneItsOriginal() = show({ Card() }) { page ->
+        page.click(R.string.lab_review_flow_skip)
+        // Skipped: the original word stays, unmarked; nothing is struck for it.
+        assertEquals("Ayer fui al cine con mis amigos", page.passages()[0].text.removeSuffix(" ￼"))
+        assertTrue(page.passages()[0].struck().isEmpty())
+        assertEquals(listOf("Why yo"), page.reasons())
+
         page.click(R.string.accept)
         assertEquals(listOf(deletion), revision.acceptedEdits)
         // Accepted: what will be sent, plain. The walk is on the next fix.
-        assertEquals("Ayer fui al cine con mis amigo amigos", page.passages()[0].text.removeSuffix(" ￼"))
-        assertEquals(listOf("amigo"), page.passages()[0].struck())
+        assertEquals("Ayer fui al cine con mis amigo amigos", page.passages()[1].text.removeSuffix(" ￼"))
+        assertEquals(listOf("amigo"), page.passages()[1].struck())
         assertEquals(listOf("Why amigos"), page.reasons())
 
         page.click(R.string.lab_review_flow_skip)
-        // Skipped: the original word stays, unmarked, in both texts; nothing is struck for it.
+        // A skipped fix stays as written in both texts.
+        assertEquals("Ayer fui al cine con mis amigo", page.passages()[1].text.removeSuffix(" ￼"))
+        assertTrue(page.passages()[1].struck().isEmpty())
         assertEquals("Ayer fui al cine con mis amigo", page.passages()[0].text.removeSuffix(" ￼"))
-        assertTrue(page.passages()[0].struck().isEmpty())
-        assertEquals("Ayer fui al cine cinema con mis amigo", page.passages()[1].text.removeSuffix(" ￼"))
-        assertEquals(listOf("Why cinema"), page.reasons())
+        assertTrue("The walk is done", page.reasons().isEmpty())
 
         // Tapping the skipped word brings its change back, proposed again.
-        page.tapOn("amigo", passage = 0)
+        page.tapOn("amigo", passage = 1)
         assertEquals(listOf("Why amigos"), page.reasons())
-        assertEquals("Ayer fui al cine con mis amigo amigos", page.passages()[0].text.removeSuffix(" ￼"))
+        assertEquals("Ayer fui al cine con mis amigo amigos", page.passages()[1].text.removeSuffix(" ￼"))
     }
 
     @Test fun aPastChecksRecordIsTheSameViewReadOnlyWithNoList() {

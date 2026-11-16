@@ -140,7 +140,11 @@ class WithheldReviewTest {
         show(result, ReviewActions(onAccept = {}, onAcceptAll = {}, onUndo = { undone++ }, onApply = { applied++ }))
         assertTrue(hasText(R.string.fixes_withheld))
         assertTrue(hasText(R.string.check_again))
-        assertTrue(hasText(R.string.all_accepted))
+        // Finished: the final text once, one summary, no section restating it.
+        val summary = activity.resources.getQuantityString(R.plurals.changes_accepted_count, 1, 1)
+        assertTrue(nodes().any { it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text == summary } == true })
+        assertFalse(hasText(R.string.all_accepted))
+        assertFalse(hasText(R.string.accept_all))
         assertFalse(hasText(R.string.looks_good))
         clickText(R.string.undo)
         clickText(R.string.apply)

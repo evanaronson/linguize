@@ -45,13 +45,16 @@ import com.evanaronson.linguize.ui.patterns.Sparkline
 import com.evanaronson.linguize.ui.patterns.patternsSummary
 import com.evanaronson.linguize.ui.phrasebook.inLanguage
 import com.evanaronson.linguize.ui.time.TimeHeadline
+import com.evanaronson.linguize.core.chat.TranslationReliance
+import com.evanaronson.linguize.ui.reliance.relianceSummary
+import com.evanaronson.linguize.ui.reliance.translationReliance
 import com.evanaronson.linguize.ui.words.WordsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
 /** A page Progress opens. Each shows the app's current language, or the block's language under Linguize. */
-enum class ProgressView { Words, Conjugations, Patterns, Phrasebook, Time }
+enum class ProgressView { Words, Conjugations, Patterns, Phrasebook, Time, Translations }
 
 /**
  * Lab, Consistency: the languages Progress shows a block for. With a language chosen, just
@@ -78,11 +81,15 @@ internal sealed interface ProgressSection {
     data object Saved : ProgressSection
 }
 
-/** The views a language's card lists. Your conjugations only where morphology exists. */
+/**
+ * The views a language's card lists. Your conjugations only where morphology exists. Lab,
+ * Translation reliance: Translations, how often a chat reply's translation was needed, last.
+ */
 internal fun progressViews(language: String): List<ProgressView> = listOfNotNull(
     ProgressView.Words,
     ProgressView.Conjugations.takeIf { language in CONJUGATION_LANGUAGES },
     ProgressView.Patterns,
+    ProgressView.Translations,
 )
 
 /** The tab, top to bottom, for [current] (null is Linguize) and the languages [found] in the data. */
@@ -127,6 +134,9 @@ fun ProgressScreen(
     val options by languageOptions.collectAsState()
     LaunchedEffect(conjugations) { conjugations.refresh() }
     LaunchedEffect(patterns, language) { patterns.setLanguage(language) }
+    val reliance = translationReliance()
+    val relianceState = reliance?.state?.collectAsState()?.value
+    LaunchedEffect(reliance) { reliance?.refresh() }
 
     val wordsByLanguage = wordsState.index?.languages.orEmpty().associateBy { it.language }
     val phrases = rememberPhrases()
@@ -155,6 +165,7 @@ fun ProgressScreen(
                         conjugations = conjugationsState.reports[section.language]?.takeUnless { it.isEmpty }?.let { it.usedGridCells to it.gridCells.size },
                         patternSummary = pattern?.let { patternsSummary(it) },
                         patternSparkline = pattern?.patterns?.firstOrNull()?.buckets,
+                        translations = relianceState?.report(section.language),
                     ) { view -> onOpen(view, if (section.labelled) section.language else null) }
                 }
                 ProgressSection.Saved -> {
@@ -186,6 +197,8 @@ private fun ViewsCard(
     conjugations: Pair<Int, Int>?,
     patternSummary: String?,
     patternSparkline: List<Int>?,
+    /** Lab, Translation reliance: this language's report, once read. */
+    translations: TranslationReliance?,
     onOpen: (ProgressView) -> Unit,
 ) {
     val name = scopeLanguageName(section.language)
@@ -217,6 +230,12 @@ private fun ViewsCard(
                 ) {
                     patternSparkline?.let { Sparkline(it, Modifier.width(56.dp).height(24.dp).clearAndSetSemantics { }) }
                 }
+                ProgressView.Translations -> ListRow(
+                    stringResource(R.string.lab_reliance_title),
+                    translations?.let { relianceSummary(it) } ?: stringResource(R.string.lab_reliance_row_empty),
+                    onClick = { onOpen(view) },
+                    onClickLabel = openLabel(R.string.lab_reliance_open),
+                )
                 else -> Unit
             }
         }

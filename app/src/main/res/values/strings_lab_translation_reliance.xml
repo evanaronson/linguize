@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lab: Translation reliance. How often the writer needed a chat reply's translation. -->
+    <string name="lab_reliance_title">Translations</string>
+    <string name="lab_reliance_open">Open translations</string>
+    <string name="lab_reliance_row_empty">How often you need a reply\'s translation</string>
+
+    <!-- The summary. The percentage only shows from 10 replies. -->
+    <plurals name="lab_reliance_summary">
+        <item quantity="one">Translation needed for %1$d of %2$d reply</item>
+        <item quantity="other">Translation needed for %1$d of %2$d replies</item>
+    </plurals>
+    <plurals name="lab_reliance_summary_percent">
+        <item quantity="one">Translation needed for %1$d of %2$d reply (%3$d%%)</item>
+        <item quantity="other">Translation needed for %1$d of %2$d replies (%3$d%%)</item>
+    </plurals>
+    <string name="lab_reliance_kind">Needing a translation is part of learning. A new topic or a new partner can raise it for a while.</string>
+
+    <!-- The trend: the last 4 weeks against the 4 before. -->
+    <string name="lab_reliance_trend_down">%1$d%% in the last 4 weeks, down from %2$d%% the 4 weeks before</string>
+    <string name="lab_reliance_trend_up">%1$d%% in the last 4 weeks, up from %2$d%% the 4 weeks before</string>
+    <string name="lab_reliance_trend_same">%1$d%% in the last 4 weeks, about the same as the 4 weeks before</string>
+    <string name="lab_reliance_trend_not_yet">A trend shows once there are more replies</string>
+
+    <string name="lab_reliance_weeks">Last 8 weeks</string>
+    <string name="lab_reliance_weeks_description">Share of replies whose translation you needed, by week from %1$s: %2$s</string>
+    <string name="lab_reliance_week_percent">%1$d%%</string>
+    <string name="lab_reliance_week_too_few">too few replies</string>
+    <string name="lab_reliance_weeks_caption">A week needs 5 replies for a bar</string>
+    <string name="lab_reliance_legend">Share of replies that needed a translation</string>
+
+    <string name="lab_reliance_empty_title">No replies measured yet</string>
+    <string name="lab_reliance_empty">Replies in the chat count from this version on. Tap one to see its translation.</string>
+
+    <!-- How it's counted. -->
+    <string name="lab_reliance_how_needed">A reply needed its translation when the translation stayed on screen for at least 2.5 seconds. A tap and a quick tap back doesn\'t count.</string>
+    <string name="lab_reliance_how_screen">Time counts only while the chat and the reply are on screen. Each reply counts once, however often you tap it.</string>
+    <string name="lab_reliance_how_since">Only replies that came with their translation since this version count. Older replies can\'t be measured.</string>
+    <string name="lab_reliance_how_trend">The percentage shows from 10 replies. The trend compares the last 4 weeks with the 4 before, each with at least 20 replies.</string>
+    <string name="lab_reliance_how_delete">Deleting a conversation deletes what was counted for its replies. So does editing a sent message, for the replies it removes.</string>
+</resources>

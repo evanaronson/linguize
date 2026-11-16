@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -185,6 +186,13 @@ private fun ChatBody(chat: ChatViewModel, check: CheckViewModel, onOpenSettings:
     LaunchedEffect(messages.size, chat.replying, chat.send) {
         if (list.layoutInfo.totalItemsCount > 0) list.animateScrollToItem(0)
     }
+    // Lab, Translation reliance: a translation counts as read only while its bubble is on screen.
+    LaunchedEffect(chat, list) {
+        snapshotFlow { list.layoutInfo.visibleItemsInfo.mapNotNullTo(HashSet()) { it.key as? String } as Set<String> }
+            .distinctUntilChanged()
+            .collect(chat::onScreen)
+    }
+    DisposableEffect(chat) { onDispose { chat.onScreen(emptySet()) } }
     val typing = rememberCardTyping()
     ConversationAndReview(
         typing,

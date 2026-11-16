@@ -13,6 +13,7 @@ import com.evanaronson.linguize.core.chat.ChatSnapshot
 import com.evanaronson.linguize.core.chat.ChatThreadInfo
 import com.evanaronson.linguize.core.chat.Conversation
 import com.evanaronson.linguize.core.chat.ConversationSummary
+import com.evanaronson.linguize.core.chat.ReplyRead
 import com.evanaronson.linguize.core.chat.SentCheck
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
@@ -134,6 +135,32 @@ class ChatStore(
     private fun SQLiteDatabase.insertMessage(message: ChatMessage) {
         insertOrThrow(MESSAGES, null, message.values())
         execSQL("UPDATE conversations SET updated_at = MAX(updated_at, ?) WHERE id = ?", arrayOf<Any>(message.at, message.conversationId))
+        // Lab, Translation reliance: a reply that came with its translation can be measured.
+        if (!message.fromWriter && message.translation != null) {
+            execSQL(
+                "INSERT OR IGNORE INTO $READS (message, conversation, language, at) SELECT ?, id, language, ? FROM conversations WHERE id = ?",
+                arrayOf<Any>(message.id, message.at, message.conversationId),
+            )
+        }
+    }
+
+    /**
+     * Lab, Translation reliance: notes that the writer needed [messageId]'s translation, at
+     * [at]. Only a measured reply ([ReplyRead]) not already noted changes; true when it did.
+     */
+    suspend fun markTranslationNeeded(messageId: String, at: Long): Boolean = io("note a translation", false) { db ->
+        db.update(READS, ContentValues().apply { put("needed_at", at) }, "message = ? AND needed_at IS NULL", arrayOf(messageId)) > 0
+    }
+
+    /** Lab, Translation reliance: every measured reply, oldest first. A failed read throws. */
+    suspend fun replyReads(): List<ReplyRead> = withContext(dispatcher) {
+        helper.readableDatabase.rawQuery("SELECT message, language, at, needed_at FROM $READS ORDER BY at, message", null).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(ReplyRead(cursor.getString(0), cursor.getString(1), cursor.getLong(2), if (cursor.isNull(3)) null else cursor.getLong(3)))
+                }
+            }
+        }
     }
 
     private fun SQLiteDatabase.snapshot(id: String): ChatSnapshot? {
@@ -401,6 +428,7 @@ class ChatStore(
             upgradeTo3(db)
             upgradeTo4(db)
             upgradeTo5(db)
+            upgradeTo6(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -408,6 +436,25 @@ class ChatStore(
             if (oldVersion < 3) upgradeTo3(db)
             if (oldVersion < 4) upgradeTo4(db)
             if (oldVersion < 5) upgradeTo5(db)
+            if (oldVersion < 6) upgradeTo6(db)
+        }
+
+        /**
+         * Version 6 (Lab, Translation reliance): one row per partner reply that arrived with its
+         * translation, and when the writer needed that translation. It goes with its message, so
+         * deleting a conversation or rewinding it to edit a message removes it too. Replies from
+         * before this version get no row: nothing is backfilled.
+         */
+        private fun upgradeTo6(db: SQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS $READS (
+                    message TEXT PRIMARY KEY NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+                    conversation TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    at INTEGER NOT NULL,
+                    needed_at INTEGER
+                )""",
+            )
         }
 
         /**
@@ -439,7 +486,7 @@ class ChatStore(
     companion object {
         /** The database file's name. */
         const val DATABASE = "lab_chat"
-        private const val VERSION = 5
+        private const val VERSION = 6
 
         /** SQLite's default limit on bound arguments is 999. */
         private const val SQL_ARGS = 500
@@ -447,6 +494,7 @@ class ChatStore(
         private const val MESSAGES = "messages"
         private const val DELETIONS = "pending_deletions"
         private const val REWINDS = "pending_rewinds"
+        private const val READS = "reply_reads"
         private const val TAG = "LabChat"
         private val json = Json { ignoreUnknownKeys = true }
         private val changeList = ListSerializer(StoredChange.serializer())

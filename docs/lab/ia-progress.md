@@ -19,11 +19,15 @@ See [Home and navigation](home-ia.md) and [Language scope](language-scope.md).
 and the last eight weeks. The card opens Time spent. Under Linguize it totals every
 language; a chosen language limits the figure to that language.
 
-**Your writing** contains three views of the same recorded writing:
+**Your writing** contains three views of the same recorded writing, and Translations:
 
 - Words: words written and new words this month.
 - Your conjugations: forms used, for Spanish and Catalan only.
 - Your patterns: recurring accepted changes, with a summary when there is enough evidence.
+- Translations: how often a chat reply's translation was needed, "Translation needed for
+  12 of 40 replies (30%)" ([Translation reliance](translation-reliance.md)). It is about
+  reading replies rather than writing, but it is per language and comes from the chat, so it
+  sits with the other per-language views.
 
 Under Linguize there is one card per language in use, headed by its brand name and
 icon. Each row opens its page in that language. A selected language shows one card.
@@ -33,7 +37,7 @@ the writer chose to keep; it is separate from the derived analysis views.
 
 ## Analysis pages
 
-Words, Your conjugations, Your patterns and Time spent share one shape:
+Words, Your conjugations, Your patterns, Time spent and Translations share one shape:
 
 1. A header naming the language, since these pages have no selector.
 2. A summary of the page's own figures.

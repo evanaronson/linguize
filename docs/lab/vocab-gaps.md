@@ -111,7 +111,7 @@ DUPLICATE), so its 5,000 rows are 5,000 lexemes and 5,000 lemmas. Without morpho
 `DeckIndex.match` once, sums the uses per row (uses inside corrected spans count as tried,
 not used), finds multi-word rows in the writer's texts, and computes the milestones. It's
 kept in memory under the word index fingerprint, the deck and the level; nothing is saved.
-Chat's practice targets compute only used deck keys with their existing tokenizer
+Chat's practice targets compute only used deck keys with their existing tokenizer (chat writing included)
 and matching rules. The former full report remains a test-only differential oracle.
 
 **Storage** (Lab-local, `filesDir/lab_vocab_gaps/`): `decks/index.json` and one CSV per

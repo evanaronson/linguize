@@ -2,6 +2,7 @@ package com.evanaronson.linguize.core.chat
 
 import com.evanaronson.linguize.core.conjugations.Cell
 import com.evanaronson.linguize.core.corpus.Lemmatizer
+import com.evanaronson.linguize.core.corpus.Span
 import com.evanaronson.linguize.core.corpus.Utterance
 import com.evanaronson.linguize.core.morphology.Morphology
 import com.evanaronson.linguize.core.morphology.Person
@@ -51,18 +52,26 @@ class PracticeTargetsTest {
         assertFalse(TargetRegister.Formal in PracticeTargetsBuilder.registerGaps(formal, "es"))
     }
 
-    @Test fun withEnoughRealWritingChatPracticeDoesntHideItsGaps() {
-        val real = (1..PracticeTargetsBuilder.MIN_REAL).map { said("Hoy trabajo en casa.") }
-        // Plenty of future in chat practice only.
-        val chat = (1..20).map { said("Mañana iré a la playa y comeré con amigos.", origin = "chat") }
-        val targets = PracticeTargetsBuilder.build(real + chat, "es", morphology, deck, Lemmatizer.Identity)
-        assertTrue(targets.fromRealWriting)
-        assertTrue(targets.cells.any { it.tense == Tense.Future })
+    @Test fun chatWritingCountsHoweverMuchOtherWritingThereIs() {
+        // Plenty of writing elsewhere: chat still counts, as in Words and Conjugations.
+        val real = (1..60).map { said("Hoy trabajo en casa.") }
+        val before = PracticeTargetsBuilder.build(real, "es", morphology, deck, Lemmatizer.Identity)
+        assertTrue("playa" in before.words.map { it.lemma })
+        assertTrue(Cell(Tense.Future, Person.S1) in before.cells)
+        val chat = listOf(said("Mañana iré a la playa.", origin = "chat"))
+        val after = PracticeTargetsBuilder.build(real + chat, "es", morphology, deck, Lemmatizer.Identity)
+        assertFalse("playa" in after.words.map { it.lemma })
+        assertFalse(Cell(Tense.Future, Person.S1) in after.cells)
+    }
+
+    @Test fun aCorrectedChatUseDoesntCount() {
+        val real = (1..60).map { said("Hoy trabajo en casa.") }
+        val text = "Mañana iré a la playa."
+        val flagged = Utterance("check:flagged", "check", "es", text, at = 999,
+            corrected = listOf(Span(0, text.length)), origin = "chat")
+        val targets = PracticeTargetsBuilder.build(real + flagged, "es", morphology, deck, Lemmatizer.Identity)
         assertTrue("playa" in targets.words.map { it.lemma })
-        // With little real writing, chat counts too.
-        val little = PracticeTargetsBuilder.build(real.take(3) + chat, "es", morphology, deck, Lemmatizer.Identity)
-        assertFalse(little.fromRealWriting)
-        assertFalse("playa" in little.words.map { it.lemma })
+        assertTrue(Cell(Tense.Future, Person.S1) in targets.cells)
     }
 
     @Test fun tooLittleWritingSaysNothingAboutFormsOrRegisters() {

@@ -276,6 +276,8 @@ class ChatViewModel(
     fun showList() {
         val owner = select(null)
         refreshSettings()
+        // The list is in the app's language (it changed, or Chat just showed): the next conversation likely is too.
+        warm(currentLanguage())
         viewModelScope.launch { if (owns(owner)) readList() }
     }
 
@@ -283,11 +285,13 @@ class ChatViewModel(
     fun openCurrent(language: String?, onResolved: (String?) -> Unit) {
         val owner = select(null)
         refreshSettings()
+        warm(language)
         viewModelScope.launch {
             if (!owns(owner)) return@launch
             val all = readList(requiredBy = owner) { openCurrent(language, onResolved) } ?: return@launch
             if (!owns(owner)) return@launch
             val latest = all.firstOrNull { language == null || it.conversation.language == language }
+            if (language == null) warm(latest?.conversation?.language)
             when (val opening = ChatStart.opening(latest, clock())) {
                 is ChatStart.Opening.Resume -> {
                     open(opening.id)
@@ -366,6 +370,7 @@ class ChatViewModel(
             try {
                 pendingSend?.join()
                 val record = conversation()
+                warm(record.language)
                 val created = withContext(NonCancellable) { store.create(record) }
                 if (owns(owner)) {
                     creatingConversationId = null
@@ -416,8 +421,11 @@ class ChatViewModel(
     fun open(id: String, onMissing: () -> Unit = {}) {
         if (selection?.id == id && thread?.conversation?.id == id && !loadFailed) {
             onLanguage(checkNotNull(thread).conversation.language)
+            warm(checkNotNull(thread).conversation.language)
             return
         }
+        // Known from the list: start on the targets while the thread is read.
+        warm(conversations.firstOrNull { it.conversation.id == id }?.conversation?.language)
         leave()
         val pendingCreate = creations[id]
         val owner = selection?.takeIf { pendingCreate != null && it.id == id && it.permit.active } ?: select(id)
@@ -476,7 +484,16 @@ class ChatViewModel(
         preferences.lastLanguage = next.conversation.language
         onLanguage(next.conversation.language)
         conversations = visible(conversations, next.conversation.id)
-        Language.forCode(next.conversation.language)?.let(warmTargets)
+        warm(next.conversation.language)
+    }
+
+    /**
+     * Starts building [language]'s practice targets ([warmTargets]) so the first replies have
+     * them: when Chat shows, a conversation opens or starts, or the app's language changes.
+     * Building again for an unchanged corpus reuses what was built.
+     */
+    private fun warm(language: String?) {
+        Language.forCode(language)?.let(warmTargets)
     }
 
     /** Reads who memory knows the writer writes to, for the new-conversation sheet. */
@@ -851,8 +868,9 @@ class ChatViewModel(
         val history = current.messages.map { Turn(it.fromWriter, it.text) }
         val needTitle = conversation.title.isEmpty() && !conversation.titleIsCustom
         launchPartner { operation ->
-            val answer = partner.reply(language, history, needTitle, conversation.persona)
-            val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
+            val answer = partner.reply(language, history, needTitle, conversation.persona, recentAims(conversation))
+            val reply = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation,
+                answer.aimingAt)
             val title = if (needTitle) {
                 (answer.title ?: deriveTitle(current.messages.firstOrNull { it.fromWriter }?.text.orEmpty()))
                     .take(MAX_TITLE).takeIf { it.isNotEmpty() }
@@ -865,16 +883,26 @@ class ChatViewModel(
         val language = Language.forCode(conversation.language) ?: Language.Spanish
         launchPartner { operation ->
             val answer = try {
-                partner.open(language, conversation.persona)
+                partner.open(language, conversation.persona, recentAims(conversation))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CheckFailure) {
                 if (owns(operation) && e.reason == CheckFailure.Reason.NoKey) needsKey = true
                 PartnerReply(fallbackOpener(language), null)
             }
-            val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation)
+            val opener = ChatMessage.partner(UUID.randomUUID().toString(), conversation.id, answer.reply, clock(), answer.translation,
+                answer.aimingAt)
             savePartner(PartnerMessage(opener, afterMessageId = null), operation)
         }
+    }
+
+    /** Lab: what the partner worked toward in this language's previous conversation, so it can vary; never shown. */
+    private suspend fun recentAims(conversation: Conversation): List<String> = try {
+        store.recentAims(conversation.language, excluding = conversation.id)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        emptyList()
     }
 
     /** A generated answer is visible only after its eligible message was saved; retry reuses it. */

@@ -188,7 +188,7 @@ point forces the check, because there is no selection menu to choose it from.
     still in the composer, so sending it unchanged gets the message back, checked again.
   - **Time spent.** The removed messages' time records go with their History sessions.
     The restored draft starts a new writing measurement at the next keystroke.
-- **Links.** The chat's database (`lab_chat`, version 6) notes each message's History
+- **Links.** The chat's database (`lab_chat`, version 7) notes each message's History
   session (`messages.session_id`) and each reply's translation (`messages.translation`).
   `ChatStore.threads` maps sessions to conversations; History uses it for a chat row's
   label and the saved check's Open conversation. Deleting a conversation stores its
@@ -199,6 +199,8 @@ point forces the check, because there is no selection menu to choose it from.
   Version 6 adds `reply_reads` ([Translation reliance](translation-reliance.md)): one row per
   reply that arrived with its translation, and when that translation was needed. It references
   its message with `ON DELETE CASCADE`, so deleting a conversation or rewinding it removes it.
+  Version 7 adds `messages.aiming_at`: the practice target a partner reply said it worked
+  toward (added only when the column is missing; older replies have none, nothing is backfilled).
   History doesn't group rows by conversation, and its schema is unchanged.
 - **Corpus.** There is no separate chat source any more: the History-based `check` source
   covers chat messages (raw text, flagged fixes as `corrected` regardless of acceptance, rewordings not), with
@@ -211,17 +213,60 @@ point forces the check, because there is no selection menu to choose it from.
   above the writer's level, and end with `App.userMemory.forPrompt()` and the practice
   targets. The request carries the newest turns that fit (40 turns, 12,000 characters),
   and `persona` when the conversation has one. Each answer has `reply`, `translation`
-  (into the writer's own language) and `title`; a missing translation never costs the reply.
-- **Practice targets** (`core/chat/PracticeTargets.kt`, `ChatTargets.kt`): from the corpus
-  in the conversation's language, up to three rare or unused tense-person cells from the
-  conjugation map (simple tenses after the present), up to five top unused words from the
-  bundled vocabulary deck, and registers the writer seldom writes (formal or casual,
-  judged by marker words). With at least 30 real (non-chat) messages, gaps are read from
-  real writing only, so chat practice doesn't hide what real writing lacks. Built on a
-  background scope, kept per language with the corpus fingerprint, re-read at most every
-  five minutes, at most 900 characters, and never waited for more than four seconds.
-  The prompt asks for natural openings (plans for the future, "what would you do if…",
-  topics that need the words), one at a time, never announced, never quizzed.
+  (into the writer's own language), `title` and `aiming_at`; a missing translation never
+  costs the reply. `aiming_at` is the one practice target the message works toward, copied
+  from the list, or empty. It is listed as required because strict structured output needs
+  every property, but the reader tolerates it missing, blank, malformed or over 120
+  characters (then null). It is stored with the reply (`ChatMessage.aimingAt`) only to check
+  that the partner really steers; no screen reads it, and it never reaches History or the corpus.
+- **Practice targets** (`core/chat/PracticeTargets.kt`, `ChatTargets.kt`): a pool the
+  partner chooses from, built from everything the writer typed in the conversation's
+  language, chat included, exactly as Words and Conjugations count it: a use inside a
+  corrected (flagged) span doesn't count as known, whether or not the fix was accepted. So a
+  form or word the writer uses in Chat drops off the list at the next rebuild (after the
+  message is saved in History; with History off, chat messages aren't in the corpus and
+  can't drop anything). The pool, most useful first:
+  - **Verb forms**: every rare everyday tense-person cell (used less than once) from the
+    conjugation map, up to 40, grouped by tense in the block ("future (I, he or she, we)").
+    Everyday tenses, in order: Spanish preterite, imperfect, future, conditional, present and
+    imperfect subjunctive, imperative, present perfect; Catalan the same with the
+    periphrastic past (*vaig anar*) instead of the literary simple preterite. Persons: I,
+    he or she, we, you (one friend), they (imperative: you and "let's"). Other languages: the simple tenses after the present.
+  - **Words**: up to 30 unused deck words a conversation can lead to, in deck (frequency)
+    order (`PracticeTargetsBuilder.conversationWords`): nouns, verbs and adjectives by the
+    deck's part of speech (Spanish rows carry one; Catalan forms are grouped into lexemes by
+    the lemmatizer). Skipped: closed-class words (`ClosedClass`), a short list of words decks
+    tag as content but no conversation can lead to (*mismo*/*mateix*, auxiliaries such as
+    *haber*/*haver*, *ser*, *estar*, *poder*, set-phrase words like *gracias*, *favor*,
+    *acuerdo*, vulgarities, lemmatizer artefacts such as *plaure* from *si us plau*),
+    numbers, untagged rows (proper names in the Spanish deck are `other`), anything with a
+    non-letter and words under three letters. Adverbs that aren't function words only fill
+    in when too few content words are left. A deck without parts of speech (imported) is
+    filtered by spelling only. Glosses, when a deck has them, are cut to 30 characters.
+  - **Registers** the writer seldom writes (formal or casual, judged by marker words),
+    named with the conversation's language's own form of address: *usted* for Spanish,
+    *vostè* for Catalan, "the polite form of address" otherwise.
+
+  The block only ever holds the conversation's language: other languages' writing, decks and
+  forms of address never enter it. It is at most 2,500 characters (a realistic writer's is
+  about 700–1,000) and goes after "## Practice targets"; when the language's previous
+  conversation stored any `aiming_at`, up to three are added as "Worked on in your last
+  conversation", so the partner can vary. Built on a background scope, kept per language with
+  the corpus fingerprint and History revision, re-read at most every five minutes, and never
+  waited for more than four seconds (`ChatTargets.TIMEOUT_MILLIS`, a safety net). Building
+  starts early (`ChatTargets.warm`) so the first replies have it: when Chat's list shows (in
+  the app's language, again when that changes), when the current conversation is resolved,
+  when a conversation is opened (from the list's language, before its thread is read) or
+  created, and when one shows. The deck and morphology are parsed once, so later rebuilds
+  after a new message are quick.
+
+  The prompt makes the partner lead, smoothly: conversation comes first, it follows the
+  thread while it is alive and moves toward one target at a natural break (a topic winding
+  down, a short answer, a hook in what the learner said) with a segue (an association, a
+  shift in time frame or setting, something it shares that invites a parallel answer). It
+  picks whichever target fits where the conversation is going, preferring higher ones, keeps
+  at it for a few turns until the learner uses it, aims openers too, and stays in role for a
+  stand-in. Never announced, never quizzed, never more than one target in a message.
 - **Flipping** (`ui/chat/Flips.kt`) shows the stored translation; only replies saved
   before version 3 fall back to `Understander`, once, kept in memory. Each flip, the chat's
   visibility and the bubbles on screen also feed `TranslationDwell`

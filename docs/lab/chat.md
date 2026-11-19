@@ -249,7 +249,12 @@ point forces the check, because there is no selection menu to choose it from.
 
   The block only ever holds the conversation's language: other languages' writing, decks and
   forms of address never enter it. It is at most 2,500 characters (a realistic writer's is
-  about 700–1,000) and goes after "## Practice targets"; when the language's previous
+  about 700–1,000) and goes after "## Practice targets" and the steering instructions
+  (`assets/lab_chat_steering.md`). Those instructions are sent only with a list: the partner's
+  main instructions don't mention targets, so a conversation with nothing to practise (a new
+  language, too little writing, or a list not ready in time) gets no steering text at all.
+  The steering text says what to do, not what to avoid: lead the chat at natural breaks with
+  smooth segues, one target at a time over a few turns. When the language's previous
   conversation stored any `aiming_at`, up to three are added as "Worked on in your last
   conversation", so the partner can vary. Built on a background scope, kept per language with
   the corpus fingerprint and History revision, re-read at most every five minutes, and never

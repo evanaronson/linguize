@@ -112,24 +112,25 @@ class ChatPromptTest {
         assertNull(prompt.read("""{"reply":"Hola","title":"","aiming_at":["x"]}""").aimingAt)
         assertNull(prompt.read("""{"reply":"Hola","title":"","aiming_at":"${"x".repeat(ChatPrompt.MAX_AIM + 1)}"}""").aimingAt)
         assertEquals("Hola", prompt.read("""{"reply":"Hola","title":"","aiming_at":"viatge"}""").reply)
-        assertTrue(prompt.system("").contains("`aiming_at`: the one practice target this message is working toward"))
+        assertTrue(prompt.system("").contains("`aiming_at`: the practice target this message is working toward"))
     }
 
     @Test fun thePartnerLeadsTowardTheTargetsSmoothly() {
-        val system = prompt.system("")
-        assertTrue(system.contains("you lead the conversation toward it; don't just react to whatever they say"))
-        assertTrue(system.contains("Conversation comes first. Follow the current thread while it is alive."))
-        assertTrue(system.contains("Keep at the same target for a few turns"))
-        assertTrue(system.contains("never put more than one target in a message"))
-        assertTrue(system.contains("Never mention the targets, never quiz"))
-        assertTrue(system.contains("Steer toward practice targets within the role"))
+        val system = prompt.system("", targets = "- Common words they haven't used yet: viatge.")
+        assertTrue(system.contains("Lead the conversation toward these, the way a good friend keeps a chat moving."))
+        assertTrue(system.contains("Stay with a topic while it's alive."))
+        assertTrue(system.contains("Work on one target at a time"))
+        assertTrue(system.contains("When you're playing someone, do it within that role."))
+        assertTrue(system.contains("All the learner notices is a good conversation."))
         assertFalse(system.contains("never pushy"))
+        // Without a list there's nothing to steer toward, so no steering instructions either.
+        assertFalse(prompt.system("").contains("Lead the conversation toward these"))
     }
 
     @Test fun lastConversationsAimsFollowTheTargetsOnly() {
         val block = "- Common words they haven't used yet: viatge, platja."
         val with = prompt.openRequest(setting.copy(targets = block, recentAims = listOf("viatge", "viatge", "future, I"))).system
-        assertTrue(with.endsWith("## Practice targets\n\n$block\n- Worked on in your last conversation: viatge; future, I.\n"))
+        assertTrue(with.endsWith("$block\n- Worked on in your last conversation: viatge; future, I.\n"))
         // Without targets there is nothing to vary.
         assertFalse(prompt.openRequest(setting.copy(recentAims = listOf("viatge"))).system.contains("Worked on"))
     }

@@ -105,10 +105,14 @@ class PracticeTargetsTest {
         val setting = ChatSetting("Spanish", "Peninsular", "English", memory = "Has a dog.", targets = block)
         val system = prompt.openRequest(setting).system
         assertTrue(system.contains("## What you remember about the learner\n\nHas a dog."))
-        assertTrue(system.endsWith("## Practice targets\n\n$block\n"))
-        assertTrue(system.contains("Never mention the targets, never quiz"))
+        assertTrue(system.endsWith("$block\n"))
+        // How to steer comes with the list, and only with it.
+        assertTrue(system.contains("## Practice targets\n\nHere is what the learner could practise next"))
+        assertTrue(system.contains("All the learner notices is a good conversation."))
         assertTrue(system.contains("Never comment on the learner's grammar"))
-        assertFalse(prompt.openRequest(setting.copy(targets = "")).system.contains("## Practice targets\n\n-"))
+        val without = prompt.openRequest(setting.copy(targets = "")).system
+        assertFalse(without.contains("## Practice targets"))
+        assertFalse(without.contains("Lead the conversation toward these"))
     }
 
     @Test fun aStandInPlaysThePersonAndStillNeverCorrects() {

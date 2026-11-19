@@ -173,8 +173,20 @@ class ChatStore(
     }
 
     /** Lab, Translation reliance: every measured reply, oldest first. A failed read throws. */
-    suspend fun replyReads(): List<ReplyRead> = withContext(dispatcher) {
-        helper.readableDatabase.rawQuery("SELECT message, language, at, needed_at FROM $READS ORDER BY at, message", null).use { cursor ->
+    /**
+     * Measured replies, oldest first. With [answeredOnly], only replies the writer answered (a
+     * writer message follows them in the conversation): what Translation reliance counts, since
+     * an unanswered reply says nothing yet about whether its translation was needed.
+     */
+    suspend fun replyReads(answeredOnly: Boolean = false): List<ReplyRead> = withContext(dispatcher) {
+        val answered = if (!answeredOnly) "" else """
+               WHERE EXISTS (SELECT 1 FROM messages w WHERE w.conversation = m.conversation AND w.from_writer = 1
+                             AND (w.at > m.at OR (w.at = m.at AND w.seq > m.seq)))"""
+        helper.readableDatabase.rawQuery(
+            """SELECT r.message, r.language, r.at, r.needed_at FROM $READS r
+               JOIN messages m ON m.id = r.message$answered
+               ORDER BY r.at, r.message""", null,
+        ).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) {
                     add(ReplyRead(cursor.getString(0), cursor.getString(1), cursor.getLong(2), if (cursor.isNull(3)) null else cursor.getLong(3)))

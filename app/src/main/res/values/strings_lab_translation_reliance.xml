@@ -35,7 +35,7 @@
     <!-- How it's counted. -->
     <string name="lab_reliance_how_needed">A reply needed its translation when the translation stayed on screen for at least 2.5 seconds. A tap and a quick tap back doesn\'t count.</string>
     <string name="lab_reliance_how_screen">Time counts only while the chat and the reply are on screen. Each reply counts once, however often you tap it.</string>
-    <string name="lab_reliance_how_since">Only replies that came with their translation since this version count. Older replies can\'t be measured.</string>
+    <string name="lab_reliance_how_since">Only replies you answered count, from this version on. Older replies can\'t be measured.</string>
     <string name="lab_reliance_how_trend">The percentage shows from 10 replies. The trend compares the last 4 weeks with the 4 before, each with at least 20 replies.</string>
     <string name="lab_reliance_how_delete">Deleting a conversation deletes what was counted for its replies. So does editing a sent message, for the replies it removes.</string>
 </resources>

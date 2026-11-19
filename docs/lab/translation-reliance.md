@@ -42,8 +42,10 @@ The denominator is every partner reply (the opener too) that **arrived with its 
 translation** after this version. A reply saved before it, or one without a translation of
 its own (the fallback opener when there's no key; a reply whose translation was missing), has
 no record: tapping it fetches a translation as before, but it isn't measured. **No backfill**:
-older replies can't be measured, because nobody timed them. Replies count whether or not
-they were ever looked at closely: reading one in the original is the success case.
+older replies can't be measured, because nobody timed them. Only replies **the writer
+answered** count (a writer message follows them in the conversation): an unanswered reply
+says nothing yet about whether its translation was needed. Answering one in the original is
+the success case. A reply becomes unanswered again when Edit message removes the answer.
 
 ## How to use it
 
@@ -105,8 +107,7 @@ listing every week ("Share of replies whose translation you needed, by week from
   screen. The threshold can't tell reading from staring.
 - A bubble counts as on screen when any part of it is laid out, even under the review panel's
   edge.
-- Replies count when they arrive, not when they're seen; one received while the chat was
-  closed and never opened again still counts as not needed.
+- A reply counts once answered, whenever that is; its week is the week it arrived.
 - The trend compares two 4-week windows; a harder topic or a new partner moves it as much as
   learning does. The page says so.
 - Fetched translations of older replies (through Understand) are never measured.

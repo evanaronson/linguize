@@ -53,7 +53,7 @@ class ChatPartnerTest {
             for (index in 0..1) {
                 val body = http.body(index)
                 assertFalse(body.contains("CORRECTION PROMPT MUST NOT BE SENT"))
-                assertTrue(body.contains("Never comment on the learner"))
+                assertTrue(body.contains("- comment on, correct, repeat or praise their grammar"))
                 assertTrue(body.contains("Has a dog called Pipa."))
             }
             assertTrue(http.body(1).contains("Molt bé, gràcies"))

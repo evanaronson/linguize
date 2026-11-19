@@ -21,8 +21,8 @@ class ChatPromptTest {
 
     @Test fun theInstructionsForbidGrammarComments() {
         val system = prompt.system("")
-        assertTrue(system.contains("Never comment on the learner's grammar"))
-        assertTrue(system.contains("Never correct them"))
+        assertTrue(system.contains("- comment on, correct, repeat or praise their grammar"))
+        assertTrue(system.contains("Talk about what they say, not how they say it"))
         assertTrue(system.contains("already checked before they were sent"))
     }
 

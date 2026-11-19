@@ -53,7 +53,7 @@ class TranslationRelianceViewModel(
         private const val TAG = "LabReliance"
 
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
-            initializer { TranslationRelianceViewModel({ app.chatStore.replyReads() }) }
+            initializer { TranslationRelianceViewModel({ app.chatStore.replyReads(answeredOnly = true) }) }
         }
     }
 }

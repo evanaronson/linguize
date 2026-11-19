@@ -41,6 +41,7 @@ class ReplyReadsStoreTest {
         // A reply without its own translation (a fallback opener) can't be measured.
         store.add(reply("p2", "c1", 13, translation = null))
         assertTrue(store.appendPartner(reply("p3", "c2", 21), afterMessageId = null, title = null) { true } is PartnerAppend.Saved)
+        store.add(mine("w3", "c2", 22))
         assertEquals(listOf(ReplyRead("p1", "es", 11), ReplyRead("p3", "ca", 21)), store.replyReads())
     }
 
@@ -49,9 +50,9 @@ class ReplyReadsStoreTest {
         store.add(reply("p1", "c1", 11))
         assertTrue(store.markTranslationNeeded("p1", 500))
         assertFalse(store.markTranslationNeeded("p1", 900))
+        store.add(mine("w1", "c1", 12))
         assertEquals(listOf(ReplyRead("p1", "es", 11, neededAt = 500)), store.replyReads())
         // A writer message, or a reply from before this version, has nothing to mark: no backfill.
-        store.add(mine("w1", "c1", 12))
         assertFalse(store.markTranslationNeeded("w1", 900))
         assertFalse(store.markTranslationNeeded("unknown", 900))
         assertEquals(1, store.replyReads().size)
@@ -62,7 +63,9 @@ class ReplyReadsStoreTest {
         store.create(catalan)
         store.add(reply("p1", "c1", 11))
         store.markTranslationNeeded("p1", 500)
+        store.add(mine("w1", "c1", 12))
         store.add(reply("p2", "c2", 21))
+        store.add(mine("w2", "c2", 22))
         assertTrue(store.delete("c1"))
         assertEquals(listOf("p2"), store.replyReads().map { it.messageId })
     }
@@ -78,6 +81,8 @@ class ReplyReadsStoreTest {
         store.markTranslationNeeded("p3", 100)
         store.rewind("c1", "w2")!!
         assertEquals(listOf(ReplyRead("p1", "es", 11, 100), ReplyRead("p2", "es", 13)), store.replyReads())
+        // p2 is unanswered again until the edited message is sent, so it doesn't count yet.
+        assertEquals(listOf("p1"), store.replyReads(answeredOnly = true).map { it.messageId })
         store.rewind("c1", "w1")!!
         assertEquals(listOf("p1"), store.replyReads().map { it.messageId })
     }
@@ -102,5 +107,18 @@ class ReplyReadsStoreTest {
         assertTrue(upgraded.delete("c"))
         assertTrue(upgraded.replyReads().isEmpty())
         upgraded.close()
+    }
+
+    @Test fun onlyRepliesTheWriterAnsweredCount() = runBlocking {
+        store.create(spanish)
+        store.add(reply("p1", "c1", 11))
+        store.markTranslationNeeded("p1", 50)
+        // Not answered yet: whether its translation was needed says nothing yet.
+        assertEquals(emptyList<ReplyRead>(), store.replyReads(answeredOnly = true))
+        store.add(mine("w1", "c1", 12))
+        store.add(reply("p2", "c1", 13))
+        assertEquals(listOf(ReplyRead("p1", "es", 11, 50)), store.replyReads(answeredOnly = true))
+        store.add(mine("w2", "c1", 14))
+        assertEquals(listOf("p1", "p2"), store.replyReads(answeredOnly = true).map { it.messageId })
     }
 }

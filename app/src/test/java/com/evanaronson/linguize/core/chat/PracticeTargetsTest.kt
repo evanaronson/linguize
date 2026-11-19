@@ -109,7 +109,7 @@ class PracticeTargetsTest {
         // How to steer comes with the list, and only with it.
         assertTrue(system.contains("## Practice targets\n\nHere is what the learner could practise next"))
         assertTrue(system.contains("All the learner notices is a good conversation."))
-        assertTrue(system.contains("Never comment on the learner's grammar"))
+        assertTrue(system.contains("- comment on, correct, repeat or praise their grammar"))
         val without = prompt.openRequest(setting.copy(targets = "")).system
         assertFalse(without.contains("## Practice targets"))
         assertFalse(without.contains("Lead the conversation toward these"))

@@ -84,6 +84,26 @@ class ChatStore(
         db.rawQuery("SELECT * FROM conversations WHERE id = ?", arrayOf(id)).use { if (it.moveToFirst()) it.conversation() else null }
     }
 
+    /**
+     * Lab Chat, practice targets: what the partner worked toward (`aiming_at`) in the latest
+     * other conversation in [language] that has any, newest first, distinct. Empty on failure.
+     */
+    suspend fun recentAims(language: String, excluding: String?, limit: Int = 3): List<String> = io("read recent aims", emptyList()) { db ->
+        db.rawQuery(
+            """SELECT m.aiming_at FROM messages m
+               WHERE m.aiming_at IS NOT NULL AND m.conversation = (
+                 SELECT c.id FROM conversations c
+                 WHERE c.language = ? AND c.id != ? AND EXISTS (SELECT 1 FROM messages a WHERE a.conversation = c.id AND a.aiming_at IS NOT NULL)
+                 ORDER BY c.updated_at DESC, c.created_at DESC LIMIT 1)
+               ORDER BY m.at DESC, m.seq DESC""",
+            arrayOf(language, excluding.orEmpty()),
+        ).use { cursor ->
+            val aims = LinkedHashSet<String>()
+            while (cursor.moveToNext() && aims.size < limit) aims += cursor.getString(0)
+            aims.toList()
+        }
+    }
+
     /** [id]'s messages, oldest first. */
     suspend fun messages(id: String): List<ChatMessage> = io("read messages", emptyList()) { db -> db.messages(id) }
 
@@ -366,6 +386,7 @@ class ChatStore(
             at = long("at"),
             sessionId = stringOrNull("session_id"),
             translation = stringOrNull("translation"),
+            aimingAt = stringOrNull("aiming_at"),
         )
     }.onFailure { Log.w(TAG, "Skipped an unreadable message", it) }.getOrNull()
 
@@ -391,6 +412,7 @@ class ChatStore(
         put("at", at)
         put("session_id", sessionId)
         put("translation", translation)
+        put("aiming_at", aimingAt)
     }
 
     private class Helper(context: Context, name: String?) : SQLiteOpenHelper(context, name, null, VERSION) {
@@ -429,6 +451,7 @@ class ChatStore(
             upgradeTo4(db)
             upgradeTo5(db)
             upgradeTo6(db)
+            upgradeTo7(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -437,6 +460,20 @@ class ChatStore(
             if (oldVersion < 4) upgradeTo4(db)
             if (oldVersion < 5) upgradeTo5(db)
             if (oldVersion < 6) upgradeTo6(db)
+            if (oldVersion < 7) upgradeTo7(db)
+        }
+
+        /**
+         * Version 7 (Lab Chat, practice targets): the target a partner reply said it worked
+         * toward, to check the steering. Never shown. Older replies have none; guarded so a
+         * partly applied upgrade can run again.
+         */
+        private fun upgradeTo7(db: SQLiteDatabase) {
+            val has = db.rawQuery("PRAGMA table_info(messages)", null).use { cursor ->
+                val name = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(name) else null }.any { it == "aiming_at" }
+            }
+            if (!has) db.execSQL("ALTER TABLE messages ADD COLUMN aiming_at TEXT")
         }
 
         /**
@@ -486,7 +523,7 @@ class ChatStore(
     companion object {
         /** The database file's name. */
         const val DATABASE = "lab_chat"
-        private const val VERSION = 6
+        private const val VERSION = 7
 
         /** SQLite's default limit on bound arguments is 999. */
         private const val SQL_ARGS = 500

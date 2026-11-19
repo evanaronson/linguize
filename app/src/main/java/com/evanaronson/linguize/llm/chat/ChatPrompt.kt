@@ -18,9 +18,11 @@ data class Turn(val fromWriter: Boolean, val text: String)
 
 /**
  * What the partner answers with: its message, the same message in the writer's own language
- * (null when the answer had none), and a title when one was asked for.
+ * (null when the answer had none), and a title when one was asked for. [aimingAt] is the
+ * practice target it says it is working toward (null for none): kept to check the steering,
+ * never shown.
  */
-data class PartnerReply(val reply: String, val title: String?, val translation: String? = null)
+data class PartnerReply(val reply: String, val title: String?, val translation: String? = null, val aimingAt: String? = null)
 
 /** Who the partner is talking to and in what language. */
 data class ChatSetting(
@@ -36,6 +38,8 @@ data class ChatSetting(
     val targets: String = "",
     /** Who the partner plays, for a stand-in conversation; null for the usual partner. */
     val persona: String? = null,
+    /** Targets it worked toward in the language's previous conversation, newest first, to vary them. */
+    val recentAims: List<String> = emptyList(),
 )
 
 /**
@@ -43,16 +47,27 @@ data class ChatSetting(
  * `lab_chat_prompt.md` and `lab_chat_schema.json`; it never sends the check contract. The
  * partner never comments on grammar: checking happens before the writer sends.
  */
-class ChatPrompt(private val instructions: String, schemaJson: String) {
+class ChatPrompt(
+    private val instructions: String,
+    schemaJson: String,
+    /** How to steer toward the practice targets (`lab_chat_steering.md`): sent only with a list. */
+    private val steering: String = "",
+) {
     private val schema: JsonObject = json.parseToJsonElement(schemaJson).jsonObject
 
     /** The instructions, with what memory holds about the writer and what to steer toward at the end. */
-    fun system(memory: String, targets: String = ""): String = buildString {
+    fun system(memory: String, targets: String = "", recentAims: List<String> = emptyList()): String = buildString {
         append(instructions)
         val notes = memory.trim().take(MAX_MEMORY)
         if (notes.isNotEmpty()) append("\n\n## What you remember about the learner\n\n").append(notes).append('\n')
         val steer = targets.trim().take(MAX_TARGETS)
-        if (steer.isNotEmpty()) append("\n\n## Practice targets\n\n").append(steer).append('\n')
+        if (steer.isNotEmpty()) {
+            append("\n\n## Practice targets\n\n")
+            steering.trim().takeIf { it.isNotEmpty() }?.let { append(it).append("\n\n") }
+            append(steer).append('\n')
+            val recent = recentAims.map { it.trim().take(MAX_AIM) }.filter { it.isNotEmpty() && '\n' !in it }.distinct().take(MAX_RECENT_AIMS)
+            if (recent.isNotEmpty()) append("- Worked on in your last conversation: ").append(recent.joinToString("; ")).append(".\n")
+        }
     }
 
     /** A new conversation's opener. */
@@ -63,7 +78,7 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         request(TASK_REPLY, setting, trim(history), needTitle)
 
     private fun request(task: String, setting: ChatSetting, history: List<Turn>, needTitle: Boolean) = GenerationRequest(
-        system = system(setting.memory, setting.targets),
+        system = system(setting.memory, setting.targets, setting.recentAims),
         user = userMessage(task, setting, history, needTitle),
         schema = schema,
         name = "chat_reply",
@@ -108,12 +123,16 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         // A missing or unusable translation never costs the reply: it can be asked for later.
         val translation = runCatching { fields["translation"]?.jsonPrimitive?.content }.getOrNull()?.trim()
             ?.takeIf { it.isNotEmpty() && it.length <= MAX_TRANSLATION && it != reply }
-        return PartnerReply(reply, title, translation)
+        // Lab: what it steered toward, for checking the steering only; never shown, never required.
+        val aimingAt = runCatching { fields["aiming_at"]?.jsonPrimitive?.content }.getOrNull()?.trim()
+            ?.takeIf { it.isNotEmpty() && it.length <= MAX_AIM && '\n' !in it }
+        return PartnerReply(reply, title, translation, aimingAt)
     }
 
     companion object {
         const val PROMPT_ASSET = "lab_chat_prompt.md"
         const val SCHEMA_ASSET = "lab_chat_schema.json"
+        const val STEERING_ASSET = "lab_chat_steering.md"
         const val TASK_OPEN = "open"
         const val TASK_REPLY = "reply"
 
@@ -121,7 +140,9 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
         const val MAX_HISTORY_CHARS = 12_000
         const val MAX_TURNS = 40
         private const val MAX_MEMORY = 4_000
-        private const val MAX_TARGETS = 1_500
+        private const val MAX_TARGETS = 2_600
+        const val MAX_AIM = 120
+        private const val MAX_RECENT_AIMS = 3
         const val MAX_PERSONA = 300
         private const val MAX_OUTPUT_TOKENS = 2048
         private const val MAX_ANSWER = 16_384
@@ -131,7 +152,7 @@ class ChatPrompt(private val instructions: String, schemaJson: String) {
 
         private val json = Json { ignoreUnknownKeys = true }
 
-        fun load(read: (String) -> String) = ChatPrompt(read(PROMPT_ASSET), read(SCHEMA_ASSET))
+        fun load(read: (String) -> String) = ChatPrompt(read(PROMPT_ASSET), read(SCHEMA_ASSET), read(STEERING_ASSET))
 
         /**
          * The newest turns of [history] within [maxTurns] and [maxChars], oldest first. The

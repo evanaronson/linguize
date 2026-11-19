@@ -86,6 +86,11 @@ data class ChatMessage(
      * Model output: never in History or the corpus.
      */
     val translation: String? = null,
+    /**
+     * Lab: the practice target the partner said this reply works toward (`aiming_at`), kept
+     * only to check the steering. Never displayed, never in History or the corpus.
+     */
+    val aimingAt: String? = null,
 ) {
     init {
         require(changes.all { it.end <= raw.length && raw.substring(it.start, it.end) == it.from }) {
@@ -95,9 +100,10 @@ data class ChatMessage(
 
     companion object {
         /** A partner reply, or the opener. */
-        fun partner(id: String, conversationId: String, text: String, at: Long, translation: String? = null) =
+        fun partner(id: String, conversationId: String, text: String, at: Long, translation: String? = null, aimingAt: String? = null) =
             ChatMessage(id, conversationId, fromWriter = false, raw = text, text = text, at = at,
-                translation = translation?.trim()?.takeIf { it.isNotEmpty() })
+                translation = translation?.trim()?.takeIf { it.isNotEmpty() },
+                aimingAt = aimingAt?.trim()?.takeIf { it.isNotEmpty() })
     }
 }
 

@@ -3,8 +3,9 @@
   "properties": {
     "reply": {"type": "string"},
     "translation": {"type": "string"},
-    "title": {"type": "string"}
+    "title": {"type": "string"},
+    "aiming_at": {"type": "string"}
   },
-  "required": ["reply", "translation", "title"],
+  "required": ["reply", "translation", "title", "aiming_at"],
   "additionalProperties": false
 }

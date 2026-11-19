@@ -38,15 +38,28 @@ class ChatPartner(
     /** Whether the provider in settings has a key. */
     fun hasKey(): Boolean = !keys.get(settings.provider).isNullOrBlank()
 
-    /** A new conversation's opener in [language]; with [persona], that person's first message. Throws [CheckFailure]. */
-    suspend fun open(language: Language, persona: String? = null): PartnerReply =
-        ask(language, persona) { setting -> prompt.openRequest(setting) }
+    /**
+     * A new conversation's opener in [language]; with [persona], that person's first message.
+     * [recentAims]: what it worked toward in the language's previous conversation. Throws [CheckFailure].
+     */
+    suspend fun open(language: Language, persona: String? = null, recentAims: List<String> = emptyList()): PartnerReply =
+        ask(language, persona, recentAims) { setting -> prompt.openRequest(setting) }
 
     /** The answer to the last turn of [history] in [language]; with [needTitle], a title too. Throws [CheckFailure]. */
-    suspend fun reply(language: Language, history: List<Turn>, needTitle: Boolean, persona: String? = null): PartnerReply =
-        ask(language, persona) { setting -> prompt.replyRequest(setting, history, needTitle) }
+    suspend fun reply(
+        language: Language,
+        history: List<Turn>,
+        needTitle: Boolean,
+        persona: String? = null,
+        recentAims: List<String> = emptyList(),
+    ): PartnerReply = ask(language, persona, recentAims) { setting -> prompt.replyRequest(setting, history, needTitle) }
 
-    private suspend fun ask(language: Language, persona: String?, request: (ChatSetting) -> GenerationRequest): PartnerReply =
+    private suspend fun ask(
+        language: Language,
+        persona: String?,
+        recentAims: List<String>,
+        request: (ChatSetting) -> GenerationRequest,
+    ): PartnerReply =
         withContext(dispatcher) {
             try {
                 val provider = settings.provider
@@ -71,7 +84,8 @@ class ChatPartner(
                 } catch (_: Exception) {
                     ""
                 }
-                val setting = ChatSetting(language.name, variety, settings.nativeLanguage, notes, steer, persona?.takeIf { it.isNotBlank() })
+                val setting = ChatSetting(language.name, variety, settings.nativeLanguage, notes, steer, persona?.takeIf { it.isNotBlank() },
+                    recentAims)
                 prompt.read(clients.getValue(provider).generate(key, model, request(setting)))
             } catch (e: CheckFailure) {
                 throw e

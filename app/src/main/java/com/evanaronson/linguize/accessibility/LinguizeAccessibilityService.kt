@@ -46,6 +46,7 @@ import com.evanaronson.linguize.ui.appvoice.AppVoiceChip
 import com.evanaronson.linguize.ui.appvoice.CardVoiceViewModel
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.ReplyContextActions
 import com.evanaronson.linguize.ui.components.LanguagePicker
 import com.evanaronson.linguize.ui.components.MenuState
 import com.evanaronson.linguize.ui.popup.PopupAppActivity
@@ -252,8 +253,10 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val menus = MenuState()
         onBack = { if (!menus.dismiss()) close() }
 
+        // Lab, Replying to: Pick their message reads the field's own window, only when tapped.
         val actions = CardActions.of(
             check, context = this, onClose = close, onOpenSettings = openSettings,
+            replyContext = ReplyContextActions.of(check, this, pick = field?.let { source -> { ConversationOnScreen.above(source) } }),
         )
         fun captureClipboard() {
             understand.readingClipboard()

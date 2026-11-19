@@ -20,6 +20,7 @@ import com.evanaronson.linguize.data.PopupPosition
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.ReplyContextActions
 import com.evanaronson.linguize.ui.card.FloatingPopup
 import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.card.UnderstandCard
@@ -79,6 +80,8 @@ class ClipboardActivity : ComponentActivity() {
             context = this,
             onClose = ::finish,
             onOpenSettings = ::openSettings,
+            // Lab, Replying to: Paste only, as in the selection menu.
+            replyContext = ReplyContextActions.of(check, this),
         )
         setContent {
             AppTheme {

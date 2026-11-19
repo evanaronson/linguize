@@ -24,6 +24,11 @@ class CardActions(
     val onRemoveClarification: (() -> Unit)? = null,
     /** Lab Phrasebook: where saved phrases come from; null shows no save control. */
     val phraseOrigin: PhraseOrigin? = null,
+    /**
+     * Lab, Replying to: on an unclear check from another app, adds the message the writer
+     * answers. Null in the chat (which sends its own) and Notes.
+     */
+    val replyContext: ReplyContextActions? = null,
 ) {
     companion object {
         /**
@@ -40,6 +45,7 @@ class CardActions(
             canReplace: Boolean = true,
             @androidx.annotation.StringRes applyLabel: Int = com.evanaronson.linguize.R.string.apply,
             phraseOrigin: PhraseOrigin? = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
+            replyContext: ReplyContextActions? = null,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
@@ -63,6 +69,7 @@ class CardActions(
             onClarify = check::clarifyMeaning,
             onRemoveClarification = check::removeMeaning,
             phraseOrigin = phraseOrigin,
+            replyContext = replyContext,
         )
     }
 }

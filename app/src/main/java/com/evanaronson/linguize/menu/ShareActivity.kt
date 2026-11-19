@@ -26,6 +26,7 @@ import com.evanaronson.linguize.core.Language
 import com.evanaronson.linguize.history.Origin
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.ReplyContextActions
 import com.evanaronson.linguize.ui.card.FloatingCard
 import com.evanaronson.linguize.ui.card.FloatingPopup
 import com.evanaronson.linguize.ui.card.ResultSurface
@@ -68,7 +69,9 @@ class ShareActivity : ComponentActivity() {
             ShareJob.Choose -> Unit
         }
 
-        val actions = CardActions.of(check, context = this, onClose = ::finish, onOpenSettings = ::openSettings, canReplace = false)
+        // Lab, Replying to: Paste only, as in the selection menu.
+        val actions = CardActions.of(check, context = this, onClose = ::finish, onOpenSettings = ::openSettings, canReplace = false,
+            replyContext = ReplyContextActions.of(check, this))
         setContent {
             AppTheme {
                 com.evanaronson.linguize.ui.components.NavigationBackHandler(enabled = job != ShareJob.Choose, onBack = ::backToChoice)

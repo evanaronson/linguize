@@ -13,7 +13,7 @@ Settings behind the gear.
 |---|---|---|
 | Stuck mid-sentence | [Gaps in every check](gaps-in-check.md): leave [native words] where stuck; every check fills them as fixes | Every check: card, Chat, Notes |
 | Before sending | [How it lands](tone-check.md): part of every check; how the message will come across, with tone fixes as ordinary rewordings | Card row, everywhere |
-| Before sending | [Replying to](reply-context.md): every chat check reads the draft as a reply to the partner's last message | Chat (automatic) |
+| Before sending | [Replying to](reply-context.md): every chat check reads the draft as a reply to the partner's last message; an unclear check from another app can add the message being answered (Pick their message or Paste, then Check again) | Chat (automatic); unclear card from other apps (by choice) |
 | Before sending | [Per-app voice](app-voice.md): language, register and suggestions per source app | Settings; card chip |
 | Writing a message | [Notes](notes.md) (once Write): a list of notes, each on its own page, checked with the same card as everywhere; Copy or Share when done (replaced Try it and the Writing pad) | Notes |
 | Anywhere | [Share text](share-text.md): share text in from another app to check it or understand it | Share sheet |

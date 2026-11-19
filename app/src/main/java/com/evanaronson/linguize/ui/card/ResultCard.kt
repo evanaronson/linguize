@@ -136,6 +136,11 @@ fun ResultCard(
                                 submitKind = if (state.retainedRevision?.canUndo == true && actions.review != null)
                                     ButtonKind.Tonal else ButtonKind.Filled)
                         }
+                        // Lab, Replying to: only hosts checking text from another app supply it.
+                        actions.replyContext?.let { reply ->
+                            Spacer(Modifier.height(16.dp))
+                            ReplyingToSection(reply)
+                        }
                         RetainedChanges(state.retainedRevision, actions.review, canApply = true)
                     }
                     is CheckResult.WrongLanguage -> {

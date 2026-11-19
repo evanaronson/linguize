@@ -112,7 +112,8 @@ class CheckViewModel(
 
     /**
      * Lab: the message this text replies to (in the chat, the partner's last message), or null.
-     * Set by [check] and kept for this card's checks; never shown or recorded, only sent.
+     * Set by [check] (or [checkReplyingTo]) and kept for this card's checks; never shown or
+     * recorded, only sent.
      */
     private var replyingTo: String? = null
 
@@ -185,6 +186,20 @@ class CheckViewModel(
                 recheck()
             }
         }
+    }
+
+    /**
+     * Lab, Replying to: the writer chose [message] as the one their text answers (on an unclear
+     * check from another app). Checks the same text again with it as context, as the chat's
+     * checks are; this card's later re-checks keep it and the next fresh [check] drops it.
+     * Like the chat's context, it is only sent, never shown elsewhere or recorded.
+     */
+    fun checkReplyingTo(message: String) {
+        val normalized = ReplyPrompt.normalize(message.trim().takeLast(ReplyPrompt.MAX_CHARS)) ?: return
+        if (state == null) return
+        hasReviewed = true
+        replyingTo = normalized
+        run(Run.Again)
     }
 
     /** Answers one assumption, using a suggested reading or the writer's own words. */

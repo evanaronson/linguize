@@ -108,3 +108,19 @@ The debug-only ClipboardProbeService and scripts/verify_clipboard_overlay.sh
 verify the real platform boundary: another app seeds the clipboard, Settings owns
 focus, and the actual accessibility overlay must gain focus before its text reader
 can capture that source. These fixtures are absent from release builds.
+
+## Replying to (Pick their message)
+
+A separate, concrete use case ([Replying to](lab/reply-context.md#from-other-apps)): when a
+check from the accessibility button comes back unclear, **Pick their message** reads the
+conversation behind the card so the writer can choose the message they are answering.
+It reads only on that tap, from the checked field's own window (the field's ancestors,
+no window list and no new retrieval flags): visible, non-editable nodes with text whose
+bounds end above the field's top, in screen order, skipping buttons, every editable or
+private-looking field, and text with no letters (times, counts). At most 500 nodes or
+150 ms; the card shows the last four and keeps nothing after it closes. A field that
+went away, or a window Android no longer lets the service read, gives no messages, and
+the card says to copy the message and tap Paste. The selection menu, share and copied-text
+cards are activities that cover the app, which the service can't read behind without
+retrieval flags, so they offer Paste only. Code: `ConversationOnScreen.kt`;
+tests: `ConversationOnScreenTest`.

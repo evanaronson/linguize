@@ -6,7 +6,7 @@
     <string name="menu_auto" translatable="false">Linguize</string>
     <string name="menu_catalan" translatable="false">Catalanize</string>
     <string name="menu_castilian" translatable="false">Castilianize</string>
-    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
+    <string name="accessibility_description">Adds a Linguize button for apps like Telegram where Linguize isn\'t in the selection menu. When you tap the button, Linguize reads the text field you\'re typing in, at that moment only, and sends the text to the service you set up (Gemini or OpenAI) to check it. Nothing goes back into the field unless you accept it. When a check can\'t tell what your text means and you tap Pick their message, Linguize reads the messages on screen, at that moment only, so you can choose the one you\'re replying to. The message you choose is sent only when you tap Check again. If there is no usable typing field, it reads copied text to explain its meaning. You can also choose Understand copied text from a check. Understanding is never saved in correction History. If History is on, a check is saved on this phone after changes are successfully applied. Linguize skips fields that look like passwords, codes, numbers or email addresses.</string>
 
 
     <!-- Presentation text. Protocol values and model prompts are not translated. -->
@@ -52,6 +52,20 @@
     <!-- Under "Linguize couldn't tell what this means": what to do. The first offers Clarify what you mean below it. -->
     <string name="unclear_hint">Try writing it as a full sentence, or clarify what you mean.</string>
     <string name="unclear_hint_read_only">Try writing it as a full sentence.</string>
+    <!-- Lab, Replying to: on an unclear check from another app, add the message the writer answers. -->
+    <string name="replying_to_what">What are you replying to?</string>
+    <string name="replying_to_pick">Pick their message</string>
+    <string name="replying_to_paste">Paste</string>
+    <string name="replying_to_tap_their_message">Tap their message</string>
+    <!-- Screen-reader action on one message read from the screen. -->
+    <string name="replying_to_choose_message">Choose this message</string>
+    <string name="replying_to_no_messages">No messages found. Copy it, then tap Paste.</string>
+    <string name="replying_to_empty_clipboard">Copy their message first.</string>
+    <string name="replying_to">Replying to</string>
+    <!-- The chosen message, quoted. -->
+    <string name="replying_to_quote">“%1$s”</string>
+    <!-- Screen-reader label of the × on the chosen message. -->
+    <string name="replying_to_remove">Remove</string>
     <string name="choose_auto_language">Choose Auto-detect to check it in any language.</string>
     <string name="your_text">Your text</string>
     <string name="no_text_to_check">No text to check.</string>

@@ -23,6 +23,7 @@ import com.evanaronson.linguize.ui.appvoice.CardVoiceViewModel
 import com.evanaronson.linguize.ui.card.CardActions
 import com.evanaronson.linguize.ui.card.CardState
 import com.evanaronson.linguize.ui.card.CheckViewModel
+import com.evanaronson.linguize.ui.card.ReplyContextActions
 import com.evanaronson.linguize.ui.card.FloatingPopup
 import com.evanaronson.linguize.ui.card.ResultCard
 import com.evanaronson.linguize.ui.components.LanguagePicker
@@ -85,6 +86,8 @@ class CheckActivity : ComponentActivity() {
             onClose = ::finish,
             onOpenSettings = null,
             canReplace = canReplace,
+            // Lab, Replying to: Paste only. The accessibility service can't read the app behind this window.
+            replyContext = ReplyContextActions.of(check, this),
         )
         setContent {
             AppTheme {

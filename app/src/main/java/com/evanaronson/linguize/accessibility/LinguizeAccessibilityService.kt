@@ -226,7 +226,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
 
         var closed = false
         // Ends this card, once: Back can arrive both as a key and as a back callback.
-        fun end(applied: () -> Boolean): Boolean? {
+        fun end(asWritten: Boolean = false, applied: () -> Boolean): Boolean? {
             if (closed) return null
             closed = true
             PopupReturn.cancel(backFromApp)
@@ -236,7 +236,9 @@ class LinguizeAccessibilityService : AccessibilityService() {
             window.remove {
                 understand.cancel()
                 putBack = !understanding && applied()
-                check.dismiss(applied = putBack)
+                // Lab, Leave as written: nothing goes back; the check is saved as written.
+                if (asWritten && !understanding && !putBack) check.leaveAsWritten()
+                else check.dismiss(applied = putBack)
             }
             if (card?.window === window) card = null
             return putBack
@@ -257,6 +259,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
         val actions = CardActions.of(
             check, context = this, onClose = close, onOpenSettings = openSettings,
             replyContext = ReplyContextActions.of(check, this, pick = field?.let { source -> { ConversationOnScreen.above(source) } }),
+            onLeaveAsWritten = { end(asWritten = true) { false } },
         )
         fun captureClipboard() {
             understand.readingClipboard()

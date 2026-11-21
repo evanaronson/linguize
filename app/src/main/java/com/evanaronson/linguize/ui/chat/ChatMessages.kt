@@ -87,6 +87,7 @@ import com.evanaronson.linguize.ui.components.ButtonKind
 import com.evanaronson.linguize.ui.components.DisclosureMotion
 import com.evanaronson.linguize.ui.components.LinguizeButton
 import com.evanaronson.linguize.ui.components.NavigationBackHandler
+import com.evanaronson.linguize.ui.components.tracksFieldFocus
 import com.evanaronson.linguize.ui.copyToClipboard
 import com.evanaronson.linguize.ui.text.titleResource
 import com.evanaronson.linguize.ui.components.RowDivider
@@ -382,7 +383,7 @@ internal fun Composer(chat: ChatViewModel) {
                 textStyle = style,
                 cursorBrush = SolidColor(ink),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = label },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).tracksFieldFocus().semantics { contentDescription = label },
                 decorationBox = { inner ->
                     Box {
                         if (chat.draft.text.isEmpty()) {

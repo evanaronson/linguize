@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The card's last button on a clean check from another app (or one whose every change was
+        skipped): the text stays as the writer wrote it, the card closes, and with History on the
+        check is saved. Matches the chat's "Send as written". Not "Keep" (keep is not the word for
+        saving) and not Done or OK (the card's last button says what happens to the text).
+    -->
+    <string name="lab_leave_as_written">Leave as written</string>
+    <!-- On a saved check that was closed with Leave as written, under the unchanged text. -->
+    <string name="lab_left_as_written">Left as written</string>
+</resources>

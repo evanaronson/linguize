@@ -158,6 +158,42 @@ is one. Undo from the finished state brings the last change back, open, and the 
 with it. While a new check runs, or after it failed, the accepted changes show the same way
 (the text, then the row).
 
+## Leave as written
+
+The gap: from another app, a check that found nothing ("Looks good") had no Replace, so the
+writer just closed the card, and nothing was saved. Their correct words and conjugations never
+reached Words, Conjugations, Patterns or Time spent, which all read History. In the chat every
+sent message is saved, unchanged ones too ("Sent as written"); the popup had no equivalent.
+
+- **A clean check** from another app (selection menu, accessibility button, share, quick tile)
+  ends with one filled button under "Looks good": **Leave as written**. It closes the card,
+  leaves the text where it is, and with History on saves the check unchanged and visible
+  (outcome `as_written`, see [History](../history.md#what-is-recorded)). With History off it
+  only closes.
+- **Every change skipped.** The same gap: a walk that ended with everything skipped and nothing
+  accepted had no Replace either. Once the walk is over that way, the button sits where Replace
+  would ("…, Undo, Replace" has nothing to count), and is brought into view the same way. The
+  check is saved unchanged with its changes `ignored` ("Not accepted" in History); the corpus
+  still reads the check's own judgment, so a word a skipped fix changes counts as a mistake, not
+  as correct. While a change is still open, or once one is accepted, there is no such button:
+  Replace is the ending then. The skipped-all case needs Skip, so a read-only card (share) never
+  reaches it.
+- **Closing any other way** (a tap outside, Back) saves nothing, as before: only the writer's
+  explicit confirmation is evidence that the text was right as written.
+- **Not in Chat or Notes.** The chat already ends in Send as written; Notes and Try it save
+  nothing by design. Their hosts pass no action, so the card shows no button
+  (`CardActions.onLeaveAsWritten`, null by default).
+- **Not on a read-only selection.** The selection menu shows it only when the text can be put
+  back: a read-only selection is usually a message the writer received, not wrote.
+
+**Why "Leave as written".** The card's last button says what happens to the text (Replace,
+Send; not Done or OK, [copy style](../copy-style.md)). Here nothing happens to it: it stays as
+written, true with History on or off, and in every host (the field, the shared text, the
+clipboard). It matches the chat's "Send as written" and its "Sent as written". Not "Keep as
+written": copy style keeps "kept" off the idea of saving (that is "saved"), and a button that
+saves would read as "keep this", a promise about storage rather than about the text. History
+says "Left as written" under the text.
+
 ## Decisions
 
 **"Skip", not "Not now".** Copy style asks buttons for a verb. Skip says exactly what
@@ -222,7 +258,18 @@ each state composed fresh), `OneChangeViewTest`, `TypeToAcceptCardTest`,
 Every host (popup over other apps, the selection-menu card, Chat, Notes, the clipboard
 card) shows the same `ResultCard`, so the flow is identical everywhere. Nothing new is
 recorded: History still sees only accepts, Accept all, Undo, copies and the final text.
-A skip is not a decision and isn't saved.
+A skip is not a decision and isn't saved; Leave as written after skipping everything saves the
+check with those changes not accepted.
+
+Leave as written: `CardActions.onLeaveAsWritten` (the hosts: `CheckActivity`, `ShareActivity`,
+`ClipboardActivity`, the accessibility card), `LeaveAsWrittenRow` in `ReviewContent.kt`,
+`ReviewFlowUi.allSkipped`, `CheckViewModel.leaveAsWritten`, `CheckHistory.close(asWritten)` and
+`Outcome.AsWritten`. Tests: `LeaveAsWrittenCardTest` (the button on a clean card and after
+skipping everything; none without the action; Replace once something is accepted),
+`LeaveAsWrittenTest` (saved unchanged and visible, read by the corpus; nothing saved without it,
+with History off, from Notes' origin, or with something accepted; Chat unchanged; older records'
+visibility unchanged), `ClipboardActivityTest`, `CheckViewModelTest` (the selection menu hands
+nothing back and saves it).
 
 ## Limits
 

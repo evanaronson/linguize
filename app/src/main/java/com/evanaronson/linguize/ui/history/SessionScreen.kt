@@ -207,13 +207,15 @@ private fun WhatCameOfIt(session: SessionRecord) {
     val finalText = session.finalText
     if (finalText != null) {
         TextBlock(finalText)
+        // Lab, Leave as written: nothing went back; the writer confirmed the text as it was.
+        if (session.outcome == Outcome.AsWritten) Quiet(stringResource(R.string.lab_left_as_written), Modifier.padding(top = 8.dp))
         return
     }
     when (session.outcome) {
         Outcome.Copied -> stringResource(R.string.history_copy_only)
         Outcome.None -> stringResource(R.string.outcome_closed)
         Outcome.Abandoned -> stringResource(R.string.outcome_abandoned)
-        Outcome.Applied, Outcome.Failed, null -> stringResource(R.string.history_no_applied_result)
+        Outcome.Applied, Outcome.AsWritten, Outcome.Failed, null -> stringResource(R.string.history_no_applied_result)
     }.let { Quiet(it) }
 }
 

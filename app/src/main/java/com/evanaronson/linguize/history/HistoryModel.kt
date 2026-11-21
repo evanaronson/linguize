@@ -93,6 +93,14 @@ enum class Outcome(val token: String) {
     /** Closed with nothing applied or copied. */
     None("none"),
 
+    /**
+     * Closed with the writer's own confirmation that the text needs no change: Leave as
+     * written, on a clean check (or one whose every change was skipped) from another app.
+     * Nothing went back; [SessionRecord.finalText] is the checked text, unchanged. Visible in
+     * History like an applied check, whatever the origin (see `HistorySchema.VISIBLE_HISTORY`).
+     */
+    AsWritten("as_written"),
+
     /** The last attempt failed. */
     Failed("failed"),
 

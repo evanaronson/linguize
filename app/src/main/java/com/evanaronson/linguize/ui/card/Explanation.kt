@@ -122,7 +122,8 @@ internal fun ExplanationPanel(
             // Lab, Type to accept: the field stands in for Accept; Skip and the star stay beside it.
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Top) {
                 // One field for every change typed here, so focus (and the keyboard) stays between them.
-                TypeToAcceptField(typeToAccept.text, onAccept, Modifier.weight(1f), key = typeToAccept.key)
+                TypeToAcceptField(typeToAccept.text, onAccept, Modifier.weight(1f), key = typeToAccept.key,
+                    autoFocus = typeToAccept.autoFocus, onEngage = typeToAccept.onEngage)
                 phrase?.let { SavePhraseButton(it) }
                 skip?.let { LinguizeButton(stringResource(R.string.lab_review_flow_skip), it, ButtonKind.Text) }
             }

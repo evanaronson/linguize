@@ -1553,6 +1553,66 @@ class CheckViewModelTest {
     }
 
     @Test
+    @Config(application = App::class)
+    fun leaveAsWrittenOnACleanSelectionHandsNothingBackAndSavesItUnchanged() {
+        client.answer = { ModelAnswer(Verdict(Verdict.Status.Ok), """{"status":"ok","has_errors":false}""") }
+        check.check(QUESTION, null, Origin.Menu)
+        assertTrue(reviewed().looksGood)
+        val caller = Robolectric.buildActivity(ResultCaller::class.java).setup()
+        val controller = launchSelection(caller.get())
+        val activity = controller.get()
+        activity.leaveAsWritten()
+        assertTrue(activity.isFinishing)
+        deliverSelectionResult(caller.get(), activity)
+        assertEquals("Nothing goes back to the app", Activity.RESULT_CANCELED, caller.get().receivedResult?.second)
+        val session = closed().single()
+        assertEquals(Outcome.AsWritten, session.outcome)
+        assertEquals(QUESTION, session.finalText)
+        controller.pause().stop().destroy()
+        caller.pause().stop().destroy()
+    }
+
+    @Test
+    @Config(application = App::class)
+    fun backWithTheKeyboardUpClosesOnlyTheKeyboardAndKeepsTheCardAndItsChanges() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        check.acceptAll(EditKind.Fix)
+        val caller = Robolectric.buildActivity(ResultCaller::class.java).setup()
+        val controller = launchSelection(caller.get()).visible()
+        val activity = controller.get()
+        fun frames() = repeat(30) { shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(16)) }
+        fun keyboard(up: Boolean) {
+            val type = androidx.core.view.WindowInsetsCompat.Type.ime()
+            val insets = androidx.core.view.WindowInsetsCompat.Builder()
+                .setInsets(type, if (up) androidx.core.graphics.Insets.of(0, 0, 0, 700) else androidx.core.graphics.Insets.NONE)
+                .setVisible(type, up)
+                .build()
+            fun send(view: android.view.View) {
+                androidx.core.view.ViewCompat.dispatchApplyWindowInsets(view, insets)
+                if (view is android.view.ViewGroup) for (index in 0 until view.childCount) send(view.getChildAt(index))
+            }
+            send(activity.window.decorView)
+            frames()
+        }
+        frames()
+        keyboard(up = true)
+        activity.onBackPressedDispatcher.onBackPressed()
+        frames()
+        assertFalse("Back with the keyboard up leaves the card open", activity.isFinishing)
+        assertEquals("…with its accepted changes", "Com estàs?", check.workingText)
+        assertTrue(closed().isEmpty())
+
+        keyboard(up = false)
+        activity.onBackPressedDispatcher.onBackPressed()
+        // The system's own Back closes it, as before (in Robolectric without our finish(), so its
+        // result isn't checked here; Apply, a tap outside and Back share that path).
+        assertTrue("The next Back closes it, as before", activity.isFinishing)
+        controller.pause().stop().destroy()
+        caller.pause().stop().destroy()
+    }
+
+    @Test
     fun backFromSettingsWithNoCardDoesNothing() {
         check.recheckIfStale()
         settle()

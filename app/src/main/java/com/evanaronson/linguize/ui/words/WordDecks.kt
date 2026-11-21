@@ -182,6 +182,8 @@ internal fun ImportDialog(
         onDismissRequest = onCancel,
         title = { Text(stringResource(R.string.lab_vocab_gaps_import_title)) },
         text = {
+            // A dialog is its own window: Back with the keyboard up closes the keyboard, not the dialog.
+            com.evanaronson.linguize.ui.components.KeyboardBackHandler(fieldCounts = true)
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 LinguizeTextField(name, { name = it }, label = stringResource(R.string.lab_vocab_gaps_import_name), singleLine = true)
                 Spacer(Modifier.height(12.dp))

@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -192,7 +193,9 @@ class TypeToAcceptLayoutTest {
     @Test fun whileTypingTheChangeAndTheFieldAreInViewTogether() {
         show(typeToAccept = true)
         val label = label("amb la")
-        assertEquals("The field has focus", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
+        assertNotEquals("Nothing has focus as the card first shows", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
+        tap(label)
+        assertEquals("A tap on the field focuses it", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
         keyboard(up = true)
         assertTrue("The field has focus and the keyboard is up", typing.active)
 
@@ -224,6 +227,7 @@ class TypeToAcceptLayoutTest {
         frames(10)
         val label = label("amb la")
         assertNotNull(field(label))
+        tap(label)
         keyboard(up = true)
         assertTrue(typing.active)
 
@@ -240,6 +244,7 @@ class TypeToAcceptLayoutTest {
 
     @Test fun whenTheKeyboardClosesTheLayoutRelaxes() {
         show(typeToAccept = true)
+        tap(label("amb la"))
         keyboard(up = true)
         assertTrue(typing.active)
         assertTrue("Narrowed while typing", textNode().boundsInWindow.height < fullTextHeight())
@@ -340,6 +345,7 @@ class TypeToAcceptLayoutTest {
 
     @Test fun teachMeClosesTheKeyboardAndKeepsWhatWasTyped() {
         show(typeToAccept = true)
+        tap(label("amb la"))
         keyboard(up = true)
         type(label("amb la"), "amb")
         val teach = nodes().first {
@@ -355,6 +361,13 @@ class TypeToAcceptLayoutTest {
     }
 
     private fun label(target: String) = activity.getString(R.string.lab_type_to_accept_label, target)
+
+    /** A tap on the field: it asks for focus, as touching it does. */
+    private fun tap(label: String) {
+        val action = requireNotNull(field(label)) { "No field labelled $label" }.config[SemanticsActions.RequestFocus].action
+        assertTrue(requireNotNull(action).invoke())
+        frames(3)
+    }
 
     private fun type(label: String, value: String) {
         val action = requireNotNull(field(label)) { "No field labelled $label" }.config[SemanticsActions.SetText].action

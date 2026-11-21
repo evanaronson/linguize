@@ -227,10 +227,12 @@ class SessionRecording(
 
     /**
      * The card closed. [finalText] is what went back to the app (null if nothing did).
+     * [asWritten]: the writer closed it with Leave as written, so [finalText] is the checked
+     * text and the outcome [Outcome.AsWritten]; the changes still on offer end ignored.
      * Returns the closed session and one suggestion row per suggestion shown in any
      * attempt, each with its decision. Calling it twice returns the same result.
      */
-    fun close(at: Long, finalText: String?): SessionDetail {
+    fun close(at: Long, finalText: String?, asWritten: Boolean = false): SessionDetail {
         closed?.let { return it }
         val applied = finalText != null
         val current = revision?.let { revision ->
@@ -241,6 +243,7 @@ class SessionRecording(
             closedAt = at,
             finalText = finalText,
             outcome = when {
+                asWritten && finalText == session.text -> Outcome.AsWritten
                 applied -> Outcome.Applied
                 copiedKinds.isNotEmpty() -> Outcome.Copied
                 session.attempts.lastOrNull()?.failure != null -> Outcome.Failed

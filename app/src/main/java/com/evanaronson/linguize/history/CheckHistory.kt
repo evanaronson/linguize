@@ -308,10 +308,12 @@ class CheckHistory(
     }
 
     /**
-     * Saves the complete session only when [finalText] successfully replaced different source text.
+     * Saves the complete session only when [finalText] successfully replaced different source text,
+     * or, Lab, Leave as written, when [asWritten]: the writer confirmed the checked text needs no
+     * change, and [finalText] is that text ([Outcome.AsWritten]).
      * Returns the id of the session being saved, or null when nothing is (Lab, Time spent).
      */
-    fun close(finalText: String?): String? {
+    fun close(finalText: String?, asWritten: Boolean = false): String? {
         decided = false
         val recording = permittedRecording()
         val permission = permission
@@ -319,13 +321,16 @@ class CheckHistory(
         this.permission = null
         recording ?: return null
         val id = recording.session.id
-        // Lab Chat: a message sent as typed is still a record of what was written.
-        val unchanged = finalText == recording.session.text && recording.session.origin?.keepsUnchanged != true
-        if (finalText == null || unchanged || permission == null) {
+        // Lab Chat: a message sent as typed is still a record of what was written; so is a text
+        // the writer left as written (Leave as written), and only that text.
+        val keepsUnchanged = recording.session.origin?.keepsUnchanged == true
+        val unchanged = finalText == recording.session.text && !keepsUnchanged && !asWritten
+        val wrongText = asWritten && finalText != recording.session.text
+        if (finalText == null || unchanged || wrongText || permission == null) {
             releaseSession(id)
             return null
         }
-        val closed = quietly("close a session") { recording.close(clock(), finalText) }
+        val closed = quietly("close a session") { recording.close(clock(), finalText, asWritten) }
         if (closed == null) {
             releaseSession(id)
             return null

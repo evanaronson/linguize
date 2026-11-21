@@ -37,6 +37,19 @@ permission to save; switching it on again does not resume that card.
 Older unapplied records remain stored, but are hidden from History, its counts,
 detail pages and exports. No migration deletes those records.
 
+**Leave as written (Lab).** A check from another app that finds nothing to change has no
+Replace, so it was never saved, and the writer's correct words never reached Words,
+Conjugations, Patterns or Time spent, which read visible History. The popup card (selection
+menu, accessibility button, share, quick tile) now ends a clean check, or a review whose every
+change was skipped, with **Leave as written**. The writer's tap is the evidence: the session is
+saved with outcome `as_written` and the checked text as its final text, nothing having gone
+back to the app. Changes still on offer are `ignored`. Closing the card any other way (a tap
+outside, Back) saves nothing, as before. With History off the button only closes. A read-only
+selection gets no button: it is usually text the writer received. The quick tile's checks are
+now opened as `menu` (no source app), so this one path can save them; accepted changes copied
+back to the clipboard are still not saved. Chat is unchanged (a sent message is saved, unchanged
+ones as `applied`), and Notes and Try it still save nothing (`tester`).
+
 **Origins.** `menu` and `button` are checks of text from other apps; `tester` (Try
 it) is never recorded. Lab adds `chat`: a message written to the Lab Chat partner,
 checked before it was sent. It is saved through the same path as an applied check,
@@ -104,7 +117,10 @@ timestamp.
 
 The outcome model retains `applied`, `copied`, `failed`, `none`, and `abandoned`
 for compatibility with older records. Newly saved sessions have outcome `applied`
-and a non-null final text different from the original. `status` separately records
+and a non-null final text different from the original (a chat message may keep its
+text), or, Lab, outcome `as_written` and the original text as final text (Leave as
+written). `as_written` is a new token in the existing `outcome` text column: no schema
+change, and no older record carries it. `status` separately records
 the last successful linguistic result:
 `ok`, `unclear`, or `wrong_language`. A technical failure and an unclear sentence
 are different observations.
@@ -202,8 +218,12 @@ timestamp and ID. The History page shows one row per session, whatever its origi
 day headers (Today, Yesterday, then a short date), with an optional source filter (All,
 each app among the loaded rows, Chat). Headers and the filter are built from the loaded
 rows; a filter that hides most of them keeps loading pages until the list fills or ends. Counts, oldest date, detail lookup, and export use the same
-eligibility rule: closed, undeleted, outcome `applied`, and a non-null final text
-different from the original (or, for origin `chat`, any final text). An empty final text is valid when the applied change
+eligibility rule (`HistorySchema.VISIBLE_HISTORY`): closed, undeleted, a non-null final
+text, and either outcome `applied` with a final text different from the original (or, for
+origin `chat`, any final text), or outcome `as_written` with the original text as final
+text, from any origin. Records saved before `as_written` existed keep their visibility: an
+unchanged `applied` check from another app stays hidden. A left-as-written session shows its
+text under After with "Left as written". An empty final text is valid when the applied change
 deleted the original text. A later failed recheck does not exclude a session if
 the host successfully applied its retained accepted changes.
 
@@ -237,7 +257,8 @@ the model's linguistic claims. Acceptance is a user action, ignored is not a
 rejection, and undone does not distinguish disagreement from a failed handoff.
 
 The menu can check read-only selections, but a copy-only check is not saved.
-History does not record authorship. The menu reports returning an Android result,
+History does not record authorship. Leave as written records the writer's confirmation,
+not that the text was sent or that it is theirs. The menu reports returning an Android result,
 while accessibility reports the text-action return value. Neither proves the
 writer subsequently used or sent the text.
 

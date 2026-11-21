@@ -29,6 +29,13 @@ class CardActions(
      * answers. Null in the chat (which sends its own) and Notes.
      */
     val replyContext: ReplyContextActions? = null,
+    /**
+     * Lab, Leave as written: on a clean check from another app, or once every change was
+     * skipped, the card's last button. It closes the card leaving the text as it was, and the
+     * host saves the check in History as left as written. Null shows no such button: the chat
+     * has Send as written, and Notes and the app's own cards save nothing.
+     */
+    val onLeaveAsWritten: (() -> Unit)? = null,
 ) {
     companion object {
         /**
@@ -46,6 +53,7 @@ class CardActions(
             @androidx.annotation.StringRes applyLabel: Int = com.evanaronson.linguize.R.string.apply,
             phraseOrigin: PhraseOrigin? = PhraseOrigin(language = { check.phraseLanguage }, app = { check.sourceApp }),
             replyContext: ReplyContextActions? = null,
+            onLeaveAsWritten: (() -> Unit)? = null,
         ) = CardActions(
             onCopy = { text, kind ->
                 context.copyToClipboard(text)
@@ -70,6 +78,7 @@ class CardActions(
             onRemoveClarification = check::removeMeaning,
             phraseOrigin = phraseOrigin,
             replyContext = replyContext,
+            onLeaveAsWritten = onLeaveAsWritten,
         )
     }
 }

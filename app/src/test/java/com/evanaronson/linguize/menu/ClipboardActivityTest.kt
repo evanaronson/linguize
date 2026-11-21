@@ -25,6 +25,9 @@ import com.evanaronson.linguize.ui.quicktile.ClipboardJob
 import com.evanaronson.linguize.ui.quicktile.QuickLaunch
 import com.evanaronson.linguize.ui.understand.UnderstandState
 import com.evanaronson.linguize.ui.understand.UnderstandViewModel
+import com.evanaronson.linguize.history.Outcome
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -110,6 +113,32 @@ class ClipboardActivityTest {
         assertEquals(null, ShadowToast.getTextOfLatestToast())
     }
 
+    @Test fun leaveAsWrittenLeavesTheClipboardAloneAndSavesTheCheckUnchanged() = runBlocking<Unit> {
+        app.settings.historyEnabled = true
+        copy("Com estas?")
+        val activity = open(ClipboardJob.Check).get()
+        val check = ViewModelProvider(activity)[CheckViewModel::class.java]
+        waitFor { check.state is CardState.Done }
+
+        activity.leaveAsWritten()
+
+        assertTrue(activity.isFinishing)
+        assertEquals("Com estas?", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        val saved = app.history.recent(10).first()
+        assertEquals(listOf("Com estas?"), saved.map { it.text })
+        assertEquals(Outcome.AsWritten, saved.single().outcome)
+    }
+
+    @Test fun closingWithoutLeaveAsWrittenSavesNothingEvenWithHistoryOn() = runBlocking<Unit> {
+        app.settings.historyEnabled = true
+        copy("Com estas?")
+        val activity = open(ClipboardJob.Check).get()
+        val check = ViewModelProvider(activity)[CheckViewModel::class.java]
+        waitFor { check.state is CardState.Done }
+        activity.finish()
+        assertTrue(app.history.recent(10).first().isEmpty())
+    }
+
     @Test fun understandExplainsTheCopiedMessage() {
         copy("Com estas?")
         val activity = open(ClipboardJob.Understand).get()
@@ -145,8 +174,10 @@ class ClipboardActivityTest {
     private fun copy(text: String) = clipboard.setPrimaryClip(ClipData.newPlainText("copied", text))
 
     private fun open(job: ClipboardJob): ActivityController<ClipboardActivity> {
+        // Not made visible: a check now opens its History session off the main thread, and an
+        // attached card's progress bar would animate for as long as the main looper is idled.
         val controller = Robolectric.buildActivity(ClipboardActivity::class.java, QuickLaunch.intent(app, job))
-            .create().start().resume().visible()
+            .create().start().resume()
         controller.get().onWindowFocusChanged(true)
         shadowOf(Looper.getMainLooper()).idle()
         return controller

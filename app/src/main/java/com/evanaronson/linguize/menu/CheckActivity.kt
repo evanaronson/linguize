@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.PopupPosition
@@ -42,6 +43,8 @@ class CheckActivity : ComponentActivity() {
     private var readOnly = true
     private val canReplace: Boolean get() = !readOnly && callingActivity != null
     private var limited = false
+    /** Lab, Leave as written: the writer closed the card with it; see [finish]. */
+    private var leftAsWritten = false
     private var returningFromApp = false
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
@@ -50,6 +53,10 @@ class CheckActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         popupPosition = App.of(this).settings.popupPosition
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
+        // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
+        // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         // Exported aliases are callable by any app. Reject malformed launches before
         // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.
@@ -88,6 +95,9 @@ class CheckActivity : ComponentActivity() {
             canReplace = canReplace,
             // Lab, Replying to: Paste only. The accessibility service can't read the app behind this window.
             replyContext = ReplyContextActions.of(check, this),
+            // Lab, Leave as written: only for text the writer can put back. A read-only selection is
+            // usually text they received, and leaving it as written means nothing there.
+            onLeaveAsWritten = if (canReplace) ::leaveAsWritten else null,
         )
         setContent {
             AppTheme {
@@ -105,6 +115,12 @@ class CheckActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** Lab, Leave as written: closes the card, nothing handed back, and saves the check as written. */
+    internal fun leaveAsWritten() {
+        leftAsWritten = true
+        finish()
     }
 
     /** Open the app separately, keeping this selection's result channel and accepted edits. */
@@ -160,7 +176,8 @@ class CheckActivity : ComponentActivity() {
         } else {
             false
         }
-        check.dismiss(applied = handedBack, waitMs = CLOSE_WAIT_MS)
+        if (leftAsWritten && !handedBack) check.leaveAsWritten(waitMs = CLOSE_WAIT_MS)
+        else check.dismiss(applied = handedBack, waitMs = CLOSE_WAIT_MS)
         super.finish()
     }
 

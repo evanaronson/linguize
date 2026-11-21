@@ -23,8 +23,27 @@ class BackNavigationTest {
         // Each window closes the keyboard on Back: the app, every popup card, the new-conversation sheet,
         // and the accessibility window, which gets Back as a key or callback rather than through Compose.
         assertTrue("KeyboardBackHandler()" in File(source, "ui/home/HomeActivity.kt").readText())
-        assertTrue("KeyboardBackHandler()" in File(source, "ui/card/FloatingCard.kt").readText())
-        assertTrue("KeyboardBackHandler()" in File(source, "ui/chat/ChatChrome.kt").readText())
+        // Over other apps a focused card field counts as the keyboard: Back never closes the card with it.
+        assertTrue("KeyboardBackHandler(fieldCounts = true)" in File(source, "ui/card/FloatingCard.kt").readText())
         assertTrue("BackAction.CloseKeyboard" in File(source, "accessibility/OverlayWindow.kt").readText())
+        // The new-conversation sheet and each dialog with a field are windows of their own, with their own Back.
+        assertEquals(2, Regex("""KeyboardBackHandler\(fieldCounts = true\)""")
+            .findAll(File(source, "ui/chat/ChatChrome.kt").readText()).count())
+        assertTrue("KeyboardBackHandler(fieldCounts = true)" in File(source, "ui/words/WordDecks.kt").readText())
+        // The popup activities hear the keyboard's insets on every Android version.
+        for (host in listOf("menu/CheckActivity.kt", "menu/ShareActivity.kt", "menu/ClipboardActivity.kt")) {
+            assertTrue(host, "setDecorFitsSystemWindows(window, false)" in File(source, host).readText())
+        }
+    }
+
+    @Test fun everyTextFieldReportsItsFocus() {
+        val source = File("src/main/java/com/evanaronson/linguize")
+        val fields = source.walk().filter { it.isFile && it.extension == "kt" }
+            .filter { "BasicTextField(" in it.readText() }.toList()
+        assertTrue(fields.isNotEmpty())
+        for (file in fields) {
+            assertEquals(file.name, Regex("""BasicTextField\(""").findAll(file.readText()).count(),
+                Regex("""tracksFieldFocus\(\)""").findAll(file.readText()).count())
+        }
     }
 }

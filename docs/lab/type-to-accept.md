@@ -15,8 +15,10 @@ card, Chat's review panel, Notes, the clipboard card: they all share `ResultCard
 like this:
 
 - The [review flow](review-flow.md) still opens on the first change and walks them in
-  order, rewordings first, so a fix is never typed only to be replaced by a rewording. On the open change, the **Accept** button is replaced by a field. The field takes
-  focus and the keyboard opens.
+  order, rewordings first, so a fix is never typed only to be replaced by a rewording. On the
+  open change, the **Accept** button is replaced by a field. When the card first shows,
+  nothing has focus and the keyboard stays down, so the writer sees the whole result first
+  (see [First look](#first-look)). A tap on the field focuses it and opens the keyboard.
 - The writer types the change's new text, the bold part of "estas → **estàs**".
 - The field compares as they type. While the text is still the start of the change,
   nothing happens. The moment one character is off, the field turns to the error state
@@ -26,11 +28,29 @@ like this:
 - As soon as the text matches exactly, it is **correct** (below): a short beat that shows
   it, then the change is accepted, with no extra tap. It is the same Accept as the
   button's: the same History recording, the same move to the next change, whose field
-  opens empty and keeps the keyboard up.
+  opens empty, takes focus by itself and keeps the keyboard up.
 - **Skip** stays beside the field, as does the Phrasebook star.
 - **Teach me** closes the keyboard and leaves the field, so the lesson has the room. What
   was typed stays; a tap on the field brings the keyboard back.
 - With the switch off, the card is exactly as before.
+
+## First look
+
+The owner, with the switch on: the card autofocused the first change's field and the keyboard
+came up over much of the card before they had seen the result. Now:
+
+- **When the card first shows, nothing is focused.** The writer sees the whole card: the
+  text, the open change, Meaning. The field is there, empty, with its placeholder.
+- **The keyboard opens when the writer reaches for it**: a tap on the field, or a tap on
+  another change in the text (which opens that change with its field focused).
+- **Once the writer has engaged** (typed in a field, tapped one, tapped a change, or accepted
+  a change, including with Accept all or the screen reader's action), every later change's
+  field takes focus by itself, as before, so they can fly through. Within the same
+  explanation the field keeps focus between changes; in a new passage the new field takes it.
+- **Skip is not engaging.** Skipping before engaging moves on with nothing focused.
+- Engagement belongs to the check shown: a new answer (a retry, a clarification, another
+  language) starts unfocused again.
+- **Room to type** is unchanged: it starts once a field has focus and the keyboard is up.
 
 ## Correct: the beat before the accept
 
@@ -174,6 +194,10 @@ behave on the card. Not App, which is about the app's shell (Start on).
   give the card the room. `TrackTyping` sets `active`. `HighlightedText` narrows the text
   (`typingWindow`, a layout modifier with a fade) and keeps the change and the field in view
   (a `BringIntoViewRequester` with the rectangle from the change's line to the field).
+- First look: `ReviewFlow.engaged` (set by an accept, a tap on a change, or `engage()` from
+  the field when it gains focus or is typed in) is passed down as `ReviewSelection.autoFocus`
+  and `TypeTarget.autoFocus`. `TypeToAcceptField` requests focus and shows the keyboard for a
+  change only when `autoFocus` is true, once per change (`LaunchedEffect(key, autoFocus)`).
 - Correct: `TypeToAcceptField` is one field per explanation (its state is keyed on the
   change, the field isn't, so focus and the keyboard stay between changes). It locks on a
   match, waits `CORRECT_HOLD_MILLIS` by the frame clock (`frameDelay`) and accepts once,
@@ -183,8 +207,10 @@ behave on the card. Not App, which is about the app's shell (Start on).
   `TeachMe` takes `onOpen`; `LocalLessonTeacher` lets tests give the card a lesson writer.
 
 Tests: `TypeToAcceptTest` (the rules; the switches gate the feedback; the settle fits in the
-hold), `TypeToAcceptCardTest` (off is unchanged; a deletion keeps Accept; typing, the error
-and its clearing, accepting and moving on; Skip), `TypeToAcceptLayoutTest` (real IME insets
+hold), `TypeToAcceptCardTest` (off is unchanged; a deletion keeps Accept; the card opens with
+nothing focused and a tap on the field focuses it; Skip before engaging focuses nothing; a tap
+on another change opens its field focused; typing, the error and its clearing, accepting and
+moving on, the next field focused by itself; Skip), `TypeToAcceptLayoutTest` (real IME insets
 and its own frame clock: the change and the field in the card's viewport together, in a
 long text and in a lower section; the rest stays below the field; the layout relaxes when
 the keyboard closes or focus leaves; off is unchanged; Correct, then one accept after the
@@ -198,8 +224,8 @@ the height and the conversation yields it, then gets it back), `TypeToAcceptSett
 
 - The switch is read when a check is shown. Turning it on while a card is open applies from
   the next check.
-- The field opening the keyboard by itself, the room to type, the haptic and the sound
-  have been checked in tests (Robolectric, with IME insets sent to the view), not yet on a
+- Focus waiting for the first tap, then the field opening the keyboard by itself, the room to
+  type, the haptic and the sound have been checked in tests (Robolectric, with IME insets sent to the view), not yet on a
   device: not on the popup over other apps, where the keyboard and the card share the
   screen, and not with each keyboard's own animation.
 - Moving from the rewordings to the fixes changes passage (rewordings are walked first), so

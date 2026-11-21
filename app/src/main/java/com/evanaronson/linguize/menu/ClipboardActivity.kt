@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
@@ -38,8 +39,10 @@ import com.evanaronson.linguize.ui.understand.UnderstandViewModel
  * the selection menu. There's no field to put changes back into: accepted changes go back
  * on the clipboard when the card closes.
  *
- * Checks made here are not saved in History ([Origin.Tester]): History holds checks whose
- * changes were put back in another app, and nothing is put back from here.
+ * Changes accepted here are not saved in History: History holds checks whose changes were
+ * put back in another app, and nothing is put back from here. Lab, Leave as written: a check
+ * the writer closes with Leave as written is saved, as a selection-menu check is
+ * ([Origin.Menu], no source app): they chose to check the copied text as their own.
  */
 class ClipboardActivity : ComponentActivity() {
     private val check: CheckViewModel by viewModels { CheckViewModel.factory(App.of(this)) }
@@ -51,6 +54,7 @@ class ClipboardActivity : ComponentActivity() {
     /** The check paused for Understand still has work the writer can return to. */
     private var retainedCheck by mutableStateOf(false)
     private var waitingForFocus = false
+    private var leftAsWritten = false
     private var returningFromApp = false
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
@@ -61,6 +65,10 @@ class ClipboardActivity : ComponentActivity() {
         job = ClipboardJob.of(intent) ?: return finish()
         popupPosition = App.of(this).settings.popupPosition
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
+        // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
+        // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         language = Language.forCode(savedInstanceState?.getString(KEY_LANGUAGE))
         val restored = savedInstanceState?.getString(KEY_TEXT)?.let(Selection::of)?.takeIf { it.text.isNotEmpty() }
@@ -82,6 +90,7 @@ class ClipboardActivity : ComponentActivity() {
             onOpenSettings = ::openSettings,
             // Lab, Replying to: Paste only, as in the selection menu.
             replyContext = ReplyContextActions.of(check, this),
+            onLeaveAsWritten = ::leaveAsWritten,
         )
         setContent {
             AppTheme {
@@ -153,13 +162,20 @@ class ClipboardActivity : ComponentActivity() {
         step = next
         when (next) {
             is ClipboardStep.Check -> if (check.state == null) {
-                check.check(next.selection.text, language, Origin.Tester)
+                // Saved only through Leave as written: finish() never applies (see the class).
+                check.check(next.selection.text, language, Origin.Menu)
             }
             is ClipboardStep.Understand -> if (understand.state is UnderstandState.ReadingClipboard) {
                 understand.captured(Copied.Text(next.selection).forUnderstand)
             }
             else -> Unit
         }
+    }
+
+    /** Lab, Leave as written: closes the card, the clipboard untouched, and saves the check as written. */
+    internal fun leaveAsWritten() {
+        leftAsWritten = true
+        finish()
     }
 
     /** Settings and the app open on top of the card, in its task, so Back returns to it. */
@@ -216,7 +232,8 @@ class ClipboardActivity : ComponentActivity() {
                 putBackOnClipboard(current.selection.with(accepted))
             }
             understand.cancel()
-            check.dismiss(applied = false)
+            if (leftAsWritten && current is ClipboardStep.Check && accepted == null) check.leaveAsWritten(waitMs = CLOSE_WAIT_MS)
+            else check.dismiss(applied = false)
         }
         super.finish()
     }
@@ -229,5 +246,6 @@ class ClipboardActivity : ComponentActivity() {
         const val STEP_CHECK = "check"
         const val STEP_UNDERSTAND = "understand"
         const val STEP_CHOOSE = "choose"
+        const val CLOSE_WAIT_MS = 500L
     }
 }

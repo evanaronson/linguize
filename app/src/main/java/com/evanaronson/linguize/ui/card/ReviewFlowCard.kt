@@ -17,6 +17,8 @@ internal class ReviewFlowUi(
     val selection: ReviewSelection,
     /** On the card's last row, so it scrolls into view once every change is decided. */
     val finalAction: Modifier,
+    /** Lab, Leave as written: every change was skipped and none accepted; the walk is over. */
+    val allSkipped: Boolean = false,
 )
 
 /**
@@ -33,7 +35,9 @@ internal fun rememberReviewFlow(result: CheckResult.Reviewed, canAccept: Boolean
     val position = focus.position(revision, result.kinds)?.let { (index, total) ->
         stringResource(R.string.lab_review_flow_position, index, total)
     }
-    val done = focus.isDone(revision, result.kinds) && revision.canUndo
+    val walked = focus.isDone(revision, result.kinds)
+    val allSkipped = canAccept && walked && revision.acceptedCount == 0 && focus.skipped.isNotEmpty()
+    val done = walked && (revision.canUndo || allSkipped)
     val finalAction = remember { BringIntoViewRequester() }
     LaunchedEffect(done) {
         if (done) {
@@ -44,8 +48,10 @@ internal fun rememberReviewFlow(result: CheckResult.Reviewed, canAccept: Boolean
     }
     return ReviewFlowUi(
         ReviewSelection(focus.selected, flow::select, if (canAccept) flow::skip else null, position, typeToAccept,
-            skipped = if (canAccept) focus.skipped else emptySet()),
+            skipped = if (canAccept) focus.skipped else emptySet(),
+            autoFocus = flow.engaged, onEngage = flow::engage),
         Modifier.bringIntoViewRequester(finalAction),
+        allSkipped,
     )
 }
 

@@ -357,6 +357,32 @@ class CheckViewModel(
         if (waitMs > 0) history.awaitWrites(waitMs)
     }
 
+    /**
+     * Lab, Leave as written: the writer closed a checked card with nothing accepted, confirming
+     * the text as it was (a clean result, or every change skipped). With History on and an
+     * origin that is recorded, the session is saved as left as written: the checked text as its
+     * final text, visible in History and read by everything derived from it. With anything
+     * accepted, or no answer on the card, it closes as [dismiss] without applying. Returns the
+     * id of the session being saved, or null.
+     */
+    fun leaveAsWritten(waitMs: Long = 0): String? {
+        if (workingText != null || state !is CardState.Done) {
+            dismiss(applied = false, waitMs = waitMs)
+            return null
+        }
+        generation++
+        staleCheck?.cancel()
+        staleCheck = null
+        val timed = revision
+        val saved = history.close(finalText = text, asWritten = true)
+        timing.closed(saved, origin.token, phraseLanguage ?: language?.code, text, timed)
+        job?.cancel()
+        state = null
+        hasReviewed = false
+        if (waitMs > 0) history.awaitWrites(waitMs)
+        return saved
+    }
+
     /** A permitted History link for a host that must save its message before closing the check. */
     val pendingSessionId: String? get() = history.pendingSessionId
 

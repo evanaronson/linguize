@@ -39,7 +39,7 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         // Lab, Leave as written: the clean card's one action, which saves it as written.
         actions.onLeaveAsWritten?.let {
             Spacer(Modifier.height(12.dp))
-            LeaveAsWrittenRow(it)
+            LeaveAsWrittenRow(it, saves = actions.leaveAsWrittenSaves())
         }
         return
     }
@@ -92,16 +92,20 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         // Lab, Leave as written: every change skipped, nothing accepted. Where Replace would be.
         actions.onLeaveAsWritten?.let {
             SectionDivider()
-            LeaveAsWrittenRow(it, modifier = flow.finalAction)
+            LeaveAsWrittenRow(it, saves = actions.leaveAsWrittenSaves(), modifier = flow.finalAction)
         }
     }
 }
 
-/** Lab, Leave as written: the card's one filled action when the text stays as written. */
+/**
+ * Lab, Leave as written: the card's one filled action when the text stays as written. "Save"
+ * with History on ([saves]); with History off it saves nothing, so it says "Close".
+ */
 @Composable
-internal fun LeaveAsWrittenRow(onLeave: () -> Unit, modifier: Modifier = Modifier) {
+internal fun LeaveAsWrittenRow(onLeave: () -> Unit, saves: Boolean, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        LinguizeButton(stringResource(R.string.lab_leave_as_written), onLeave, ButtonKind.Filled)
+        val label = if (saves) R.string.lab_leave_as_written else R.string.lab_leave_as_written_close
+        LinguizeButton(stringResource(label), onLeave, ButtonKind.Filled)
     }
 }
 

@@ -52,6 +52,30 @@ came up over much of the card before they had seen the result. Now:
   language) starts unfocused again.
 - **Room to type** is unchanged: it starts once a field has focus and the keyboard is up.
 
+### No keyboard from the app below
+
+The owner, over WhatsApp, after the first look shipped: the card showed with its field
+unfocused, but a keyboard was up under it. It was WhatsApp's: the writer had been typing
+there, and the popup no longer took focus into its own field, so nothing closed it. Typing
+went to WhatsApp (or nowhere), its keys could land on the card's backdrop, and the navigation
+buttons under it were invisible though they still worked: "Keyboard didn't work… it just
+didn't show the buttons at the bottom." (Before, the autofocused field made the keyboard the
+card's own, which hid this.) Now, on every way in:
+
+- **The first look comes with no keyboard at all.** Whatever keyboard is up when the card
+  opens closes. The text-selection menu, Share and Copy & check popups ask for it to close as
+  their window first takes focus, besides keeping it hidden for the window
+  (`SOFT_INPUT_STATE_ALWAYS_HIDDEN`), which Android doesn't always honour for a see-through
+  window over the app that has the keyboard. The accessibility button's card keeps the soft
+  keyboard hidden while it shows (see [the spec](../accessibility-spec.md#the-keyboard)).
+- **A tap on the field (or on a change) opens the keyboard for the card's field**, never for
+  the app below; after that later fields take focus by themselves, as above.
+- **Back** is unchanged: with the keyboard up it only closes it; with it closed, Back does
+  what it always did.
+- **The navigation buttons** always show: the popups keep Android's scrim behind three-button
+  navigation with icons for the theme (`enableEdgeToEdge`), and the accessibility card never
+  covers the navigation bar or the keyboard.
+
 ## Correct: the beat before the accept
 
 Accepting the moment the last character landed made the field vanish under the writer's
@@ -206,9 +230,14 @@ behave on the card. Not App, which is about the app's shell (Start on).
   switches and calls a `FeedbackOutput` (the device, or `LocalFeedbackOutput` in tests).
   `TeachMe` takes `onOpen`; `LocalLessonTeacher` lets tests give the card a lesson writer.
 
+- No keyboard from the app below: `FirstLookKeyboard` (in `menu/`) closes the keyboard once,
+  as a popup activity's window first takes focus (the insets controller and the input method
+  manager). The accessibility card: `CardKeyboard` and `OverlayWindow` (see
+  [the spec](../accessibility-spec.md#the-keyboard)).
+
 Tests: `TypeToAcceptTest` (the rules; the switches gate the feedback; the settle fits in the
 hold), `TypeToAcceptCardTest` (off is unchanged; a deletion keeps Accept; the card opens with
-nothing focused and a tap on the field focuses it; Skip before engaging focuses nothing; a tap
+nothing focused and no keyboard, and a tap on the field focuses it and opens the keyboard; Skip before engaging focuses nothing; a tap
 on another change opens its field focused; typing, the error and its clearing, accepting and
 moving on, the next field focused by itself; Skip), `TypeToAcceptLayoutTest` (real IME insets
 and its own frame clock: the change and the field in the card's viewport together, in a
@@ -218,12 +247,22 @@ hold, with focus kept into the next change; the struck old words fade out during
 only the new words are left after it; leaving mid-hold accepts once; the switches;
 Teach me leaves the field and keeps what was typed), `ChatTypingRoomTest` (the review takes
 the height and the conversation yields it, then gets it back), `TypeToAcceptSettingTest`
-(off by default, persists; the two switches under it, their defaults, persisting).
+(off by default, persists; the two switches under it, their defaults, persisting),
+`CheckViewModelTest` (the selection popup closes a keyboard left up by the app below as it
+first takes focus, and still keeps it hidden for its window; its navigation bar keeps the
+scrim, with icons for the light and the dark theme), `OverlayKeyboardTest` and
+`ReplacementRecoveryTest` (the accessibility card: show mode hidden while it shows, back as a
+card field takes focus, which opens the keyboard, and on a detour and on closing; the window
+fits above the keyboard and inside the navigation bar).
 
 ## Limits
 
 - The switch is read when a check is shown. Turning it on while a card is open applies from
   the next check.
+- That the app's keyboard below really closes as the card opens, and that the navigation
+  buttons show under the card's own keyboard, can only be seen on a device: Robolectric has no
+  other app, no keyboard window and no navigation bar. The tests check what the card asks of
+  Android.
 - Focus waiting for the first tap, then the field opening the keyboard by itself, the room to
   type, the haptic and the sound have been checked in tests (Robolectric, with IME insets sent to the view), not yet on a
   device: not on the popup over other apps, where the keyboard and the card share the

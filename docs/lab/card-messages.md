@@ -39,8 +39,8 @@ only the wrong-language hint differs per host (`LanguageHint`).
 |---|---|---|---|
 | Unclear | all | Linguize couldn't tell what this means / Check a full sentence / Say what you meant › | Linguize couldn't tell what this means / Try writing it as a full sentence, or clarify what you mean. / Clarify what you mean › |
 | Unclear, read-only card (no clarify) | any host without `onClarify` | … / Check a full sentence | … / Try writing it as a full sentence. |
-| Looks good, from another app | menu (editable selection), button, share, tile | Looks good / Nothing to fix, sounds natural (no action: close the card) | Looks good / Nothing to fix, sounds natural / **Leave as written** (closes; saved in History unchanged, see [Leave as written](review-flow.md#leave-as-written)) |
-| Every change skipped, from another app | menu (editable selection), button, tile | the sections, nothing to end with | the sections, then **Leave as written** where Replace would be |
+| Looks good, from another app | menu (editable selection), button, share, tile | Looks good / Nothing to fix, sounds natural (no action: close the card) | Looks good / Nothing to fix, sounds natural / **Save** (closes; saved in History unchanged, see [Leave as written](review-flow.md#leave-as-written)); **Close** with History off, where it saves nothing |
+| Every change skipped, from another app | menu (editable selection), button, tile | the sections, nothing to end with | the sections, then **Save** (or **Close**, History off) where Replace would be |
 | Unclear, from another app | menu, button, share, tile | (none) | … then [What are you replying to?](reply-context.md#from-other-apps) / Pick their message (button card only), Paste / No messages found. Copy it, then tap Paste. / Copy their message first. / Replying to "…" × / Check again |
 | Wrong language, found | P | This isn't Catalan / It looks like French. Choose Auto Detect to detect the language. | This isn't Catalan / It looks like French. Choose Auto Detect to check it in that language. |
 | Wrong language, not found | P | … / Choose Auto Detect to detect the language. | … / Choose Auto Detect to check it in any language. |

@@ -383,6 +383,9 @@ class CheckViewModel(
         return saved
     }
 
+    /** Lab, Leave as written: whether History is on, so the button that saves says Save (or else Close). */
+    val historyOn: Boolean get() = history.historyOn
+
     /** A permitted History link for a host that must save its message before closing the check. */
     val pendingSessionId: String? get() = history.pendingSessionId
 

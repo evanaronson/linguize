@@ -89,14 +89,27 @@ fun KeyboardBackHandler(fieldCounts: Boolean = false) {
  */
 object FocusedFields {
     private val focused = mutableStateMapOf<Any, View>()
+    private val watchers = mutableMapOf<View, (Boolean) -> Unit>()
 
     internal fun set(owner: Any, host: View, isFocused: Boolean) {
+        val before = anyIn(host)
         // Written only on a change, so a field reporting its unchanged focus recomposes nothing.
         if (isFocused) {
             if (focused[owner] !== host) focused[owner] = host
         } else if (owner in focused) {
             focused.remove(owner)
         }
+        val now = anyIn(host)
+        if (now != before) watchers[host]?.invoke(now)
+    }
+
+    /**
+     * Calls [onChange] as soon as a field hosted by [host] takes focus or the last one leaves it,
+     * in the same input event, before the field asks for the keyboard; null stops. For the
+     * accessibility overlay, which lets the keyboard show only once a card field has focus.
+     */
+    fun watch(host: View, onChange: ((focused: Boolean) -> Unit)?) {
+        if (onChange == null) watchers.remove(host) else watchers[host] = onChange
     }
 
     /** Whether one of the app's text fields hosted by [host] has focus. */

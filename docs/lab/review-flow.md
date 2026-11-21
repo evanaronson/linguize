@@ -166,10 +166,10 @@ reached Words, Conjugations, Patterns or Time spent, which all read History. In 
 sent message is saved, unchanged ones too ("Sent as written"); the popup had no equivalent.
 
 - **A clean check** from another app (selection menu, accessibility button, share, quick tile)
-  ends with one filled button under "Looks good": **Leave as written**. It closes the card,
-  leaves the text where it is, and with History on saves the check unchanged and visible
-  (outcome `as_written`, see [History](../history.md#what-is-recorded)). With History off it
-  only closes.
+  ends with one filled button under "Looks good": **Save**. It closes the card, leaves the
+  text where it is, and with History on saves the check unchanged and visible (outcome
+  `as_written`, see [History](../history.md#what-is-recorded)). With History off it saves
+  nothing and only closes, so it says **Close** there.
 - **Every change skipped.** The same gap: a walk that ended with everything skipped and nothing
   accepted had no Replace either. Once the walk is over that way, the button sits where Replace
   would ("…, Undo, Replace" has nothing to count), and is brought into view the same way. The
@@ -186,13 +186,16 @@ sent message is saved, unchanged ones too ("Sent as written"); the popup had no 
 - **Not on a read-only selection.** The selection menu shows it only when the text can be put
   back: a read-only selection is usually a message the writer received, not wrote.
 
-**Why "Leave as written".** The card's last button says what happens to the text (Replace,
-Send; not Done or OK, [copy style](../copy-style.md)). Here nothing happens to it: it stays as
-written, true with History on or off, and in every host (the field, the shared text, the
-clipboard). It matches the chat's "Send as written" and its "Sent as written". Not "Keep as
-written": copy style keeps "kept" off the idea of saving (that is "saved"), and a button that
-saves would read as "keep this", a promise about storage rather than about the text. History
-says "Left as written" under the text.
+**Why "Save" (and "Close").** The button first said "Leave as written". The owner: "that
+sounds like you are contemplating changing it; just say Save since that's all the button is
+doing." The card's last button says what it does (Replace, Send; not Done or OK,
+[copy style](../copy-style.md)), and here the only thing it does is save the check: the text
+stays where it is either way. With History off it saves nothing, so "Save" would be false; it
+says "Close", which is all it does then (`CardActions.leaveAsWrittenSaves`, read from History's
+setting as the card shows). Not "Keep": copy style keeps "kept" off the idea of saving (that is
+"saved"). The feature keeps its name, Leave as written, in these docs and the code. History
+still says "Left as written" under the text: next to a button that says Save it reads as what
+was saved (the text, unchanged), matching the chat's "Sent as written".
 
 ## Decisions
 
@@ -258,14 +261,15 @@ each state composed fresh), `OneChangeViewTest`, `TypeToAcceptCardTest`,
 Every host (popup over other apps, the selection-menu card, Chat, Notes, the clipboard
 card) shows the same `ResultCard`, so the flow is identical everywhere. Nothing new is
 recorded: History still sees only accepts, Accept all, Undo, copies and the final text.
-A skip is not a decision and isn't saved; Leave as written after skipping everything saves the
-check with those changes not accepted.
+A skip is not a decision and isn't saved; Save (Leave as written) after skipping everything
+saves the check with those changes not accepted.
 
 Leave as written: `CardActions.onLeaveAsWritten` (the hosts: `CheckActivity`, `ShareActivity`,
 `ClipboardActivity`, the accessibility card), `LeaveAsWrittenRow` in `ReviewContent.kt`,
 `ReviewFlowUi.allSkipped`, `CheckViewModel.leaveAsWritten`, `CheckHistory.close(asWritten)` and
-`Outcome.AsWritten`. Tests: `LeaveAsWrittenCardTest` (the button on a clean card and after
-skipping everything; none without the action; Replace once something is accepted),
+`Outcome.AsWritten`. Tests: `LeaveAsWrittenCardTest` (the button, Save, on a clean card and
+after skipping everything; Close with History off; none without the action; Replace once
+something is accepted),
 `LeaveAsWrittenTest` (saved unchanged and visible, read by the corpus; nothing saved without it,
 with History off, from Notes' origin, or with something accepted; Chat unchanged; older records'
 visibility unchanged), `ClipboardActivityTest`, `CheckViewModelTest` (the selection menu hands

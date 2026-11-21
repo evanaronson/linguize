@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.WindowManager.LayoutParams
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Spacer
@@ -15,7 +16,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -54,13 +54,19 @@ class ShareActivity : ComponentActivity() {
     private var text = ""
     private var leftAsWritten = false
 
+    /** The card first shows with no keyboard; see [FirstLookKeyboard]. */
+    private val firstLook = FirstLookKeyboard()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
         // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
         // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // enableEdgeToEdge, not just "decor doesn't fit system windows": it also gives the bars
+        // icons for the theme (light or dark) and keeps Android's scrim behind three-button
+        // navigation, so the navigation buttons always show against what's below.
+        enableEdgeToEdge()
         text = SharedContent.text(intent) ?: run {
             Toast.makeText(this, R.string.lab_share_text_no_text, Toast.LENGTH_SHORT).show()
             return finish()
@@ -148,6 +154,11 @@ class ShareActivity : ComponentActivity() {
     private fun openSettings() {
         returningFromApp = true
         startActivity(HomeActivity.settingsIntent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        firstLook.windowFocused(window, hasFocus)
     }
 
     override fun onResume() {

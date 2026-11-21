@@ -80,7 +80,7 @@ class LeaveAsWrittenCardTest {
         state.value = done.copy(result = result.copy(revision = change(result.revision)))
     }
 
-    private fun show(result: CheckResult.Reviewed, leave: Boolean = true) {
+    private fun show(result: CheckResult.Reviewed, leave: Boolean = true, historyOn: Boolean = true) {
         state.value = CardState.Done(result)
         val actions = CardActions(
             onCopy = { _, _ -> },
@@ -93,6 +93,7 @@ class LeaveAsWrittenCardTest {
             ),
             onRetry = {}, onOpenSettings = null, onSettle = { _, _ -> },
             onLeaveAsWritten = if (leave) ({ left++ }) else null,
+            leaveAsWrittenSaves = { historyOn },
         )
         uiScope.launch { recomposer.runRecomposeAndApplyChanges() }
         activity.setContentView(ComposeView(activity).apply {
@@ -105,9 +106,19 @@ class LeaveAsWrittenCardTest {
     @Test fun aCleanCheckFromAnotherAppEndsInLeaveAsWritten() {
         show(clean)
         assertTrue(hasText(activity.getString(R.string.looks_good)))
-        assertEquals("One button: Leave as written", 1, buttons(R.string.lab_leave_as_written).size)
-        assertEquals("Leave as written", activity.getString(R.string.lab_leave_as_written))
+        assertEquals("One button: Save", 1, buttons(R.string.lab_leave_as_written).size)
+        assertEquals("Save", activity.getString(R.string.lab_leave_as_written))
         click(R.string.lab_leave_as_written)
+        assertEquals(1, left)
+    }
+
+    /** With History off the button saves nothing, so it says Close; it still just closes the card. */
+    @Test fun withHistoryOffTheButtonSaysClose() {
+        show(clean, historyOn = false)
+        assertEquals("Close", activity.getString(R.string.lab_leave_as_written_close))
+        assertTrue("Never Save when nothing is saved", buttons(R.string.lab_leave_as_written).isEmpty())
+        assertEquals(1, buttons(R.string.lab_leave_as_written_close).size)
+        click(R.string.lab_leave_as_written_close)
         assertEquals(1, left)
     }
 

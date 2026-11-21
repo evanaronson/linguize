@@ -36,6 +36,11 @@ class CardActions(
      * has Send as written, and Notes and the app's own cards save nothing.
      */
     val onLeaveAsWritten: (() -> Unit)? = null,
+    /**
+     * Lab, Leave as written: whether that button saves (History is on). It says Save when it
+     * does and Close when it doesn't, since then it only closes the card. Read as the card shows.
+     */
+    val leaveAsWrittenSaves: () -> Boolean = { true },
 ) {
     companion object {
         /**
@@ -79,6 +84,7 @@ class CardActions(
             phraseOrigin = phraseOrigin,
             replyContext = replyContext,
             onLeaveAsWritten = onLeaveAsWritten,
+            leaveAsWrittenSaves = { check.historyOn },
         )
     }
 }

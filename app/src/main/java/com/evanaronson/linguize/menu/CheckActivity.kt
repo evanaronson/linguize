@@ -5,13 +5,13 @@ import android.os.BadParcelableException
 import android.os.Bundle
 import android.view.WindowManager.LayoutParams
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.PopupPosition
@@ -49,6 +49,9 @@ class CheckActivity : ComponentActivity() {
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
 
+    /** The card first shows with no keyboard; see [FirstLookKeyboard]. */
+    private val firstLook = FirstLookKeyboard()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         popupPosition = App.of(this).settings.popupPosition
@@ -56,7 +59,10 @@ class CheckActivity : ComponentActivity() {
         // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
         // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
         // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // enableEdgeToEdge, not just "decor doesn't fit system windows": it also gives the bars
+        // icons for the theme (light or dark) and keeps Android's scrim behind three-button
+        // navigation, so the navigation buttons always show against what's below.
+        enableEdgeToEdge()
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         // Exported aliases are callable by any app. Reject malformed launches before
         // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.
@@ -127,6 +133,11 @@ class CheckActivity : ComponentActivity() {
     internal fun openApp() {
         returningFromApp = true
         startActivity(HomeActivity.homeIntent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        firstLook.windowFocused(window, hasFocus)
     }
 
     override fun onResume() {

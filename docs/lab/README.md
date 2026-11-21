@@ -33,7 +33,7 @@ Settings behind the gear.
 | Everywhere | [Any language](language-generic.md): any ISO 639-1 language works end to end; the writer's languages are the selector's short list, with one writing profile each | Top bar; Settings; card picker |
 | Before sending | [Meaning](meaning-lands.md): what the text says and how it lands, as one section that opens in place at the card's foot | Card, History |
 | Learning over time | [Type to accept](type-to-accept.md): off by default; when on, the open change's Accept becomes a field, and typing the change exactly accepts it | Settings › Checking; the card everywhere |
-| Learning over time | [Leave as written](review-flow.md#leave-as-written): a clean check from another app (or one with every change skipped) ends in Leave as written, which saves it in History unchanged, so correct writing counts too | The popup card |
+| Learning over time | [Leave as written](review-flow.md#leave-as-written): a clean check from another app (or one with every change skipped) ends in Save, which saves it in History unchanged, so correct writing counts too | The popup card |
 
 ## Language scope
 

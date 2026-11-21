@@ -1598,6 +1598,65 @@ class CheckViewModelTest {
         caller.pause().stop().destroy()
     }
 
+
+    /**
+     * The popup's bars, in the light and the dark theme: Android's scrim stays behind three-button
+     * navigation (contrast enforced, the bar itself transparent), and the buttons' icons are
+     * the theme's (dark on the light scrim, light on the dark one), so they always show. Before
+     * enableEdgeToEdge the light theme's popup asked for light icons. This is the contract the
+     * popup sets; whether the buttons show under a real keyboard is decided by Android and the
+     * keyboard, and can only be seen on a device.
+     */
+    @Test
+    @Config(application = App::class)
+    fun thePopupsNavigationButtonsFollowTheLightTheme() = assertBars(night = false)
+
+    @Test
+    @Config(application = App::class, qualifiers = "night")
+    fun thePopupsNavigationButtonsFollowTheDarkTheme() = assertBars(night = true)
+
+    private fun assertBars(night: Boolean) {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        val caller = Robolectric.buildActivity(ResultCaller::class.java).setup()
+        val controller = launchSelection(caller.get()).visible()
+        val window = controller.get().window
+        val bars = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        assertEquals("Dark icons in the light theme, light in the dark", !night, bars.isAppearanceLightNavigationBars)
+        assertTrue("Android's scrim behind three-button navigation", window.isNavigationBarContrastEnforced)
+        @Suppress("DEPRECATION")
+        assertEquals("The bar itself is transparent: the scrim is Android's", 0, window.navigationBarColor ushr 24)
+        controller.pause().stop().destroy()
+        caller.pause().stop().destroy()
+    }
+
+    /**
+     * The card's first look comes with no keyboard: a keyboard still up from the app the text
+     * came from closes as the popup takes focus, and the popup still asks Android to keep it
+     * hidden (always hidden, resized for it). A tap on a card field opens it again
+     * (TypeToAcceptCardTest, PopupKeyboardTest).
+     */
+    @Test
+    @Config(application = App::class)
+    fun thePopupClosesTheSourceKeyboardOnItsFirstLook() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        val caller = Robolectric.buildActivity(ResultCaller::class.java).setup()
+        val imm = caller.get().getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+        // The source app's keyboard is up.
+        imm.showSoftInput(caller.get().window.decorView, 0)
+        assertTrue(shadowOf(imm).isSoftInputVisible)
+        val controller = launchSelection(caller.get()).visible()
+        val window = controller.get().window
+        assertEquals(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE, window.attributes.softInputMode)
+        controller.windowFocusChanged(true)
+        assertFalse("The keyboard closed for the card's first look", shadowOf(imm).isSoftInputVisible)
+        assertEquals("Nothing on the card took focus", null, window.decorView.findFocus()?.takeIf { it.onCheckIsTextEditor() })
+        controller.pause().stop().destroy()
+        caller.pause().stop().destroy()
+    }
+
     @Test
     fun backFromSettingsWithNoCardDoesNothing() {
         check.recheckIfStale()

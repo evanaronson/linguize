@@ -6,13 +6,13 @@ import android.os.Bundle
 import android.view.WindowManager.LayoutParams
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Language
@@ -59,6 +59,9 @@ class ClipboardActivity : ComponentActivity() {
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
 
+    /** The card first shows with no keyboard; see [FirstLookKeyboard]. */
+    private val firstLook = FirstLookKeyboard()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Only this app's own tile and shortcuts start it; refuse anything else.
@@ -68,7 +71,10 @@ class ClipboardActivity : ComponentActivity() {
         // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
         // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
         // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // enableEdgeToEdge, not just "decor doesn't fit system windows": it also gives the bars
+        // icons for the theme (light or dark) and keeps Android's scrim behind three-button
+        // navigation, so the navigation buttons always show against what's below.
+        enableEdgeToEdge()
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         language = Language.forCode(savedInstanceState?.getString(KEY_LANGUAGE))
         val restored = savedInstanceState?.getString(KEY_TEXT)?.let(Selection::of)?.takeIf { it.text.isNotEmpty() }
@@ -149,6 +155,7 @@ class ClipboardActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        firstLook.windowFocused(window, hasFocus)
         if (hasFocus && waitingForFocus) read()
     }
 

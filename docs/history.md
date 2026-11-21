@@ -41,7 +41,8 @@ detail pages and exports. No migration deletes those records.
 Replace, so it was never saved, and the writer's correct words never reached Words,
 Conjugations, Patterns or Time spent, which read visible History. The popup card (selection
 menu, accessibility button, share, quick tile) now ends a clean check, or a review whose every
-change was skipped, with **Leave as written**. The writer's tap is the evidence: the session is
+change was skipped, with a **Save** button (Leave as written; it says Close with History
+off, when it saves nothing). The writer's tap is the evidence: the session is
 saved with outcome `as_written` and the checked text as its final text, nothing having gone
 back to the app. Changes still on offer are `ignored`. Closing the card any other way (a tap
 outside, Back) saves nothing, as before. With History off the button only closes. A read-only

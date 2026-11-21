@@ -36,6 +36,7 @@ import com.evanaronson.linguize.data.lab.TypeToAcceptPreferences
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -152,7 +153,8 @@ class TypeToAcceptCardTest {
         assertTrue(hasText("Why cinema"))
         assertTrue("The field stands in for Accept", buttons(R.string.accept).isEmpty())
         val rewordingLabel = activity.getString(R.string.lab_type_to_accept_label, "cinema")
-        assertEquals("Focus goes to the field", true, field(rewordingLabel)?.config?.getOrNull(SemanticsProperties.Focused))
+        assertNotEquals("Nothing has focus as the card first shows", true,
+            field(rewordingLabel)?.config?.getOrNull(SemanticsProperties.Focused))
         type(rewordingLabel, "cinema")
         assertEquals("Accepted through the same Accept action", listOf(3), accepted)
         assertTrue("Moves on to the fixes", hasText("Why yo"))
@@ -162,7 +164,8 @@ class TypeToAcceptCardTest {
         val label = activity.getString(R.string.lab_type_to_accept_label, "amigos")
         assertNotNull(field(label))
         assertEquals("The next field starts empty", "", field(label)?.config?.getOrNull(SemanticsProperties.EditableText)?.text)
-        assertEquals("Focus goes to the field", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
+        assertEquals("Once the writer engaged, focus goes to the next field", true,
+            field(label)?.config?.getOrNull(SemanticsProperties.Focused))
         assertEquals("Skip stays beside the field", 1, buttons(R.string.lab_review_flow_skip).size)
 
         type(label, "ami")
@@ -185,6 +188,40 @@ class TypeToAcceptCardTest {
         assertEquals(setOf(deletion, fix, rewording), revision.acceptedEdits.toSet())
         assertFalse("The walk ends", hasText("Why amigos"))
         assertTrue(fields().isEmpty())
+    }
+
+    @Test fun theCardOpensWithNothingFocusedAndATapOnTheFieldFocusesIt() {
+        show(typeToAccept = true)
+        val label = activity.getString(R.string.lab_type_to_accept_label, "cinema")
+        assertNotNull("The field stands in for Accept", field(label))
+        assertTrue("Nothing on the card has focus", nodes().none { it.config.getOrNull(SemanticsProperties.Focused) == true })
+        tap(label)
+        assertEquals("A tap on the field focuses it", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
+    }
+
+    @Test fun skippingIsNotEngagingSoTheNextFieldWaitsForATap() {
+        show(typeToAccept = true)
+        click(R.string.lab_review_flow_skip) // the rewording, untouched
+        click(R.string.lab_review_flow_skip) // the deletion
+        val amigos = activity.getString(R.string.lab_type_to_accept_label, "amigos")
+        assertNotNull(field(amigos))
+        assertNotEquals("Skipping isn't engaging: still nothing focused", true,
+            field(amigos)?.config?.getOrNull(SemanticsProperties.Focused))
+        tap(amigos)
+        assertEquals(true, field(amigos)?.config?.getOrNull(SemanticsProperties.Focused))
+    }
+
+    @Test fun tappingAnotherChangeOpensItsFieldWithFocus() {
+        show(typeToAccept = true)
+        val why = activity.getString(R.string.change_why_replace, "amigo", "amigos")
+        val open = nodes().firstNotNullOf { node ->
+            node.config.getOrNull(SemanticsActions.CustomActions)?.firstOrNull { it.label == why }
+        }
+        assertTrue(open.action())
+        settle()
+        val label = activity.getString(R.string.lab_type_to_accept_label, "amigos")
+        assertEquals("Reaching for a change is engaging: its field takes focus", true,
+            field(label)?.config?.getOrNull(SemanticsProperties.Focused))
     }
 
     @Test fun skipStillMovesOnWithoutAccepting() {
@@ -226,6 +263,12 @@ class TypeToAcceptCardTest {
     private fun type(label: String, value: String) {
         val action = requireNotNull(field(label)) { "No field labelled $label" }.config[SemanticsActions.SetText].action
         assertTrue(requireNotNull(action).invoke(AnnotatedString(value)))
+        settle()
+    }
+
+    private fun tap(label: String) {
+        val action = requireNotNull(field(label)) { "No field labelled $label" }.config[SemanticsActions.RequestFocus].action
+        assertTrue(requireNotNull(action).invoke())
         settle()
     }
 

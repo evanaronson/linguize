@@ -30,8 +30,9 @@ source app, so there's no Replace. Back returns to the chooser.
 ## Limits
 
 - A shared-text check is recorded in History as a selection-menu check (no source app is
-  known), because History has no separate origin for shares. Understand is never
-  recorded.
+  known), because History has no separate origin for shares. Nothing is put back from a
+  share, so the only check saved from here is one the writer closes with
+  [Leave as written](review-flow.md#leave-as-written). Understand is never recorded.
 - The Understand card's labels say "Copied text" even when the text was shared.
 - Images aren't accepted. Understand a photo was removed: a general assistant does it
   better, and it isn't part of the writing loop.

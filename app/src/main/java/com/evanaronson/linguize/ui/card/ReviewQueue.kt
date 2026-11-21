@@ -105,9 +105,18 @@ internal class ReviewFlow(private val kinds: List<EditKind>, revision: Revision)
     /** Bumped by the writer's own moves (tap, skip) so readers recompose. */
     private var moves by mutableIntStateOf(0)
 
+    /**
+     * Lab, Type to accept: whether the writer has engaged with the walk on this check: accepted
+     * a change, typed in or tapped a change's field, or tapped a change. Until then no field
+     * takes focus by itself, so the card first shows whole, without the keyboard over it.
+     */
+    var engaged = false
+        private set
+
     fun focus(revision: Revision): ReviewFocus {
         moves // read, so a tap or skip recomposes the readers
         if (revision != seen) {
+            if (revision.original == seen.original && revision.steps.size > seen.steps.size) engaged = true
             current = current.follow(seen, revision, kinds)
             seen = revision
         }
@@ -115,8 +124,15 @@ internal class ReviewFlow(private val kinds: List<EditKind>, revision: Revision)
     }
 
     fun select(id: Int?) {
+        // A tap on another change is the writer reaching for it: its field may take focus.
+        if (id != null) engaged = true
         current = current.select(id)
         moves++
+    }
+
+    /** The writer typed in, or tapped, a change's field. */
+    fun engage() {
+        engaged = true
     }
 
     fun skip() {
@@ -138,4 +154,11 @@ class ReviewSelection(
     val typeToAccept: Boolean = false,
     /** Changes the writer skipped: drawn as their original words, unmarked, until opened again. */
     val skipped: Set<Int> = emptySet(),
+    /**
+     * Lab, Type to accept: whether the open change's field takes focus (and opens the keyboard)
+     * by itself. False when the card first shows; true once the writer engaged ([ReviewFlow.engaged]).
+     */
+    val autoFocus: Boolean = true,
+    /** Lab, Type to accept: the writer typed in, or tapped, a field. */
+    val onEngage: () -> Unit = {},
 )

@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -51,10 +52,15 @@ class ShareActivity : ComponentActivity() {
     private var language by mutableStateOf<Language?>(null)
     private var returningFromApp = false
     private var text = ""
+    private var leftAsWritten = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
+        // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
+        // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         text = SharedContent.text(intent) ?: run {
             Toast.makeText(this, R.string.lab_share_text_no_text, Toast.LENGTH_SHORT).show()
             return finish()
@@ -71,7 +77,9 @@ class ShareActivity : ComponentActivity() {
 
         // Lab, Replying to: Paste only, as in the selection menu.
         val actions = CardActions.of(check, context = this, onClose = ::finish, onOpenSettings = ::openSettings, canReplace = false,
-            replyContext = ReplyContextActions.of(check, this))
+            replyContext = ReplyContextActions.of(check, this),
+            // Lab, Leave as written: the writer chose Check it, so the text is theirs to confirm.
+            onLeaveAsWritten = ::leaveAsWritten)
         setContent {
             AppTheme {
                 com.evanaronson.linguize.ui.components.NavigationBackHandler(enabled = job != ShareJob.Choose, onBack = ::backToChoice)
@@ -161,9 +169,21 @@ class ShareActivity : ComponentActivity() {
         outState.putString(KEY_LANGUAGE, language?.code)
     }
 
-    /** Closes the session; History learns nothing was applied, since nothing can be. */
+    /** Lab, Leave as written: closes the card and saves the check as written. */
+    private fun leaveAsWritten() {
+        leftAsWritten = true
+        finish()
+    }
+
+    /**
+     * Closes the session; History learns nothing was applied, since nothing can be. Lab, Leave
+     * as written: closed with it, the check is saved as written instead.
+     */
     override fun finish() {
-        if (job == ShareJob.Check) check.dismiss(applied = false, waitMs = CLOSE_WAIT_MS)
+        if (job == ShareJob.Check) {
+            if (leftAsWritten) check.leaveAsWritten(waitMs = CLOSE_WAIT_MS)
+            else check.dismiss(applied = false, waitMs = CLOSE_WAIT_MS)
+        }
         super.finish()
     }
 

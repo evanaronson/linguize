@@ -36,12 +36,25 @@ what a person comes to do. It doesn't add features.
    are a tap lower, not gone.
 6. **Back is predictable.** The start destination is the root. Every other tab sits right
    above it, so Back from any tab returns to the start, and Back from the start leaves.
-   While the keyboard is up, the first Back only closes it (and leaves the field); the next
-   Back navigates. This holds everywhere: the app, the new-conversation sheet, the popups
-   over other apps and the accessibility window. Every Back handler is a
-   `NavigationBackHandler`, which stands aside while the keyboard is up, and each window
-   has one `KeyboardBackHandler` that takes that Back (`ui/components/BackNavigation.kt`,
-   `backAction`; the accessibility window checks the keyboard itself in `OverlayWindow`).
+   While the keyboard is up, the first Back only closes it (and leaves the field): it never
+   closes a card, a screen, a sheet or a dialog, and never navigates. The next Back, with the
+   keyboard down, does what it always did. This is an app-wide rule, not a tab rule: the
+   app's pages (Chat's composer and review, Notes, Settings' fields, Words' search, the
+   Clarify editor, Teach me), the new-conversation sheet, dialogs with a field (Rename
+   conversation, Import a deck), the popups over other apps (selection menu, share, quick
+   tile) and the accessibility window. Every Back handler is a `NavigationBackHandler`, which
+   stands aside while the keyboard is up, and each window has one `KeyboardBackHandler` that
+   takes that Back (`ui/components/BackNavigation.kt`, `backAction`). How a window knows the
+   keyboard is up: the keyboard's own insets (`imeVisible()`); the popup activities lay out
+   edge to edge so they get them on every Android version. Where a window may not be told
+   (a dialog, the card over other apps, the accessibility window), a focused text field of
+   the app counts too (`FocusedFields`, reported by every text field, and
+   `KeyboardBackHandler(fieldCounts = true)`): there the first Back leaves the field even if
+   the keyboard was already closed another way, which costs one Back and never the card's
+   accepted changes. The accessibility window answers Back itself (a key or a back callback),
+   checking the window's insets and its fields, in `OverlayWindow`. Tests:
+   `KeyboardBackTest`, `BackNavigationTest`, and `CheckViewModelTest` for the selection-menu
+   activity.
 
 ## The person's jobs
 

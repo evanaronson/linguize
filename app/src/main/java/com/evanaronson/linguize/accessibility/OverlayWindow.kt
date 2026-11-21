@@ -17,7 +17,14 @@ import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
+import com.evanaronson.linguize.ui.components.BackAction
+import com.evanaronson.linguize.ui.components.FocusedFields
+import com.evanaronson.linguize.ui.components.backAction
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -39,6 +46,11 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
  * While shown, the window takes key focus so Back reaches [onBack] rather than the app
  * below, which would otherwise leave the screen the card's text field is on. The
  * keyboard closes while the card is open, matching the text-selection activity.
+ *
+ * Lab, Consistency: Back while the keyboard is up (a card field: Type to accept, Clarify)
+ * only closes the keyboard and leaves the field; the card stays, with everything accepted.
+ * A window above other apps isn't reliably told about the keyboard, so a focused field of the
+ * card counts as the keyboard being up too ([FocusedFields]).
  */
 internal class OverlayWindow(private val context: Context, private val onBack: () -> Unit) :
     LifecycleOwner,
@@ -68,6 +80,10 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
     private var focusAction: (() -> Unit)? = null
     private var focusTimeout: Runnable? = null
     private var root: View? = null
+
+    /** The view hosting the content's composition, and how it closes the keyboard; set by [KeyboardBridge]. */
+    private var contentView: View? = null
+    private var closeKeyboard: (() -> Unit)? = null
 
     /** Clipboard reads require focus; never read speculatively while attaching or hidden. */
     fun whenFocused(onReady: () -> Unit, onUnavailable: () -> Unit) {
@@ -119,7 +135,12 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             setViewTreeSavedStateRegistryOwner(this@OverlayWindow)
             setViewTreeViewModelStoreOwner(this@OverlayWindow)
             setViewTreeOnBackPressedDispatcherOwner(this@OverlayWindow)
-            addView(ComposeView(context).apply { setContent(content) })
+            addView(ComposeView(context).apply {
+                setContent {
+                    KeyboardBridge()
+                    content()
+                }
+            })
         }
         root.visibility = if (hidden || !screenAvailable) View.INVISIBLE else View.VISIBLE
         params.flags = windowFlags(hidden || !screenAvailable)
@@ -133,19 +154,43 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         }
     }
 
+    /** Lets Back close the keyboard the content's way: hide it and leave the field. */
+    @Composable
+    private fun KeyboardBridge() {
+        val keyboard = LocalSoftwareKeyboardController.current
+        val focus = LocalFocusManager.current
+        val view = LocalView.current
+        DisposableEffect(keyboard, focus, view) {
+            contentView = view
+            closeKeyboard = {
+                keyboard?.hide()
+                focus.clearFocus()
+            }
+            onDispose {
+                closeKeyboard = null
+                contentView = null
+            }
+        }
+    }
+
+    /** The keyboard is up: the window says so, or one of the card's fields has focus. */
+    internal fun keyboardUp(): Boolean {
+        val view = root ?: return false
+        val imeVisible = view.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.ime()) == true
+        return imeVisible || contentView?.let(FocusedFields::anyIn) == true
+    }
+
     /**
-     * Lab, Consistency: Back while the keyboard is up (a card field, such as Not what you
-     * mean) only closes the keyboard; the next Back goes back in the card or closes it.
+     * Lab, Consistency: Back while the keyboard is up (a card field: Type to accept, Clarify what
+     * you mean) only closes the keyboard; the card, its accepted changes and its place stay. The
+     * next Back goes back in the card or closes it, as it always did.
      */
-    private fun onBackKey() {
+    internal fun onBackKey() {
         val view = root
-        val imeVisible = view?.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.ime()) == true
-        if (view != null && com.evanaronson.linguize.ui.components.backAction(imeVisible, handles = true) ==
-            com.evanaronson.linguize.ui.components.BackAction.CloseKeyboard
-        ) {
+        if (view != null && backAction(keyboardUp(), handles = true) == BackAction.CloseKeyboard) {
+            closeKeyboard?.invoke() ?: view.findFocus()?.clearFocus()
             context.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
                 ?.hideSoftInputFromWindow(view.windowToken, 0)
-            view.findFocus()?.clearFocus()
         } else {
             onBackPressedDispatcher.onBackPressed()
         }

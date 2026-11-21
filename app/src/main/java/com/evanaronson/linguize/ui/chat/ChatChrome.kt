@@ -191,7 +191,7 @@ private fun NewConversationSheet(
     var who by rememberSaveable { mutableStateOf("") }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Linguize.colors.ground) {
         // Back closes the keyboard first, then the sheet.
-        com.evanaronson.linguize.ui.components.KeyboardBackHandler()
+        com.evanaronson.linguize.ui.components.KeyboardBackHandler(fieldCounts = true)
         Column(
             Modifier
                 .fillMaxWidth()
@@ -310,6 +310,8 @@ private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.lab_chat_rename_title)) },
         text = {
+            // A dialog is its own window: Back with the keyboard up closes the keyboard, not the dialog.
+            com.evanaronson.linguize.ui.components.KeyboardBackHandler(fieldCounts = true)
             LinguizeTextField(title, { title = it.take(ChatViewModel.MAX_TITLE) }, label = stringResource(R.string.lab_chat_title_label),
                 singleLine = true)
         },

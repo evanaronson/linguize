@@ -83,8 +83,12 @@ internal object TypeToAccept {
     private val SPACES = Regex("\\s+")
 }
 
-/** One open change to type: [key] is its id, so each change starts with an empty field. */
-internal class TypeTarget(val key: Int, val text: String)
+/**
+ * One open change to type: [key] is its id, so each change starts with an empty field.
+ * [autoFocus]: whether its field takes focus by itself (not when the card first shows);
+ * [onEngage]: the writer typed in, or tapped, the field.
+ */
+internal class TypeTarget(val key: Int, val text: String, val autoFocus: Boolean = true, val onEngage: () -> Unit = {})
 
 /** Whether Type to accept is on; read once per check shown. */
 @Composable
@@ -171,8 +175,11 @@ internal suspend fun frameDelay(millis: Long) {
 internal const val CORRECT_HOLD_MILLIS = 700L
 
 /**
- * The field that stands in for Accept. It takes focus and opens the keyboard as it appears,
- * turns to the error state the moment the text stops matching, and on an exact match locks,
+ * The field that stands in for Accept. When the card first shows it waits, unfocused, so the
+ * writer sees the whole card; a tap on it focuses it and opens the keyboard. Once the writer
+ * engaged ([autoFocus]: accepted, typed, tapped a field or a change), a field takes focus and
+ * opens the keyboard as it appears, or as it moves to the next change. It turns to the error
+ * state the moment the text stops matching, and on an exact match locks,
  * shows it is correct (a check at its end, read out as "Correct"), resolves the change in the
  * text above ([CardTyping.resolving]), gives the feedback the writer chose, and after
  * [CORRECT_HOLD_MILLIS] accepts through the same [onAccept] as the button, once.
@@ -183,7 +190,14 @@ internal const val CORRECT_HOLD_MILLIS = 700L
  * rotation), the matched change is accepted then, still once.
  */
 @Composable
-internal fun TypeToAcceptField(target: String, onAccept: () -> Unit, modifier: Modifier = Modifier, key: Int = 0) {
+internal fun TypeToAcceptField(
+    target: String,
+    onAccept: () -> Unit,
+    modifier: Modifier = Modifier,
+    key: Int = 0,
+    autoFocus: Boolean = true,
+    onEngage: () -> Unit = {},
+) {
     var typed by rememberSaveable(key) { mutableStateOf("") }
     // The accept a match is waiting on: taken once, by the hold's end or by the field leaving.
     val pending = remember(key) { arrayOfNulls<() -> Unit>(1) }
@@ -214,15 +228,20 @@ internal fun TypeToAcceptField(target: String, onAccept: () -> Unit, modifier: M
             acceptOnce(pending)
         }
     }
-    LaunchedEffect(Unit) {
-        runCatching { focus.requestFocus() }
-        keyboard?.show()
+    // Each change once, and only after the writer engaged: the card first shows whole.
+    val autoFocused = remember { mutableSetOf<Int>() }
+    LaunchedEffect(key, autoFocus) {
+        if (autoFocus && autoFocused.add(key)) {
+            runCatching { focus.requestFocus() }
+            keyboard?.show()
+        }
     }
     LinguizeTextField(
         value = typed,
         onValueChange = { value ->
             // Locked once matched: what's typed during the hold is ignored.
             if (!matched) {
+                onEngage()
                 typed = TypeToAccept.typed(value)
                 if (TypeToAccept.progress(typed, target) == TypeToAccept.Progress.Match) {
                     matched = true
@@ -246,7 +265,11 @@ internal fun TypeToAcceptField(target: String, onAccept: () -> Unit, modifier: M
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done,
         ),
-        fieldModifier = Modifier.focusRequester(focus).onFocusChanged { typing?.focused(owner, it.isFocused) },
+        fieldModifier = Modifier.focusRequester(focus).onFocusChanged {
+            // A tap on the field is the writer engaging: the next changes' fields take focus.
+            if (it.isFocused) onEngage()
+            typing?.focused(owner, it.isFocused)
+        },
         accessibleLabel = stringResource(R.string.lab_type_to_accept_label, target),
         announceSupporting = true,
     )

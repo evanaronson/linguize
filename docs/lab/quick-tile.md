@@ -64,9 +64,12 @@ everywhere, so copy, pull down the shade, tap **Linguize Lab**.
 
 ## Limits
 
-- Checks from the tile or shortcuts are not saved in History (they use the in-app
-  origin). History holds checks whose changes were put back in another app, and
-  nothing is put back from here. Adding an origin would change what History stores.
+- Changes accepted from the tile or shortcuts are not saved in History: History holds
+  checks whose changes were put back in another app, and nothing is put back from here
+  (they go on the clipboard). The one exception is
+  [Leave as written](review-flow.md#leave-as-written): a check the writer closes with it
+  is saved unchanged, as a selection-menu check with no source app (`menu`), since there
+  is no separate origin for the tile. Closing the card any other way saves nothing.
 - The tile can't tell whose words were copied, so it asks rather than guesses. The
   shortcuts skip the question.
 - Android doesn't let an app add itself to Quick Settings without asking, so the tile

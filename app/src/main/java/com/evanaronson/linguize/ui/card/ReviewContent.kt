@@ -1,6 +1,8 @@
 package com.evanaronson.linguize.ui.card
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.HorizontalDivider
@@ -34,6 +36,11 @@ import com.evanaronson.linguize.ui.theme.Linguize
 internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, actions: CardActions) {
     if (result.looksGood) {
         Outcome(stringResource(R.string.looks_good), stringResource(looksGoodDetail(result.kinds)), success = true)
+        // Lab, Leave as written: the clean card's one action, which saves it as written.
+        actions.onLeaveAsWritten?.let {
+            Spacer(Modifier.height(12.dp))
+            LeaveAsWrittenRow(it)
+        }
         return
     }
 
@@ -81,6 +88,20 @@ internal fun Suggestions(result: CheckResult.Reviewed, settled: List<Settled>, a
         SectionDivider()
         AcceptedRow(revision.acceptedCount, review.onUndo, review.onApply, review.applyLabel,
             modifier = flow.finalAction)
+    } else if (review != null && flow.allSkipped) {
+        // Lab, Leave as written: every change skipped, nothing accepted. Where Replace would be.
+        actions.onLeaveAsWritten?.let {
+            SectionDivider()
+            LeaveAsWrittenRow(it, modifier = flow.finalAction)
+        }
+    }
+}
+
+/** Lab, Leave as written: the card's one filled action when the text stays as written. */
+@Composable
+internal fun LeaveAsWrittenRow(onLeave: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        LinguizeButton(stringResource(R.string.lab_leave_as_written), onLeave, ButtonKind.Filled)
     }
 }
 

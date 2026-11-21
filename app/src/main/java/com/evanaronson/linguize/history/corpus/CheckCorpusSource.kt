@@ -74,7 +74,8 @@ object CheckUtterances {
             // A chat message is always newly typed, and what it sent never comes back to be checked.
             val chat = session.origin == Origin.Chat
             val recheckOfPutBack = !chat && session.text.trim() in putBack
-            if (!chat) session.finalText?.let { putBack += it.trim() }
+            // Text left as written went nowhere new: a later check of it is the writer's again.
+            if (!chat) session.finalText?.takeIf { it != session.text }?.let { putBack += it.trim() }
             if (reused || recheckOfPutBack || session.origin == Origin.Tester) continue
             if (session.text.isBlank()) continue
             out += of(detail)

@@ -433,7 +433,8 @@ fun HighlightedText(
                     onSkip = selection?.onSkip?.takeIf { onReplace != null },
                     position = selection?.position?.takeIf { selection.selected == change.id },
                     typeToAccept = selection?.takeIf { it.typeToAccept && onReplace != null }
-                        ?.let { TypeToAccept.target(replacement) }?.let { TypeTarget(change.id, it) },
+                        ?.let { TypeToAccept.target(replacement) }
+                        ?.let { TypeTarget(change.id, it, autoFocus = selection.autoFocus, onEngage = selection.onEngage) },
                 )
             }
         }

@@ -95,6 +95,7 @@ fun LinguizeTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = fieldModifier
+                .tracksFieldFocus()
                 .fillMaxWidth()
                 .semantics {
                     // Keep the label with the edit action, including when a value is present.

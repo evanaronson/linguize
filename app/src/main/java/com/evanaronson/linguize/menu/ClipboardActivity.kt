@@ -59,6 +59,9 @@ class ClipboardActivity : ComponentActivity() {
     private var popupPosition by mutableStateOf(PopupPosition.Bottom)
     private var language by mutableStateOf<Language?>(null)
 
+    /** The card first shows with no keyboard; see [FirstLookKeyboard]. */
+    private val firstLook = FirstLookKeyboard()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Only this app's own tile and shortcuts start it; refuse anything else.
@@ -68,9 +71,9 @@ class ClipboardActivity : ComponentActivity() {
         // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
         // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
         // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
-        // enableEdgeToEdge, not just "decor doesn't fit system windows": it also sets the bars' icon colours for the
-        // light or dark theme (and a scrim for three-button navigation), so the navigation buttons
-        // stay visible under the keyboard.
+        // enableEdgeToEdge, not just "decor doesn't fit system windows": it also gives the bars
+        // icons for the theme (light or dark) and keeps Android's scrim behind three-button
+        // navigation, so the navigation buttons always show against what's below.
         enableEdgeToEdge()
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         language = Language.forCode(savedInstanceState?.getString(KEY_LANGUAGE))
@@ -152,6 +155,7 @@ class ClipboardActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        firstLook.windowFocused(window, hasFocus)
         if (hasFocus && waitingForFocus) read()
     }
 

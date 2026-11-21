@@ -35,6 +35,41 @@ Replacement targets the original field after the overlay detaches. Refresh it an
 
 Keep one History session per Check popup, Origin.Button, the source package and existing outcomes. Understand and unavailable inputs create no session. Start the check only after display setup succeeds; dispose of partial setup on failure. Replacement uses the text-action return value without post-write polling; see [History today](history.md) for what that outcome can establish.
 
+## The keyboard
+
+The card first shows with no keyboard ([Type to accept, First look](lab/type-to-accept.md#first-look)).
+The writer was usually typing in the field the button reads, so that app's keyboard is often
+up when the card opens. Left up, it stays over the card, types into the app below and not the
+card, and the card's field looks unfocused under a working keyboard.
+
+- **While the card shows, the soft keyboard is kept hidden**: the service sets its soft
+  keyboard show mode to hidden (`SoftKeyboardController`, no extra permission), which closes
+  the app's keyboard. `SOFT_INPUT_STATE_ALWAYS_HIDDEN` on the window alone did not reliably
+  close another app's keyboard.
+- **A card field taking focus gives the writer's show mode back** (a tap on the field or on a
+  change, or a later field taking focus by itself once the writer engaged), in the same input
+  event, and the field asks for the keyboard again a moment later, so the keyboard opens for
+  the card's field.
+- **The writer's show mode comes back** when the card hides for a detour (opening the app or
+  settings), and when it closes, however it closes, including the recovery card and the
+  service going away. Back over the app, the card hides the keyboard again unless one of its
+  fields still has focus. What comes back is the mode the service had before, whatever it was.
+- **The window fits above the keyboard and inside the navigation bar.** An accessibility
+  overlay is layered above both the keyboard's window and the navigation bar. Laid out in
+  screen, Android's compatibility fitting left the keyboard out, so the card's backdrop lay
+  over the keyboard: its keys could reach the backdrop (which closes the card) instead of the
+  keyboard. The window now fits the navigation bar, caption bar and keyboard explicitly; the
+  backdrop still reaches under the status bar, and the card pads itself for it.
+- **Back** is unchanged: with the keyboard up (or a card field focused) it only closes the
+  keyboard and leaves the field; with it closed, Back closes the card as before.
+
+Tests: `OverlayKeyboardTest` (hidden while the card first shows; a field taking focus restores
+the mode and opens the keyboard; a detour restores it and returning hides it again; closing
+restores the writer's own mode; the window's fitted insets), `ReplacementRecoveryTest` (through
+the service: hidden while the card and its recovery show, restored after). What only a handset
+shows: that Android closes the other app's keyboard for the hidden mode, and where the window,
+the keyboard and the navigation buttons end up on screen.
+
 ## Verification and scope
 
 The diagnostic releases passed unit tests and release builds. Regression checks
@@ -55,7 +90,7 @@ No background monitoring, new permissions, retrieval flags, screenshots, OCR, si
 
 - [LinguizeAccessibilityService.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/LinguizeAccessibilityService.kt) owns the shortcut, popup lifecycle, and replacement.
 - [FocusedField.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/FocusedField.kt) and [PrivateField.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/PrivateField.kt) own bounded lookup and private-field heuristics.
-- [OverlayWindow.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/OverlayWindow.kt) and [UnlockedScreen.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/UnlockedScreen.kt) own display lifecycle and lock-screen visibility.
+- [OverlayWindow.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/OverlayWindow.kt) and [UnlockedScreen.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/UnlockedScreen.kt) own display lifecycle and lock-screen visibility; [CardKeyboard.kt](../app/src/main/java/com/evanaronson/linguize/accessibility/CardKeyboard.kt) owns the keyboard's show mode while a card shows.
 - [Accessibility tests](../app/src/test/java/com/evanaronson/linguize/accessibility/) preserve the lookup and lifecycle regressions.
 
 

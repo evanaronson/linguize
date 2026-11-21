@@ -63,6 +63,8 @@ import com.evanaronson.linguize.ui.theme.AppTheme
 class LinguizeAccessibilityService : AccessibilityService() {
     /** The card on screen, or waiting hidden during an external detour; null when there's none. */
     private var card: Card? = null
+    /** Keeps the app's keyboard closed under the card until a card field takes focus. */
+    private val keyboard = CardKeyboard { runCatching { softKeyboardController }.getOrNull() }
     private val retryHandler = Handler(Looper.getMainLooper())
     private var pendingRetry: Runnable? = null
 
@@ -191,7 +193,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
 
         // Back closes the card as a tap outside it does; [close] is set just below.
         var onBack: () -> Unit = {}
-        val window = OverlayWindow(this, onBack = { onBack() })
+        val window = OverlayWindow(this, keyboard, onBack = { onBack() })
         val check = ViewModelProvider(window, CheckViewModel.factory(App.of(this)))[CheckViewModel::class.java]
         val understand = ViewModelProvider(window, UnderstandViewModel.factory(App.of(this)))[UnderstandViewModel::class.java]
         val voice = ViewModelProvider(window, CardVoiceViewModel.factory(App.of(this)))[CardVoiceViewModel::class.java]
@@ -326,7 +328,7 @@ class LinguizeAccessibilityService : AccessibilityService() {
     /** A fresh window keeps only the failed handoff's text, never its check or source field. */
     private fun showRecovery(text: String, position: PopupPosition) {
         var onBack: () -> Unit = {}
-        val window = OverlayWindow(this, onBack = { onBack() })
+        val window = OverlayWindow(this, keyboard, onBack = { onBack() })
         val backFromApp: () -> Unit = { window.hidden = false }
         var closed = false
         val dismiss: () -> Unit = {

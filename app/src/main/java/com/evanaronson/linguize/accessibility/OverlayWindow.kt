@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
 import android.widget.FrameLayout
@@ -44,15 +45,25 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
  * and clears them when it's removed.
  *
  * While shown, the window takes key focus so Back reaches [onBack] rather than the app
- * below, which would otherwise leave the screen the card's text field is on. The
- * keyboard closes while the card is open, matching the text-selection activity.
+ * below, which would otherwise leave the screen the card's text field is on.
+ *
+ * The keyboard: the card first shows with none. The app's keyboard below closes as the card
+ * shows ([keyboard], a [CardKeyboard]) and stays closed until a field of the card takes focus;
+ * the field then opens the keyboard for the card. The window sits above the keyboard's own
+ * window, so it fits itself above the keyboard ([overlayLayoutParams]): the keyboard stays
+ * visible and its keys reach it, never the card's backdrop. It never covers the navigation bar
+ * either, so the navigation buttons show and work as usual.
  *
  * Lab, Consistency: Back while the keyboard is up (a card field: Type to accept, Clarify)
  * only closes the keyboard and leaves the field; the card stays, with everything accepted.
  * A window above other apps isn't reliably told about the keyboard, so a focused field of the
  * card counts as the keyboard being up too ([FocusedFields]).
  */
-internal class OverlayWindow(private val context: Context, private val onBack: () -> Unit) :
+internal class OverlayWindow(
+    private val context: Context,
+    private val keyboard: CardKeyboard? = null,
+    private val onBack: () -> Unit,
+) :
     LifecycleOwner,
     SavedStateRegistryOwner,
     ViewModelStoreOwner,
@@ -66,24 +77,17 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
     override val onBackPressedDispatcher = OnBackPressedDispatcher { onBack() }
 
     private val windowManager = context.getSystemService(WindowManager::class.java)
-    private val params = LayoutParams(
-        LayoutParams.MATCH_PARENT,
-        LayoutParams.MATCH_PARENT,
-        LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        windowFlags(hidden = false),
-        PixelFormat.TRANSLUCENT,
-    ).apply {
-        softInputMode = LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-    }
+    private val params = overlayLayoutParams()
 
     private val focusHandler = Handler(Looper.getMainLooper())
     private var focusAction: (() -> Unit)? = null
     private var focusTimeout: Runnable? = null
     private var root: View? = null
 
-    /** The view hosting the content's composition, and how it closes the keyboard; set by [KeyboardBridge]. */
+    /** The view hosting the content's composition, and how it closes and opens the keyboard; set by [KeyboardBridge]. */
     private var contentView: View? = null
     private var closeKeyboard: (() -> Unit)? = null
+    private var openKeyboard: (() -> Unit)? = null
 
     /** Clipboard reads require focus; never read speculatively while attaching or hidden. */
     fun whenFocused(onReady: () -> Unit, onUnavailable: () -> Unit) {
@@ -147,6 +151,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         lifecycleRegistry.currentState = if (hidden || !screenAvailable) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
         windowManager.addView(root, params)
         this.root = root
+        if (!hidden && screenAvailable) keyboard?.closeSource()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val callback = OnBackInvokedCallback { onBackKey() }
             root.findOnBackInvokedDispatcher()?.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
@@ -166,11 +171,27 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
                 keyboard?.hide()
                 focus.clearFocus()
             }
+            openKeyboard = { keyboard?.show() }
+            // A card field took focus (a tap, or the next change after the writer engaged):
+            // the keyboard may show again, for the card's field.
+            FocusedFields.watch(view) { focused -> if (focused) fieldFocused() }
             onDispose {
+                FocusedFields.watch(view, null)
                 closeKeyboard = null
+                openKeyboard = null
                 contentView = null
             }
         }
+    }
+
+    /**
+     * Gives the keyboard back as a card field takes focus, then asks for it again a moment
+     * later: the field's own request may have come while it was still held closed.
+     */
+    private fun fieldFocused() {
+        val held = keyboard?.holding == true
+        keyboard?.release()
+        if (held) root?.post { if (contentView?.let(FocusedFields::anyIn) == true) openKeyboard?.invoke() }
     }
 
     /** The keyboard is up: the window says so, or one of the card's fields has focus. */
@@ -219,6 +240,10 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
         params.flags = windowFlags(hidden = invisible)
         windowManager.updateViewLayout(root, params)
         lifecycleRegistry.currentState = if (invisible) Lifecycle.State.STARTED else Lifecycle.State.RESUMED
+        // Hidden for a detour (the app, settings), the keyboard is the writer's again. Back, the
+        // card shows without one again, unless a field of the card still has focus.
+        if (invisible) keyboard?.release()
+        else if (contentView?.let(FocusedFields::anyIn) != true) keyboard?.closeSource()
     }
 
     /**
@@ -235,6 +260,7 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
             windowManager.removeViewImmediate(root)
         }
         root = null
+        keyboard?.release()
         backCallback = null
         try {
             afterDetach()
@@ -246,8 +272,28 @@ internal class OverlayWindow(private val context: Context, private val onBack: (
 }
 
 /**
- * Shown, the window takes focus for Back and hides the source keyboard, just like the
- * text-selection activity. Hidden, it lets all touches and keys pass through and cannot
+ * The overlay's window: full screen above every app, but fitted inside the navigation bar
+ * (its buttons stay visible and reachable, never under the card's backdrop) and above the
+ * keyboard. An accessibility overlay is layered above both the navigation bar and the
+ * keyboard's window, so without this the backdrop would cover the keyboard (its keys would
+ * close the card) and could cover the navigation bar. The status bar stays under the backdrop,
+ * as before; the card pads itself for it. Setting the types explicitly also stops Android's
+ * compatibility fitting, which drops the keyboard from them for a window laid out in screen.
+ */
+internal fun overlayLayoutParams(): LayoutParams = LayoutParams(
+    LayoutParams.MATCH_PARENT,
+    LayoutParams.MATCH_PARENT,
+    LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+    windowFlags(hidden = false),
+    PixelFormat.TRANSLUCENT,
+).apply {
+    softInputMode = LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    fitInsetsTypes = WindowInsets.Type.navigationBars() or WindowInsets.Type.captionBar() or WindowInsets.Type.ime()
+}
+
+/**
+ * Shown, the window takes focus for Back and asks for the source keyboard to close, just like
+ * the text-selection activity. Hidden, it lets all touches and keys pass through and cannot
  * become an input-method target.
  */
 internal fun windowFlags(hidden: Boolean): Int =

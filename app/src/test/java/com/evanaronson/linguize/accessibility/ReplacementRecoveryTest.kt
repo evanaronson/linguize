@@ -142,6 +142,20 @@ class ReplacementRecoveryTest {
         assertEquals("leave this alone", clipboard.primaryClip!!.getItemAt(0).text.toString())
     }
 
+    /** The app's keyboard stays closed while the card (and its recovery) shows, and is the writer's again after. */
+    @Test fun theAppsKeyboardIsClosedWhileACardShowsAndGivenBackAfter() {
+        val soft = service.softKeyboardController
+        assertEquals(AccessibilityService.SHOW_MODE_AUTO, soft.showMode)
+        val (original, _) = review()
+        assertEquals(AccessibilityService.SHOW_MODE_HIDDEN, soft.showMode)
+        back(original)
+        assertNotSame("The recovery card", original, currentWindow())
+        assertEquals("…shows without the keyboard too", AccessibilityService.SHOW_MODE_HIDDEN, soft.showMode)
+        click(R.string.shortcut_dismiss)
+        assertNull(card())
+        assertEquals(AccessibilityService.SHOW_MODE_AUTO, soft.showMode)
+    }
+
     @Test fun successfulWriteClosesNormallyWithoutRecovery() {
         val (original, check) = review()
         acceptWrite = true

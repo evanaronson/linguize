@@ -195,8 +195,11 @@ class TypeToAcceptCardTest {
         val label = activity.getString(R.string.lab_type_to_accept_label, "cinema")
         assertNotNull("The field stands in for Accept", field(label))
         assertTrue("Nothing on the card has focus", nodes().none { it.config.getOrNull(SemanticsProperties.Focused) == true })
+        val imm = shadowOf(activity.getSystemService(android.view.inputmethod.InputMethodManager::class.java))
+        assertFalse("No keyboard for the first look", imm.isSoftInputVisible)
         tap(label)
         assertEquals("A tap on the field focuses it", true, field(label)?.config?.getOrNull(SemanticsProperties.Focused))
+        assertTrue("…and opens the keyboard for it", imm.isSoftInputVisible)
     }
 
     @Test fun skippingIsNotEngagingSoTheNextFieldWaitsForATap() {

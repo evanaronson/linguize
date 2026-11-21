@@ -52,7 +52,10 @@ what a person comes to do. It doesn't add features.
    `KeyboardBackHandler(fieldCounts = true)`): there the first Back leaves the field even if
    the keyboard was already closed another way, which costs one Back and never the card's
    accepted changes. The accessibility window answers Back itself (a key or a back callback),
-   checking the window's insets and its fields, in `OverlayWindow`. Tests:
+   checking the window's insets and its fields, in `OverlayWindow`. The keyboard over a popup
+   is always the card's own: the popups and the accessibility window close a keyboard left up
+   by the app below as they open ([First look](type-to-accept.md#no-keyboard-from-the-app-below)),
+   so the keyboard Back closes is the one the card's field opened. Tests:
    `KeyboardBackTest`, `BackNavigationTest`, and `CheckViewModelTest` for the selection-menu
    activity.
 

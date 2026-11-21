@@ -5,13 +5,13 @@ import android.os.BadParcelableException
 import android.os.Bundle
 import android.view.WindowManager.LayoutParams
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
 import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.PopupPosition
@@ -56,7 +56,10 @@ class CheckActivity : ComponentActivity() {
         // Lab, Consistency: the card hears the keyboard itself (its insets), on every Android
         // version, so Back with the keyboard up closes only the keyboard (KeyboardBackHandler in
         // FloatingPopup), never the card. The card pads itself for the bars and the keyboard.
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // enableEdgeToEdge, not just "decor doesn't fit system windows": it also sets the bars' icon colours for the
+        // light or dark theme (and a scrim for three-button navigation), so the navigation buttons
+        // stay visible under the keyboard.
+        enableEdgeToEdge()
         returningFromApp = savedInstanceState?.getBoolean(KEY_RETURNING) == true
         // Exported aliases are callable by any app. Reject malformed launches before
         // starting a check or allowing an ACTION_PROCESS_TEXT replacement result.

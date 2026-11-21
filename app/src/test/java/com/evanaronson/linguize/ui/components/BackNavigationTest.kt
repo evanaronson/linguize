@@ -1,6 +1,7 @@
 package com.evanaronson.linguize.ui.components
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -30,9 +31,12 @@ class BackNavigationTest {
         assertEquals(2, Regex("""KeyboardBackHandler\(fieldCounts = true\)""")
             .findAll(File(source, "ui/chat/ChatChrome.kt").readText()).count())
         assertTrue("KeyboardBackHandler(fieldCounts = true)" in File(source, "ui/words/WordDecks.kt").readText())
-        // The popup activities hear the keyboard's insets on every Android version.
+        // The popup activities hear the keyboard's insets on every Android version, through
+        // enableEdgeToEdge, which also keeps the navigation buttons visible (light or dark icons).
         for (host in listOf("menu/CheckActivity.kt", "menu/ShareActivity.kt", "menu/ClipboardActivity.kt")) {
-            assertTrue(host, "setDecorFitsSystemWindows(window, false)" in File(source, host).readText())
+            val text = File(source, host).readText()
+            assertTrue(host, "enableEdgeToEdge()" in text)
+            assertFalse(host, "setDecorFitsSystemWindows" in text)
         }
     }
 

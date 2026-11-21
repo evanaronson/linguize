@@ -1598,6 +1598,21 @@ class CheckViewModelTest {
         caller.pause().stop().destroy()
     }
 
+
+    /** In the dark theme the navigation buttons under the keyboard are light, so they stay visible. */
+    @Test
+    @Config(application = App::class, qualifiers = "night")
+    fun thePopupKeepsTheNavigationButtonsVisibleInTheDarkTheme() {
+        check.check(QUESTION, null, Origin.Menu)
+        reviewed()
+        val caller = Robolectric.buildActivity(ResultCaller::class.java).setup()
+        val controller = launchSelection(caller.get()).visible()
+        val activity = controller.get()
+        val bars = androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+        assertFalse("Light icons on the dark theme's bar", bars.isAppearanceLightNavigationBars)
+        controller.pause().stop().destroy()
+        caller.pause().stop().destroy()
+    }
     @Test
     fun backFromSettingsWithNoCardDoesNothing() {
         check.recheckIfStale()

@@ -298,6 +298,9 @@ class CheckHistory(
         permittedRecording()?.let { quietly("record a copy") { it.copied(kind) } }
     }
 
+    /** Whether History is on now (the writer's setting), for what the card's buttons say. Never throws. */
+    val historyOn: Boolean get() = quietly("read whether history is on") { environment.enabled } == true
+
     /** Drops the in-memory session when the writer moves to another task. */
     fun discard() {
         decided = true

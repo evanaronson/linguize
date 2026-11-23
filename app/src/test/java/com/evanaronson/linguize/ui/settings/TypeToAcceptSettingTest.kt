@@ -6,7 +6,6 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.runtime.snapshots.Snapshot
@@ -42,6 +41,7 @@ class TypeToAcceptSettingTest {
     private val stored = context.getSharedPreferences("lab_type_to_accept", Context.MODE_PRIVATE)
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible()
     private val activity = controller.get()
+    private val compose = com.evanaronson.linguize.testing.OwnComposition(activity)
 
     @Before fun clear() {
         stored.edit().clear().commit()
@@ -49,6 +49,7 @@ class TypeToAcceptSettingTest {
 
     @After fun tearDown() {
         stored.edit().clear().commit()
+        compose.dispose()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -112,8 +113,7 @@ class TypeToAcceptSettingTest {
     private fun show() {
         // Keyed, so each show is a freshly composed screen that reads what was saved.
         val generation = ++shows
-        activity.setContent { MaterialTheme { key(generation) { TypeToAcceptSwitch() } } }
-        settle()
+        compose.show { MaterialTheme { key(generation) { TypeToAcceptSwitch() } } }
     }
 
     private fun switch() = nodes().single {
@@ -132,10 +132,7 @@ class TypeToAcceptSettingTest {
         it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == text } == true
     }
 
-    private fun settle() {
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-    }
+    private fun settle() = compose.settle()
 
     private fun nodes(): List<SemanticsNode> {
         fun owner(view: View): SemanticsOwner? {

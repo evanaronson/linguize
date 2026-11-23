@@ -5,7 +5,6 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.runtime.key
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
@@ -40,12 +39,14 @@ import java.time.ZoneId
 class SpeedOverTimeTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible()
     private val activity = controller.get()
+    private val compose = com.evanaronson.linguize.testing.OwnComposition(activity)
     private val zone = ZoneId.systemDefault()
     private val now = LocalDate.of(2026, 11, 11).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
     private val week = 7 * 86_400_000L
     private var ids = 0
 
     @After fun tearDown() {
+        compose.dispose()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -104,8 +105,7 @@ class SpeedOverTimeTest {
     private fun show(trend: SpeedTrend) {
         // Keyed, so each show is a fresh composition.
         val generation = ++shows
-        activity.setContent { LinguizeTheme(dark = false) { key(generation) { SpeedOverTime(trend) } } }
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
+        compose.show { LinguizeTheme(dark = false) { key(generation) { SpeedOverTime(trend) } } }
     }
 
     private fun texts(): List<String> = nodes().flatMap { node ->

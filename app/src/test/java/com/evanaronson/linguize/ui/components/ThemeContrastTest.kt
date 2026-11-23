@@ -2,14 +2,13 @@ package com.evanaronson.linguize.ui.components
 
 import android.app.Application
 import android.os.Looper
-import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwitchColors
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.ComposeView
+import com.evanaronson.linguize.testing.OwnComposition
 import com.evanaronson.linguize.ui.theme.Linguize
 import com.evanaronson.linguize.ui.theme.LinguizeColors
 import com.evanaronson.linguize.ui.theme.LinguizeTheme
@@ -56,23 +55,17 @@ class ThemeContrastTest {
 
     private fun palette(dark: Boolean): Palette {
         val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
-        val activity = controller.get()
+        val compose = OwnComposition(controller.get(), width = 600, height = 400, exactHeight = true)
         var result: Palette? = null
-        val root = ComposeView(activity).apply {
-            setContent {
+        try {
+            compose.show {
                 LinguizeTheme(dark) {
                     result = Palette(Linguize.colors, MaterialTheme.colorScheme, brandSwitchColors())
                 }
             }
-        }
-        try {
-            activity.setContentView(root)
-            root.measure(View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY))
-            root.layout(0, 0, 600, 400)
-            shadowOf(Looper.getMainLooper()).idle()
             return requireNotNull(result)
         } finally {
+            compose.dispose()
             controller.pause().stop().destroy()
             shadowOf(Looper.getMainLooper()).idle()
         }

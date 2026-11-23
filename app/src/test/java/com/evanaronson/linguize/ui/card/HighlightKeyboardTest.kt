@@ -9,19 +9,16 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -29,6 +26,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.evanaronson.linguize.testing.OwnComposition
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
@@ -47,16 +45,18 @@ import java.time.Duration
 class HighlightKeyboardTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
+    private val compose = OwnComposition(activity, height = 1920, exactWidth = false)
     private val root get() = activity.window.decorView
 
     @After fun tearDown() {
+        compose.dispose()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
 
     @Test fun keyboardActivatesEachExistingHighlightAndReachesItsAcceptButton() {
         val accepted = mutableListOf<Int>()
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 HighlightedText("First second", listOf(
                     Highlight(10, 0..4, "first", "First explanation"),
@@ -91,7 +91,7 @@ class HighlightKeyboardTest {
         val second = Highlight(20, 6..11, "Second", "Second explanation")
         val remaining = mutableStateOf(listOf(first, second))
         val accepted = mutableListOf<Int>()
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 HighlightedText("First second", remaining.value, Color.Blue,
                     onReplace = { id -> accepted += id; remaining.value = remaining.value.filterNot { it.id == id } },
@@ -119,7 +119,7 @@ class HighlightKeyboardTest {
         val editable = mutableStateOf(true)
         val accepted = mutableListOf<Int>()
         var copies = 0
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 HighlightedText("First second", listOf(
                     Highlight(10, 0..4, "first", "First explanation"),
@@ -174,7 +174,7 @@ class HighlightKeyboardTest {
     }
 
     @Test fun directTapsToggleOnceAndNearMissRetainsThePunctuationAllowance() {
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 HighlightedText("Hello,                                     world", listOf(
                     Highlight(10, 5..5, ";", "Comma explanation"),
@@ -200,7 +200,7 @@ class HighlightKeyboardTest {
         val first = Highlight(10, 0..7, "אבגד", "First explanation")
         val second = Highlight(20, 8 until text.lastIndex, "הוזח", "Second explanation")
         val spacing = Highlight(30, text.lastIndex..text.lastIndex, "\n", "Spacing explanation")
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     Box(Modifier.width(120.dp)) {
@@ -271,15 +271,6 @@ class HighlightKeyboardTest {
         settle()
     }
 
-    private fun settle() {
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-        root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, 1080, 1920)
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-    }
-
     private fun hasText(text: String) = nodes().any {
         it.config.getOrNull(SemanticsProperties.Text)?.any { value -> value.text == text } == true
     }
@@ -290,11 +281,12 @@ class HighlightKeyboardTest {
         return null
     }
 
-    private fun nodes(): List<SemanticsNode> {
-        val view = requireNotNull(ownerView(root))
-        val owner = view.javaClass.methods.first { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
-            .invoke(view) as SemanticsOwner
-        fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-        return flatten(owner.rootSemanticsNode)
+    private fun settle() = compose.settle(SETTLE_FRAMES)
+
+    private fun nodes(): List<SemanticsNode> = compose.nodes()
+
+    private companion object {
+        /** As long as this test waited before it had its own clock: 800 ms. */
+        const val SETTLE_FRAMES = 50
     }
 }

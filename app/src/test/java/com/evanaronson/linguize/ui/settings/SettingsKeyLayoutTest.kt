@@ -1,20 +1,14 @@
 package com.evanaronson.linguize.ui.settings
 
 import android.os.Looper
-import android.view.View
-import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.getOrNull
@@ -27,6 +21,7 @@ import com.evanaronson.linguize.App
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.KeyStatus
 import com.evanaronson.linguize.llm.Provider
+import com.evanaronson.linguize.testing.OwnComposition
 import com.evanaronson.linguize.ui.theme.LinguizeTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -51,10 +46,10 @@ class SettingsKeyLayoutTest {
     private val activity = controller.get()
     private val settings = SettingsViewModel(RuntimeEnvironment.getApplication() as App)
     private val store = ViewModelStore().apply { put("settings", settings) }
-    private lateinit var root: ComposeView
+    private val compose = OwnComposition(activity, width = 600, height = 1800, exactHeight = true)
 
     @After fun tearDown() {
-        if (::root.isInitialized) root.disposeComposition()
+        compose.dispose()
         store.clear()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
@@ -63,25 +58,21 @@ class SettingsKeyLayoutTest {
     @Test fun allKeyActionsKeepVisibleTextInsideANarrowCardAtDoubleFontSize() {
         settings.setKeyDraft(Provider.Gemini, "replacement-key")
         val state = SettingsState(provider = Provider.Gemini, keys = mapOf(Provider.Gemini to KeyStatus.Unreadable))
-        root = ComposeView(activity).apply {
-            setContent {
-                CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
-                    LinguizeTheme(dark = false) {
-                        // The view root is measured exactly; Box releases that minimum so
-                        // the card can be 288dp, leaving 248dp after its two 20dp insets.
-                        Box {
-                            Column(Modifier.width(288.dp).semantics { contentDescription = CARD }) {
-                                ModelCard(state, settings, onOpen = {})
-                            }
+        compose.show {
+            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
+                LinguizeTheme(dark = false) {
+                    // The view root is measured exactly; Box releases that minimum so
+                    // the card can be 288dp, leaving 248dp after its two 20dp insets.
+                    Box {
+                        Column(Modifier.width(288.dp).semantics { contentDescription = CARD }) {
+                            ModelCard(state, settings, onOpen = {})
                         }
                     }
                 }
             }
         }
-        activity.setContentView(root)
-        settle()
 
-        val nodes = nodes()
+        val nodes = compose.nodes()
         val card = nodes.single { it.config.getOrNull(SemanticsProperties.ContentDescription) == listOf(CARD) }
         assertEquals(288f, card.boundsInRoot.width, 0.5f)
         val actions = listOf(R.string.save, R.string.get_key, R.string.delete_key).map { resource ->
@@ -116,26 +107,6 @@ class SettingsKeyLayoutTest {
                 assertFalse("Key actions remain separate targets", action.boundsInRoot.overlaps(other.boundsInRoot))
             }
         }
-    }
-
-    private fun settle() {
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-        root.measure(View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1800, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, 600, 1800)
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-    }
-
-    private fun nodes(): List<SemanticsNode> {
-        fun owner(view: View): SemanticsOwner? {
-            val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
-            if (method != null) return method.invoke(view) as SemanticsOwner
-            if (view is ViewGroup) for (index in 0 until view.childCount) owner(view.getChildAt(index))?.let { return it }
-            return null
-        }
-        fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-        return flatten(requireNotNull(owner(root)).rootSemanticsNode)
     }
 
     private companion object {

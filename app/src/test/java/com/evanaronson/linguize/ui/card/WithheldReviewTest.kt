@@ -2,10 +2,7 @@ package com.evanaronson.linguize.ui.card
 
 import android.app.Application
 import android.os.Looper
-import android.view.View
-import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,11 +11,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.unit.dp
@@ -29,6 +24,7 @@ import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
 import com.evanaronson.linguize.core.Verdict
 import com.evanaronson.linguize.core.interpret
+import com.evanaronson.linguize.testing.OwnComposition
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
@@ -46,11 +42,12 @@ import java.time.Duration
 class WithheldReviewTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
-    private val root get() = activity.window.decorView
+    private val compose = OwnComposition(activity, height = 1920, exactWidth = false)
     private var retries = 0
     private var copied: Pair<String, EditKind>? = null
 
     @After fun tearDown() {
+        compose.dispose()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -167,7 +164,7 @@ class WithheldReviewTest {
     )
 
     private fun show(result: CheckResult.Reviewed, review: ReviewActions? = null) {
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 Box(Modifier.fillMaxSize()) {
                     Column(Modifier.width(280.dp).height(320.dp).verticalScroll(rememberScrollState())) {
@@ -177,13 +174,6 @@ class WithheldReviewTest {
                 }
             }
         }
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-        root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, 1080, 1920)
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
     }
 
     private fun hasText(id: Int) = nodes().any {
@@ -212,14 +202,10 @@ class WithheldReviewTest {
         assertTrue(action.action())
     }
 
-    private fun nodes(): List<SemanticsNode> {
-        fun owner(view: View): SemanticsOwner? {
-            val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
-            if (method != null) return method.invoke(view) as SemanticsOwner
-            if (view is ViewGroup) for (index in 0 until view.childCount) owner(view.getChildAt(index))?.let { return it }
-            return null
-        }
-        fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-        return flatten(requireNotNull(owner(root)).rootSemanticsNode)
+    private fun nodes(): List<SemanticsNode> = compose.nodes()
+
+    private companion object {
+        /** As long as this test waited before it had its own clock: 800 ms. */
+        const val SETTLE_FRAMES = 50
     }
 }

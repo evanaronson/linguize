@@ -5,6 +5,7 @@ Start with the [project README](../README.md) for installation, local builds, an
 | Document | Use it for |
 |---|---|
 | [Architecture](architecture.md) | Package ownership, dependency direction, repository navigation, and how to extend the app |
+| [Testing](testing.md) | Running the regressions, and composing Compose UI tests on their own frame clock |
 | [Bonanza behavior contracts](bonanza-contracts.md) | Preservation tests, opt-in known-defect contracts, and the baseline for cleanup |
 | [Words query-to-export review](words-query-export-review.md) | Scoped architecture review, repeated work, and boundaries for the next cleanup |
 | [Chat cleanup review](chat-cleanup-review.md) | Full-path review, implemented reductions, and preserved save/navigation contracts |

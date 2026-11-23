@@ -27,6 +27,8 @@ import com.evanaronson.linguize.R
 import com.evanaronson.linguize.data.lab.TypeToAcceptPreferences
 import com.evanaronson.linguize.ui.components.LinguizeTextField
 import com.evanaronson.linguize.ui.components.imeVisible
+import com.evanaronson.linguize.ui.components.rememberKeyboardTag
+import com.evanaronson.linguize.ui.components.withLanguage
 import java.text.Normalizer
 import androidx.compose.runtime.withFrameMillis
 
@@ -128,6 +130,23 @@ class CardTyping {
 
 /** The [CardTyping] a host shares with its card; null lets the card keep its own. */
 val LocalCardTyping = compositionLocalOf<CardTyping?> { null }
+
+/**
+ * Lab, Composer language: the language the card's check was asked for (an ISO 639-1 code), so
+ * the Type to accept field's keyboard is in it; null (Auto-detect, or no card) gives no hint.
+ */
+val LocalKeyboardLanguage = compositionLocalOf<String?> { null }
+
+/**
+ * The Type to accept field's keyboard: no capitals or autocorrect (the change is typed exactly),
+ * Done, and the hint for the check's language [tag] (none under Auto-detect).
+ */
+internal fun typeToAcceptKeyboardOptions(tag: String?): KeyboardOptions = KeyboardOptions(
+    capitalization = KeyboardCapitalization.None,
+    autoCorrectEnabled = false,
+    keyboardType = KeyboardType.Text,
+    imeAction = ImeAction.Done,
+).withLanguage(tag)
 
 /** One [CardTyping] for a host and its card. */
 @Composable
@@ -259,12 +278,7 @@ internal fun TypeToAcceptField(
         isError = off,
         success = if (matched) stringResource(R.string.lab_type_to_accept_correct) else null,
         large = true,
-        keyboardOptions = KeyboardOptions(
-            capitalization = KeyboardCapitalization.None,
-            autoCorrectEnabled = false,
-            keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Done,
-        ),
+        keyboardOptions = typeToAcceptKeyboardOptions(rememberKeyboardTag(LocalKeyboardLanguage.current)),
         fieldModifier = Modifier.focusRequester(focus).onFocusChanged {
             // A tap on the field is the writer engaging: the next changes' fields take focus.
             if (it.isFocused) onEngage()

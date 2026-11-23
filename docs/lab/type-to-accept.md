@@ -197,6 +197,17 @@ behave on the card. Not App, which is about the app's shell (Start on).
   per-change actions; nothing on the card leaves the semantics tree.
 - The review flow's spoken position ("Change 2 of 5. estas becomes estàs") is unchanged.
 
+## The keyboard's language
+
+The writer types the change in the language being checked, so the field hints that language to
+the keyboard (`EditorInfo.hintLocales`), with the region of the writer's variety ("es-MX"), as
+the [Chat composer](chat.md#the-composer-speaks-the-language) does. It is the language the check
+was asked for: the conversation's in Chat, the app's in Notes, the Catalanize or Castilianize
+entry or the card's picker in other apps. Under Auto-detect there is no hint, even once the
+check found a language. `CardActions.keyboardLanguage` (from `CheckViewModel.checkLanguage`)
+reaches the field through `LocalKeyboardLanguage`; `typeToAcceptKeyboardOptions(tag)` keeps
+autocorrect and capitals off and adds the hint.
+
 ## How it's built
 
 - `data/lab/TypeToAcceptPreferences.kt`: the switch, in its own preferences file
@@ -273,3 +284,5 @@ fits above the keyboard and inside the navigation bar).
 - The sound loads when a card first shows with it on, so the very first match after turning
   it on in Settings may be silent.
 - Keyboard autocorrect is asked to stay off in the field; some keyboards ignore that.
+- The language hint only helps when the writer has that keyboard language installed, and only
+  where the keyboard honours hint locales (not yet seen on a device).

@@ -100,6 +100,8 @@ class CheckViewModel(
     var phraseLanguage: String? = null
         private set
     val sourceApp: String? get() = hostApp
+    /** Lab, Composer language: the language this card was asked to check in; null when it detects (Auto-detect). */
+    val checkLanguage: String? get() = language?.code
     /**
      * Adjusts the settings each check runs with before it's sent and recorded, such as the
      * source app's voice rule (see ui/appvoice). Identity unless a host sets it.

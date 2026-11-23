@@ -41,6 +41,11 @@ class CardActions(
      * does and Close when it doesn't, since then it only closes the card. Read as the card shows.
      */
     val leaveAsWrittenSaves: () -> Boolean = { true },
+    /**
+     * Lab, Composer language: the language the check was asked for (an ISO 639-1 code), which
+     * the Type to accept field hints to the keyboard; null under Auto-detect, for no hint.
+     */
+    val keyboardLanguage: () -> String? = { null },
 ) {
     companion object {
         /**
@@ -85,6 +90,7 @@ class CardActions(
             replyContext = replyContext,
             onLeaveAsWritten = onLeaveAsWritten,
             leaveAsWrittenSaves = { check.historyOn },
+            keyboardLanguage = { check.checkLanguage },
         )
     }
 }

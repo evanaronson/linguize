@@ -290,6 +290,53 @@ point forces the check, because there is no selection menu to choose it from.
 
 See [Chat tab: information hierarchy](ia-chat.md) for why the tab is laid out as it is.
 
+## The composer speaks the language
+
+The owner: the composer said "Write a message" in English while the whole conversation was in
+Catalan, and the keyboard stayed on whatever language was typed last. Two small changes put the
+field in the conversation's language.
+
+- **The placeholder is in the conversation's language**, informal, as a friend's chat would
+  word it: "Escriu un missatge" (Catalan), "Escribe un mensaje" (Spanish), "Écris un message"
+  (French). Where the language has a familiar form, it uses it (tú, tu, du, ты); where a chat
+  placeholder never addresses the reader it is the usual input label ("メッセージを入力",
+  "메시지 입력", "输入消息", "พิมพ์ข้อความ"); Hebrew uses the gender-neutral form ("כתיבת הודעה"),
+  Arabic the usual masculine imperative ("اكتب رسالة"). Portuguese is European by default
+  ("Escreve uma mensagem") and Brazilian when the writer's profile says so ("Escreva uma
+  mensagem"). Chinese is Simplified.
+- **The fallback is the app's own string**, "Write a message", for a language with no bundled
+  wording. The table is data keyed by the conversation's language, not a UI translation, so it
+  lives in Kotlin (`core/language/KeyboardLanguage`), not in `strings.xml`.
+- **Bundled languages (55 entries):** af, ar, bg, bn, bs, ca, cs, cy, da, de, el, en, eo, es,
+  et, eu, fa, fi, fr, ga, gl, he, hi, hr, hu, id, is, it, ja, ko, lt, lv, mk, ms, nb, nl, no,
+  pl, pt, pt-BR, ro, ru, sk, sl, sq, sr (Cyrillic), sv, sw, th, tl, tr, uk, ur, vi, zh. Left out
+  on purpose where we couldn't word it with confidence (Nynorsk, Tamil, Telugu, Marathi,
+  Azerbaijani, Occitan, Luxembourgish, …): those show the fallback.
+- **Right to left.** The placeholder fills the field's width in its own text direction
+  (`TextDirection.Content`), so Arabic, Hebrew, Persian and Urdu sit at the right, where typing
+  them starts; its locale is the conversation's, so Han characters get Japanese or Chinese glyphs.
+- **The keyboard is hinted to the language.** The field passes it as the IME hint locale
+  (`KeyboardOptions(hintLocales = …)`, which becomes `EditorInfo.hintLocales`), with the region
+  of the writer's variety when the language catalog knows it: "es-MX" for Mexican Spanish,
+  "pt-BR" for Brazilian, "ca-ES-valencia" for Valencian. A keyboard that has the language
+  installed (Gboard, SwiftKey, Samsung) switches to its layout and dictionary; one that
+  doesn't keeps its current language. Nothing is installed or forced.
+- **Screen readers** still hear the field's label in the app's language ("Your message"); the
+  placeholder stays hidden from them, as before.
+
+The same hint applies where the writer types the target language and the language is known:
+the [Type to accept](type-to-accept.md) field (the check's language) and the [Notes](notes.md)
+editor (the app's language). Under Auto-detect (Linguize) there is no hint. Search, Settings and
+the API key field are unchanged.
+
+How it's built: `KeyboardLanguage.tag(code, variety, catalog)` makes the BCP 47 tag and
+`composerPlaceholder(tag)` looks up the wording (both pure, in core); `ui/components/KeyboardHint`
+has `rememberKeyboardTag(code)` (the variety from the writer's profile, read off the main
+thread) and `KeyboardOptions.withLanguage(tag)`. `Composer` takes the conversation's language;
+`composerPlaceholder` and `composerKeyboardOptions` are what it shows and passes. Tests:
+`KeyboardLanguageTest` (wordings, fallback, tags), `KeyboardHintTest` (the focused composer,
+Type to accept field and Notes editor hand the keyboard the hint, and none under Auto-detect).
+
 ## The review step: why "Edit message" and not "Keep editing"
 
 The moment: you write a draft and tap Send. The composer disappears and the check card
@@ -344,6 +391,9 @@ third way to finish); a swipe down on the card (hidden, and it fights the card's
   conversation and the message in it stay, and the message keeps a note of the deleted
   session that nothing reads any more.
 - Editing a sent message replaces whatever unsent text was in the composer.
+- The keyboard hint is a request: whether a keyboard switches (and to which layout) is up to
+  it and to what the writer has installed. Tests check what the field hands Android, not a
+  real keyboard.
 - Editing the only message you sent in a conversation leaves it with no messages of yours.
   If you leave it without sending, it is treated like an untouched conversation: it drops
   out of the list and goes when you next start a new one.

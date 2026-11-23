@@ -208,6 +208,10 @@ Not chosen:
   (`noteCheckLanguage`); the card's wrong-language hint points at the selector at the top
   (`LanguageHint.AppSelector`). Checks use `Origin.Tester` and aren't saved
   in History, as Try it's weren't.
+- The editor's keyboard is hinted to that language (`noteKeyboardOptions`, the IME hint locale,
+  with the region of the writer's variety), so a keyboard with it installed switches to it; under
+  Linguize (Auto) there is no hint. The placeholder stays in the app's language. See
+  [Chat: the composer speaks the language](chat.md#the-composer-speaks-the-language).
 
 ## Limits
 

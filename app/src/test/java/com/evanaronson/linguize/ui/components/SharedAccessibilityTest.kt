@@ -2,8 +2,6 @@ package com.evanaronson.linguize.ui.components
 
 import android.app.Application
 import android.os.Looper
-import android.view.View
-import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
@@ -12,13 +10,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.getOrNull
@@ -30,6 +25,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
 import com.evanaronson.linguize.core.Assumption
+import com.evanaronson.linguize.testing.OwnComposition
 import com.evanaronson.linguize.ui.card.AssumptionInset
 import com.evanaronson.linguize.ui.theme.LinguizeTheme
 import org.junit.After
@@ -54,9 +50,10 @@ class SharedAccessibilityTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java)
         .setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
-    private lateinit var root: ComposeView
+    private val compose = OwnComposition(activity, width = 600, height = 1600, exactHeight = true)
 
     @After fun tearDown() {
+        compose.dispose()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -151,37 +148,15 @@ class SharedAccessibilityTest {
         assertTrue(nodes().any { text(it).contains("Today") })
     }
 
-    private fun show(fontScale: Float = 1f, content: @Composable () -> Unit) {
-        root = ComposeView(activity).apply {
-            setContent {
-                CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
-                    LinguizeTheme(dark = false) { Column { content() } }
-                }
-            }
+    private fun show(fontScale: Float = 1f, content: @Composable () -> Unit) = compose.show {
+        CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
+            LinguizeTheme(dark = false) { Column { content() } }
         }
-        activity.setContentView(root)
-        settle()
     }
 
-    private fun settle() {
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-        root.measure(View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1600, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, 600, 1600)
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-    }
+    private fun settle() = compose.settle()
 
-    private fun nodes(): List<SemanticsNode> {
-        fun owner(view: View): SemanticsOwner? {
-            val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
-            if (method != null) return method.invoke(view) as SemanticsOwner
-            if (view is ViewGroup) for (index in 0 until view.childCount) owner(view.getChildAt(index))?.let { return it }
-            return null
-        }
-        fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-        return flatten(requireNotNull(owner(root)).rootSemanticsNode)
-    }
+    private fun nodes(): List<SemanticsNode> = compose.nodes()
 
     private fun text(node: SemanticsNode): List<String> =
         node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text }

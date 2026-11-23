@@ -2,21 +2,16 @@ package com.evanaronson.linguize.ui.card
 
 import android.app.Application
 import android.os.Looper
-import android.view.View
-import android.view.ViewGroup
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.unit.dp
@@ -25,6 +20,7 @@ import com.evanaronson.linguize.core.CheckResult
 import com.evanaronson.linguize.core.Edit
 import com.evanaronson.linguize.core.EditKind
 import com.evanaronson.linguize.core.Revision
+import com.evanaronson.linguize.testing.OwnComposition
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -50,7 +46,7 @@ import java.time.Duration
 class ReviewFinishTest {
     private val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible().windowFocusChanged(true)
     private val activity = controller.get()
-    private val root get() = activity.window.decorView
+    private val compose = OwnComposition(activity, height = 1920, exactWidth = false)
 
     // "Ayer yo fui al cine con mis amigo": two fixes (yo, amigo), a rewording that includes the
     // amigo fix, and one elsewhere (Ayer).
@@ -75,6 +71,7 @@ class ReviewFinishTest {
     private val copied = mutableListOf<Pair<String, EditKind>>()
 
     @After fun tearDown() {
+        compose.dispose()
         controller.pause().stop().destroy()
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
     }
@@ -87,7 +84,7 @@ class ReviewFinishTest {
             onRetry = {}, onOpenSettings = null, onSettle = { _, _ -> },
         )
         val state = CardState.Done(CheckResult.Reviewed(revision, both, meaning = "Yesterday I went to the cinema"))
-        activity.setContent {
+        compose.show(SETTLE_FRAMES) {
             MaterialTheme {
                 if (host.scrollable) {
                     ResultCard(state, actions, Modifier.fillMaxWidth().heightIn(max = 600.dp))
@@ -191,18 +188,6 @@ class ReviewFinishTest {
 
     private fun plural(id: Int, count: Int) = activity.resources.getQuantityString(id, count, count)
 
-    private fun settle() {
-        repeat(2) {
-            Snapshot.sendApplyNotifications()
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-            root.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-            root.layout(0, 0, 1080, 1920)
-        }
-        Snapshot.sendApplyNotifications()
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(400))
-    }
-
     private fun texts(node: SemanticsNode) = node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text }
 
     private fun hasText(text: String) = nodes().any { text in texts(it) }
@@ -228,14 +213,12 @@ class ReviewFinishTest {
         assertTrue(action.action())
     }
 
-    private fun nodes(): List<SemanticsNode> {
-        fun owner(view: View): SemanticsOwner? {
-            val method = view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" && it.parameterCount == 0 }
-            if (method != null) return method.invoke(view) as SemanticsOwner
-            if (view is ViewGroup) for (index in 0 until view.childCount) owner(view.getChildAt(index))?.let { return it }
-            return null
-        }
-        fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-        return flatten(requireNotNull(owner(root)).rootSemanticsNode)
+    private fun settle() = compose.settle(SETTLE_FRAMES)
+
+    private fun nodes(): List<SemanticsNode> = compose.nodes()
+
+    private companion object {
+        /** As long as this test waited before it had its own clock: 1200 ms. */
+        const val SETTLE_FRAMES = 75
     }
 }

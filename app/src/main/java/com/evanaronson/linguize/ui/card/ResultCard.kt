@@ -82,7 +82,9 @@ fun ResultCard(
     // when it provides one, so the text and the field get the room (TypeToAccept.kt).
     val typing = LocalCardTyping.current ?: rememberCardTyping()
     TrackTyping(typing)
-    CompositionLocalProvider(LocalCardTyping provides typing) {
+    // Lab, Composer language: the Type to accept field's keyboard is in the check's language,
+    // when one was asked for (null under Auto-detect: no hint).
+    CompositionLocalProvider(LocalCardTyping provides typing, LocalKeyboardLanguage provides actions.keyboardLanguage()) {
         ResultSurface(
             modifier,
             scrollable,

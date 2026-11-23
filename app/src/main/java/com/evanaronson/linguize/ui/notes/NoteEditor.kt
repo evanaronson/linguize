@@ -51,6 +51,7 @@ import com.evanaronson.linguize.ui.components.ListRow
 import com.evanaronson.linguize.ui.components.Quiet
 import com.evanaronson.linguize.ui.components.SectionCard
 import com.evanaronson.linguize.ui.components.SectionHeader
+import com.evanaronson.linguize.ui.components.rememberKeyboardTag
 import com.evanaronson.linguize.ui.components.shortDate
 import com.evanaronson.linguize.ui.components.uiLocale
 import com.evanaronson.linguize.ui.copyToClipboard
@@ -136,6 +137,8 @@ internal fun NoteEditor(
             isError = blank,
             large = true,
             minLines = 4,
+            // Lab, Composer language: the keyboard in the note's language; none under Linguize (Auto).
+            keyboardOptions = noteKeyboardOptions(rememberKeyboardTag(noteCheckLanguage(appLanguage)?.code)),
         )
         // Everything that acts on this text, together and above the card.
         // Lab, Consistency: no language picker here; the one selector at the top decides.

@@ -70,6 +70,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDirection
+import com.evanaronson.linguize.core.language.KeyboardLanguage
+import com.evanaronson.linguize.ui.components.keyboardHint
+import com.evanaronson.linguize.ui.components.rememberKeyboardTag
+import com.evanaronson.linguize.ui.components.withLanguage
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.evanaronson.linguize.R
@@ -346,19 +352,46 @@ internal fun EditConfirmationDialog(confirmation: EditConfirmation, onConfirm: (
     )
 }
 
-/** Where the writer types. Send checks the message first. */
+/**
+ * Where the writer types. Send checks the message first. Lab, Composer language: the
+ * placeholder and the keyboard are in the conversation's language ([composerPlaceholder],
+ * [composerKeyboardOptions]); the field's label stays in the app's language.
+ */
 @Composable
 internal fun Composer(chat: ChatViewModel) {
+    Composer(
+        draft = chat.draft,
+        onDraftChange = chat::onDraftChange,
+        language = chat.thread?.conversation?.language,
+        canSend = chat.draft.text.isNotBlank() && chat.thread != null,
+        onSend = chat::send,
+        focusDraft = chat.focusDraft,
+        onDraftFocused = chat::draftFocused,
+    )
+}
+
+/** The composer itself, for a conversation in [language] (an ISO 639-1 code; null before one shows). */
+@Composable
+internal fun Composer(
+    draft: TextFieldValue,
+    onDraftChange: (TextFieldValue) -> Unit,
+    language: String?,
+    canSend: Boolean,
+    onSend: () -> Unit,
+    focusDraft: Boolean = false,
+    onDraftFocused: () -> Unit = {},
+) {
+    val tag = rememberKeyboardTag(language)
+    val placeholder = composerPlaceholder(tag, stringResource(R.string.lab_chat_composer_placeholder))
     val ink = MaterialTheme.colorScheme.onSurface
-    val canSend = chat.draft.text.isNotBlank() && chat.thread != null
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     // Back from the review: the draft comes back focused, with the keyboard, as it was left.
-    LaunchedEffect(chat.focusDraft) {
-        if (chat.focusDraft) {
+    LaunchedEffect(focusDraft) {
+        if (focusDraft) {
             runCatching { focus.requestFocus() }
             keyboard?.show()
-            chat.draftFocused()
+            onDraftFocused()
         }
     }
     Row(
@@ -378,24 +411,28 @@ internal fun Composer(chat: ChatViewModel) {
             val label = stringResource(R.string.lab_chat_composer_label)
             val style = MaterialTheme.typography.bodyLarge.copy(color = ink)
             BasicTextField(
-                value = chat.draft,
-                onValueChange = chat::onDraftChange,
+                value = draft,
+                onValueChange = onDraftChange,
                 textStyle = style,
                 cursorBrush = SolidColor(ink),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                keyboardOptions = composerKeyboardOptions(tag),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).tracksFieldFocus().semantics { contentDescription = label },
                 decorationBox = { inner ->
                     Box {
-                        if (chat.draft.text.isEmpty()) {
-                            Text(stringResource(R.string.lab_chat_composer_placeholder), style = style,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics {})
+                        if (draft.text.isEmpty()) {
+                            // Full width in the text's own direction, so Arabic or Hebrew sits at the right,
+                            // where typing in it starts; the locale picks the glyphs (Japanese, Chinese).
+                            Text(placeholder,
+                                style = style.copy(textDirection = TextDirection.Content, localeList = keyboardHint(tag)),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().clearAndSetSemantics {})
                         }
                         inner()
                     }
                 },
             )
         }
-        IconButton(onClick = chat::send, enabled = canSend, modifier = Modifier.padding(start = 4.dp).size(48.dp)) {
+        IconButton(onClick = onSend, enabled = canSend, modifier = Modifier.padding(start = 4.dp).size(48.dp)) {
             Icon(
                 painterResource(R.drawable.lab_chat_ic_send),
                 contentDescription = stringResource(R.string.lab_chat_send_checked),
@@ -404,6 +441,14 @@ internal fun Composer(chat: ChatViewModel) {
         }
     }
 }
+
+/** Lab, Composer language: "Write a message" in the conversation's language [tag], else [fallback] (the app's string). */
+internal fun composerPlaceholder(tag: String?, fallback: String): String =
+    KeyboardLanguage.composerPlaceholder(tag) ?: fallback
+
+/** Lab, Composer language: sentence capitals, and the keyboard hinted to the conversation's language [tag]. */
+internal fun composerKeyboardOptions(tag: String?): KeyboardOptions =
+    KeyboardOptions(capitalization = KeyboardCapitalization.Sentences).withLanguage(tag)
 
 /**
  * The check before sending: the same card as for a message in another app, with its Replace

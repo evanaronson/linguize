@@ -53,6 +53,30 @@ interface HistoryStore {
     /** Visible applied changes older than [before], in timestamp/id order. Null means a retryable read failure. */
     suspend fun page(before: HistoryCursor?, limit: Int): HistoryPage?
 
+    /**
+     * Every visible session (as [count] counts them) with its whole text, oldest first; null
+     * when it couldn't be read. Lab, Time spent. The default pages through [page] and [detail];
+     * SQLite reads it in one query.
+     */
+    suspend fun texts(): List<SessionText>? {
+        val found = mutableListOf<SessionText>()
+        var cursor: HistoryCursor? = null
+        do {
+            val page = page(cursor, TEXTS_PAGE) ?: return null
+            for (row in page.rows) {
+                when (val result = detail(row.id)) {
+                    is SessionDetailResult.Found -> found += result.detail.session.let {
+                        SessionText(it.id, it.origin, it.targetLanguage, it.text, it.closedAt ?: it.startedAt)
+                    }
+                    SessionDetailResult.Missing -> Unit
+                    SessionDetailResult.Failed -> return null
+                }
+            }
+            cursor = page.next
+        } while (cursor != null)
+        return found.sortedWith(compareBy<SessionText> { it.at }.thenBy { it.id })
+    }
+
     /** Hidden or absent sessions are Missing; a failed read can be retried. */
     suspend fun detail(id: String): SessionDetailResult
 
@@ -147,3 +171,5 @@ internal class Forgotten {
     @Synchronized
     fun openHere(): List<String> = open.toList()
 }
+
+private const val TEXTS_PAGE = 200

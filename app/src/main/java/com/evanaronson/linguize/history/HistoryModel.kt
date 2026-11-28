@@ -353,6 +353,22 @@ data class SessionSummary(
     }
 }
 
+/**
+ * One visible session's whole original text (not [SessionSummary]'s prefix), its language and
+ * when it closed: Lab, Time spent counts its words when it has no time record.
+ */
+data class SessionText(
+    val id: String,
+    /** Null when it's one this build doesn't know. */
+    val origin: Origin?,
+    /** [SessionRecord.targetLanguage]: the explicit request, otherwise the detection. */
+    val language: String?,
+    /** [SessionRecord.text]: what the writer wrote, before any change. */
+    val text: String,
+    /** When it closed (sent or put back); when it started, for a row without a close time. */
+    val at: Long,
+)
+
 /** A session with its suggestions, for the detail view; one line of the export has its shape. */
 @Serializable
 data class SessionDetail(val session: SessionRecord, val suggestions: List<SuggestionRecord>) {

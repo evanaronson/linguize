@@ -13,10 +13,10 @@ from what they already do, not a timer they have to start.
 
 ## Assessment: what is measured, what is estimated
 
-| | Chat | Selection menu, accessibility button |
-|---|---|---|
-| Writing | **Measured**: first keystroke that leaves text in the composer → Send | **Estimated**: words × your own measured chat speed |
-| Review | **Measured**: a result on the card → Send | **Measured**: a result on the card → put back |
+| | Chat | Selection menu, accessibility button | Older checks (no time record) |
+|---|---|---|---|
+| Writing | **Measured**: first keystroke that leaves text in the composer → Send | **Estimated**: words × your own measured chat speed around that time | **Estimated**, the same way |
+| Review | **Measured**: a result on the card → Send | **Measured**: a result on the card → put back | **Not timed**: never estimated |
 
 - **Review is measured everywhere, not ditched.** The card is ours in both places, so its
   time is observable; it's the part of the work Linguize causes, and the one the writer can
@@ -24,18 +24,46 @@ from what they already do, not a timer they have to start.
   gives?". It counts only while a result is on the card (an answer, or a question to
   clarify), not while waiting for the model or looking at a failure: waiting isn't language
   work.
-- **Writing in other apps can't be seen**, so it's estimated, and always labelled so. The
-  estimate is the message's words times the writer's own chat speed (the word-weighted median
-  of each measured message's seconds per word, so one slow message doesn't slow every
-  estimate; estimator version 2, before which it was total time over total words): in that language once
-  there are 5 measured messages of at least 3 words (30 words in all), else all languages
-  pooled (same thresholds), else a typical 4 s a word (about 15 words a minute, a careful
-  writer composing on a phone in a second language). One- and two-word chat replies don't
-  teach the speed: they're mostly reaction time. Estimates are computed when read, never
-  stored, so old ones improve as the speed is learned.
+- **Writing in other apps can't be seen**, so it's estimated, and always labelled so. So is
+  the writing of an older check (below). See [The estimate](#the-estimate).
+- **Older checks count too.** A check History shows that has no time record (saved before
+  Time spent existed, or, rarely, one whose record never landed) counts with its words, its
+  language and its date, its writing estimated and its review **not timed**: review is never
+  estimated, since nothing about the writer's chat says how long they spent on a card. The
+  totals say how many messages review doesn't cover.
 - **Words** are what `core/words/WordTokenizer` finds in the text the writer wrote (the
   original, before any change), the same split as Words. Names count: they were typed too.
   Numbers, links and laughter don't.
+
+### The estimate
+
+`core/time/WritingEstimator.kt`, version 3. The message's words times the writer's own chat
+speed **around the time it was written**:
+
+1. **What teaches the speed.** Measured chat messages (writing measured) of at least 3 words.
+   One- and two-word replies are mostly reaction time; estimates never teach it.
+2. **Nearest in time.** For a message written at time *t*, the 20 such messages in its
+   language nearest to *t* by their own time, before or after (on equal distance, the
+   earlier first). With fewer than 20 in the language, all of them.
+3. **Their speed.** The word-weighted median of their seconds per word (half their words were
+   written at that speed or faster), so one message left open within the idle caps doesn't
+   slow the estimate.
+4. **Thresholds.** The language needs 5 such messages and 30 words in all. Otherwise every
+   language pooled, chosen by the same nearest-20 rule under the same thresholds (also for a
+   message with no known language). Otherwise a typical 4 s a word (about 15 words a minute,
+   a careful writer composing on a phone in a second language). Twenty messages always pass
+   the thresholds, so whether a language "has enough" doesn't depend on the time: the basis
+   shown under By language holds for every message in it.
+
+Estimates are computed when read, never stored. Before version 3 every estimate used the
+writer's current overall speed, so all of them moved whenever the speed did, and a check from
+last year used today's speed. Now an estimate moves only when a measured message lands among
+its nearest 20: new writing far away in time leaves it as it was, and a message from months ago
+is estimated from how fast the writer wrote then. (Version 2 was the word-weighted median over
+all measured messages; version 1 total time over total words.)
+
+The totals and a message's own line use the same estimator over the same measurements (every
+language, whatever the scope), so an older check's line adds up to what the totals count for it.
 
 ### Active-time rules
 
@@ -66,24 +94,34 @@ medians, so one unusually slow message (a phone put down mid-draft, still within
 caps, can take ten times the usual) barely moves them. A mean of ten messages moves by a tenth
 of the outlier; a median doesn't move unless half the messages are slow.
 
-- **Total**: measured (chat writing + all review) plus estimated (writing elsewhere), shown
-  separately: this week (Monday first) and all time. A sum.
-- **Per message**: the median of each message's writing (measured or estimated) + review.
+- **Messages**: every message History shows in scope, timed or not.
+- **Total**: measured (chat writing + all review) plus estimated (writing elsewhere and in
+  older checks), shown separately: this week (Monday first) and all time. A sum. Writing reads
+  **Writing: 12 min** with **4 min measured, 8 min estimated** under it; Reviewing reads
+  **Reviewing: 3 min**, measured only, with **Not timed for 40 older messages** under it when
+  there are any (`TimeTotals.reviewUntimedMessages`).
+- **Per message**: the median of each timed message's writing (measured or estimated) + its
+  measured review. Older checks are left out: their review wasn't timed, and counting it as
+  zero would make a message look quicker than it was. How it's counted says so.
 - **Per word**: each measured chat message's writing time per word, as the *word-weighted*
   median: half the words were written at that speed or faster. Weighted by words, not one
   vote per message, because a two-word reply's speed is mostly reaction time and a 40-word
   message says much more; and a rate, not a plain median of messages, so it agrees with
   total time / total words when the writer is steady. One message moves it only if it
   carries half the words. Nothing estimated enters it.
-- **Per change reviewed**: each message's review time / the changes its card offered (fixes
+- **Per change reviewed** (measured only): each message's review time / the changes its card offered (fixes
   and rewordings in its last result), as the *change-weighted* median, over messages whose
   card offered at least one. Per change *offered*, not per accepted: reviewing a change you
   decline is work too, and accepted counts would make careful writers look slow.
-- **By language**: totals are sums; per word is the same word-weighted median, in that language.
-- How it's counted on the page says the averages show a typical message (the median).
+- **By language**: totals are sums, older checks included; per word is the same
+  word-weighted median, in that language; when some writing in it was estimated, what it was
+  estimated from (**Writing not measured is estimated from your chat speed in this language**,
+  **… in all languages**, or **… at a typical speed until you write more in the chat**).
+- How it's counted on the page says the averages show a typical message (the median), that Per message leaves out older checks, and that older checks count with estimated writing and untimed review.
 - **One message**: its own writing and review, shown where the message is already looked at
   (below).
-- **By language**, and the **last 8 weeks** as bars: measured solid, estimated lighter.
+- **By language**, and the **last 8 weeks** as bars: measured solid, estimated lighter
+  (older checks' writing included).
 - **Speed over time** (below): writing seconds per word and review per change, by week, in one
   language, with the trend in words.
 
@@ -146,13 +184,14 @@ All time (writing and reviewing, with the measured/estimated split), Averages, B
 it's counted.
 
 Each message's own time shows where it's already looked at, as one quiet line:
-**Writing 1 min 20 s, reviewing 35 s** (seconds kept under an hour), or for a check from
-another app **Writing about 40 s (estimated), reviewing 35 s**. In the chat it ends the
+**Writing 1 min 20 s, reviewing 35 s** (seconds kept under an hour), for a check from
+another app **Writing about 40 s (estimated), reviewing 35 s**, and for an older check
+**Writing about 40 s (estimated), review not timed**. In the chat it ends the
 corrections block a tap on a corrected bubble opens; a message sent clean (Looks good, Sent
 as written) has no block, so it sits at the foot of the bubble's long-press menu, under Copy
 message and Edit message. On a saved check's page in History it's the last line of the
-details card (source and language). Nothing shows when no time was recorded (checks from
-before Time spent, or with History off).
+details card (source and language). Nothing shows when the message has no History session
+(sent with History off) or its session was deleted.
 
 ## How it works
 
@@ -174,12 +213,19 @@ before Time spent, or with History off).
   language; `ui/time/SpeedOverTime.kt` draws it (a Canvas line in the style of Words over
   time and the weekly bars, no chart library). No schema change: rows already keep their
   rules version.
-- `core/time/WritingEstimator.kt` (version 2) and `TimeReport.kt` derive everything on read;
+- `core/time/WritingEstimator.kt` (version 3) and `TimeReport.kt` derive everything on read;
   `core/time/Median.kt` holds the median and the weighted median of per-message rates.
+- **Older checks**: `HistoryStore.texts()` reads every visible session's id, origin,
+  language (`targetLanguage`: asked for, else detected), whole original text and close time
+  in one query (`HistorySchema.TEXTS`, no schema change; the default pages through
+  `page`/`detail` for other stores). `TimeSpentViewModel.untimed` keeps those without a
+  record as `core/time/UntimedMessage` (words by `TimeRecord.countWords`, the same
+  tokenizer), and `TimeReport.of(…, untimed)` counts them.
 - **One message's time**: `core/time/MessageTime.kt` (measured, or estimated with the same
-  estimator), read by `TimeStore.messageTime(sessionId)`; `ui/time/MessageTimeLine.kt`
-  (`messageTimeLine`, with `LocalMessageTimes` for tests) gives the line. Read when shown:
-  the corrections block, the menu, the History page.
+  estimator; `reviewMs` null when not timed), read by `MessageTimes.of(timeStore, history)`:
+  the session's record, else, when History still has the session, it as an older check;
+  `ui/time/MessageTimeLine.kt` (`messageTimeLine`, with `LocalMessageTimes` for tests) gives
+  the line. Read when shown: the corrections block, the menu, the History page.
 - `TimeSpentViewModel` captures the requested language with each refresh. A newer refresh
   cancels the old one; an obsolete History read cannot sweep measurements or publish its
   report. Changing language clears the previous scope's report while the new one loads.
@@ -188,10 +234,17 @@ before Time spent, or with History off).
   time Time is read, rows whose session History no longer has (deleted from History, or
   History cleared) are dropped (`TimeSweep`); a row younger than 10 minutes is kept, since
   its session's write may still be landing.
-  A failed History read skips the sweep, preserving measurements for a later retry.
+  A failed History read skips the sweep, preserving measurements for a later retry, and
+  adds no older checks that time. Older checks are derived from History on every read,
+  never stored: deleting one from History (or clearing History) removes its contribution
+  and its line.
 - **History off.** Nothing is timed: the rows hang off History sessions, and someone who
   turned History off asked the app not to keep a record of their writing. The page says so.
-- The History schema is unchanged.
+  What History already shows still counts, older checks included, exactly as History lists
+  it; messages sent while it's off have no session and count nowhere.
+- **Language scope.** An older check is in a scope when its language (`targetLanguage`) is
+  the scope's, the same test as a record's; estimates use measurements in every language.
+- The History schema is unchanged; Time spent adds one read to `HistoryStore` (`texts()`). The time store's schema is unchanged too.
 
 ## Limits
 
@@ -202,7 +255,13 @@ before Time spent, or with History off).
 - In the accessibility popup, time on Understand copied text while a reviewed card waits
   behind it still counts as review (capped).
 - A row whose History session is deleted stays up to 10 minutes, and until Time is next opened.
-- Timings started before this build don't exist; totals start from now.
+- Older checks have no review time, so Reviewing and Per message cover timed messages
+  only. Their writing is an estimate from the chat speed around their date, even when the
+  writer typed them somewhere slower or pasted them.
+- An older check's date is when it was put back; its language is the check's (asked for, or
+  detected), which can differ from what a record of it would have kept.
+- A visible session whose record failed to save counts as an older check ("Not timed for N
+  older messages" covers it too).
 - Rows recorded under rules version 1 counted writing pauses up to 60 s, not 30 s; they're
   kept as recorded.
 - Speed over time starts empty after the cap change: rows timed under the 60 s cap stay out

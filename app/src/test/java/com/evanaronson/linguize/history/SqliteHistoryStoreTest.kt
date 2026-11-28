@@ -934,6 +934,26 @@ class SqliteHistoryStoreTest {
         }
     }
 
+    @Test
+    fun textsReadEveryVisibleSessionsWholeTextOldestFirst() = runBlocking<Unit> {
+        val long = "Bon dia, com estas? " + "x".repeat(SessionSummary.TEXT_PREFIX)
+        store.close(open("later", 50, text = long).answered(51).closed(60).copy(targetLanguage = "es"), emptyList())
+        store.close(open("earlier", 10).answered(11).closed(20), emptyList())
+        store.close(open("nothing put back", 30).answered(31).closed(40, Outcome.None), emptyList())
+        val texts = store.texts()!!
+        assertEquals(listOf("earlier", "later"), texts.map { it.id })
+        assertEquals(SessionText("later", Origin.Menu, "es", long, 60), texts.last())
+        assertEquals("ca", texts.first().language)
+        // The paging default (for other stores) reads the same.
+        val paging = object : HistoryStore by store {
+            override suspend fun texts() = super<HistoryStore>.texts()
+        }
+        assertEquals(texts, paging.texts())
+
+        assertTrue(store.delete("earlier"))
+        assertEquals(listOf("later"), store.texts()!!.map { it.id })
+    }
+
     private companion object {
         const val NAME = "history-test.db"
 

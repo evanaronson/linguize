@@ -56,7 +56,7 @@ class RobustAveragesTest {
     @Test fun anOutlierDoesntSlowOtherAppsEstimates() {
         val usual = (1..6).map { chat("c$it", writing = 30_000, words = 10) }
         val slow = chat("slow", writing = 300_000, words = 10)
-        assertEquals(3_000L, WritingEstimator(usual + slow).speed("es").first)
+        assertEquals(3_000L, WritingEstimator(usual + slow).speed("es", now).first)
     }
 
     @Test fun oneMessagesTimeIsMeasuredInTheChatAndEstimatedElsewhere() {

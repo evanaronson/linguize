@@ -135,6 +135,7 @@ fun TimeSpentScreen(historyOn: Boolean?, language: String? = null) {
                 stringResource(R.string.lab_time_spent_how_writing),
                 stringResource(R.string.lab_time_spent_how_review),
                 stringResource(R.string.lab_time_spent_how_estimate),
+                stringResource(R.string.lab_time_spent_how_older),
                 stringResource(R.string.lab_time_spent_how_averages),
                 stringResource(R.string.lab_time_spent_how_speed),
                 stringResource(R.string.lab_time_spent_how_limits),
@@ -185,7 +186,7 @@ private fun Report(report: TimeReport) {
 
 /** One period: the total, then writing (measured and estimated) and reviewing. */
 @Composable
-private fun Totals(totals: TimeTotals, period: String? = null) {
+internal fun Totals(totals: TimeTotals, period: String? = null) {
     val measured = Linguize.colors.proof
     val estimated = measured.copy(alpha = 0.4f)
     val review = MaterialTheme.colorScheme.onSurface
@@ -213,6 +214,12 @@ private fun Totals(totals: TimeTotals, period: String? = null) {
             )
         }
         ChartLegend(review, stringResource(R.string.lab_time_spent_reviewing) + ": " + duration(totals.reviewMs))
+        if (totals.reviewUntimedMessages > 0) {
+            Quiet(
+                pluralStringResource(R.plurals.lab_time_spent_review_untimed, totals.reviewUntimedMessages, totals.reviewUntimedMessages),
+                Modifier.padding(start = 18.dp),
+            )
+        }
     }
 }
 

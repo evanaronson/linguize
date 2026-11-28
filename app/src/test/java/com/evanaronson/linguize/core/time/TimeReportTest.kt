@@ -31,24 +31,24 @@ class TimeReportTest {
         val measured = (1..5).map { chat("c$it", writing = 30_000, words = 10) } + // 3 s a word in Spanish
             (1..5).map { chat("k$it", writing = 60_000, words = 10, language = "ca") } // 6 s a word in Catalan
         val estimator = WritingEstimator(measured)
-        assertEquals(WritingEstimate(60_000, EstimateBasis.Language, 3_000), estimator.estimate(20, "es"))
-        assertEquals(WritingEstimate(120_000, EstimateBasis.Language, 6_000), estimator.estimate(20, "ca"))
+        assertEquals(WritingEstimate(60_000, EstimateBasis.Language, 3_000), estimator.estimate(20, "es", now))
+        assertEquals(WritingEstimate(120_000, EstimateBasis.Language, 6_000), estimator.estimate(20, "ca", now))
     }
 
     @Test fun fallsBackToAllLanguagesThenToTheDefault() {
         val few = (1..3).map { chat("c$it", writing = 40_000, words = 10) }
-        assertEquals(EstimateBasis.Default, WritingEstimator(few).estimate(10, "es").basis)
-        assertEquals(WritingEstimator.DEFAULT_MS_PER_WORD * 10, WritingEstimator(few).estimate(10, "es").ms)
+        assertEquals(EstimateBasis.Default, WritingEstimator(few).estimate(10, "es", now).basis)
+        assertEquals(WritingEstimator.DEFAULT_MS_PER_WORD * 10, WritingEstimator(few).estimate(10, "es", now).ms)
 
         val mixed = few + (1..2).map { chat("k$it", writing = 40_000, words = 10, language = "ca") }
-        val estimate = WritingEstimator(mixed).estimate(10, "es")
+        val estimate = WritingEstimator(mixed).estimate(10, "es", now)
         assertEquals(EstimateBasis.AllLanguages, estimate.basis)
         assertEquals(40_000L, estimate.ms)
     }
 
     @Test fun shortMessagesAndEstimatesDontTeachTheSpeed() {
         val records = (1..10).map { chat("c$it", writing = 20_000, words = 2) } + (1..10).map { menu("m$it", words = 20) }
-        assertEquals(EstimateBasis.Default, WritingEstimator(records).speed("es").second)
+        assertEquals(EstimateBasis.Default, WritingEstimator(records).basis("es"))
     }
 
     @Test fun measuredWritingIsNeverReplacedByAnEstimate() {

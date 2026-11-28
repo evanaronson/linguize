@@ -194,6 +194,13 @@ internal object HistorySchema {
     private val KNOWN_KINDS = EditKind.entries.joinToString { "'${it.token}'" }
     private val KNOWN_DECISIONS = Decision.entries.joinToString { "'${it.token}'" }
 
+    /** Lab, Time spent: every visible session's whole text, language and close time, oldest first. */
+    val TEXTS = """
+        SELECT "id", "origin", "text", "targetLanguage", COALESCE("closedAt", "startedAt") AS "at"
+        FROM $SESSIONS WHERE $VISIBLE_HISTORY
+        ORDER BY "at", "id"
+    """.trimIndent()
+
     val SESSION = """SELECT * FROM $SESSIONS WHERE "id" = ? AND $VISIBLE_HISTORY"""
 
     const val SESSION_SUGGESTIONS =

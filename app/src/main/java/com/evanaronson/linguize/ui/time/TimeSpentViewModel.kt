@@ -6,10 +6,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.evanaronson.linguize.App
+import com.evanaronson.linguize.core.time.TimeRecord
 import com.evanaronson.linguize.core.time.TimeReport
+import com.evanaronson.linguize.core.time.UntimedMessage
 import com.evanaronson.linguize.data.time.TimeStore
-import com.evanaronson.linguize.history.HistoryCursor
-import com.evanaronson.linguize.history.HistoryStore
+import com.evanaronson.linguize.history.SessionText
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,13 +27,14 @@ data class TimeState(val report: TimeReport? = null, val language: String? = nul
 
 /**
  * Lab, Time spent: reads the measurements, first dropping those whose History session is gone
- * (deleted, or History cleared), and builds the [TimeReport]. Estimates are worked out here, on
- * read, from the writer's measured speed.
+ * (deleted, or History cleared), adds the visible History messages that have none (older
+ * checks: writing estimated, review not timed), and builds the [TimeReport]. Estimates are
+ * worked out here, on read, from the writer's measured speed around each message's time.
  */
 class TimeSpentViewModel(
     private val store: TimeStore,
-    /** Every History session there is; null when History couldn't be read (nothing is swept then). */
-    private val sessions: suspend () -> Set<String>?,
+    /** Every visible History session with its text; null when History couldn't be read (nothing is swept or added then). */
+    private val history: suspend () -> List<SessionText>?,
     private val clock: () -> Long = System::currentTimeMillis,
     private val worker: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
@@ -54,31 +56,28 @@ class TimeSpentViewModel(
 
     internal suspend fun load(language: String? = null): TimeReport {
         val now = clock()
-        val savedSessions = sessions()
+        val saved = history()
         // A superseded History read must not delete measurements using its old session set.
         currentCoroutineContext().ensureActive()
-        savedSessions?.let { store.sweep(it, now) }
+        saved?.let { sessions -> store.sweep(sessions.mapTo(HashSet()) { it.id }, now) }
         val records = store.all()
-        return withContext(worker) { TimeReport.of(records, now, language = language) }
+        return withContext(worker) {
+            TimeReport.of(records, now, language = language, untimed = untimed(saved.orEmpty(), records))
+        }
     }
 
     companion object {
         fun factory(app: App): ViewModelProvider.Factory = viewModelFactory {
-            initializer { TimeSpentViewModel(app.timeStore, { allSessions(app.history) }) }
+            initializer { TimeSpentViewModel(app.timeStore, { app.history.texts() }) }
         }
 
-        /** Every visible session id in [history], or null when a page couldn't be read. */
-        suspend fun allSessions(history: HistoryStore): Set<String>? = withContext(Dispatchers.IO) {
-            val ids = HashSet<String>()
-            var cursor: HistoryCursor? = null
-            do {
-                val page = history.page(cursor, PAGE) ?: return@withContext null
-                page.rows.mapTo(ids) { it.id }
-                cursor = page.next
-            } while (cursor != null)
-            ids
+        /** The sessions in [history] with no record in [records]: counted with estimated writing, review not timed. */
+        fun untimed(history: List<SessionText>, records: List<TimeRecord>): List<UntimedMessage> {
+            val recorded = records.mapTo(HashSet()) { it.sessionId }
+            return history.filter { it.id !in recorded }.map { it.untimed() }
         }
-
-        private const val PAGE = 500
     }
 }
+
+/** [this] as a message with no record: its words counted from its whole original text. */
+internal fun SessionText.untimed() = UntimedMessage.of(id, origin?.token, language, text, at)

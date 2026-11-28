@@ -22,6 +22,11 @@
     <string name="lab_time_spent_estimated">Estimated</string>
     <string name="lab_time_spent_writing_split">%1$s measured, %2$s estimated</string>
     <string name="lab_time_spent_split_description">Writing %1$s, reviewing %2$s</string>
+    <!-- Under Reviewing: older checks count with estimated writing, but their review wasn't timed. -->
+    <plurals name="lab_time_spent_review_untimed">
+        <item quantity="one">Not timed for %1$d older message</item>
+        <item quantity="other">Not timed for %1$d older messages</item>
+    </plurals>
 
     <string name="lab_time_spent_averages">Averages</string>
     <string name="lab_time_spent_per_message">Per message</string>
@@ -31,9 +36,9 @@
 
     <string name="lab_time_spent_languages">By language</string>
     <string name="lab_time_spent_language_summary">%1$s, %2$s</string>
-    <string name="lab_time_spent_basis_language">Other apps estimated from your chat speed in this language</string>
-    <string name="lab_time_spent_basis_all">Other apps estimated from your chat speed in all languages</string>
-    <string name="lab_time_spent_basis_default">Other apps estimated at a typical speed until you write more in the chat</string>
+    <string name="lab_time_spent_basis_language">Writing not measured is estimated from your chat speed in this language</string>
+    <string name="lab_time_spent_basis_all">Writing not measured is estimated from your chat speed in all languages</string>
+    <string name="lab_time_spent_basis_default">Writing not measured is estimated at a typical speed until you write more in the chat</string>
 
     <string name="lab_time_spent_weeks">Last 8 weeks</string>
     <string name="lab_time_spent_weeks_description">Time by week, from %1$s to %2$s this week</string>
@@ -70,13 +75,17 @@
 
     <string name="lab_time_spent_how_writing">Writing in the chat is measured from your first keystroke to Send. Pauses count up to 30 seconds, and nothing counts while the app isn\'t on screen.</string>
     <string name="lab_time_spent_how_review">Reviewing is measured while a result is on the card, in the chat or over another app, until you send or put the text back. Waiting for the check doesn\'t count, and a card left alone counts up to two minutes.</string>
-    <string name="lab_time_spent_how_estimate">Writing in other apps can\'t be seen, so it\'s estimated: its words times your own speed in the chat, in that language when there\'s enough, or a typical 4 s a word until there is.</string>
-    <string name="lab_time_spent_how_averages">Averages show a typical message (the median), so one slow message doesn\'t skew them. Totals include every message.</string>
-    <string name="lab_time_spent_how_limits">Only messages you sent or put back count, and only while History is on. Thinking before you type and reading replies aren\'t counted. Deleting a message from History deletes its time.</string>
+    <string name="lab_time_spent_how_estimate">Writing in other apps can\'t be seen, so it\'s estimated: its words times your own speed in the chat around that time, from the 20 chat messages nearest to it (in that language when there\'s enough), or a typical 4 s a word until there is.</string>
+    <string name="lab_time_spent_how_older">Checks saved before Time spent count too. Their writing is estimated the same way. Their review wasn\'t timed, so it isn\'t counted or guessed.</string>
+    <string name="lab_time_spent_how_averages">Averages show a typical message (the median), so one slow message doesn\'t skew them. Totals include every message. Per message leaves out older checks, whose review wasn\'t timed.</string>
+    <string name="lab_time_spent_how_limits">Only messages you sent or put back count, and only while History is on. Thinking before you type and reading replies aren\'t counted. Deleting a message from History deletes its time, older checks included.</string>
 
     <!-- One message's time, under it in the chat and on its History page. -->
     <string name="lab_time_spent_message">Writing %1$s, reviewing %2$s</string>
     <string name="lab_time_spent_message_estimated">Writing about %1$s (estimated), reviewing %2$s</string>
+    <!-- An older check, saved before Time spent: its review wasn't timed. -->
+    <string name="lab_time_spent_message_estimated_untimed">Writing about %1$s (estimated), review not timed</string>
+    <string name="lab_time_spent_message_untimed">Writing %1$s, review not timed</string>
 
     <string name="lab_time_spent_empty_title">Nothing timed yet</string>
     <string name="lab_time_spent_empty">Send a message in the chat, or put a checked message back in another app, and the time shows here.</string>

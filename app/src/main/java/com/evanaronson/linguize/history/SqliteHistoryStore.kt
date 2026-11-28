@@ -128,7 +128,19 @@ class SqliteHistoryStore(
         HistoryPage(rows, next)
     }
 
-    override suspend fun detail(id: String): SessionDetailResult = read("read a session", SessionDetailResult.Failed) { db ->
+    override suspend fun texts(): List<SessionText>? = read("read history texts", null) { db ->
+        db.select(HistorySchema.TEXTS) { row ->
+            SessionText(
+                id = row.string("id"),
+                origin = Origin.tokens.decode(row.stringOrNull("origin")),
+                language = row.stringOrNull("targetLanguage"),
+                text = row.string("text"),
+                at = row.long("at"),
+            )
+        }
+    }
+
+    override suspend fun detail(id: String): SessionDetailResult =read("read a session", SessionDetailResult.Failed) { db ->
         db.snapshot { db.detail(id)?.let { SessionDetailResult.Found(it) } ?: SessionDetailResult.Missing }
     }
 
